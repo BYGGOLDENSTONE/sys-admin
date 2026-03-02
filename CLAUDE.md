@@ -63,7 +63,54 @@ Tasarım çekirdek kararları tamamlandı (GDD v0.4). Vertical slice geliştiril
 
 ---
 
+## MCP Entegrasyonu (Godot MCP Server)
+
+### Kurulu MCP: tomyud1/godot-mcp (32 araç)
+- **Bağlantı:** WebSocket port 6505 (Godot Plugin ↔ MCP Server)
+- **Gereksinim:** Godot editöründe "Godot AI Assistant tools MCP" eklentisi aktif olmalı
+- **Doğrulama:** Godot editöründe sağ üstte "MCP Connected" (yeşil) görünmeli
+
+### MCP Araçları ve Kullanım Kuralları
+
+**Sahne İşlemleri:** Sahne oluştur, node ekle/sil, property ayarla, script bağla
+**Dosya İşlemleri:** Proje dosyalarını tara, oku, script oluştur
+**Proje Bilgisi:** Ayarlar, input map, collision layer, konsol hataları, sahne ağacı
+**Script İşlemleri:** Kod düzenle, syntax doğrula, referans güncelle
+
+### MCP Kullanım Öncelikleri
+1. **Hata okuma:** Önce MCP ile `get console errors` ve sahne ağacını kontrol et
+2. **Sahne düzenleme:** Basit node/property değişikliklerinde MCP kullan
+3. **Script yazma:** Karmaşık scriptleri Edit/Write tool ile yaz, MCP ile doğrula
+4. **Dosya arama:** Proje içi arama için MCP'nin filesystem taramasını kullan
+
+---
+
+## Loglama Kuralları
+
+### YAPILACAK (Event-Based Loglama)
+- Durum değişikliklerinde logla (yapı yerleştirildi, bağlantı kuruldu, veri işlendi)
+- Hata anında logla (yetersiz güç, depolama dolu, bağlantı başarısız)
+- Oyuncu aksiyonlarında logla (satın alma, yerleştirme, silme)
+- Log formatı: `[SistemAdı] Olay açıklaması — ilgili_değer`
+- Örnek: `[Power] Cell placed at (3,5) — zone_radius: 4`
+- Örnek: `[Storage] Capacity full — current: 100/100`
+
+### YAPILMAYACAK (Kaçınılacak Loglar)
+- `_process()` veya `_physics_process()` içinde her frame log BASMA
+- Timer tick'lerinde sürekli tekrar eden log BASMA
+- Normal akışta "her şey yolunda" logu BASMA
+- Büyük veri yapılarını (dictionary, array) serialize edip log BASMA
+
+### Debug Seviyeleri
+- **print()** → Geliştirme sırasında geçici, sonra kaldırılacak
+- **push_warning()** → Beklenmedik ama kurtarılabilir durumlar
+- **push_error()** → Gerçek hatalar, düzeltilmesi gereken şeyler
+- Release build'de gereksiz print'ler temizlenmeli
+
+---
+
 ## Önemli Kurallar
 - Kullanıcı teknik değil - ne ve neden açıkla, kod detayı değil
 - Her commit kullanıcı onayı ile yapılır
 - Commit ve push birlikte yapılır
+- MCP bağlantısı yoksa klasik workflow: kod yaz → kullanıcı test et → hata paylaş
