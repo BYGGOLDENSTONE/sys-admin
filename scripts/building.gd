@@ -5,9 +5,16 @@ const BODY_COLOR := Color("#1a1e2e")
 const BORDER_WIDTH: float = 2.0
 const GLOW_WIDTH: float = 4.0
 const GLOW_ALPHA: float = 0.3
+const BAR_HEIGHT: float = 4.0
+const BAR_MARGIN: float = 6.0
+const BAR_GAP: float = 2.0
+const ICON_GLOW_WIDTH: float = 3.0
+const ICON_GLOW_ALPHA: float = 0.25
 
 var definition: BuildingDefinition
 var grid_cell: Vector2i = Vector2i.ZERO
+var heat_ratio: float = 0.0
+var fill_ratio: float = 0.0
 
 
 func setup(def: BuildingDefinition, cell: Vector2i) -> void:
@@ -22,26 +29,473 @@ func _draw() -> void:
 
 	var size := Vector2(definition.grid_size.x * TILE_SIZE, definition.grid_size.y * TILE_SIZE)
 	var rect := Rect2(Vector2.ZERO, size)
+	var center := size / 2.0
+	var accent: Color = definition.color
+
+	# Zone radius (Power Cell, Coolant Rig)
+	if definition.zone_radius > 0.0:
+		_draw_zone(center, definition.zone_radius, accent)
 
 	# Outer glow
 	var glow_rect := Rect2(
 		Vector2(-GLOW_WIDTH, -GLOW_WIDTH),
 		size + Vector2(GLOW_WIDTH * 2, GLOW_WIDTH * 2)
 	)
-	draw_rect(glow_rect, Color(definition.color, GLOW_ALPHA), false, GLOW_WIDTH)
+	draw_rect(glow_rect, Color(accent, GLOW_ALPHA), false, GLOW_WIDTH)
 
 	# Body
 	draw_rect(rect, BODY_COLOR, true)
 
 	# Neon border
-	draw_rect(rect, definition.color, false, BORDER_WIDTH)
+	draw_rect(rect, accent, false, BORDER_WIDTH)
 
-	# Building name (centered)
+	# Inner detail lines (subtle tech feel)
+	var line_color := Color(accent, 0.1)
+	draw_line(Vector2(0, size.y * 0.3), Vector2(size.x, size.y * 0.3), line_color, 1.0)
+	draw_line(Vector2(size.x * 0.3, 0), Vector2(size.x * 0.3, size.y * 0.3), line_color, 1.0)
+
+	# Icon
+	_draw_icon(center, size, accent)
+
+	# Building name (top area)
 	var font := ThemeDB.fallback_font
-	var font_size := 14
-	var text_size := font.get_string_size(definition.building_name, HORIZONTAL_ALIGNMENT_CENTER, -1, font_size)
+	var font_size := 11
+	var text := definition.building_name
+	var text_size := font.get_string_size(text, HORIZONTAL_ALIGNMENT_CENTER, -1, font_size)
 	var text_pos := Vector2(
 		(size.x - text_size.x) / 2.0,
-		(size.y + text_size.y) / 2.0 - 4
+		font_size + 4
 	)
-	draw_string(font, text_pos, definition.building_name, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color.WHITE)
+	# Text shadow
+	draw_string(font, text_pos + Vector2(1, 1), text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(0, 0, 0, 0.5))
+	draw_string(font, text_pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color.WHITE)
+
+	# Status bars
+	_draw_status_bars(size, accent)
+
+
+func _draw_icon(center: Vector2, size: Vector2, accent: Color) -> void:
+	var vtype: String = definition.visual_type if definition else "default"
+	var icon_center := Vector2(center.x, center.y + 6)
+
+	match vtype:
+		"uplink":
+			_draw_icon_uplink(icon_center, size, accent)
+		"storage":
+			_draw_icon_storage(icon_center, size, accent)
+		"broker":
+			_draw_icon_broker(icon_center, size, accent)
+		"power":
+			_draw_icon_power(icon_center, size, accent)
+		"coolant":
+			_draw_icon_coolant(icon_center, size, accent)
+		"separator":
+			_draw_icon_separator(icon_center, size, accent)
+		"compressor":
+			_draw_icon_compressor(icon_center, size, accent)
+		"decryptor":
+			_draw_icon_decryptor(icon_center, size, accent)
+		"recoverer":
+			_draw_icon_recoverer(icon_center, size, accent)
+		"quarantine":
+			_draw_icon_quarantine(icon_center, size, accent)
+		"research":
+			_draw_icon_research(icon_center, size, accent)
+		"splitter":
+			_draw_icon_splitter(icon_center, size, accent)
+		"merger":
+			_draw_icon_merger(icon_center, size, accent)
+		_:
+			_draw_icon_default(icon_center, size, accent)
+
+
+# --- UPLINK: Antenna dish + signal waves ---
+func _draw_icon_uplink(center: Vector2, size: Vector2, accent: Color) -> void:
+	var s: float = minf(size.x, size.y) * 0.3
+	var glow := Color(accent, ICON_GLOW_ALPHA)
+
+	# Antenna base (vertical line)
+	var base_bottom := center + Vector2(0, s * 0.6)
+	var base_top := center + Vector2(0, -s * 0.2)
+	draw_line(base_bottom, base_top, glow, ICON_GLOW_WIDTH)
+	draw_line(base_bottom, base_top, accent, 2.0)
+
+	# Dish (triangle/V shape)
+	var dish_left := base_top + Vector2(-s * 0.5, -s * 0.1)
+	var dish_right := base_top + Vector2(s * 0.5, -s * 0.1)
+	draw_line(base_top, dish_left, glow, ICON_GLOW_WIDTH)
+	draw_line(base_top, dish_right, glow, ICON_GLOW_WIDTH)
+	draw_line(base_top, dish_left, accent, 2.0)
+	draw_line(base_top, dish_right, accent, 2.0)
+	draw_line(dish_left, dish_right, glow, ICON_GLOW_WIDTH)
+	draw_line(dish_left, dish_right, accent, 1.5)
+
+	# Signal waves (arcs)
+	var wave_origin := center + Vector2(0, -s * 0.5)
+	for i in range(3):
+		var radius: float = s * 0.3 + i * s * 0.25
+		var wave_alpha: float = 0.6 - i * 0.15
+		var wave_color := Color(accent, wave_alpha)
+		_draw_arc_segment(wave_origin, radius, -PI * 0.35, PI * 0.35, wave_color, 1.5)
+
+
+# --- STORAGE: Stacked data blocks ---
+func _draw_icon_storage(center: Vector2, size: Vector2, accent: Color) -> void:
+	var s: float = minf(size.x, size.y) * 0.28
+	var glow := Color(accent, ICON_GLOW_ALPHA)
+	var block_w: float = s * 1.6
+	var block_h: float = s * 0.35
+
+	for i in range(3):
+		var y_offset: float = (i - 1) * (block_h + 4)
+		var block_rect := Rect2(
+			center + Vector2(-block_w / 2, y_offset - block_h / 2),
+			Vector2(block_w, block_h)
+		)
+		# Block fill
+		var fill_alpha: float = 0.15 + i * 0.05
+		draw_rect(block_rect, Color(accent, fill_alpha), true)
+		# Block border glow
+		draw_rect(block_rect, glow, false, ICON_GLOW_WIDTH)
+		# Block border
+		draw_rect(block_rect, accent, false, 1.5)
+
+		# Small indicator light on right
+		var light_pos := Vector2(block_rect.end.x - 6, block_rect.position.y + block_h / 2)
+		draw_circle(light_pos, 2.0, accent)
+
+
+# --- DATA BROKER: Credits symbol + arrow ---
+func _draw_icon_broker(center: Vector2, size: Vector2, accent: Color) -> void:
+	var s: float = minf(size.x, size.y) * 0.3
+	var glow := Color(accent, ICON_GLOW_ALPHA)
+
+	# Credits symbol (C with lines, like ₵)
+	var c_radius: float = s * 0.5
+	# Draw C arc
+	_draw_arc_segment(center, c_radius, PI * 0.3, PI * 1.7, glow, ICON_GLOW_WIDTH)
+	_draw_arc_segment(center, c_radius, PI * 0.3, PI * 1.7, accent, 2.0)
+
+	# Horizontal strike-through lines
+	var line_l := center + Vector2(-c_radius * 0.3, -c_radius * 0.2)
+	var line_r := center + Vector2(c_radius * 0.5, -c_radius * 0.2)
+	draw_line(line_l, line_r, accent, 1.5)
+	var line_l2 := center + Vector2(-c_radius * 0.3, c_radius * 0.2)
+	var line_r2 := center + Vector2(c_radius * 0.5, c_radius * 0.2)
+	draw_line(line_l2, line_r2, accent, 1.5)
+
+	# Upward arrow (credits going up)
+	var arrow_x: float = center.x + s * 0.8
+	var arrow_bottom := Vector2(arrow_x, center.y + s * 0.4)
+	var arrow_top := Vector2(arrow_x, center.y - s * 0.4)
+	draw_line(arrow_bottom, arrow_top, glow, ICON_GLOW_WIDTH)
+	draw_line(arrow_bottom, arrow_top, accent, 2.0)
+	# Arrow head
+	draw_line(arrow_top, arrow_top + Vector2(-4, 6), accent, 2.0)
+	draw_line(arrow_top, arrow_top + Vector2(4, 6), accent, 2.0)
+
+
+# --- POWER CELL: Lightning bolt + energy core ---
+func _draw_icon_power(center: Vector2, size: Vector2, accent: Color) -> void:
+	var s: float = minf(size.x, size.y) * 0.35
+	var glow := Color(accent, ICON_GLOW_ALPHA)
+
+	# Energy core circle
+	draw_circle(center, s * 0.25, glow)
+	draw_circle(center, s * 0.25, Color(accent, 0.15))
+	_draw_arc_segment(center, s * 0.25, 0, TAU, accent, 1.5)
+
+	# Lightning bolt
+	var bolt_points: PackedVector2Array = PackedVector2Array([
+		center + Vector2(-s * 0.15, -s * 0.7),
+		center + Vector2(-s * 0.35, 0),
+		center + Vector2(-s * 0.05, -s * 0.05),
+		center + Vector2(s * 0.15, s * 0.7),
+		center + Vector2(s * 0.35, 0),
+		center + Vector2(s * 0.05, s * 0.05),
+	])
+
+	# Glow layer
+	for i in range(bolt_points.size()):
+		var next_i: int = (i + 1) % bolt_points.size()
+		draw_line(bolt_points[i], bolt_points[next_i], glow, ICON_GLOW_WIDTH + 1)
+
+	# Main bolt
+	for i in range(bolt_points.size()):
+		var next_i: int = (i + 1) % bolt_points.size()
+		draw_line(bolt_points[i], bolt_points[next_i], accent, 2.0)
+
+
+# --- COOLANT RIG: Snowflake / cooling pattern ---
+func _draw_icon_coolant(center: Vector2, size: Vector2, accent: Color) -> void:
+	var s: float = minf(size.x, size.y) * 0.32
+	var glow := Color(accent, ICON_GLOW_ALPHA)
+
+	# 6 spokes (snowflake)
+	for i in range(6):
+		var angle: float = i * PI / 3.0
+		var spoke_end := center + Vector2(cos(angle), sin(angle)) * s * 0.7
+		# Glow
+		draw_line(center, spoke_end, glow, ICON_GLOW_WIDTH)
+		# Spoke
+		draw_line(center, spoke_end, accent, 1.5)
+
+		# Small branches at 60% length
+		var branch_base := center + Vector2(cos(angle), sin(angle)) * s * 0.45
+		var branch_angle_l: float = angle + PI / 4.0
+		var branch_angle_r: float = angle - PI / 4.0
+		var branch_len: float = s * 0.2
+		draw_line(branch_base, branch_base + Vector2(cos(branch_angle_l), sin(branch_angle_l)) * branch_len, accent, 1.0)
+		draw_line(branch_base, branch_base + Vector2(cos(branch_angle_r), sin(branch_angle_r)) * branch_len, accent, 1.0)
+
+	# Center dot
+	draw_circle(center, 3.0, accent)
+
+
+# --- SEPARATOR: Fork/split symbol ---
+func _draw_icon_separator(center: Vector2, size: Vector2, accent: Color) -> void:
+	var s: float = minf(size.x, size.y) * 0.3
+	var glow := Color(accent, ICON_GLOW_ALPHA)
+
+	# Input line (left)
+	var in_start := center + Vector2(-s * 0.8, 0)
+	var in_end := center + Vector2(-s * 0.1, 0)
+	draw_line(in_start, in_end, glow, ICON_GLOW_WIDTH)
+	draw_line(in_start, in_end, accent, 2.0)
+
+	# Center node
+	draw_circle(center, 4.0, accent)
+
+	# Three output lines (right, fanning out)
+	for i in range(3):
+		var y_off: float = (i - 1) * s * 0.5
+		var out_end := center + Vector2(s * 0.8, y_off)
+		draw_line(center, out_end, glow, ICON_GLOW_WIDTH)
+		draw_line(center, out_end, accent, 1.5)
+		draw_circle(out_end, 2.0, accent)
+
+
+# --- COMPRESSOR: Squeeze arrows ---
+func _draw_icon_compressor(center: Vector2, size: Vector2, accent: Color) -> void:
+	var s: float = minf(size.x, size.y) * 0.35
+	var glow := Color(accent, ICON_GLOW_ALPHA)
+
+	# Two inward-pointing arrows (squeeze)
+	# Left arrow pointing right
+	var la_start := center + Vector2(-s * 0.7, 0)
+	var la_end := center + Vector2(-s * 0.1, 0)
+	draw_line(la_start, la_end, glow, ICON_GLOW_WIDTH)
+	draw_line(la_start, la_end, accent, 2.0)
+	draw_line(la_end, la_end + Vector2(-5, -4), accent, 1.5)
+	draw_line(la_end, la_end + Vector2(-5, 4), accent, 1.5)
+
+	# Right arrow pointing left
+	var ra_start := center + Vector2(s * 0.7, 0)
+	var ra_end := center + Vector2(s * 0.1, 0)
+	draw_line(ra_start, ra_end, glow, ICON_GLOW_WIDTH)
+	draw_line(ra_start, ra_end, accent, 2.0)
+	draw_line(ra_end, ra_end + Vector2(5, -4), accent, 1.5)
+	draw_line(ra_end, ra_end + Vector2(5, 4), accent, 1.5)
+
+	# Center compressed block
+	var block := Rect2(center + Vector2(-4, -6), Vector2(8, 12))
+	draw_rect(block, Color(accent, 0.2), true)
+	draw_rect(block, accent, false, 1.5)
+
+
+# --- DECRYPTOR: Lock/key symbol ---
+func _draw_icon_decryptor(center: Vector2, size: Vector2, accent: Color) -> void:
+	var s: float = minf(size.x, size.y) * 0.3
+	var glow := Color(accent, ICON_GLOW_ALPHA)
+
+	# Lock body
+	var lock_w: float = s * 0.8
+	var lock_h: float = s * 0.6
+	var lock_rect := Rect2(center + Vector2(-lock_w / 2, -lock_h * 0.1), Vector2(lock_w, lock_h))
+	draw_rect(lock_rect, Color(accent, 0.15), true)
+	draw_rect(lock_rect, accent, false, 1.5)
+
+	# Lock shackle (arc on top)
+	_draw_arc_segment(center + Vector2(0, -lock_h * 0.1), s * 0.3, PI, TAU, glow, ICON_GLOW_WIDTH)
+	_draw_arc_segment(center + Vector2(0, -lock_h * 0.1), s * 0.3, PI, TAU, accent, 2.0)
+
+	# Keyhole
+	draw_circle(center + Vector2(0, lock_h * 0.2), 3.0, accent)
+	var kh_bottom := center + Vector2(0, lock_h * 0.2 + 3)
+	draw_line(kh_bottom, kh_bottom + Vector2(0, 5), accent, 2.0)
+
+
+# --- RECOVERER: Wrench/repair symbol ---
+func _draw_icon_recoverer(center: Vector2, size: Vector2, accent: Color) -> void:
+	var s: float = minf(size.x, size.y) * 0.3
+	var glow := Color(accent, ICON_GLOW_ALPHA)
+
+	# Circular arrow (recovery/restore)
+	_draw_arc_segment(center, s * 0.5, PI * 0.2, PI * 1.8, glow, ICON_GLOW_WIDTH)
+	_draw_arc_segment(center, s * 0.5, PI * 0.2, PI * 1.8, accent, 2.0)
+
+	# Arrow head at the end of arc
+	var arrow_pos := center + Vector2(cos(PI * 0.2), sin(PI * 0.2)) * s * 0.5
+	var arrow_dir := Vector2(cos(PI * 0.2 + PI / 2), sin(PI * 0.2 + PI / 2))
+	draw_line(arrow_pos, arrow_pos + arrow_dir.rotated(0.5) * 6, accent, 2.0)
+	draw_line(arrow_pos, arrow_pos + arrow_dir.rotated(-0.5) * 6, accent, 2.0)
+
+	# Center plus sign (repair)
+	draw_line(center + Vector2(-4, 0), center + Vector2(4, 0), accent, 2.0)
+	draw_line(center + Vector2(0, -4), center + Vector2(0, 4), accent, 2.0)
+
+
+# --- QUARANTINE: Biohazard/shield symbol ---
+func _draw_icon_quarantine(center: Vector2, size: Vector2, accent: Color) -> void:
+	var s: float = minf(size.x, size.y) * 0.3
+	var glow := Color(accent, ICON_GLOW_ALPHA)
+
+	# X mark (danger/delete)
+	var x_size: float = s * 0.4
+	draw_line(center + Vector2(-x_size, -x_size), center + Vector2(x_size, x_size), glow, ICON_GLOW_WIDTH + 1)
+	draw_line(center + Vector2(x_size, -x_size), center + Vector2(-x_size, x_size), glow, ICON_GLOW_WIDTH + 1)
+	draw_line(center + Vector2(-x_size, -x_size), center + Vector2(x_size, x_size), accent, 2.5)
+	draw_line(center + Vector2(x_size, -x_size), center + Vector2(-x_size, x_size), accent, 2.5)
+
+	# Enclosing circle (containment)
+	_draw_arc_segment(center, s * 0.6, 0, TAU, glow, ICON_GLOW_WIDTH)
+	_draw_arc_segment(center, s * 0.6, 0, TAU, accent, 1.5)
+
+
+# --- RESEARCH LAB: Atom/science symbol ---
+func _draw_icon_research(center: Vector2, size: Vector2, accent: Color) -> void:
+	var s: float = minf(size.x, size.y) * 0.3
+	var glow := Color(accent, ICON_GLOW_ALPHA)
+
+	# Three orbiting ellipses
+	for i in range(3):
+		var angle: float = i * PI / 3.0
+		var points := PackedVector2Array()
+		for j in range(25):
+			var t: float = float(j) / 24.0 * TAU
+			var px: float = cos(t) * s * 0.6
+			var py: float = sin(t) * s * 0.25
+			# Rotate the ellipse
+			var rotated_x: float = px * cos(angle) - py * sin(angle)
+			var rotated_y: float = px * sin(angle) + py * cos(angle)
+			points.append(center + Vector2(rotated_x, rotated_y))
+		if points.size() >= 2:
+			draw_polyline(points, Color(accent, 0.4), 1.0, true)
+
+	# Center nucleus
+	draw_circle(center, 4.0, glow)
+	draw_circle(center, 3.0, accent)
+
+
+# --- SPLITTER: One-to-many arrows ---
+func _draw_icon_splitter(center: Vector2, size: Vector2, accent: Color) -> void:
+	var s: float = minf(size.x, size.y) * 0.35
+	var glow := Color(accent, ICON_GLOW_ALPHA)
+
+	# Input (left)
+	var in_pos := center + Vector2(-s * 0.6, 0)
+	draw_line(in_pos, center, glow, ICON_GLOW_WIDTH)
+	draw_line(in_pos, center, accent, 2.0)
+
+	# Two outputs (right, diverging)
+	var out_top := center + Vector2(s * 0.6, -s * 0.4)
+	var out_bot := center + Vector2(s * 0.6, s * 0.4)
+	draw_line(center, out_top, glow, ICON_GLOW_WIDTH)
+	draw_line(center, out_bot, glow, ICON_GLOW_WIDTH)
+	draw_line(center, out_top, accent, 1.5)
+	draw_line(center, out_bot, accent, 1.5)
+
+	# Arrow heads
+	draw_line(out_top, out_top + Vector2(-5, 2), accent, 1.5)
+	draw_line(out_top, out_top + Vector2(-3, 5), accent, 1.5)
+	draw_line(out_bot, out_bot + Vector2(-5, -2), accent, 1.5)
+	draw_line(out_bot, out_bot + Vector2(-3, -5), accent, 1.5)
+
+	# Center dot
+	draw_circle(center, 3.0, accent)
+
+
+# --- MERGER: Many-to-one arrows ---
+func _draw_icon_merger(center: Vector2, size: Vector2, accent: Color) -> void:
+	var s: float = minf(size.x, size.y) * 0.35
+	var glow := Color(accent, ICON_GLOW_ALPHA)
+
+	# Two inputs (left, converging)
+	var in_top := center + Vector2(-s * 0.6, -s * 0.4)
+	var in_bot := center + Vector2(-s * 0.6, s * 0.4)
+	draw_line(in_top, center, glow, ICON_GLOW_WIDTH)
+	draw_line(in_bot, center, glow, ICON_GLOW_WIDTH)
+	draw_line(in_top, center, accent, 1.5)
+	draw_line(in_bot, center, accent, 1.5)
+
+	# Output (right)
+	var out_pos := center + Vector2(s * 0.6, 0)
+	draw_line(center, out_pos, glow, ICON_GLOW_WIDTH)
+	draw_line(center, out_pos, accent, 2.0)
+
+	# Arrow head
+	draw_line(out_pos, out_pos + Vector2(-5, -3), accent, 1.5)
+	draw_line(out_pos, out_pos + Vector2(-5, 3), accent, 1.5)
+
+	# Center dot
+	draw_circle(center, 3.0, accent)
+
+
+# --- DEFAULT: Simple dot ---
+func _draw_icon_default(center: Vector2, _size: Vector2, accent: Color) -> void:
+	draw_circle(center, 4.0, Color(accent, 0.5))
+
+
+# --- ZONE RADIUS ---
+func _draw_zone(center: Vector2, radius: float, accent: Color) -> void:
+	# Filled zone
+	var fill_color := Color(accent, 0.05)
+	draw_circle(center, radius, fill_color)
+
+	# Zone border (dashed feel via multiple arcs)
+	var border_color := Color(accent, 0.2)
+	var num_segments: int = 24
+	var gap_ratio: float = 0.3
+	var segment_angle: float = TAU / num_segments
+	for i in range(num_segments):
+		var start_angle: float = i * segment_angle
+		var end_angle: float = start_angle + segment_angle * (1.0 - gap_ratio)
+		_draw_arc_segment(center, radius, start_angle, end_angle, border_color, 1.5)
+
+
+# --- STATUS BARS ---
+func _draw_status_bars(size: Vector2, accent: Color) -> void:
+	var bar_y: float = size.y - BAR_MARGIN - BAR_HEIGHT
+	var bar_x: float = BAR_MARGIN
+	var bar_w: float = size.x - BAR_MARGIN * 2
+
+	# Heat bar (all buildings)
+	var heat_bg := Rect2(Vector2(bar_x, bar_y), Vector2(bar_w, BAR_HEIGHT))
+	draw_rect(heat_bg, Color(0.2, 0.1, 0.1, 0.5), true)
+	draw_rect(heat_bg, Color(1.0, 0.3, 0.1, 0.3), false, 1.0)
+	if heat_ratio > 0.0:
+		var heat_fill := Rect2(Vector2(bar_x, bar_y), Vector2(bar_w * heat_ratio, BAR_HEIGHT))
+		var heat_color := Color(1.0, 0.5 - heat_ratio * 0.3, 0.1, 0.8)
+		draw_rect(heat_fill, heat_color, true)
+
+	# Fill bar (only for storage type)
+	if definition.visual_type == "storage":
+		bar_y -= BAR_HEIGHT + BAR_GAP
+		var fill_bg := Rect2(Vector2(bar_x, bar_y), Vector2(bar_w, BAR_HEIGHT))
+		draw_rect(fill_bg, Color(0.1, 0.2, 0.1, 0.5), true)
+		draw_rect(fill_bg, Color(accent, 0.3), false, 1.0)
+		if fill_ratio > 0.0:
+			var fill_fill := Rect2(Vector2(bar_x, bar_y), Vector2(bar_w * fill_ratio, BAR_HEIGHT))
+			draw_rect(fill_fill, Color(accent, 0.8), true)
+
+
+# --- UTILITY: Draw arc segment ---
+func _draw_arc_segment(center: Vector2, radius: float, start_angle: float, end_angle: float, color: Color, width: float) -> void:
+	var point_count: int = maxi(8, int((end_angle - start_angle) / PI * 16))
+	var points := PackedVector2Array()
+	for i in range(point_count + 1):
+		var t: float = float(i) / float(point_count)
+		var angle: float = start_angle + t * (end_angle - start_angle)
+		points.append(center + Vector2(cos(angle), sin(angle)) * radius)
+	if points.size() >= 2:
+		draw_polyline(points, color, width, true)

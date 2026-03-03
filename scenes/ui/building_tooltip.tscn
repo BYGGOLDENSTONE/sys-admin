@@ -1,0 +1,30 @@
+[gd_scene format=3 uid="uid://de4j15unaujek"]
+
+[ext_resource type="Script" uid="uid://cfwq5ovxknq2q" path="res://scripts/ui/building_tooltip.gd" id="1_aalao"]
+
+[node name="BuildingTooltip" type="PanelContainer" unique_id=1200473385]
+script = ExtResource("1_aalao")
+
+[node name="MarginContainer" type="MarginContainer" parent="." unique_id=1649145644]
+layout_mode = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer" unique_id=264336778]
+layout_mode = 2
+
+[node name="NameLabel" type="Label" parent="MarginContainer/VBoxContainer" unique_id=2096959923]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "Building Name"
+
+[node name="DescLabel" type="Label" parent="MarginContainer/VBoxContainer" unique_id=1006531706]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.65, 0.7, 1)
+theme_override_font_sizes/font_size = 11
+text = "Description text here"
+autowrap_mode = 2
+
+[node name="InfoLabel" type="Label" parent="MarginContainer/VBoxContainer" unique_id=1345763841]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.5, 0.55, 0.6, 1)
+theme_override_font_sizes/font_size = 10
+text = "CATEGORY | 100 CR"

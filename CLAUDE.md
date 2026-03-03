@@ -1,6 +1,6 @@
 # SYS_ADMIN - Proje Durumu
 
-## Mevcut Aşama: VERTICAL SLICE — Faz 1
+## Mevcut Aşama: VERTICAL SLICE — Faz 2 tamamlandı, Faz 3 sırada
 Tasarım çekirdek kararları tamamlandı (GDD v0.4). Vertical slice geliştiriliyor.
 
 ## Tasarım Dökümanı
@@ -74,14 +74,16 @@ Yapılar özel sınıflar değil, **component'lerin birleşimi:**
 - [x] Yapı seçim paneli (hangi yapıyı yerleştireceğini seçme UI'ı)
 - [x] Arka plan: koyu grid çizgileri
 
-### Faz 2: İlk Yapılar (Görsel)
-- [ ] Uplink yapısı (prosedürel çizim + neon glow)
-- [ ] Storage yapısı
-- [ ] Data Broker yapısı
-- [ ] Power Cell yapısı (kapsama alanı gösterimi)
-- [ ] Coolant Rig yapısı
-- [ ] Her yapının durum barları (doluluk, ısı)
-- [ ] Tooltip / bilgi kutusu (yapı üzerine gelince isim + açıklama)
+### Faz 2: İlk Yapılar (Görsel) ✓
+- [x] Uplink yapısı (prosedürel çizim + neon glow)
+- [x] Storage yapısı
+- [x] Data Broker yapısı
+- [x] Power Cell yapısı (kapsama alanı gösterimi)
+- [x] Coolant Rig yapısı
+- [x] Her yapının durum barları (doluluk, ısı)
+- [x] Tooltip / bilgi kutusu (yapı üzerine gelince isim + açıklama)
+- [x] Kalan 8 yapının tanımları (Separator, Compressor, Decryptor, Recoverer, Quarantine, Research Lab, Splitter, Merger)
+- [x] 13 yapının tamamı için benzersiz prosedürel ikonlar
 
 ### Faz 3: Bağlantı ve Veri Akışı
 - [ ] Yapılar arası link çekme (kablo sistemi)

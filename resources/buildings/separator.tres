@@ -4,10 +4,10 @@
 
 [resource]
 script = ExtResource("1")
-building_name = "Uplink"
-description = "Connects to the network and downloads raw data streams. The primary source of all data in your system."
+building_name = "Separator"
+description = "Splits raw data into recognized types. Starts at 60% efficiency, upgradeable with Patch Data."
 grid_size = Vector2i(2, 2)
-color = Color(0, 0.8, 1, 1)
-category = "extraction"
-base_cost = 100
-visual_type = "uplink"
+color = Color(0.6, 0.8, 0.2, 1)
+category = "processing"
+base_cost = 120
+visual_type = "separator"

@@ -10,3 +10,5 @@ grid_size = Vector2i(1, 1)
 color = Color(0.267, 0.533, 1, 1)
 category = "infrastructure"
 base_cost = 75
+visual_type = "coolant"
+zone_radius = 192.0

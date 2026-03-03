@@ -2,6 +2,8 @@ extends Node
 
 signal building_placed(building: Node2D, cell: Vector2i)
 signal building_removed(building: Node2D, cell: Vector2i)
+signal building_hovered(building: Node2D)
+signal building_unhovered()
 
 enum State { IDLE, PLACING }
 
@@ -14,6 +16,7 @@ var _state: State = State.IDLE
 var _current_definition: BuildingDefinition = null
 var _ghost_cell: Vector2i = Vector2i.ZERO
 var _can_place_here: bool = false
+var _hovered_building: Node2D = null
 
 const VALID_COLOR := Color(0, 1, 0.5, 0.4)
 const INVALID_COLOR := Color(1, 0.2, 0.2, 0.4)
@@ -24,6 +27,10 @@ func start_placement(def: BuildingDefinition) -> void:
 	_state = State.PLACING
 	ghost_preview.visible = true
 	ghost_preview.setup(def, Vector2i.ZERO)
+	# Clear hover when entering placement mode
+	if _hovered_building != null:
+		_hovered_building = null
+		building_unhovered.emit()
 	print("[BuildingManager] Placement started — building: %s" % def.building_name)
 
 
@@ -47,6 +54,8 @@ func _unhandled_input(event: InputEvent) -> void:
 func _process(_delta: float) -> void:
 	if _state == State.PLACING:
 		_update_ghost_position()
+	elif _state == State.IDLE:
+		_update_hover()
 
 
 func _handle_idle_input(event: InputEvent) -> void:
@@ -76,6 +85,19 @@ func _update_ghost_position() -> void:
 	ghost_preview.modulate = VALID_COLOR if _can_place_here else INVALID_COLOR
 
 
+func _update_hover() -> void:
+	var world_pos := _get_world_mouse_position()
+	var cell: Vector2i = grid_system.world_to_grid(world_pos)
+	var building: Node2D = grid_system.get_building_at(cell)
+
+	if building != _hovered_building:
+		_hovered_building = building
+		if building != null:
+			building_hovered.emit(building)
+		else:
+			building_unhovered.emit()
+
+
 func _place_building() -> void:
 	var building: Node2D = _building_scene.instantiate()
 	building.setup(_current_definition, _ghost_cell)
@@ -93,6 +115,10 @@ func _remove_building(building: Node2D) -> void:
 	var def: BuildingDefinition = building.definition
 	grid_system.free_cells(cell, def.grid_size)
 	building_removed.emit(building, cell)
+	# Clear hover if removed building was hovered
+	if building == _hovered_building:
+		_hovered_building = null
+		building_unhovered.emit()
 	print("[BuildingManager] Building removed — %s at (%d,%d)" % [
 		def.building_name, cell.x, cell.y
 	])

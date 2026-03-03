@@ -7,3 +7,5 @@ extends Resource
 @export var color: Color = Color.CYAN
 @export var category: String = ""
 @export var base_cost: int = 100
+@export var visual_type: String = "default"
+@export var zone_radius: float = 0.0
