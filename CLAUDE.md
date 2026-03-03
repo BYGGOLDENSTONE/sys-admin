@@ -1,7 +1,7 @@
 # SYS_ADMIN - Proje Durumu
 
-## Mevcut Aşama: DEMO GELİŞTİRME — Faz 4 Tamamlandı → Kullanıcı Testi Bekliyor
-Vertical slice tamamlandı. Demo Faz 1-3 tamamlandı. Faz 4 (Quarantine + Malware) implementasyonu bitti, kullanıcı testi bekliyor. Hedef: Haziran 2026 Steam Next Fest.
+## Mevcut Aşama: DEMO GELİŞTİRME — Faz 5 Tamamlandı → Kullanıcı Testi Bekliyor
+Vertical slice tamamlandı. Demo Faz 1-4 tamamlandı. Faz 5 (Splitter + Merger + Kablo Hover) implementasyonu bitti, kullanıcı testi bekliyor. Hedef: Haziran 2026 Steam Next Fest.
 
 ## Tasarım Dökümanı
 - **GDD:** `docs/GDD.md` (v0.4) - Tüm tasarım kararları burada
@@ -60,7 +60,8 @@ Yapılar özel sınıflar değil, **component Resource'larının birleşimi.** H
 - **Research Lab** = `research_collector` component (5 MB/s, 1 RP/MB) + `storage` (20 MB buffer)
 - **Recoverer** = `processor` component (rule="recoverer", 4 MB/s, %70 verimlilik, corrupted→patch data) + `storage` (10 MB buffer)
 - **Quarantine** = `processor` component (rule="quarantine", 4 MB/s, %100 verimlilik, malware→imha) + `storage` (10 MB buffer) + `upgrade` (processing_rate)
-- **Splitter/Merger vb.** = henüz component yok (pasif yapılar, demo'da aktifleşecek)
+- **Splitter** = `processor` component (rule="splitter", 10 MB/s, %100 verimlilik, eşit dağılım) + `storage` (10 MB buffer)
+- **Merger** = `processor` component (rule="merger", 10 MB/s, %100 verimlilik, birleştirme) + `storage` (10 MB buffer)
 
 ### Data-Driven Tasarım
 - Yapı değerleri → **component sub-resource** olarak .tres dosyasında
@@ -186,7 +187,7 @@ Yapılar özel sınıflar değil, **component Resource'larının birleşimi.** H
 - [x] Yapı seçim + Upgrade UI paneli ("Geliştir" butonu, maliyet, stat gösterimi)
 - [x] Tooltip güncelleme (Recoverer bilgisi, upgrade seviye gösterimi, efektif değerler)
 
-### Faz 4: Quarantine + Malware (Kullanıcı Testi Bekliyor)
+### Faz 4: Quarantine + Malware ✓
 - [x] Quarantine aktifleştirme (Malware bertaraf, 4 MB/s, %100 imha)
 - [x] Malware ısı hasarı (malware tutan yapılara 0.3°C/s per MB ekstra ısı)
 - [x] Uyarı sistemi UI (ilk malware hasarında kırmızı bildirim)
@@ -196,11 +197,13 @@ Yapılar özel sınıflar değil, **component Resource'larının birleşimi.** H
 - [x] AutoPlay test senaryosu (quarantine_malware_test.json — PASSED)
 - [ ] Kullanıcı görsel/UX testi
 
-### Faz 5: Splitter + Merger
-- [ ] Splitter aktifleştirme (1→N veri dağıtımı)
-- [ ] Merger aktifleştirme (N→1 veri birleştirme)
-- [ ] Kablo yönetimi iyileştirmeleri
-- [ ] Bilgi paneli + tooltip güncelleme
+### Faz 5: Splitter + Merger (Kullanıcı Testi Bekliyor)
+- [x] Splitter aktifleştirme (1→2 eşit veri dağılımı, 10 MB/s, %100 verimlilik)
+- [x] Merger aktifleştirme (2→1 veri birleştirme, 10 MB/s, %100 verimlilik)
+- [x] Kablo hover highlight (fareyle yaklaşınca kırmızı parlama, silmeden önce görsel geri bildirim)
+- [x] Bilgi paneli + tooltip güncelleme (Splitter: dağılım/port bilgisi, Merger: birleştirme bilgisi)
+- [x] AutoPlay test senaryosu (splitter_merger_test.json — PASSED)
+- [ ] Kullanıcı görsel/UX testi
 
 ### Faz 6: Trace + Veri Kaynakları
 - [ ] Trace sistemi (global sayaç, kaynak erişimi kısıtlama)

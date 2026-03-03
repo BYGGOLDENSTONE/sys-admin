@@ -126,6 +126,12 @@ func _update_stats() -> void:
 		elif def.processor.rule == "quarantine":
 			lines.append(_stat("Giriş", "[color=#ff4466]Malware[/color]"))
 			lines.append(_stat("Çıkış", "[color=#44ff88]Güvenli İmha[/color]"))
+		elif def.processor.rule == "splitter":
+			lines.append(_stat("Dağılım", "Eşit (%50/%50)"))
+			lines.append(_stat("Portlar", "→ Right, ↓ Bottom"))
+		elif def.processor.rule == "merger":
+			lines.append(_stat("Birleştirme", "← Left + ↑ Top"))
+			lines.append(_stat("Çıkış", "→ Right"))
 	if def.research_collector:
 		var rc: ResearchCollectorComponent = def.research_collector
 		lines.append(_stat("Toplama", "%d MB/s" % int(rc.collection_rate)))

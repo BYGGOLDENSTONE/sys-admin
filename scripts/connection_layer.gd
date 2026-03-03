@@ -10,8 +10,11 @@ const PARTICLES_PER_CABLE: int = 8
 const PARTICLE_FONT_SIZE: int = 16
 const BEZIER_STEPS: int = 30
 const PREVIEW_COLOR := Color(1, 1, 1, 0.4)
+const HOVER_GLOW_WIDTH: float = 10.0
+const HOVER_COLOR := Color(1.0, 0.3, 0.3, 0.6)
 
 var connection_manager: Node = null
+var hovered_cable_index: int = -1
 var _camera: Camera2D = null
 var _particle_time: float = 0.0
 var _particle_chars: Array[String] = []
@@ -42,8 +45,12 @@ func _draw() -> void:
 		return
 
 	var conns: Array[Dictionary] = connection_manager.get_connections()
-	for conn in conns:
+	for i in range(conns.size()):
+		var conn: Dictionary = conns[i]
 		var active: bool = _is_connection_active(conn)
+		var hovered: bool = (i == hovered_cable_index)
+		if hovered:
+			_draw_cable_hover(conn)
 		_draw_cable(conn, active)
 		if active:
 			_draw_particles(conn)
@@ -68,6 +75,12 @@ func _is_connection_active(conn: Dictionary) -> bool:
 	if to_b.has_method("can_accept_data") and not to_b.can_accept_data():
 		return false
 	return true
+
+
+func _draw_cable_hover(conn: Dictionary) -> void:
+	var from_pos: Vector2 = to_local(conn.from_building.get_port_world_position(conn.from_port))
+	var to_pos: Vector2 = to_local(conn.to_building.get_port_world_position(conn.to_port))
+	_draw_bezier_line(from_pos, to_pos, HOVER_COLOR, HOVER_GLOW_WIDTH, true)
 
 
 func _draw_cable(conn: Dictionary, active: bool) -> void:

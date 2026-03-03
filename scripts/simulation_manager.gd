@@ -260,6 +260,10 @@ func _update_processing(buildings: Array[Node]) -> void:
 				processed = _process_recoverer(b, proc, max_process)
 			"quarantine":
 				processed = _process_quarantine(b, proc, max_process)
+			"splitter":
+				processed = _process_splitter(b, proc, max_process)
+			"merger":
+				processed = _process_merger(b, proc, max_process)
 		if processed > 0:
 			b.is_working = true
 		# Clear processor buffer — unsent data is discarded (no accumulation)
@@ -369,6 +373,52 @@ func _process_quarantine(b: Node2D, proc: ProcessorComponent, max_process: int) 
 		processed += to_process
 		total_neutralized += to_process
 		print("[Quarantine] Neutralized %d MB malware (total: %d)" % [to_process, total_neutralized])
+	return processed
+
+
+func _process_splitter(b: Node2D, _proc: ProcessorComponent, max_process: int) -> int:
+	var processed: int = 0
+	var output_ports: Array[String] = b.definition.output_ports
+	if output_ports.is_empty():
+		return 0
+	for dtype in b.stored_data:
+		if processed >= max_process:
+			break
+		var available: int = b.stored_data[dtype]
+		if available <= 0:
+			continue
+		var to_process: int = mini(available, max_process - processed)
+		# Split evenly among output ports
+		var per_port: int = maxi(1, to_process / output_ports.size())
+		var sent_total: int = 0
+		for port in output_ports:
+			var to_send: int = mini(per_port, to_process - sent_total)
+			if to_send <= 0:
+				break
+			var sent: int = _push_data_from(b, dtype, to_send, port)
+			sent_total += sent
+		if sent_total > 0:
+			b.stored_data[dtype] -= to_process
+			processed += to_process
+	return processed
+
+
+func _process_merger(b: Node2D, _proc: ProcessorComponent, max_process: int) -> int:
+	var processed: int = 0
+	var output_port: String = b.definition.output_ports[0] if b.definition.output_ports.size() > 0 else ""
+	if output_port == "":
+		return 0
+	for dtype in b.stored_data:
+		if processed >= max_process:
+			break
+		var available: int = b.stored_data[dtype]
+		if available <= 0:
+			continue
+		var to_process: int = mini(available, max_process - processed)
+		var sent: int = _push_data_from(b, dtype, to_process, output_port)
+		if sent > 0:
+			b.stored_data[dtype] -= to_process
+			processed += to_process
 	return processed
 
 

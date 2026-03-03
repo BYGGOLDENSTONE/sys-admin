@@ -40,6 +40,7 @@ const INVALID_COLOR := Color(1, 0.2, 0.2, 0.4)
 func start_placement(def: BuildingDefinition) -> void:
 	_cancel_connecting()
 	_deselect_building()
+	_clear_cable_hover()
 	_current_definition = def
 	_state = State.PLACING
 	ghost_preview.visible = true
@@ -90,6 +91,7 @@ func _process(_delta: float) -> void:
 		_update_ghost_position()
 	elif _state == State.IDLE:
 		_update_hover()
+		_update_cable_hover()
 	elif _state == State.CONNECTING:
 		_update_connection_preview()
 	elif _state == State.MOVING:
@@ -232,6 +234,19 @@ func _update_hover() -> void:
 			building_hovered.emit(building)
 		else:
 			building_unhovered.emit()
+
+
+func _update_cable_hover() -> void:
+	if connection_layer == null or connection_manager == null:
+		return
+	var world_pos := _get_world_mouse_position()
+	var idx: int = connection_manager.get_connection_at_point(world_pos)
+	connection_layer.hovered_cable_index = idx
+
+
+func _clear_cable_hover() -> void:
+	if connection_layer:
+		connection_layer.hovered_cable_index = -1
 
 
 func _place_building() -> void:
