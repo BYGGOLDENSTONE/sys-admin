@@ -6,18 +6,18 @@
 [ext_resource type="Script" uid="uid://c6xvf6f0ygild" path="res://scripts/building_manager.gd" id="4"]
 [ext_resource type="Script" uid="uid://cbfu25csx1age" path="res://scripts/camera.gd" id="5"]
 [ext_resource type="PackedScene" path="res://scenes/ui/building_panel.tscn" id="6"]
+[ext_resource type="Script" uid="uid://c2ary45ingiyh" path="res://scripts/ui/building_panel.gd" id="7_o6xl0"]
 [ext_resource type="Script" uid="uid://dh433gxy6rs5h" path="res://scripts/connection_manager.gd" id="8"]
 [ext_resource type="Script" uid="uid://dhwkdkj0w6noa" path="res://scripts/connection_layer.gd" id="9"]
 [ext_resource type="Shader" uid="uid://dbuy13pxot3fk" path="res://shaders/bloom_vignette.gdshader" id="10"]
 [ext_resource type="Shader" uid="uid://bcsicp7mrd3ll" path="res://shaders/crt.gdshader" id="11"]
+[ext_resource type="Script" uid="uid://b4368firahglh" path="res://scripts/simulation_manager.gd" id="12_eb6dy"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_bloom"]
 shader = ExtResource("10")
 shader_parameter/bloom_intensity = 0.6
 shader_parameter/bloom_threshold = 0.35
 shader_parameter/bloom_spread = 3.0
-shader_parameter/vignette_intensity = 0.3
-shader_parameter/vignette_softness = 0.4
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_crt"]
 shader = ExtResource("11")
@@ -65,8 +65,23 @@ mouse_filter = 2
 [node name="UILayer" type="CanvasLayer" parent="." unique_id=426694377]
 layer = 50
 
-[node name="BuildingPanel" parent="UILayer" unique_id=2072315193 instance=ExtResource("6")]
+[node name="BuildingPanel" type="PanelContainer" parent="UILayer" unique_id=2072315193 instance=ExtResource("6")]
 anchors_preset = 11
+anchor_left = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -220.0
+grow_horizontal = 0
+script = ExtResource("7_o6xl0")
+
+[node name="CreditsLabel" type="Label" parent="UILayer" unique_id=1213788633]
+offset_left = 240.0
+offset_top = 10.0
+offset_right = 240.0
+offset_bottom = 10.0
+theme_override_colors/font_color = Color(0, 1, 0.53, 1)
+theme_override_font_sizes/font_size = 18
+text = "Credits: 0"
 
 [node name="CRTLayer" type="CanvasLayer" parent="." unique_id=937429296]
 layer = 100
@@ -81,3 +96,9 @@ offset_right = 13.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
+
+[node name="SimulationManager" type="Node" parent="." unique_id=547972428]
+script = ExtResource("12_eb6dy")
+
+[node name="SimTimer" type="Timer" parent="SimulationManager" unique_id=1253296612]
+autostart = true

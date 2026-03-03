@@ -13,3 +13,7 @@ base_cost = 100
 visual_type = "uplink"
 output_ports = Array[String](["right"])
 input_ports = Array[String]([])
+building_type = "generator"
+generation_rate = 5.0
+heat_generation = 0.5
+data_weights = {"clean": 0.3, "corrupted": 0.25, "encrypted": 0.25, "malware": 0.2}

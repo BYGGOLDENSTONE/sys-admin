@@ -3,6 +3,7 @@ extends Node2D
 const CABLE_WIDTH: float = 2.0
 const CABLE_GLOW_WIDTH: float = 6.0
 const CABLE_GLOW_ALPHA: float = 0.25
+const CABLE_INACTIVE_ALPHA: float = 0.08
 const PARTICLE_COLOR := Color("#00ff88")
 const PARTICLE_SPEED: float = 0.4
 const PARTICLES_PER_CABLE: int = 8
@@ -42,14 +43,31 @@ func _draw() -> void:
 
 	var conns: Array[Dictionary] = connection_manager.get_connections()
 	for conn in conns:
-		_draw_cable(conn)
-		_draw_particles(conn)
+		var active: bool = _is_connection_active(conn)
+		_draw_cable(conn, active)
+		if active:
+			_draw_particles(conn)
 
 	if preview_active:
 		_draw_bezier_line(preview_from, preview_to, preview_color, CABLE_WIDTH, false)
 
 
-func _draw_cable(conn: Dictionary) -> void:
+func _is_connection_active(conn: Dictionary) -> bool:
+	var from_b: Node2D = conn.from_building
+	var to_b: Node2D = conn.to_building
+	# Source must be active
+	if from_b.has_method("is_active") and not from_b.is_active():
+		return false
+	# Target must be active
+	if to_b.has_method("is_active") and not to_b.is_active():
+		return false
+	# Target must be able to accept data (storage full = no flow)
+	if to_b.has_method("can_accept_data") and not to_b.can_accept_data():
+		return false
+	return true
+
+
+func _draw_cable(conn: Dictionary, active: bool) -> void:
 	var from_building: Node2D = conn.from_building
 	var from_pos: Vector2 = from_building.get_port_world_position(conn.from_port)
 	var to_pos: Vector2 = conn.to_building.get_port_world_position(conn.to_port)
@@ -59,10 +77,14 @@ func _draw_cable(conn: Dictionary) -> void:
 	from_pos = to_local(from_pos)
 	to_pos = to_local(to_pos)
 
-	# Glow layer
-	_draw_bezier_line(from_pos, to_pos, Color(accent, CABLE_GLOW_ALPHA), CABLE_GLOW_WIDTH, true)
-	# Main cable
-	_draw_bezier_line(from_pos, to_pos, accent, CABLE_WIDTH, true)
+	if active:
+		# Glow layer
+		_draw_bezier_line(from_pos, to_pos, Color(accent, CABLE_GLOW_ALPHA), CABLE_GLOW_WIDTH, true)
+		# Main cable
+		_draw_bezier_line(from_pos, to_pos, accent, CABLE_WIDTH, true)
+	else:
+		# Dim cable only, no glow
+		_draw_bezier_line(from_pos, to_pos, Color(accent, CABLE_INACTIVE_ALPHA), CABLE_WIDTH, true)
 
 
 func _get_visible_particle_count() -> int:
@@ -95,7 +117,7 @@ func _draw_particles(conn: Dictionary) -> void:
 		var ch: String = _particle_chars[char_idx]
 		var draw_pos := pos + Vector2(-half_size, half_size)
 
-		# Glow (larger spread for bigger text)
+		# Glow
 		draw_string(font, draw_pos, ch, HORIZONTAL_ALIGNMENT_LEFT, -1, PARTICLE_FONT_SIZE, Color(PARTICLE_COLOR, 0.4))
 		# Main character
 		draw_string(font, draw_pos, ch, HORIZONTAL_ALIGNMENT_LEFT, -1, PARTICLE_FONT_SIZE, PARTICLE_COLOR)

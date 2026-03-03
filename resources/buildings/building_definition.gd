@@ -11,3 +11,16 @@ extends Resource
 @export var zone_radius: float = 0.0
 @export var output_ports: Array[String] = []
 @export var input_ports: Array[String] = []
+
+@export_group("Mechanics")
+@export var building_type: String = "passive"
+## Values: "generator", "storage", "seller", "power", "coolant", "passive"
+@export var generation_rate: float = 0.0  ## MB/s produced (Uplink)
+@export var storage_capacity: int = 0  ## MB max storage
+@export var sell_rate: float = 0.0  ## MB/s consumed (Data Broker)
+@export var credits_per_mb: float = 0.0  ## Credits earned per MB sold
+@export var power_output: float = 0.0  ## Watts provided in zone (Power Cell)
+@export var cooling_rate: float = 0.0  ## C/s reduced in zone (Coolant Rig)
+@export var heat_generation: float = 0.0  ## C/s produced while active
+@export var max_heat: float = 100.0  ## C at which building overheats
+@export var data_weights: Dictionary = {}  ## {"clean": 0.3, "corrupted": 0.25, ...}

@@ -12,3 +12,5 @@ category = "infrastructure"
 base_cost = 75
 visual_type = "coolant"
 zone_radius = 192.0
+building_type = "coolant"
+cooling_rate = 2.0

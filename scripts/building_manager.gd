@@ -13,6 +13,7 @@ enum State { IDLE, PLACING, CONNECTING }
 
 var connection_manager: Node = null
 var connection_layer: Node2D = null
+var simulation_manager = null
 
 var _building_scene: PackedScene = preload("res://scenes/building.tscn")
 var _state: State = State.IDLE
@@ -46,6 +47,7 @@ func start_placement(def: BuildingDefinition) -> void:
 func cancel_placement() -> void:
 	if _state != State.PLACING:
 		return
+	_clear_power_preview()
 	_state = State.IDLE
 	_current_definition = null
 	ghost_preview.visible = false
@@ -185,8 +187,10 @@ func _update_ghost_position() -> void:
 	var world_pos := _get_world_mouse_position()
 	_ghost_cell = grid_system.world_to_grid(world_pos)
 	ghost_preview.position = grid_system.grid_to_world(_ghost_cell)
+	ghost_preview.grid_cell = _ghost_cell
 	_can_place_here = grid_system.can_place(_ghost_cell, _current_definition.grid_size)
 	ghost_preview.modulate = VALID_COLOR if _can_place_here else INVALID_COLOR
+	_update_power_preview()
 
 
 func _update_hover() -> void:
@@ -203,6 +207,7 @@ func _update_hover() -> void:
 
 
 func _place_building() -> void:
+	_clear_power_preview()
 	var building: Node2D = _building_scene.instantiate()
 	building.setup(_current_definition, _ghost_cell)
 	building.position = grid_system.grid_to_world(_ghost_cell)
@@ -234,3 +239,38 @@ func _remove_building(building: Node2D) -> void:
 
 func _get_world_mouse_position() -> Vector2:
 	return get_viewport().get_canvas_transform().affine_inverse() * get_viewport().get_mouse_position()
+
+
+func _update_power_preview() -> void:
+	if simulation_manager == null:
+		return
+	# Clear previous preview
+	_clear_power_preview()
+
+	if _current_definition.zone_radius > 0.0:
+		# Placing a zone building (Power Cell, Coolant Rig): highlight affected buildings
+		for building in building_container.get_children():
+			if not building.has_method("is_active"):
+				continue
+			if building == ghost_preview:
+				continue
+			if simulation_manager._is_in_zone(ghost_preview, building):
+				building.power_preview = 1
+	else:
+		# Placing a regular building: check if it will be in any zone
+		var in_any_zone: bool = false
+		for building in building_container.get_children():
+			if not building.has_method("is_active"):
+				continue
+			if building.definition.zone_radius > 0.0:
+				if simulation_manager._is_in_zone(building, ghost_preview):
+					in_any_zone = true
+					break
+		ghost_preview.power_preview = 1 if in_any_zone else 0
+
+
+func _clear_power_preview() -> void:
+	ghost_preview.power_preview = 0
+	for building in building_container.get_children():
+		if building.has_method("is_active"):
+			building.power_preview = 0

@@ -25,6 +25,15 @@ var fill_ratio: float = 0.0
 var _glow_time: float = 0.0
 var _is_ghost: bool = false
 
+# Runtime state (set by SimulationManager)
+var stored_data: Dictionary = {"clean": 0, "corrupted": 0, "encrypted": 0, "malware": 0}
+var current_heat: float = 0.0
+var has_power: bool = false
+var is_overheated: bool = false
+
+# Preview state (set by BuildingManager during placement)
+var power_preview: int = 0  ## 0=none, 1=will be powered, -1=will lose power
+
 
 func _process(delta: float) -> void:
 	if _is_ghost or definition == null:
@@ -57,6 +66,40 @@ func get_port_world_position(port_side: String) -> Vector2:
 	return global_position + get_port_local_position(port_side)
 
 
+func get_total_stored() -> int:
+	var total: int = 0
+	for amount in stored_data.values():
+		total += amount
+	return total
+
+
+func can_accept_data(amount: int = 1) -> bool:
+	if definition.storage_capacity <= 0:
+		return true
+	return get_total_stored() + amount <= definition.storage_capacity
+
+
+func is_active() -> bool:
+	return has_power and not is_overheated
+
+
+func get_center_world() -> Vector2:
+	return global_position + Vector2(
+		definition.grid_size.x * TILE_SIZE / 2.0,
+		definition.grid_size.y * TILE_SIZE / 2.0
+	)
+
+
+func update_display() -> void:
+	if definition == null:
+		return
+	heat_ratio = current_heat / definition.max_heat if definition.max_heat > 0.0 else 0.0
+	if definition.storage_capacity > 0:
+		fill_ratio = float(get_total_stored()) / float(definition.storage_capacity)
+	else:
+		fill_ratio = 0.0
+
+
 func get_port_at(local_pos: Vector2) -> Dictionary:
 	if definition == null:
 		return {}
@@ -80,40 +123,46 @@ func _draw() -> void:
 	var center := size / 2.0
 	var accent: Color = definition.color
 
+	# Determine if this building is powered (infrastructure is always "powered")
+	var powered: bool = _is_ghost or has_power or definition.building_type in ["power", "coolant"]
+	var dim_accent: Color = Color(accent, 0.15) if not powered else accent
+
 	# Zone radius (Power Cell, Coolant Rig)
 	if definition.zone_radius > 0.0:
-		_draw_zone(center, definition.zone_radius, accent)
+		_draw_zone(center, definition.zone_radius, accent, _is_ghost)
 
-	# Pulse value for glow animation
-	var pulse: float = sin(_glow_time * GLOW_PULSE_SPEED) * GLOW_PULSE_AMOUNT
+	if powered:
+		# Pulse value for glow animation
+		var pulse: float = sin(_glow_time * GLOW_PULSE_SPEED) * GLOW_PULSE_AMOUNT
 
-	# Wide outer glow (soft halo)
-	var outer_rect := Rect2(
-		Vector2(-OUTER_GLOW_WIDTH, -OUTER_GLOW_WIDTH),
-		size + Vector2(OUTER_GLOW_WIDTH * 2, OUTER_GLOW_WIDTH * 2)
-	)
-	draw_rect(outer_rect, Color(accent, OUTER_GLOW_ALPHA + pulse), false, OUTER_GLOW_WIDTH)
+		# Wide outer glow (soft halo)
+		var outer_rect := Rect2(
+			Vector2(-OUTER_GLOW_WIDTH, -OUTER_GLOW_WIDTH),
+			size + Vector2(OUTER_GLOW_WIDTH * 2, OUTER_GLOW_WIDTH * 2)
+		)
+		draw_rect(outer_rect, Color(accent, OUTER_GLOW_ALPHA + pulse), false, OUTER_GLOW_WIDTH)
 
-	# Inner glow
-	var glow_rect := Rect2(
-		Vector2(-GLOW_WIDTH, -GLOW_WIDTH),
-		size + Vector2(GLOW_WIDTH * 2, GLOW_WIDTH * 2)
-	)
-	draw_rect(glow_rect, Color(accent, GLOW_ALPHA + pulse * 0.5), false, GLOW_WIDTH)
+		# Inner glow
+		var glow_rect := Rect2(
+			Vector2(-GLOW_WIDTH, -GLOW_WIDTH),
+			size + Vector2(GLOW_WIDTH * 2, GLOW_WIDTH * 2)
+		)
+		draw_rect(glow_rect, Color(accent, GLOW_ALPHA + pulse * 0.5), false, GLOW_WIDTH)
 
 	# Body
-	draw_rect(rect, BODY_COLOR, true)
+	var body_color: Color = BODY_COLOR if powered else Color(0.08, 0.08, 0.12)
+	draw_rect(rect, body_color, true)
 
-	# Neon border
-	draw_rect(rect, accent, false, BORDER_WIDTH)
+	# Neon border (dim when unpowered)
+	draw_rect(rect, dim_accent, false, BORDER_WIDTH)
 
 	# Inner detail lines (subtle tech feel)
-	var line_color := Color(accent, 0.1)
+	var line_color := Color(dim_accent, 0.1)
 	draw_line(Vector2(0, size.y * 0.3), Vector2(size.x, size.y * 0.3), line_color, 1.0)
 	draw_line(Vector2(size.x * 0.3, 0), Vector2(size.x * 0.3, size.y * 0.3), line_color, 1.0)
 
 	# Icon
-	_draw_icon(center, size, accent)
+	_draw_icon(center, size, dim_accent)
 
 	# Building name (top area)
 	var font := ThemeDB.fallback_font
@@ -124,15 +173,27 @@ func _draw() -> void:
 		(size.x - text_size.x) / 2.0,
 		font_size + 4
 	)
-	# Text shadow
+	var text_color: Color = Color.WHITE if powered else Color(0.4, 0.4, 0.4)
 	draw_string(font, text_pos + Vector2(1, 1), text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(0, 0, 0, 0.5))
-	draw_string(font, text_pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color.WHITE)
+	draw_string(font, text_pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, text_color)
 
 	# Ports
-	_draw_ports(size, accent)
+	_draw_ports(size, dim_accent)
 
 	# Status bars
-	_draw_status_bars(size, accent)
+	_draw_status_bars(size, dim_accent)
+
+	# Overheat overlay (ghost buildings skip this)
+	if not _is_ghost and is_overheated:
+		var overheat_alpha: float = 0.15 + sin(_glow_time * 4.0) * 0.05
+		draw_rect(rect, Color(1.0, 0.1, 0.0, overheat_alpha), true)
+		draw_rect(rect, Color(1.0, 0.2, 0.0, 0.4), false, 2.0)
+
+	# Power preview overlay (during placement mode)
+	if power_preview == 1:
+		# Will be powered — green border highlight
+		draw_rect(rect, Color(0.0, 1.0, 0.5, 0.12), true)
+		draw_rect(rect, Color(0.0, 1.0, 0.5, 0.5), false, 2.0)
 
 
 func _draw_icon(center: Vector2, size: Vector2, accent: Color) -> void:
@@ -525,21 +586,67 @@ func _draw_ports(size: Vector2, accent: Color) -> void:
 		draw_circle(pos, PORT_RADIUS * 0.4, Color.WHITE)
 
 
-# --- ZONE RADIUS ---
-func _draw_zone(center: Vector2, radius: float, accent: Color) -> void:
-	# Filled zone
-	var fill_color := Color(accent, 0.05)
-	draw_circle(center, radius, fill_color)
+# --- ZONE (grid-aligned square) ---
+func _draw_zone(center: Vector2, radius: float, accent: Color, is_preview: bool = false) -> void:
+	# Convert radius to tile count (e.g., 192px / 64px = 3 tiles)
+	var tile_range: int = int(radius / TILE_SIZE)
+	var building_w: int = definition.grid_size.x
+	var building_h: int = definition.grid_size.y
 
-	# Zone border (dashed feel via multiple arcs)
-	var border_color := Color(accent, 0.2)
-	var num_segments: int = 24
-	var gap_ratio: float = 0.3
-	var segment_angle: float = TAU / num_segments
-	for i in range(num_segments):
-		var start_angle: float = i * segment_angle
-		var end_angle: float = start_angle + segment_angle * (1.0 - gap_ratio)
-		_draw_arc_segment(center, radius, start_angle, end_angle, border_color, 1.5)
+	# Zone extends tile_range tiles from building edges
+	var zone_left: float = -tile_range * TILE_SIZE
+	var zone_top: float = -tile_range * TILE_SIZE
+	var zone_right: float = building_w * TILE_SIZE + tile_range * TILE_SIZE
+	var zone_bottom: float = building_h * TILE_SIZE + tile_range * TILE_SIZE
+	var zone_rect := Rect2(
+		Vector2(zone_left, zone_top),
+		Vector2(zone_right - zone_left, zone_bottom - zone_top)
+	)
+
+	# Preview mode: brighter, more visible
+	var fill_alpha: float = 0.1 if is_preview else 0.04
+	var grid_alpha: float = 0.15 if is_preview else 0.06
+	var border_alpha: float = 0.6 if is_preview else 0.25
+	var border_width: float = 2.0 if is_preview else 1.5
+
+	# Filled zone
+	draw_rect(zone_rect, Color(accent, fill_alpha), true)
+
+	# Grid lines inside zone
+	var grid_color := Color(accent, grid_alpha)
+	for x in range(int(zone_left), int(zone_right) + 1, TILE_SIZE):
+		draw_line(Vector2(x, zone_top), Vector2(x, zone_bottom), grid_color, 1.0)
+	for y in range(int(zone_top), int(zone_bottom) + 1, TILE_SIZE):
+		draw_line(Vector2(zone_left, y), Vector2(zone_right, y), grid_color, 1.0)
+
+	# Border (dashed)
+	var border_color := Color(accent, border_alpha)
+	var dash_len: float = 8.0
+	var gap_len: float = 4.0
+	_draw_dashed_rect(zone_rect, border_color, border_width, dash_len, gap_len)
+
+
+func _draw_dashed_rect(rect: Rect2, color: Color, width: float, dash: float, gap: float) -> void:
+	var corners: Array[Vector2] = [
+		rect.position,
+		Vector2(rect.end.x, rect.position.y),
+		rect.end,
+		Vector2(rect.position.x, rect.end.y),
+	]
+	for i in range(4):
+		_draw_dashed_line(corners[i], corners[(i + 1) % 4], color, width, dash, gap)
+
+
+func _draw_dashed_line(from: Vector2, to: Vector2, color: Color, width: float, dash: float, gap: float) -> void:
+	var total_len: float = from.distance_to(to)
+	if total_len < 1.0:
+		return
+	var dir: Vector2 = (to - from).normalized()
+	var pos: float = 0.0
+	while pos < total_len:
+		var seg_end: float = minf(pos + dash, total_len)
+		draw_line(from + dir * pos, from + dir * seg_end, color, width)
+		pos = seg_end + gap
 
 
 # --- STATUS BARS ---
@@ -557,8 +664,8 @@ func _draw_status_bars(size: Vector2, accent: Color) -> void:
 		var heat_color := Color(1.0, 0.5 - heat_ratio * 0.3, 0.1, 0.8)
 		draw_rect(heat_fill, heat_color, true)
 
-	# Fill bar (only for storage type)
-	if definition.visual_type == "storage":
+	# Fill bar (for buildings with storage capacity)
+	if definition.storage_capacity > 0:
 		bar_y -= BAR_HEIGHT + BAR_GAP
 		var fill_bg := Rect2(Vector2(bar_x, bar_y), Vector2(bar_w, BAR_HEIGHT))
 		draw_rect(fill_bg, Color(0.1, 0.2, 0.1, 0.5), true)

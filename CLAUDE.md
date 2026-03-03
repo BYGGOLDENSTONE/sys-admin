@@ -1,6 +1,6 @@
 # SYS_ADMIN - Proje Durumu
 
-## Mevcut Aşama: VERTICAL SLICE — Faz 4 tamamlandı, Faz 5 sırada
+## Mevcut Aşama: VERTICAL SLICE — Faz 5 tamamlandı, Faz 6 sırada
 Tasarım çekirdek kararları tamamlandı (GDD v0.4). Vertical slice geliştiriliyor.
 
 ## Tasarım Dökümanı
@@ -96,12 +96,19 @@ Yapılar özel sınıflar değil, **component'lerin birleşimi:**
 - [x] Yapı kenar glow efekti (nabız animasyonu + geniş dış halo)
 - [x] Veri parçacıkları iyileştirmesi (büyük, sık, zoom-adaptif)
 
-### Faz 5: Temel Mekanik
-- [ ] Uplink veri üretimi (basit sayı akışı)
-- [ ] Storage doluluk mekaniği
-- [ ] Data Broker → Credits kazanımı
-- [ ] Power Cell zone mekaniği (güç yoksa yapı durum)
-- [ ] Heat birikimi + Coolant Rig soğutma
+### Faz 5: Temel Mekanik ✓
+- [x] SimulationManager (1s tick, tüm mekaniği yönetir)
+- [x] Veri birimi: 1 MB paket (MB/s hız, GB/TB ölçekleme)
+- [x] Uplink veri üretimi (5 MB/s, rastgele tip dağılımı)
+- [x] Storage doluluk mekaniği (100 MB kapasite, forward)
+- [x] Data Broker → Credits kazanımı (3 MB/s, Clean only)
+- [x] Power Cell zone mekaniği (kare grid, tüm tile zone içinde olmalı)
+- [x] Heat birikimi + Coolant Rig soğutma (overheat + recovery)
+- [x] Power Cell ısı üretimi (zone içindeki yapı sayısına orantılı)
+- [x] Güçsüz yapı karartma (glow yok, sönük border/ikon) + overheat kırmızı overlay
+- [x] Aktif olmayan bağlantılarda parçacık akışı durur (güçsüz veya storage dolu)
+- [x] Zone önizlemesi (yerleştirme sırasında etkilenecek yapılar yeşil highlight)
+- [x] Credits UI göstergesi
 
 ### Faz 6: Screenshot ve Steam Sayfası
 - [ ] UI çerçevesi (Credits göstergesi, Heat/Trace barları)

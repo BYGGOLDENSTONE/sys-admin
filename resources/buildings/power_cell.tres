@@ -12,3 +12,5 @@ category = "infrastructure"
 base_cost = 50
 visual_type = "power"
 zone_radius = 192.0
+building_type = "power"
+power_output = 50.0
