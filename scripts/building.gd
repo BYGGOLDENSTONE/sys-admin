@@ -13,11 +13,24 @@ const ICON_GLOW_ALPHA: float = 0.25
 const PORT_RADIUS: float = 6.0
 const PORT_GLOW_RADIUS: float = 10.0
 const PORT_HIT_RADIUS: float = 24.0
+const OUTER_GLOW_WIDTH: float = 8.0
+const OUTER_GLOW_ALPHA: float = 0.12
+const GLOW_PULSE_SPEED: float = 2.0
+const GLOW_PULSE_AMOUNT: float = 0.06
 
 var definition: BuildingDefinition
 var grid_cell: Vector2i = Vector2i.ZERO
 var heat_ratio: float = 0.0
 var fill_ratio: float = 0.0
+var _glow_time: float = 0.0
+var _is_ghost: bool = false
+
+
+func _process(delta: float) -> void:
+	if _is_ghost or definition == null:
+		return
+	_glow_time += delta
+	queue_redraw()
 
 
 func setup(def: BuildingDefinition, cell: Vector2i) -> void:
@@ -71,12 +84,22 @@ func _draw() -> void:
 	if definition.zone_radius > 0.0:
 		_draw_zone(center, definition.zone_radius, accent)
 
-	# Outer glow
+	# Pulse value for glow animation
+	var pulse: float = sin(_glow_time * GLOW_PULSE_SPEED) * GLOW_PULSE_AMOUNT
+
+	# Wide outer glow (soft halo)
+	var outer_rect := Rect2(
+		Vector2(-OUTER_GLOW_WIDTH, -OUTER_GLOW_WIDTH),
+		size + Vector2(OUTER_GLOW_WIDTH * 2, OUTER_GLOW_WIDTH * 2)
+	)
+	draw_rect(outer_rect, Color(accent, OUTER_GLOW_ALPHA + pulse), false, OUTER_GLOW_WIDTH)
+
+	# Inner glow
 	var glow_rect := Rect2(
 		Vector2(-GLOW_WIDTH, -GLOW_WIDTH),
 		size + Vector2(GLOW_WIDTH * 2, GLOW_WIDTH * 2)
 	)
-	draw_rect(glow_rect, Color(accent, GLOW_ALPHA), false, GLOW_WIDTH)
+	draw_rect(glow_rect, Color(accent, GLOW_ALPHA + pulse * 0.5), false, GLOW_WIDTH)
 
 	# Body
 	draw_rect(rect, BODY_COLOR, true)

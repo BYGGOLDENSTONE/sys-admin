@@ -6,9 +6,25 @@
 [ext_resource type="Script" uid="uid://c6xvf6f0ygild" path="res://scripts/building_manager.gd" id="4"]
 [ext_resource type="Script" uid="uid://cbfu25csx1age" path="res://scripts/camera.gd" id="5"]
 [ext_resource type="PackedScene" path="res://scenes/ui/building_panel.tscn" id="6"]
-[ext_resource type="Script" uid="uid://c2ary45ingiyh" path="res://scripts/ui/building_panel.gd" id="7_o6xl0"]
-[ext_resource type="Script" path="res://scripts/connection_manager.gd" id="8"]
-[ext_resource type="Script" path="res://scripts/connection_layer.gd" id="9"]
+[ext_resource type="Script" uid="uid://dh433gxy6rs5h" path="res://scripts/connection_manager.gd" id="8"]
+[ext_resource type="Script" uid="uid://dhwkdkj0w6noa" path="res://scripts/connection_layer.gd" id="9"]
+[ext_resource type="Shader" uid="uid://dbuy13pxot3fk" path="res://shaders/bloom_vignette.gdshader" id="10"]
+[ext_resource type="Shader" uid="uid://bcsicp7mrd3ll" path="res://shaders/crt.gdshader" id="11"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_bloom"]
+shader = ExtResource("10")
+shader_parameter/bloom_intensity = 0.6
+shader_parameter/bloom_threshold = 0.35
+shader_parameter/bloom_spread = 3.0
+shader_parameter/vignette_intensity = 0.3
+shader_parameter/vignette_softness = 0.4
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_crt"]
+shader = ExtResource("11")
+shader_parameter/scanline_intensity = 0.08
+shader_parameter/scanline_count = 540.0
+shader_parameter/curvature = 0.01
+shader_parameter/chromatic_aberration = 0.5
 
 [node name="Main" type="Node2D" unique_id=1707282092]
 script = ExtResource("1")
@@ -16,7 +32,7 @@ script = ExtResource("1")
 [node name="GridSystem" type="Node2D" parent="." unique_id=878305488]
 script = ExtResource("2")
 
-[node name="ConnectionLayer" type="Node2D" parent="."]
+[node name="ConnectionLayer" type="Node2D" parent="." unique_id=1632572815]
 script = ExtResource("9")
 
 [node name="BuildingContainer" type="Node2D" parent="." unique_id=1587724620]
@@ -28,19 +44,40 @@ script = ExtResource("3")
 [node name="BuildingManager" type="Node" parent="." unique_id=1380662069]
 script = ExtResource("4")
 
-[node name="ConnectionManager" type="Node" parent="."]
+[node name="ConnectionManager" type="Node" parent="." unique_id=1870182631]
 script = ExtResource("8")
 
 [node name="GameCamera" type="Camera2D" parent="." unique_id=887976049]
 script = ExtResource("5")
 
-[node name="UILayer" type="CanvasLayer" parent="." unique_id=426694377]
+[node name="PostProcessLayer" type="CanvasLayer" parent="." unique_id=54884062]
+layer = 10
 
-[node name="BuildingPanel" type="PanelContainer" parent="UILayer" unique_id=2072315193 instance=ExtResource("6")]
-anchors_preset = 11
-anchor_left = 1.0
+[node name="PostProcessRect" type="ColorRect" parent="PostProcessLayer" unique_id=1054997669]
+material = SubResource("ShaderMaterial_bloom")
+anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -220.0
-grow_horizontal = 0
-script = ExtResource("7_o6xl0")
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="UILayer" type="CanvasLayer" parent="." unique_id=426694377]
+layer = 50
+
+[node name="BuildingPanel" parent="UILayer" unique_id=2072315193 instance=ExtResource("6")]
+anchors_preset = 11
+
+[node name="CRTLayer" type="CanvasLayer" parent="." unique_id=937429296]
+layer = 100
+
+[node name="CRTRect" type="ColorRect" parent="CRTLayer" unique_id=26477803]
+material = SubResource("ShaderMaterial_crt")
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 13.0
+offset_right = 13.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2

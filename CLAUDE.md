@@ -1,6 +1,6 @@
 # SYS_ADMIN - Proje Durumu
 
-## Mevcut Aşama: VERTICAL SLICE — Faz 3 tamamlandı, Faz 4 sırada
+## Mevcut Aşama: VERTICAL SLICE — Faz 4 tamamlandı, Faz 5 sırada
 Tasarım çekirdek kararları tamamlandı (GDD v0.4). Vertical slice geliştiriliyor.
 
 ## Tasarım Dökümanı
@@ -90,11 +90,11 @@ Yapılar özel sınıflar değil, **component'lerin birleşimi:**
 - [x] Akan veri parçacıkları (yeşil 0/1'ler)
 - [x] Parlayan bağlantı çizgileri
 
-### Faz 4: Shader ve Efektler
-- [ ] Bloom shader (neon parlama)
-- [ ] CRT shader (tarama çizgileri)
-- [ ] Vignette (kenar kararma)
-- [ ] Yapı kenar glow efekti
+### Faz 4: Shader ve Efektler ✓
+- [x] Bloom shader (neon parlama)
+- [x] CRT shader (tarama çizgileri + chromatic aberration + barrel distortion)
+- [x] Yapı kenar glow efekti (nabız animasyonu + geniş dış halo)
+- [x] Veri parçacıkları iyileştirmesi (büyük, sık, zoom-adaptif)
 
 ### Faz 5: Temel Mekanik
 - [ ] Uplink veri üretimi (basit sayı akışı)

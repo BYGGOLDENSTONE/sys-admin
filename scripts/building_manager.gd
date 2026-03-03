@@ -34,6 +34,7 @@ func start_placement(def: BuildingDefinition) -> void:
 	_current_definition = def
 	_state = State.PLACING
 	ghost_preview.visible = true
+	ghost_preview._is_ghost = true
 	ghost_preview.setup(def, Vector2i.ZERO)
 	# Clear hover when entering placement mode
 	if _hovered_building != null:

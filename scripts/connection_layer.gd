@@ -5,11 +5,13 @@ const CABLE_GLOW_WIDTH: float = 6.0
 const CABLE_GLOW_ALPHA: float = 0.25
 const PARTICLE_COLOR := Color("#00ff88")
 const PARTICLE_SPEED: float = 0.4
-const PARTICLES_PER_CABLE: int = 4
+const PARTICLES_PER_CABLE: int = 8
+const PARTICLE_FONT_SIZE: int = 16
 const BEZIER_STEPS: int = 30
 const PREVIEW_COLOR := Color(1, 1, 1, 0.4)
 
 var connection_manager: Node = null
+var _camera: Camera2D = null
 var _particle_time: float = 0.0
 var _particle_chars: Array[String] = []
 
@@ -24,6 +26,7 @@ func _ready() -> void:
 	# Pre-generate random 0/1 chars for particles
 	for i in range(100):
 		_particle_chars.append("0" if randf() > 0.5 else "1")
+	_camera = get_node_or_null("../GameCamera")
 
 
 func _process(delta: float) -> void:
@@ -62,6 +65,15 @@ func _draw_cable(conn: Dictionary) -> void:
 	_draw_bezier_line(from_pos, to_pos, accent, CABLE_WIDTH, true)
 
 
+func _get_visible_particle_count() -> int:
+	if _camera == null:
+		return PARTICLES_PER_CABLE
+	var zoom_level: float = _camera.zoom.x
+	# Zoom in (>1): full particles. Zoom out (<1): fewer particles.
+	var count: int = maxi(2, int(PARTICLES_PER_CABLE * clampf(zoom_level, 0.3, 1.5)))
+	return count
+
+
 func _draw_particles(conn: Dictionary) -> void:
 	var from_building: Node2D = conn.from_building
 	var from_pos: Vector2 = to_local(from_building.get_port_world_position(conn.from_port))
@@ -72,19 +84,21 @@ func _draw_particles(conn: Dictionary) -> void:
 	var cp2 := to_pos - Vector2(dx, 0)
 
 	var font := ThemeDB.fallback_font
-	var font_size: int = 10
+	var count: int = _get_visible_particle_count()
+	var half_size: float = PARTICLE_FONT_SIZE * 0.35
 
-	for i in range(PARTICLES_PER_CABLE):
-		var offset: float = float(i) / float(PARTICLES_PER_CABLE)
+	for i in range(count):
+		var offset: float = float(i) / float(count)
 		var t: float = fmod(_particle_time + offset, 1.0)
 		var pos := _cubic_bezier(from_pos, cp1, cp2, to_pos, t)
-		var char_idx: int = (i + int(_particle_time * 50)) % _particle_chars.size()
+		var char_idx: int = (i + int(_particle_time * 10)) % _particle_chars.size()
 		var ch: String = _particle_chars[char_idx]
+		var draw_pos := pos + Vector2(-half_size, half_size)
 
-		# Glow
-		draw_string(font, pos + Vector2(-3, 4), ch, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(PARTICLE_COLOR, 0.3))
+		# Glow (larger spread for bigger text)
+		draw_string(font, draw_pos, ch, HORIZONTAL_ALIGNMENT_LEFT, -1, PARTICLE_FONT_SIZE, Color(PARTICLE_COLOR, 0.4))
 		# Main character
-		draw_string(font, pos + Vector2(-3, 4), ch, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, PARTICLE_COLOR)
+		draw_string(font, draw_pos, ch, HORIZONTAL_ALIGNMENT_LEFT, -1, PARTICLE_FONT_SIZE, PARTICLE_COLOR)
 
 
 func _draw_bezier_line(from_pos: Vector2, to_pos: Vector2, color: Color, width: float, use_antialias: bool) -> void:
