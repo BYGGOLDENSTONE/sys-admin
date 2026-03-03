@@ -126,9 +126,9 @@ Yapılar özel sınıflar değil, **component Resource'larının birleşimi.** H
 - [x] Uplink veri üretimi (5 MB/s, rastgele tip dağılımı)
 - [x] Storage doluluk mekaniği (100 MB kapasite, forward)
 - [x] Data Broker → Credits kazanımı (3 MB/s, Clean only)
-- [x] Power Cell zone mekaniği (kare grid, tüm tile zone içinde olmalı)
+- [x] Power Cell zone mekaniği (kare bazlı: her kare ayrı PC'den güç alabilir)
 - [x] Heat birikimi + Coolant Rig soğutma (overheat + recovery)
-- [x] Power Cell ısı üretimi (zone içindeki yapı sayısına orantılı)
+- [x] Power Cell ısı üretimi (zone içindeki çalışan yapı kare sayısına orantılı)
 - [x] Güçsüz yapı karartma (glow yok, sönük border/ikon) + overheat kırmızı overlay
 - [x] Aktif olmayan bağlantılarda parçacık akışı durur (güçsüz veya storage dolu)
 - [x] Zone önizlemesi (yerleştirme sırasında etkilenecek yapılar yeşil highlight)

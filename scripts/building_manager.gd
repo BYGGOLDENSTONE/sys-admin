@@ -363,28 +363,60 @@ func _update_power_preview() -> void:
 	if active_def == null:
 		return
 
-	if active_def.get_zone_radius() > 0.0:
-		# Placing a zone building (Power Cell, Coolant Rig): highlight affected buildings
+	if active_def.power_provider != null:
+		# Placing a Power Cell: highlight buildings that would become fully powered
+		# (existing PCs + this new one combined must cover ALL tiles)
+		var power_cells: Array[Node] = []
 		for building in building_container.get_children():
 			if not building.has_method("is_active"):
 				continue
 			if building == ghost_preview or building == _moving_building:
 				continue
-			if simulation_manager._is_in_zone(ghost_preview, building):
+			if building.definition.power_provider != null:
+				power_cells.append(building)
+		power_cells.append(ghost_preview)
+		for building in building_container.get_children():
+			if not building.has_method("is_active"):
+				continue
+			if building == ghost_preview or building == _moving_building:
+				continue
+			if building.definition.is_infrastructure():
+				continue
+			if simulation_manager._check_all_tiles_covered(building, power_cells):
+				building.power_preview = 1
+	elif active_def.coolant != null:
+		# Placing a Coolant Rig: highlight buildings that would be fully cooled
+		# (existing Coolants + this new one combined must cover ALL tiles)
+		var coolant_rigs: Array[Node] = []
+		for building in building_container.get_children():
+			if not building.has_method("is_active"):
+				continue
+			if building == ghost_preview or building == _moving_building:
+				continue
+			if building.definition.coolant != null:
+				coolant_rigs.append(building)
+		coolant_rigs.append(ghost_preview)
+		for building in building_container.get_children():
+			if not building.has_method("is_active"):
+				continue
+			if building == ghost_preview or building == _moving_building:
+				continue
+			if building.definition.is_infrastructure():
+				continue
+			if simulation_manager._check_all_tiles_covered(building, coolant_rigs):
 				building.power_preview = 1
 	else:
-		# Placing a regular building: check if it will be in any zone
-		var in_any_zone: bool = false
+		# Placing a regular building: check if ALL tiles are powered (possibly by multiple zones)
+		var power_cells: Array[Node] = []
 		for building in building_container.get_children():
 			if not building.has_method("is_active"):
 				continue
 			if building == _moving_building:
 				continue
-			if building.definition.get_zone_radius() > 0.0:
-				if simulation_manager._is_in_zone(building, ghost_preview):
-					in_any_zone = true
-					break
-		ghost_preview.power_preview = 1 if in_any_zone else 0
+			if building.definition.power_provider != null:
+				power_cells.append(building)
+		var all_powered: bool = simulation_manager._check_all_tiles_covered(ghost_preview, power_cells)
+		ghost_preview.power_preview = 1 if all_powered else 0
 
 
 func _clear_power_preview() -> void:
