@@ -75,9 +75,10 @@ func get_total_stored() -> int:
 
 
 func can_accept_data(amount: int = 1) -> bool:
-	if definition.storage_capacity <= 0:
+	var cap: int = definition.get_storage_capacity()
+	if cap <= 0:
 		return true
-	return get_total_stored() + amount <= definition.storage_capacity
+	return get_total_stored() + amount <= cap
 
 
 func is_active() -> bool:
@@ -95,8 +96,9 @@ func update_display() -> void:
 	if definition == null:
 		return
 	heat_ratio = current_heat / definition.max_heat if definition.max_heat > 0.0 else 0.0
-	if definition.storage_capacity > 0:
-		fill_ratio = float(get_total_stored()) / float(definition.storage_capacity)
+	var cap: int = definition.get_storage_capacity()
+	if cap > 0:
+		fill_ratio = float(get_total_stored()) / float(cap)
 	else:
 		fill_ratio = 0.0
 
@@ -125,12 +127,13 @@ func _draw() -> void:
 	var accent: Color = definition.color
 
 	# Determine if this building is powered (infrastructure is always "powered")
-	var powered: bool = _is_ghost or has_power or definition.building_type in ["power", "coolant"]
+	var powered: bool = _is_ghost or has_power or definition.is_infrastructure()
 	var dim_accent: Color = Color(accent, 0.15) if not powered else accent
 
 	# Zone radius (Power Cell, Coolant Rig)
-	if definition.zone_radius > 0.0:
-		_draw_zone(center, definition.zone_radius, accent, _is_ghost)
+	var zone_r: float = definition.get_zone_radius()
+	if zone_r > 0.0:
+		_draw_zone(center, zone_r, accent, _is_ghost)
 
 	if powered:
 		# Pulse value for glow animation
@@ -666,7 +669,7 @@ func _draw_status_bars(size: Vector2, accent: Color) -> void:
 		draw_rect(heat_fill, heat_color, true)
 
 	# Fill bar (for buildings with storage capacity)
-	if definition.storage_capacity > 0:
+	if definition.get_storage_capacity() > 0:
 		bar_y -= BAR_HEIGHT + BAR_GAP
 		var fill_bg := Rect2(Vector2(bar_x, bar_y), Vector2(bar_w, BAR_HEIGHT))
 		draw_rect(fill_bg, Color(0.1, 0.2, 0.1, 0.5), true)

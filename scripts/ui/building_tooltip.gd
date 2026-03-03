@@ -69,7 +69,7 @@ func _update_stats() -> void:
 	var lines: PackedStringArray = []
 
 	# Power & work status (all buildings except power/coolant infrastructure)
-	if def.building_type not in ["power", "coolant"]:
+	if not def.is_infrastructure():
 		if not b.has_power:
 			lines.append(_stat("Durum", "[color=#ff6644]● Güç Yok[/color]"))
 		elif b.is_overheated:
@@ -79,36 +79,35 @@ func _update_stats() -> void:
 		else:
 			lines.append(_stat("Durum", "[color=#ffcc44]● Boşta[/color]"))
 
-	# Type-specific stats
-	match def.building_type:
-		"generator":
-			lines.append(_stat("Akış", "%d MB/s" % int(def.generation_rate)))
-			if not def.data_weights.is_empty():
-				lines.append(_stat("Çıktı", _format_data_weights(def.data_weights)))
-		"storage":
-			var total: int = b.get_total_stored()
-			var cap: int = def.storage_capacity
-			var pct: int = int(float(total) / float(cap) * 100.0) if cap > 0 else 0
-			var fill_color: String = "#ff6644" if pct >= 90 else "#ffcc44" if pct >= 70 else "#44ff88"
-			lines.append(_stat("Doluluk", "[color=%s]%d / %d MB (%d%%)[/color]" % [fill_color, total, cap, pct]))
-			if total > 0:
-				lines.append(_stat("İçerik", _format_stored_data(b.stored_data)))
-			if def.generation_rate > 0:
-				lines.append(_stat("İletim", "%d MB/s" % int(def.generation_rate)))
-		"seller":
-			lines.append(_stat("Satış", "%d MB/s (Clean)" % int(def.sell_rate)))
-			lines.append(_stat("Kazanç", "%.1f CR/MB" % def.credits_per_mb))
-			var clean_buf: int = b.stored_data.get("clean", 0)
-			if clean_buf > 0:
-				lines.append(_stat("Buffer", "%d MB Clean" % clean_buf))
-		"power":
-			var tile_range: int = int(def.zone_radius / 64.0)
-			lines.append(_stat("Zone", "%d tile yarıçap" % tile_range))
-			lines.append(_stat("Beslenen", "%d yapı" % _count_powered_buildings(b)))
-		"coolant":
-			var tile_range: int = int(def.zone_radius / 64.0)
-			lines.append(_stat("Zone", "%d tile yarıçap" % tile_range))
-			lines.append(_stat("Soğutma", "%.1f °C/s" % def.cooling_rate))
+	# Type-specific stats (component-based)
+	if def.generator:
+		lines.append(_stat("Akış", "%d MB/s" % int(def.generator.generation_rate)))
+		if not def.generator.data_weights.is_empty():
+			lines.append(_stat("Çıktı", _format_data_weights(def.generator.data_weights)))
+	if def.storage:
+		var total: int = b.get_total_stored()
+		var cap: int = def.storage.capacity
+		var pct: int = int(float(total) / float(cap) * 100.0) if cap > 0 else 0
+		var fill_color: String = "#ff6644" if pct >= 90 else "#ffcc44" if pct >= 70 else "#44ff88"
+		lines.append(_stat("Doluluk", "[color=%s]%d / %d MB (%d%%)[/color]" % [fill_color, total, cap, pct]))
+		if total > 0:
+			lines.append(_stat("İçerik", _format_stored_data(b.stored_data)))
+		if def.storage.forward_rate > 0:
+			lines.append(_stat("İletim", "%d MB/s" % int(def.storage.forward_rate)))
+	if def.seller:
+		lines.append(_stat("Satış", "%d MB/s (Clean)" % int(def.seller.sell_rate)))
+		lines.append(_stat("Kazanç", "%.1f CR/MB" % def.seller.credits_per_mb))
+		var clean_buf: int = b.stored_data.get("clean", 0)
+		if clean_buf > 0:
+			lines.append(_stat("Buffer", "%d MB Clean" % clean_buf))
+	if def.power_provider:
+		var tile_range: int = int(def.power_provider.zone_radius / 64.0)
+		lines.append(_stat("Zone", "%d tile yarıçap" % tile_range))
+		lines.append(_stat("Beslenen", "%d yapı" % _count_powered_buildings(b)))
+	if def.coolant:
+		var tile_range: int = int(def.coolant.zone_radius / 64.0)
+		lines.append(_stat("Zone", "%d tile yarıçap" % tile_range))
+		lines.append(_stat("Soğutma", "%.1f °C/s" % def.coolant.cooling_rate))
 
 	# Heat (all buildings)
 	var heat_pct: int = int(b.heat_ratio * 100.0)
@@ -124,7 +123,7 @@ func _update_stats() -> void:
 	var heat_status: String = " [color=#ff4422]AŞIRI ISI[/color]" if b.is_overheated else ""
 	lines.append(_stat("Isı", "[color=%s]%.1f / %.0f °C[/color]%s" % [heat_color, b.current_heat, def.max_heat, heat_status]))
 
-	if def.heat_generation > 0 and def.building_type not in ["power", "coolant"]:
+	if def.heat_generation > 0 and not def.is_infrastructure():
 		lines.append(_stat("Isı Üretimi", "+%.1f °C/s" % def.heat_generation))
 
 	stats_label.text = "\n".join(lines)
@@ -174,7 +173,7 @@ func _count_powered_buildings(power_cell: Node2D) -> int:
 	for child in container.get_children():
 		if child == power_cell or not child.has_method("is_active"):
 			continue
-		if child.definition == null or child.definition.building_type in ["power", "coolant"]:
+		if child.definition == null or child.definition.is_infrastructure():
 			continue
 		if _is_in_zone(power_cell, child):
 			count += 1
@@ -182,7 +181,7 @@ func _count_powered_buildings(power_cell: Node2D) -> int:
 
 
 func _is_in_zone(source: Node2D, target: Node2D) -> bool:
-	var tile_range: int = int(source.definition.zone_radius / 64)
+	var tile_range: int = int(source.definition.get_zone_radius() / 64)
 	var src_cell: Vector2i = source.grid_cell
 	var src_size: Vector2i = source.definition.grid_size
 	var tgt_cell: Vector2i = target.grid_cell

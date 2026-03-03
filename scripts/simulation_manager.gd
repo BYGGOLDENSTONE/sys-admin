@@ -46,7 +46,10 @@ func _on_sim_tick() -> void:
 # --- ZONE HELPERS (grid-aligned square) ---
 # Target must be FULLY inside zone (all tiles of target within zone bounds)
 func _is_in_zone(source: Node2D, target: Node2D) -> bool:
-	var tile_range: int = int(source.definition.zone_radius / TILE_SIZE)
+	var zone_radius: float = source.definition.get_zone_radius()
+	if zone_radius <= 0.0:
+		return false
+	var tile_range: int = int(zone_radius / TILE_SIZE)
 	var src_cell: Vector2i = source.grid_cell
 	var src_size: Vector2i = source.definition.grid_size
 	var tgt_cell: Vector2i = target.grid_cell
@@ -67,11 +70,11 @@ func _is_in_zone(source: Node2D, target: Node2D) -> bool:
 func _update_power(buildings: Array[Node]) -> void:
 	var power_cells: Array[Node] = []
 	for b in buildings:
-		if b.definition.building_type == "power":
+		if b.definition.power_provider != null:
 			power_cells.append(b)
 
 	for b in buildings:
-		if b.definition.building_type in ["power", "coolant"]:
+		if b.definition.is_infrastructure():
 			b.has_power = true
 			continue
 		var was_powered: bool = b.has_power
@@ -87,12 +90,13 @@ func _update_power(buildings: Array[Node]) -> void:
 # --- DATA GENERATION (Uplink) ---
 func _update_generation(buildings: Array[Node]) -> void:
 	for b in buildings:
-		if b.definition.building_type != "generator" or not b.is_active():
+		if b.definition.generator == null or not b.is_active():
 			continue
-		var amount: int = int(b.definition.generation_rate)
+		var gen: GeneratorComponent = b.definition.generator
+		var amount: int = int(gen.generation_rate)
 		var total_pushed: int = 0
 		for i in range(amount):
-			var data_type: String = _roll_data_type(b.definition.data_weights)
+			var data_type: String = _roll_data_type(gen.data_weights)
 			total_pushed += _push_data_from(b, data_type, 1)
 		if total_pushed > 0:
 			b.is_working = true
@@ -138,7 +142,7 @@ func _push_data_from(source: Node2D, data_type: String, amount: int) -> int:
 # --- STORAGE FORWARD ---
 func _update_storage_forward(buildings: Array[Node]) -> void:
 	for b in buildings:
-		if b.definition.building_type != "storage" or not b.is_active():
+		if b.definition.storage == null or not b.is_active():
 			continue
 		if b.get_total_stored() <= 0:
 			continue
@@ -150,8 +154,10 @@ func _update_storage_forward(buildings: Array[Node]) -> void:
 				targets.append(conn)
 		if targets.is_empty():
 			continue
-		# Send up to generation_rate or all stored data (whichever is less)
-		var max_forward: int = maxi(1, int(b.definition.generation_rate)) if b.definition.generation_rate > 0 else b.get_total_stored()
+		# Send up to forward_rate or all stored data (whichever is less)
+		var stor: StorageComponent = b.definition.storage
+		var max_forward: int = int(stor.forward_rate) if stor.forward_rate > 0 else b.get_total_stored()
+		max_forward = maxi(1, max_forward)
 		var sent: int = 0
 		for dtype in b.stored_data:
 			if sent >= max_forward:
@@ -178,19 +184,23 @@ func _update_storage_forward(buildings: Array[Node]) -> void:
 # --- SELLING (Data Broker) ---
 func _update_selling(buildings: Array[Node]) -> void:
 	for b in buildings:
-		if b.definition.building_type != "seller" or not b.is_active():
+		if b.definition.seller == null or not b.is_active():
 			continue
-		var to_sell: int = int(b.definition.sell_rate)
+		var sell: SellerComponent = b.definition.seller
+		var to_sell: int = int(sell.sell_rate)
 		var sold: int = 0
-		# Sell clean data from own buffer
-		var clean_available: int = b.stored_data.get("clean", 0)
-		if clean_available > 0:
-			var sell_amount: int = mini(clean_available, to_sell - sold)
-			b.stored_data["clean"] -= sell_amount
-			sold += sell_amount
+		# Sell accepted types from own buffer
+		for accepted_type in sell.accepted_types:
+			if sold >= to_sell:
+				break
+			var available: int = b.stored_data.get(accepted_type, 0)
+			if available > 0:
+				var sell_amount: int = mini(available, to_sell - sold)
+				b.stored_data[accepted_type] -= sell_amount
+				sold += sell_amount
 		if sold > 0:
 			b.is_working = true
-			var earned: float = sold * b.definition.credits_per_mb
+			var earned: float = sold * sell.credits_per_mb
 			total_credits += earned
 			credits_changed.emit(total_credits)
 
@@ -199,13 +209,13 @@ func _update_selling(buildings: Array[Node]) -> void:
 func _update_heat(buildings: Array[Node]) -> void:
 	# Phase 1: Generate heat for active buildings
 	for b in buildings:
-		if b.definition.building_type == "coolant":
+		if b.definition.coolant != null:
 			continue
-		if b.definition.building_type == "power":
+		if b.definition.power_provider != null:
 			# Power Cell heats up based on how many buildings it powers
 			var powered_count: int = 0
 			for other in buildings:
-				if other == b or other.definition.building_type in ["power", "coolant"]:
+				if other == b or other.definition.is_infrastructure():
 					continue
 				if _is_in_zone(b, other):
 					powered_count += 1
@@ -217,13 +227,13 @@ func _update_heat(buildings: Array[Node]) -> void:
 
 	# Phase 2: Coolant Rig zone cooling
 	for b in buildings:
-		if b.definition.building_type != "coolant":
+		if b.definition.coolant == null:
 			continue
 		for target in buildings:
 			if target == b:
 				continue
 			if _is_in_zone(b, target):
-				target.current_heat -= b.definition.cooling_rate
+				target.current_heat -= b.definition.coolant.cooling_rate
 
 	# Phase 3: Natural cooling (only idle buildings) + clamping + overheat check
 	for b in buildings:

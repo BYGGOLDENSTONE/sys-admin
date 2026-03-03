@@ -272,7 +272,7 @@ func _update_power_preview() -> void:
 	# Clear previous preview
 	_clear_power_preview()
 
-	if _current_definition.zone_radius > 0.0:
+	if _current_definition.get_zone_radius() > 0.0:
 		# Placing a zone building (Power Cell, Coolant Rig): highlight affected buildings
 		for building in building_container.get_children():
 			if not building.has_method("is_active"):
@@ -287,7 +287,7 @@ func _update_power_preview() -> void:
 		for building in building_container.get_children():
 			if not building.has_method("is_active"):
 				continue
-			if building.definition.zone_radius > 0.0:
+			if building.definition.get_zone_radius() > 0.0:
 				if simulation_manager._is_in_zone(building, ghost_preview):
 					in_any_zone = true
 					break

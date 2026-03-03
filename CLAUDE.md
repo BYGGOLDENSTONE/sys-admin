@@ -19,29 +19,44 @@ Tasarım çekirdek kararları tamamlandı (GDD v0.4). Vertical slice tamamlandı
 ### Temel İlke
 Bu bir sistemler oyunu. Oyuncu sandbox dünyada kendi çözümlerini bulmalı — geliştiricinin düşünmediği yollar dahil. Hardcoded davranışlar değil, birbirine takılan Lego blokları.
 
-### Component-Based Mimari (Kompozisyon)
-Yapılar özel sınıflar değil, **component'lerin birleşimi:**
+### Component-Based Mimari (Kompozisyon) — UYGULAMADA
 
-| Component | Ne Yapar |
-|-----------|----------|
-| `PortComponent` | Giriş/çıkış slotları, hangi veri tiplerini kabul eder |
-| `ProcessorComponent` | Girdiyi çıktıya dönüştürür (kural Resource'dan gelir) |
-| `StorageComponent` | Veri depolar, kapasite sınırı |
-| `HeatComponent` | Isı üretir veya soğutur |
-| `PowerComponent` | Güç tüketir veya sağlar (zone) |
+Yapılar özel sınıflar değil, **component Resource'larının birleşimi.** Her component `resources/components/` altında ayrı bir Resource scripti:
 
-**Yapı = Node2D + Component'ler.** Davranış component'lerden gelir, yapı sadece konteyner.
+| Component Resource | Dosya | Ne Yapar |
+|-------------------|-------|----------|
+| `GeneratorComponent` | `generator_component.gd` | Veri üretir (`generation_rate`, `data_weights`) |
+| `StorageComponent` | `storage_component.gd` | Veri depolar (`capacity`, `forward_rate`) |
+| `SellerComponent` | `seller_component.gd` | Veri satar (`sell_rate`, `credits_per_mb`, `accepted_types`) |
+| `PowerProviderComponent` | `power_provider_component.gd` | Zone'da güç sağlar (`zone_radius`, `power_output`) |
+| `CoolantComponent` | `coolant_component.gd` | Zone'da soğutur (`zone_radius`, `cooling_rate`) |
+| `ProcessorComponent` | `processor_component.gd` | Veri işler (`processing_rate`, `input_types`, `output_type`, `rule`) |
 
-### Örnek: Aynı Parçalar, Farklı Yapılar
-- **Uplink** = Port(çıkış: tüm tipler) + Heat(üretir)
-- **Storage** = Port(giriş: hepsi) + Storage(kapasite: 100) + Heat(üretir)
-- **Separator** = Port(giriş: karışık, çıkış: tip başına) + Processor(kural: tipe_göre_ayır)
-- **Coolant Rig** = Heat(soğutur, zone) + Power(tüketir)
+**Yapı = BuildingDefinition + opsiyonel component'ler.** `BuildingDefinition`'da her component nullable export:
+```
+@export var generator: GeneratorComponent    # null = bu yapı üretici değil
+@export var storage: StorageComponent        # null = bu yapı depolama yapmaz
+@export var seller: SellerComponent          # null = bu yapı satış yapmaz
+...
+```
+
+**Helper methodlar** (`BuildingDefinition` üzerinde):
+- `get_zone_radius() -> float` — power_provider veya coolant'tan zone_radius döner
+- `is_infrastructure() -> bool` — power_provider veya coolant varsa true
+- `get_storage_capacity() -> int` — storage varsa capacity döner
+
+### Mevcut Yapı-Component Eşlemesi
+- **Uplink** = `generator` component (5 MB/s, karma veri)
+- **Storage** = `storage` component (100 MB kapasite)
+- **Data Broker** = `seller` component (3 MB/s, Clean only)
+- **Power Cell** = `power_provider` component (192px zone, 50W)
+- **Coolant Rig** = `coolant` component (192px zone, 2°C/s)
+- **Separator, Compressor vb.** = henüz component yok (pasif yapılar, demo'da aktifleşecek)
 
 ### Data-Driven Tasarım
-- Yapı değerleri (hız, kapasite, ısı üretimi) → **Resource dosyalarında** (.tres), kodda değil
-- İşleme kuralları (ne girer → ne çıkar) → Resource'da tanımlı
-- Yeni yapı eklemek = yeni Resource oluşturmak, yeni kod yazmak değil
+- Yapı değerleri → **component sub-resource** olarak .tres dosyasında
+- Yeni yapı eklemek = yeni .tres + mevcut component'leri birleştirmek
+- Yeni davranış = yeni component Resource scripti + SimulationManager'da handler
 
 ### Sistemler Arası İletişim
 - Sistemler birbirini doğrudan çağırmaz
@@ -49,11 +64,15 @@ Yapılar özel sınıflar değil, **component'lerin birleşimi:**
 - Port'lar evrensel: çıkış tipi uyuşan her şey birbirine bağlanabilir
 - Oyuncu beklenmedik kombinasyonlar bulabilmeli
 
-### Kurallar
-- Yapıya özel `if uplink then...` kodu YAZMA → component davranışı yaz
-- Değerleri koda gömme → Resource dosyasına koy
-- Yeni yapı için yeni script yazma → mevcut component'leri birleştir
+### Kurallar — HER DEĞİŞİKLİKTE UYGULA
+- **ASLA** `building_type == "xxx"` string kontrolü YAZMA → `if def.component != null` kullan
+- **ASLA** yapıya özel davranışı if/match ile kodlama → component varlığını kontrol et
+- Değerleri koda gömme → component Resource'a koy
+- Yeni yapı için yeni script yazma → mevcut component'leri .tres'de birleştir
+- Yeni mekanik gerekiyorsa → yeni component Resource scripti oluştur
 - Sistem eklerken diğer sistemleri bilmek zorunda olma → signal ile haberleş
+- `SimulationManager`'da tip kontrolü: `b.definition.generator != null` (string değil)
+- `building.gd`'de alan erişimi: `definition.get_zone_radius()`, `definition.get_storage_capacity()`, `definition.is_infrastructure()` (doğrudan alan değil)
 
 ---
 

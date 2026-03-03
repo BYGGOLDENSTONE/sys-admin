@@ -54,7 +54,7 @@ func _snapshot_buildings() -> Array:
 		var def: Resource = child.definition
 		result.append({
 			"name": def.building_name,
-			"type": def.building_type,
+			"type": def.visual_type,
 			"cell": [child.grid_cell.x, child.grid_cell.y],
 			"heat": child.current_heat,
 			"heat_max": def.max_heat,
@@ -64,7 +64,7 @@ func _snapshot_buildings() -> Array:
 			"is_working": child.is_working,
 			"stored_data": child.stored_data.duplicate(),
 			"total_stored": child.get_total_stored(),
-			"storage_capacity": def.storage_capacity,
+			"storage_capacity": def.get_storage_capacity(),
 		})
 	return result
 
