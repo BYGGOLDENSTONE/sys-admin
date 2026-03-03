@@ -40,6 +40,7 @@ func _ready() -> void:
 	building_manager.building_removed.connect(simulation_manager._on_building_removed)
 	building_manager.simulation_manager = simulation_manager
 	simulation_manager.credits_changed.connect(_on_credits_changed)
+	simulation_manager.data_type_discovered.connect(_on_data_type_discovered)
 
 	# Center camera on grid
 	camera.position = Vector2(
@@ -104,3 +105,33 @@ func _on_scenario_finished(scenario_name: String, success: bool) -> void:
 
 func _on_credits_changed(new_total: float) -> void:
 	credits_label.text = "Credits: %d" % int(new_total)
+
+
+func _on_data_type_discovered(data_type: String) -> void:
+	var type_names: Dictionary = {
+		"corrupted": "CORRUPTED DATA",
+		"encrypted": "ENCRYPTED DATA",
+		"malware": "MALWARE"
+	}
+	var type_colors: Dictionary = {
+		"corrupted": Color(1.0, 0.53, 0.27),
+		"encrypted": Color(0.27, 0.67, 1.0),
+		"malware": Color(1.0, 0.27, 0.4)
+	}
+	var display_name: String = type_names.get(data_type, data_type.to_upper())
+	var color: Color = type_colors.get(data_type, Color.WHITE)
+
+	# Create floating discovery notification
+	var notif := Label.new()
+	notif.text = "[ %s KEŞFEDİLDİ ]" % display_name
+	notif.add_theme_font_size_override("font_size", 20)
+	notif.add_theme_color_override("font_color", color)
+	notif.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	notif.anchors_preset = Control.PRESET_CENTER_TOP
+	notif.position.y = 80
+	ui_layer.add_child(notif)
+
+	# Fade out and remove after 3 seconds
+	var tween := create_tween()
+	tween.tween_property(notif, "modulate:a", 0.0, 1.0).set_delay(2.0)
+	tween.tween_callback(notif.queue_free)

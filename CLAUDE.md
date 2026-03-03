@@ -1,7 +1,7 @@
 # SYS_ADMIN - Proje Durumu
 
-## Mevcut Aşama: VERTICAL SLICE TAMAMLANDI — Sırada DEMO
-Tasarım çekirdek kararları tamamlandı (GDD v0.4). Vertical slice tamamlandı. Sırada Steam sayfası ve demo hazırlığı.
+## Mevcut Aşama: DEMO GELİŞTİRME — Faz 1 ✓ → Sırada Faz 2
+Vertical slice tamamlandı. Demo Faz 1 (Separator + Compressor) tamamlandı. Hedef: Haziran 2026 Steam Next Fest.
 
 ## Tasarım Dökümanı
 - **GDD:** `docs/GDD.md` (v0.4) - Tüm tasarım kararları burada
@@ -30,7 +30,7 @@ Yapılar özel sınıflar değil, **component Resource'larının birleşimi.** H
 | `SellerComponent` | `seller_component.gd` | Veri satar (`sell_rate`, `credits_per_mb`, `accepted_types`) |
 | `PowerProviderComponent` | `power_provider_component.gd` | Zone'da güç sağlar (`zone_radius`, `power_output`) |
 | `CoolantComponent` | `coolant_component.gd` | Zone'da soğutur (`zone_radius`, `cooling_rate`) |
-| `ProcessorComponent` | `processor_component.gd` | Veri işler (`processing_rate`, `input_types`, `output_type`, `rule`) |
+| `ProcessorComponent` | `processor_component.gd` | Veri işler (`processing_rate`, `input_types`, `output_type`, `rule`, `efficiency`) |
 
 **Yapı = BuildingDefinition + opsiyonel component'ler.** `BuildingDefinition`'da her component nullable export:
 ```
@@ -51,7 +51,9 @@ Yapılar özel sınıflar değil, **component Resource'larının birleşimi.** H
 - **Data Broker** = `seller` component (3 MB/s, Clean only)
 - **Power Cell** = `power_provider` component (192px zone, 50W)
 - **Coolant Rig** = `coolant` component (192px zone, 2°C/s)
-- **Separator, Compressor vb.** = henüz component yok (pasif yapılar, demo'da aktifleşecek)
+- **Separator** = `processor` component (rule="separator", 5 MB/s, %60 verimlilik) + `storage` (20 MB buffer)
+- **Compressor** = `processor` component (rule="compressor", 5 MB/s, %75 verimlilik) + `storage` (10 MB buffer)
+- **Decryptor, Recoverer, Quarantine vb.** = henüz component yok (pasif yapılar, demo'da aktifleşecek)
 
 ### Data-Driven Tasarım
 - Yapı değerleri → **component sub-resource** olarak .tres dosyasında
@@ -136,6 +138,67 @@ Yapılar özel sınıflar değil, **component Resource'larının birleşimi.** H
 - [x] Isı mekanığı düzeltmesi: sadece çalışan yapılar ısı üretir
 - [x] Kablo görünürlük düzeltmesi: inaktif kablolar görünür kalır (0.3 alpha)
 - [x] Doğal soğuma sadece boştaki yapılara uygulanır (çalışanlar Coolant Rig şart)
+
+---
+
+## Demo Planı
+
+### Faz 1: Separator + Compressor ✓
+- [x] Separator aktifleştirme (ham veriyi tiplere ayırma, %60 verimlilik)
+- [x] Compressor aktifleştirme (veri sıkıştırma, %75 çıktı)
+- [x] ProcessorComponent entegrasyonu (SimulationManager'da _update_processing)
+- [x] Port-aware veri gönderme (_push_data_from port filtresi)
+- [x] Separator filtre mekaniği (clean → right port, diğer → bottom port)
+- [x] Keşif sistemi (bilinmeyen veri tipleri ??? → ilk keşif anı + bildirim)
+- [x] Bilgi paneli güncelleme (processor yapılar: hız, verimlilik, filtre bilgisi)
+- [x] AutoPlay test senaryosu (separator_compressor_test.json — PASSED)
+
+### Faz 2: Decryptor + Research Lab
+- [ ] Decryptor aktifleştirme (Encrypted → Research)
+- [ ] Research Lab aktifleştirme (Research puanı biriktirme)
+- [ ] Teknoloji ağacı UI (yeni yapı açma ekranı)
+- [ ] Bilgi paneli + tooltip güncelleme
+
+### Faz 3: Recoverer + Patch Data
+- [ ] Recoverer aktifleştirme (Corrupted → Patch Data)
+- [ ] Patch Data upgrade sistemi (yapı geliştirme mekaniği)
+- [ ] Yapı upgrade UI ("Geliştir" butonu, seviye göstergesi)
+- [ ] Bilgi paneli + tooltip güncelleme
+
+### Faz 4: Quarantine + Malware
+- [ ] Quarantine aktifleştirme (Malware bertaraf)
+- [ ] Malware hasar mekaniği (filtrelenmezse yapılara hasar)
+- [ ] Uyarı sistemi UI (malware hasar bildirimleri)
+- [ ] Bilgi paneli + tooltip güncelleme
+
+### Faz 5: Splitter + Merger
+- [ ] Splitter aktifleştirme (1→N veri dağıtımı)
+- [ ] Merger aktifleştirme (N→1 veri birleştirme)
+- [ ] Kablo yönetimi iyileştirmeleri
+- [ ] Bilgi paneli + tooltip güncelleme
+
+### Faz 6: Trace + Veri Kaynakları
+- [ ] Trace sistemi (global sayaç, kaynak erişimi kısıtlama)
+- [ ] Trace UI göstergesi
+- [ ] Uplink kaynak seçim menüsü (Web, Deep Web, Corporate, Military, Blackwall)
+- [ ] Kaynak bazlı veri dağılımı farklılıkları
+
+### Faz 7: Ekonomi + Undo/Redo
+- [ ] Credits ile yapı satın alma sistemi
+- [ ] Yapı mağazası UI
+- [ ] Undo/Redo sistemi
+- [ ] Fiyat dengeleme
+
+### Faz 8: Hız Kontrolü + Polish
+- [ ] Hız kontrolü (1x, 2x, 3x + duraklat)
+- [ ] Overlay modları ([H] ısı haritası, [E] enerji haritası)
+- [ ] Genel UI polish
+- [ ] Yapı seçim paneli kategori grupları
+
+### Her Fazda Sürekli
+- Bilgi paneli güncellenmesi (yeni yapılar eklendikçe)
+- Tooltip güncellenmesi
+- Test ve dengeleme
 
 ---
 

@@ -1,0 +1,30 @@
+{
+  "name": "separator_compressor_test",
+  "actions": [
+    {"action": "place", "building": "power_cell", "cell": [8, 5], "id": "pc1"},
+    {"action": "place", "building": "power_cell", "cell": [14, 5], "id": "pc2"},
+    {"action": "place", "building": "coolant_rig", "cell": [8, 8], "id": "cr1"},
+    {"action": "place", "building": "coolant_rig", "cell": [14, 8], "id": "cr2"},
+
+    {"action": "place", "building": "uplink", "cell": [5, 4], "id": "up1"},
+    {"action": "place", "building": "compressor", "cell": [8, 4], "id": "comp1"},
+    {"action": "place", "building": "separator", "cell": [9, 4], "id": "sep1"},
+    {"action": "place", "building": "storage", "cell": [12, 4], "id": "st_clean"},
+    {"action": "place", "building": "data_broker", "cell": [15, 4], "id": "db1"},
+    {"action": "place", "building": "storage", "cell": [9, 7], "id": "st_other"},
+
+    {"action": "connect", "from": "up1", "from_port": "right", "to": "comp1", "to_port": "left"},
+    {"action": "connect", "from": "comp1", "from_port": "right", "to": "sep1", "to_port": "left"},
+    {"action": "connect", "from": "sep1", "from_port": "right", "to": "st_clean", "to_port": "left"},
+    {"action": "connect", "from": "sep1", "from_port": "bottom", "to": "st_other", "to_port": "left"},
+    {"action": "connect", "from": "st_clean", "from_port": "right", "to": "db1", "to_port": "left"},
+
+    {"action": "wait_ticks", "count": 20},
+    {"action": "snapshot", "label": "after_20_ticks"},
+
+    {"action": "assert", "check": "building_active", "id": "sep1"},
+    {"action": "assert", "check": "building_active", "id": "comp1"},
+    {"action": "assert", "check": "credits_gt", "value": 0},
+    {"action": "assert", "check": "storage_above", "id": "st_other", "value": 0}
+  ]
+}

@@ -108,6 +108,14 @@ func _update_stats() -> void:
 		var tile_range: int = int(def.coolant.zone_radius / 64.0)
 		lines.append(_stat("Zone", "%d tile yarıçap" % tile_range))
 		lines.append(_stat("Soğutma", "%.1f °C/s" % def.coolant.cooling_rate))
+	if def.processor:
+		lines.append(_stat("İşleme", "%d MB/s" % int(def.processor.processing_rate)))
+		lines.append(_stat("Verimlilik", "%d%%" % int(def.processor.efficiency * 100)))
+		if def.processor.rule == "separator":
+			var filter_name: String = b.separator_filter.capitalize()
+			lines.append(_stat("Filtre", "[color=#44ff88]%s → Sağ[/color] | Diğer → Alt" % filter_name))
+		elif def.processor.rule == "compressor":
+			lines.append(_stat("Sıkıştırma", "T1 — %d%% çıktı" % int(def.processor.efficiency * 100)))
 
 	# Heat (all buildings)
 	var heat_pct: int = int(b.heat_ratio * 100.0)

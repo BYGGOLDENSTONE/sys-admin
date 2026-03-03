@@ -31,6 +31,7 @@ var current_heat: float = 0.0
 var has_power: bool = false
 var is_overheated: bool = false
 var is_working: bool = false  ## True when building did actual work this tick
+var separator_filter: String = "clean"  ## For separator: which type goes to primary output port
 
 # Preview state (set by BuildingManager during placement)
 var power_preview: int = 0  ## 0=none, 1=will be powered, -1=will lose power

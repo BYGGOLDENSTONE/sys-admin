@@ -2,6 +2,7 @@ extends Node
 
 signal credits_changed(new_total: float)
 signal tick_completed(tick_count: int)
+signal data_type_discovered(data_type: String)
 
 const TILE_SIZE: int = 64
 const NATURAL_COOLING: float = 0.1
@@ -10,6 +11,7 @@ const POWER_CELL_HEAT_PER_BUILDING: float = 0.15  ## C/s per powered building
 
 var total_credits: float = 0.0
 var _tick_count: int = 0
+var discovered_types: Dictionary = {"clean": true, "corrupted": false, "encrypted": false, "malware": false}
 var connection_manager: Node = null
 var building_container: Node2D = null
 var grid_system: Node2D = null
@@ -36,6 +38,7 @@ func _on_sim_tick() -> void:
 	_update_power(buildings)
 	_update_generation(buildings)
 	_update_storage_forward(buildings)
+	_update_processing(buildings)
 	_update_selling(buildings)
 	_update_heat(buildings)
 	_update_displays(buildings)
@@ -114,12 +117,13 @@ func _roll_data_type(weights: Dictionary) -> String:
 	return "clean"
 
 
-func _push_data_from(source: Node2D, data_type: String, amount: int) -> int:
+func _push_data_from(source: Node2D, data_type: String, amount: int, from_port: String = "") -> int:
 	var conns: Array[Dictionary] = connection_manager.get_connections()
 	var targets: Array[Dictionary] = []
 	for conn in conns:
 		if conn.from_building == source:
-			targets.append(conn)
+			if from_port == "" or conn.from_port == from_port:
+				targets.append(conn)
 	if targets.is_empty():
 		return 0
 	# Distribute evenly among connected targets
@@ -144,6 +148,8 @@ func _update_storage_forward(buildings: Array[Node]) -> void:
 	for b in buildings:
 		if b.definition.storage == null or not b.is_active():
 			continue
+		if b.definition.processor != null:
+			continue  # Processor buildings handle their own output
 		if b.get_total_stored() <= 0:
 			continue
 		# Forward stored data to connected buildings
@@ -179,6 +185,70 @@ func _update_storage_forward(buildings: Array[Node]) -> void:
 					available -= to_send
 		if sent > 0:
 			b.is_working = true
+
+
+# --- PROCESSING (Separator, Compressor) ---
+func _update_processing(buildings: Array[Node]) -> void:
+	for b in buildings:
+		if b.definition.processor == null or not b.is_active():
+			continue
+		if b.get_total_stored() <= 0:
+			continue
+		var proc: ProcessorComponent = b.definition.processor
+		var max_process: int = int(proc.processing_rate)
+		var processed: int = 0
+		match proc.rule:
+			"separator":
+				processed = _process_separator(b, proc, max_process)
+			"compressor":
+				processed = _process_compressor(b, proc, max_process)
+		if processed > 0:
+			b.is_working = true
+
+
+func _process_separator(b: Node2D, proc: ProcessorComponent, max_process: int) -> int:
+	var primary_port: String = b.definition.output_ports[0] if b.definition.output_ports.size() > 0 else ""
+	var secondary_port: String = b.definition.output_ports[1] if b.definition.output_ports.size() > 1 else ""
+	var processed: int = 0
+	for dtype in b.stored_data:
+		if processed >= max_process:
+			break
+		var available: int = b.stored_data[dtype]
+		if available <= 0:
+			continue
+		var to_process: int = mini(available, max_process - processed)
+		var output_amount: int = maxi(1, roundi(to_process * proc.efficiency))
+		# Route by filter: matching type → primary port, rest → secondary port
+		var target_port: String = primary_port if dtype == b.separator_filter else secondary_port
+		if target_port == "":
+			continue
+		var sent: int = _push_data_from(b, dtype, output_amount, target_port)
+		if sent > 0:
+			b.stored_data[dtype] -= to_process
+			processed += to_process
+			# Discovery: first time separating a non-clean type
+			if not discovered_types.get(dtype, false):
+				discovered_types[dtype] = true
+				data_type_discovered.emit(dtype)
+				print("[Discovery] Yeni veri tipi keşfedildi: %s" % dtype)
+	return processed
+
+
+func _process_compressor(b: Node2D, proc: ProcessorComponent, max_process: int) -> int:
+	var processed: int = 0
+	for dtype in b.stored_data:
+		if processed >= max_process:
+			break
+		var available: int = b.stored_data[dtype]
+		if available <= 0:
+			continue
+		var to_process: int = mini(available, max_process - processed)
+		var output_amount: int = maxi(1, roundi(to_process * proc.efficiency))
+		var sent: int = _push_data_from(b, dtype, output_amount)
+		if sent > 0:
+			b.stored_data[dtype] -= to_process
+			processed += to_process
+	return processed
 
 
 # --- SELLING (Data Broker) ---
