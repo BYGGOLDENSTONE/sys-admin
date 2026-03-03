@@ -14,6 +14,49 @@ Tasarım çekirdek kararları tamamlandı (GDD v0.4). Vertical slice geliştiril
 
 ---
 
+## Mimari Felsefe: Oyun Değil, Oyuncak Yap
+
+### Temel İlke
+Bu bir sistemler oyunu. Oyuncu sandbox dünyada kendi çözümlerini bulmalı — geliştiricinin düşünmediği yollar dahil. Hardcoded davranışlar değil, birbirine takılan Lego blokları.
+
+### Component-Based Mimari (Kompozisyon)
+Yapılar özel sınıflar değil, **component'lerin birleşimi:**
+
+| Component | Ne Yapar |
+|-----------|----------|
+| `PortComponent` | Giriş/çıkış slotları, hangi veri tiplerini kabul eder |
+| `ProcessorComponent` | Girdiyi çıktıya dönüştürür (kural Resource'dan gelir) |
+| `StorageComponent` | Veri depolar, kapasite sınırı |
+| `HeatComponent` | Isı üretir veya soğutur |
+| `PowerComponent` | Güç tüketir veya sağlar (zone) |
+
+**Yapı = Node2D + Component'ler.** Davranış component'lerden gelir, yapı sadece konteyner.
+
+### Örnek: Aynı Parçalar, Farklı Yapılar
+- **Uplink** = Port(çıkış: tüm tipler) + Heat(üretir)
+- **Storage** = Port(giriş: hepsi) + Storage(kapasite: 100) + Heat(üretir)
+- **Separator** = Port(giriş: karışık, çıkış: tip başına) + Processor(kural: tipe_göre_ayır)
+- **Coolant Rig** = Heat(soğutur, zone) + Power(tüketir)
+
+### Data-Driven Tasarım
+- Yapı değerleri (hız, kapasite, ısı üretimi) → **Resource dosyalarında** (.tres), kodda değil
+- İşleme kuralları (ne girer → ne çıkar) → Resource'da tanımlı
+- Yeni yapı eklemek = yeni Resource oluşturmak, yeni kod yazmak değil
+
+### Sistemler Arası İletişim
+- Sistemler birbirini doğrudan çağırmaz
+- Godot **signal** sistemi ile gevşek bağlı (loose coupling)
+- Port'lar evrensel: çıkış tipi uyuşan her şey birbirine bağlanabilir
+- Oyuncu beklenmedik kombinasyonlar bulabilmeli
+
+### Kurallar
+- Yapıya özel `if uplink then...` kodu YAZMA → component davranışı yaz
+- Değerleri koda gömme → Resource dosyasına koy
+- Yeni yapı için yeni script yazma → mevcut component'leri birleştir
+- Sistem eklerken diğer sistemleri bilmek zorunda olma → signal ile haberleş
+
+---
+
 ## Geliştirme Yol Haritası
 
 ### 1. VERTICAL SLICE (Şu an) — Steam sayfası için görsel test
@@ -24,11 +67,12 @@ Tasarım çekirdek kararları tamamlandı (GDD v0.4). Vertical slice geliştiril
 
 ## Vertical Slice Planı
 
-### Faz 1: Temel Grid ve Yerleştirme
-- [ ] Grid sistemi (tile-based yerleştirme alanı)
-- [ ] Kamera kontrolleri (pan, zoom)
-- [ ] Tek yapı yerleştirme/kaldırma (placeholder kutu)
-- [ ] Arka plan: koyu grid çizgileri
+### Faz 1: Temel Grid ve Yerleştirme ✓
+- [x] Grid sistemi (tile-based yerleştirme alanı)
+- [x] Kamera kontrolleri (pan, zoom)
+- [x] Tek yapı yerleştirme/kaldırma (placeholder kutu)
+- [x] Yapı seçim paneli (hangi yapıyı yerleştireceğini seçme UI'ı)
+- [x] Arka plan: koyu grid çizgileri
 
 ### Faz 2: İlk Yapılar (Görsel)
 - [ ] Uplink yapısı (prosedürel çizim + neon glow)
@@ -37,6 +81,7 @@ Tasarım çekirdek kararları tamamlandı (GDD v0.4). Vertical slice geliştiril
 - [ ] Power Cell yapısı (kapsama alanı gösterimi)
 - [ ] Coolant Rig yapısı
 - [ ] Her yapının durum barları (doluluk, ısı)
+- [ ] Tooltip / bilgi kutusu (yapı üzerine gelince isim + açıklama)
 
 ### Faz 3: Bağlantı ve Veri Akışı
 - [ ] Yapılar arası link çekme (kablo sistemi)
@@ -109,8 +154,43 @@ Tasarım çekirdek kararları tamamlandı (GDD v0.4). Vertical slice geliştiril
 
 ---
 
+## Godot Yolu ve Otomatik Test Prosesi
+
+### Godot Çalıştırılabilir Dosya
+- **Yol:** `D:\godot\Godot_v4.6-stable_win64_console.exe`
+- Console versiyonu kullanılır (çıktıyı okuyabilmek için)
+
+### Otomatik Test Akışı (Kod Yazıldıktan Sonra)
+1. **Godot'u headless/console ile çalıştır** → projeyi aç
+2. **MCP bağlantısı kontrol et** → `get_godot_status`
+3. **Script doğrula** → `validate_script` ile syntax hataları kontrol et
+4. **Sahne çalıştır** → Godot'u oyun modunda başlat
+5. **Konsol loglarını oku** → `get_console_log` / `get_errors` ile hataları kontrol et
+6. **Hata varsa düzelt** → döngüye gir, hata yoksa kullanıcıya bildir
+7. **Kullanıcı son testi yapar** → sadece görsel/UX onay kalır
+
+### Komutlar
+```bash
+# Editörü aç (MCP bağlantısı için gerekli)
+"D:/godot/Godot_v4.6-stable_win64_console.exe" --editor --path "D:/godotproject/sys-admin"
+
+# Oyunu çalıştır (test için)
+"D:/godot/Godot_v4.6-stable_win64_console.exe" --path "D:/godotproject/sys-admin"
+```
+
+### DİKKAT: Godot Yeniden Açma Kuralı — HER SEFERINDE UYGULA
+- Godot'u açmadan önce **HER ZAMAN** önce mevcut süreçleri öldür
+- Üst üste açma YAPMA — port çakışması ve MCP bağlantı sorunlarına yol açar
+- **Zorunlu sıra:**
+  1. `taskkill /F /IM Godot_v4.6-stable_win64_console.exe` VE `taskkill /F /IM Godot_v4.6-stable_win64.exe`
+  2. `tasklist | grep -i godot` ile süreç kalmadığını doğrula
+  3. Ancak ondan sonra yeni Godot aç
+
+---
+
 ## Önemli Kurallar
 - Kullanıcı teknik değil - ne ve neden açıkla, kod detayı değil
 - Her commit kullanıcı onayı ile yapılır
 - Commit ve push birlikte yapılır
 - MCP bağlantısı yoksa klasik workflow: kod yaz → kullanıcı test et → hata paylaş
+- Kod yazdıktan sonra önce otomatik test prosesini uygula, kullanıcıya sadece son test kalmalı
