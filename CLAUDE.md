@@ -1,6 +1,6 @@
 # SYS_ADMIN - Proje Durumu
 
-## Mevcut Aşama: DEMO GELİŞTİRME — Faz 2 ✓ → Sırada Faz 2 Düzeltmeleri + Faz 3
+## Mevcut Aşama: DEMO GELİŞTİRME — Faz 2 Düzeltmeleri ✓ → Sırada Faz 3
 Vertical slice tamamlandı. Demo Faz 1 (Separator + Compressor) ve Faz 2 (Decryptor + Research Lab) tamamlandı. Hedef: Haziran 2026 Steam Next Fest.
 
 ## Tasarım Dökümanı
@@ -168,11 +168,11 @@ Yapılar özel sınıflar değil, **component Resource'larının birleşimi.** H
 - [x] AutoPlay test senaryosu (decryptor_research_test.json — PASSED)
 - [x] Görsel mod senaryo desteği (senaryo bitince oyun kapanmaz)
 
-### Faz 2 Düzeltmeleri (YAPILACAK — sonraki session)
-- [ ] **Her porttan tek kablo kuralı** — 1 output port = 1 kablo çıkış, 1 input port = 1 kablo giriş
-- [ ] **Processor yapılarda buffer kaldırma** — Separator/Compressor/Decryptor'da doluluk barı gizle, gönderilemeyen veri otomatik silinsin (tıkanma olmasın)
-- [ ] **Parçacık efekti düzeltmesi** — Veri akışı durduğunda downstream kablo parçacıkları da durmalı
-- [ ] **Ctrl+sürükle yapı taşıma** — Ctrl basılıyken yapıyı kablolarıyla birlikte yeni konuma taşı
+### Faz 2 Düzeltmeleri ✓
+- [x] **Her porttan tek kablo kuralı** — 1 output port = 1 kablo çıkış, 1 input port = 1 kablo giriş
+- [x] **Processor yapılarda buffer kaldırma** — Separator/Compressor/Decryptor'da doluluk barı gizle, gönderilemeyen veri otomatik silinsin (tıkanma olmasın)
+- [x] **Parçacık efekti düzeltmesi** — Veri akışı durduğunda downstream kablo parçacıkları da durmalı
+- [x] **Ctrl+sürükle yapı taşıma** — Ctrl basılıyken yapıyı kablolarıyla birlikte yeni konuma taşı
 
 ### Faz 3: Recoverer + Patch Data
 - [ ] Recoverer aktifleştirme (Corrupted → Patch Data)

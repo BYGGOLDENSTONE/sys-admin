@@ -16,6 +16,10 @@ func add_connection(from_building: Node2D, from_port: String, to_building: Node2
 	for conn in connections:
 		if conn.to_building == to_building and conn.to_port == to_port:
 			return false
+	# Don't allow duplicate connections from the same output port
+	for conn in connections:
+		if conn.from_building == from_building and conn.from_port == from_port:
+			return false
 	var conn := {
 		"from_building": from_building,
 		"from_port": from_port,

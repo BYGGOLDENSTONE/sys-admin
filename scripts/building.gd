@@ -683,8 +683,8 @@ func _draw_status_bars(size: Vector2, accent: Color) -> void:
 		var heat_color := Color(1.0, 0.5 - heat_ratio * 0.3, 0.1, 0.8)
 		draw_rect(heat_fill, heat_color, true)
 
-	# Fill bar (for buildings with storage capacity)
-	if definition.get_storage_capacity() > 0:
+	# Fill bar (for buildings with storage capacity, but not processors)
+	if definition.get_storage_capacity() > 0 and definition.processor == null:
 		bar_y -= BAR_HEIGHT + BAR_GAP
 		var fill_bg := Rect2(Vector2(bar_x, bar_y), Vector2(bar_w, BAR_HEIGHT))
 		draw_rect(fill_bg, Color(0.1, 0.2, 0.1, 0.5), true)

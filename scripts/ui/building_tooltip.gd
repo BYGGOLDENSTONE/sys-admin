@@ -84,7 +84,7 @@ func _update_stats() -> void:
 		lines.append(_stat("Akış", "%d MB/s" % int(def.generator.generation_rate)))
 		if not def.generator.data_weights.is_empty():
 			lines.append(_stat("Çıktı", _format_data_weights(def.generator.data_weights)))
-	if def.storage:
+	if def.storage and def.processor == null:
 		var total: int = b.get_total_stored()
 		var cap: int = def.storage.capacity
 		var pct: int = int(float(total) / float(cap) * 100.0) if cap > 0 else 0

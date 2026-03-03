@@ -22,7 +22,7 @@
     {"action": "connect", "from": "up1", "from_port": "right", "to": "sep1", "to_port": "left"},
     {"action": "connect", "from": "sep1", "from_port": "right", "to": "st_clean", "to_port": "left"},
     {"action": "connect", "from": "sep1", "from_port": "bottom", "to": "st_other", "to_port": "left"},
-    {"action": "connect", "from": "sep1", "from_port": "bottom", "to": "dec1", "to_port": "left"},
+    {"action": "connect", "from": "st_other", "from_port": "right", "to": "dec1", "to_port": "left"},
     {"action": "connect", "from": "st_clean", "from_port": "right", "to": "db1", "to_port": "left"},
     {"action": "connect", "from": "dec1", "from_port": "right", "to": "rl1", "to_port": "left"},
 

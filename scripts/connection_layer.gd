@@ -58,6 +58,9 @@ func _is_connection_active(conn: Dictionary) -> bool:
 	# Source must be active
 	if from_b.has_method("is_active") and not from_b.is_active():
 		return false
+	# Source must be actually working (producing/forwarding data this tick)
+	if "is_working" in from_b and not from_b.is_working:
+		return false
 	# Target must be active
 	if to_b.has_method("is_active") and not to_b.is_active():
 		return false

@@ -211,6 +211,9 @@ func _update_processing(buildings: Array[Node]) -> void:
 				processed = _process_decryptor(b, proc, max_process)
 		if processed > 0:
 			b.is_working = true
+		# Clear processor buffer — unsent data is discarded (no accumulation)
+		for dtype in b.stored_data:
+			b.stored_data[dtype] = 0
 
 
 func _process_separator(b: Node2D, proc: ProcessorComponent, max_process: int) -> int:

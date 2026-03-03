@@ -5,7 +5,7 @@ signal building_removed(building: Node2D, cell: Vector2i)
 signal building_hovered(building: Node2D)
 signal building_unhovered()
 
-enum State { IDLE, PLACING, CONNECTING }
+enum State { IDLE, PLACING, CONNECTING, MOVING }
 
 @onready var grid_system: Node2D = $"../GridSystem"
 @onready var building_container: Node2D = $"../BuildingContainer"
@@ -25,6 +25,10 @@ var _hovered_building: Node2D = null
 # Connecting state
 var _connecting_from_building: Node2D = null
 var _connecting_from_port: String = ""
+
+# Moving state
+var _moving_building: Node2D = null
+var _moving_original_cell: Vector2i = Vector2i.ZERO
 
 const VALID_COLOR := Color(0, 1, 0.5, 0.4)
 const INVALID_COLOR := Color(1, 0.2, 0.2, 0.4)
@@ -73,6 +77,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			_handle_placing_input(event)
 		State.CONNECTING:
 			_handle_connecting_input(event)
+		State.MOVING:
+			_handle_moving_input(event)
 
 
 func _process(_delta: float) -> void:
@@ -82,6 +88,8 @@ func _process(_delta: float) -> void:
 		_update_hover()
 	elif _state == State.CONNECTING:
 		_update_connection_preview()
+	elif _state == State.MOVING:
+		_update_move_preview()
 
 
 func _handle_idle_input(event: InputEvent) -> void:
@@ -91,6 +99,14 @@ func _handle_idle_input(event: InputEvent) -> void:
 	var world_pos := _get_world_mouse_position()
 
 	if event.button_index == MOUSE_BUTTON_LEFT:
+		# Ctrl+click on building: start moving
+		if Input.is_key_pressed(KEY_CTRL):
+			var cell: Vector2i = grid_system.world_to_grid(world_pos)
+			var building: Node = grid_system.get_building_at(cell)
+			if building != null:
+				_start_moving(building)
+				return
+
 		# Check if clicking on an output port
 		var port_info := _find_port_at(world_pos, true)
 		if not port_info.is_empty():
@@ -262,6 +278,77 @@ func remove_building_at(cell: Vector2i) -> bool:
 	return true
 
 
+## --- MOVING ---
+
+func _start_moving(building: Node2D) -> void:
+	_moving_building = building
+	_moving_original_cell = building.grid_cell
+	_state = State.MOVING
+	# Free original cells so ghost can check placement
+	grid_system.free_cells(_moving_original_cell, building.definition.grid_size)
+	# Setup ghost preview with same definition
+	ghost_preview.visible = true
+	ghost_preview._is_ghost = true
+	ghost_preview.setup(building.definition, Vector2i.ZERO)
+	# Hide the actual building while moving
+	_moving_building.visible = false
+	# Clear hover
+	if _hovered_building != null:
+		_hovered_building = null
+		building_unhovered.emit()
+	print("[BuildingManager] Moving started — %s from (%d,%d)" % [
+		building.definition.building_name, _moving_original_cell.x, _moving_original_cell.y
+	])
+
+
+func _handle_moving_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.pressed:
+		if event.button_index == MOUSE_BUTTON_LEFT and _can_place_here:
+			_complete_move()
+		elif event.button_index == MOUSE_BUTTON_RIGHT:
+			_cancel_moving()
+	elif event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
+		_cancel_moving()
+
+
+func _update_move_preview() -> void:
+	var world_pos := _get_world_mouse_position()
+	_ghost_cell = grid_system.world_to_grid(world_pos)
+	ghost_preview.position = grid_system.grid_to_world(_ghost_cell)
+	ghost_preview.grid_cell = _ghost_cell
+	_can_place_here = grid_system.can_place(_ghost_cell, _moving_building.definition.grid_size)
+	ghost_preview.modulate = VALID_COLOR if _can_place_here else INVALID_COLOR
+	_update_power_preview()
+
+
+func _complete_move() -> void:
+	_clear_power_preview()
+	var def: BuildingDefinition = _moving_building.definition
+	# Occupy new cells
+	grid_system.occupy(_ghost_cell, def.grid_size, _moving_building)
+	_moving_building.grid_cell = _ghost_cell
+	_moving_building.position = grid_system.grid_to_world(_ghost_cell)
+	_moving_building.visible = true
+	ghost_preview.visible = false
+	print("[BuildingManager] Building moved — %s to (%d,%d)" % [
+		def.building_name, _ghost_cell.x, _ghost_cell.y
+	])
+	_moving_building = null
+	_state = State.IDLE
+
+
+func _cancel_moving() -> void:
+	_clear_power_preview()
+	# Restore original cells
+	var def: BuildingDefinition = _moving_building.definition
+	grid_system.occupy(_moving_original_cell, def.grid_size, _moving_building)
+	_moving_building.visible = true
+	ghost_preview.visible = false
+	_moving_building = null
+	_state = State.IDLE
+	print("[BuildingManager] Move cancelled")
+
+
 func _get_world_mouse_position() -> Vector2:
 	return get_viewport().get_canvas_transform().affine_inverse() * get_viewport().get_mouse_position()
 
@@ -272,12 +359,16 @@ func _update_power_preview() -> void:
 	# Clear previous preview
 	_clear_power_preview()
 
-	if _current_definition.get_zone_radius() > 0.0:
+	var active_def: BuildingDefinition = _current_definition if _current_definition else (_moving_building.definition if _moving_building else null)
+	if active_def == null:
+		return
+
+	if active_def.get_zone_radius() > 0.0:
 		# Placing a zone building (Power Cell, Coolant Rig): highlight affected buildings
 		for building in building_container.get_children():
 			if not building.has_method("is_active"):
 				continue
-			if building == ghost_preview:
+			if building == ghost_preview or building == _moving_building:
 				continue
 			if simulation_manager._is_in_zone(ghost_preview, building):
 				building.power_preview = 1
@@ -286,6 +377,8 @@ func _update_power_preview() -> void:
 		var in_any_zone: bool = false
 		for building in building_container.get_children():
 			if not building.has_method("is_active"):
+				continue
+			if building == _moving_building:
 				continue
 			if building.definition.get_zone_radius() > 0.0:
 				if simulation_manager._is_in_zone(building, ghost_preview):
