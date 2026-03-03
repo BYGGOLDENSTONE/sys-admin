@@ -1,7 +1,7 @@
 # SYS_ADMIN - Proje Durumu
 
-## Mevcut Aşama: DEMO GELİŞTİRME — Faz 3 Devam Ediyor → Kullanıcı Testi Bekliyor
-Vertical slice tamamlandı. Demo Faz 1-2 tamamlandı. Faz 3 (Recoverer + Patch Data + Upgrade) implementasyonu bitti, kullanıcı testi bekliyor. Hedef: Haziran 2026 Steam Next Fest.
+## Mevcut Aşama: DEMO GELİŞTİRME — Faz 4 Tamamlandı → Kullanıcı Testi Bekliyor
+Vertical slice tamamlandı. Demo Faz 1-3 tamamlandı. Faz 4 (Quarantine + Malware) implementasyonu bitti, kullanıcı testi bekliyor. Hedef: Haziran 2026 Steam Next Fest.
 
 ## Tasarım Dökümanı
 - **GDD:** `docs/GDD.md` (v0.4) - Tüm tasarım kararları burada
@@ -59,7 +59,8 @@ Yapılar özel sınıflar değil, **component Resource'larının birleşimi.** H
 - **Decryptor** = `processor` component (rule="decryptor", 4 MB/s, %70 verimlilik, encrypted→research) + `storage` (10 MB buffer)
 - **Research Lab** = `research_collector` component (5 MB/s, 1 RP/MB) + `storage` (20 MB buffer)
 - **Recoverer** = `processor` component (rule="recoverer", 4 MB/s, %70 verimlilik, corrupted→patch data) + `storage` (10 MB buffer)
-- **Quarantine vb.** = henüz component yok (pasif yapılar, demo'da aktifleşecek)
+- **Quarantine** = `processor` component (rule="quarantine", 4 MB/s, %100 verimlilik, malware→imha) + `storage` (10 MB buffer) + `upgrade` (processing_rate)
+- **Splitter/Merger vb.** = henüz component yok (pasif yapılar, demo'da aktifleşecek)
 
 ### Data-Driven Tasarım
 - Yapı değerleri → **component sub-resource** olarak .tres dosyasında
@@ -177,20 +178,23 @@ Yapılar özel sınıflar değil, **component Resource'larının birleşimi.** H
 - [x] **Parçacık efekti düzeltmesi** — Veri akışı durduğunda downstream kablo parçacıkları da durmalı
 - [x] **Ctrl+sürükle yapı taşıma** — Ctrl basılıyken yapıyı kablolarıyla birlikte yeni konuma taşı
 
-### Faz 3: Recoverer + Patch Data (Kullanıcı Testi Bekliyor)
+### Faz 3: Recoverer + Patch Data ✓
 - [x] Recoverer aktifleştirme (Corrupted → Patch Data, 4 MB/s, %70 verimlilik)
 - [x] Patch Data global kaynak + UI göstergesi (Credits/Research yanında)
 - [x] UpgradeComponent sistemi (data-driven, .tres konfigürasyonlu)
 - [x] Yapı upgrade mekaniği (get_effective_value, 6 yapıda 3 seviye upgrade)
 - [x] Yapı seçim + Upgrade UI paneli ("Geliştir" butonu, maliyet, stat gösterimi)
 - [x] Tooltip güncelleme (Recoverer bilgisi, upgrade seviye gösterimi, efektif değerler)
-- [ ] Kullanıcı görsel/UX testi
 
-### Faz 4: Quarantine + Malware
-- [ ] Quarantine aktifleştirme (Malware bertaraf)
-- [ ] Malware hasar mekaniği (filtrelenmezse yapılara hasar)
-- [ ] Uyarı sistemi UI (malware hasar bildirimleri)
-- [ ] Bilgi paneli + tooltip güncelleme
+### Faz 4: Quarantine + Malware (Kullanıcı Testi Bekliyor)
+- [x] Quarantine aktifleştirme (Malware bertaraf, 4 MB/s, %100 imha)
+- [x] Malware ısı hasarı (malware tutan yapılara 0.3°C/s per MB ekstra ısı)
+- [x] Uyarı sistemi UI (ilk malware hasarında kırmızı bildirim)
+- [x] Malware görsel overlay (mor-kırmızı titreme, overheat'ten ayrı)
+- [x] Tooltip güncelleme (Quarantine giriş/çıkış, malware uyarı satırı)
+- [x] UpgradeComponent (processing_rate: 4→5→6→8 MB/s, Patch Data maliyeti)
+- [x] AutoPlay test senaryosu (quarantine_malware_test.json — PASSED)
+- [ ] Kullanıcı görsel/UX testi
 
 ### Faz 5: Splitter + Merger
 - [ ] Splitter aktifleştirme (1→N veri dağıtımı)

@@ -192,6 +192,8 @@ func _handle_assert(action: Dictionary) -> bool:
 			result = simulation_manager.total_patch_data > action.get("value", 0)
 		"research_gt":
 			result = simulation_manager.total_research > action.get("value", 0)
+		"neutralized_gt":
+			result = simulation_manager.total_neutralized > action.get("value", 0)
 		_:
 			push_error("[AutoPlay] Unknown assert check: %s" % check)
 			return false

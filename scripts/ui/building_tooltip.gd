@@ -123,6 +123,9 @@ func _update_stats() -> void:
 		elif def.processor.rule == "recoverer":
 			lines.append(_stat("Giriş", "[color=#ff8844]Corrupted[/color]"))
 			lines.append(_stat("Çıkış", "[color=#ffaa44]Patch Data[/color]"))
+		elif def.processor.rule == "quarantine":
+			lines.append(_stat("Giriş", "[color=#ff4466]Malware[/color]"))
+			lines.append(_stat("Çıkış", "[color=#44ff88]Güvenli İmha[/color]"))
 	if def.research_collector:
 		var rc: ResearchCollectorComponent = def.research_collector
 		lines.append(_stat("Toplama", "%d MB/s" % int(rc.collection_rate)))
@@ -139,6 +142,12 @@ func _update_stats() -> void:
 			lines.append(_stat("Seviye", "[color=#44ff88]%d/%d (MAX)[/color]" % [lvl, upg.max_level]))
 		else:
 			lines.append(_stat("Seviye", "%d/%d" % [lvl, upg.max_level]))
+
+	# Malware warning (non-quarantine buildings holding malware)
+	var malware_stored: int = b.stored_data.get("malware", 0)
+	if malware_stored > 0 and not (def.processor and def.processor.rule == "quarantine"):
+		var extra_heat: float = malware_stored * 0.3
+		lines.append(_stat("Malware", "[color=#ff4466]%d MB (+%.1f °C/s ek ısı!)[/color]" % [malware_stored, extra_heat]))
 
 	# Heat (all buildings)
 	var heat_pct: int = int(b.heat_ratio * 100.0)

@@ -235,6 +235,13 @@ func _draw() -> void:
 		draw_rect(rect, Color(1.0, 0.1, 0.0, overheat_alpha), true)
 		draw_rect(rect, Color(1.0, 0.2, 0.0, 0.4), false, 2.0)
 
+	# Malware overlay (purple-red flicker, faster than overheat)
+	if not _is_ghost and stored_data.get("malware", 0) > 0:
+		if definition.processor == null or definition.processor.rule != "quarantine":
+			var malware_alpha: float = 0.12 + sin(_glow_time * 6.0) * 0.06
+			draw_rect(rect, Color(0.8, 0.0, 0.3, malware_alpha), true)
+			draw_rect(rect, Color(0.8, 0.0, 0.3, 0.5), false, 2.0)
+
 	# Power preview overlay (during placement mode)
 	if power_preview == 1:
 		# Will be powered — green border highlight

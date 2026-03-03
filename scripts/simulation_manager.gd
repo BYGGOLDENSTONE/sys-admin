@@ -5,16 +5,20 @@ signal research_changed(new_total: float)
 signal patch_data_changed(new_total: float)
 signal tick_completed(tick_count: int)
 signal data_type_discovered(data_type: String)
+signal malware_damage_detected(building: Node2D)
 
 const TILE_SIZE: int = 64
 const NATURAL_COOLING: float = 0.1
 const OVERHEAT_RECOVERY_RATIO: float = 0.8
 const POWER_CELL_HEAT_PER_TILE: float = 0.04  ## C/s per powered tile (2x2 building = 4 tiles ≈ 0.16)
+const MALWARE_HEAT_PER_MB: float = 0.3  ## Extra heat per MB of malware stored
 
 var total_credits: float = 0.0
 var total_research: float = 0.0
 var total_patch_data: float = 0.0
+var total_neutralized: int = 0
 var _tick_count: int = 0
+var _malware_warning_shown: bool = false
 var discovered_types: Dictionary = {"clean": true, "corrupted": false, "encrypted": false, "malware": false, "research": false}
 var connection_manager: Node = null
 var building_container: Node2D = null
@@ -254,6 +258,8 @@ func _update_processing(buildings: Array[Node]) -> void:
 				processed = _process_decryptor(b, proc, max_process)
 			"recoverer":
 				processed = _process_recoverer(b, proc, max_process)
+			"quarantine":
+				processed = _process_quarantine(b, proc, max_process)
 		if processed > 0:
 			b.is_working = true
 		# Clear processor buffer — unsent data is discarded (no accumulation)
@@ -350,6 +356,22 @@ func _process_recoverer(b: Node2D, proc: ProcessorComponent, max_process: int) -
 	return processed
 
 
+func _process_quarantine(b: Node2D, proc: ProcessorComponent, max_process: int) -> int:
+	var processed: int = 0
+	for dtype in proc.input_types:
+		if processed >= max_process:
+			break
+		var available: int = b.stored_data.get(dtype, 0)
+		if available <= 0:
+			continue
+		var to_process: int = mini(available, max_process - processed)
+		b.stored_data[dtype] -= to_process
+		processed += to_process
+		total_neutralized += to_process
+		print("[Quarantine] Neutralized %d MB malware (total: %d)" % [to_process, total_neutralized])
+	return processed
+
+
 # --- RESEARCH COLLECTION (Research Lab) ---
 func _update_research(buildings: Array[Node]) -> void:
 	for b in buildings:
@@ -435,6 +457,18 @@ func _update_heat(buildings: Array[Node]) -> void:
 		if not b.is_active() or not b.is_working:
 			continue
 		b.current_heat += b.definition.heat_generation
+
+	# Phase 1.5: Malware extra heat — buildings holding malware get extra heat
+	for b in buildings:
+		if b.definition.processor != null and b.definition.processor.rule == "quarantine":
+			continue  # Quarantine is designed to hold malware safely
+		var malware_count: int = b.stored_data.get("malware", 0)
+		if malware_count > 0:
+			b.current_heat += malware_count * MALWARE_HEAT_PER_MB
+			if not _malware_warning_shown:
+				_malware_warning_shown = true
+				malware_damage_detected.emit(b)
+				print("[Malware] WARNING: %s holding %d MB malware (+%.1f °C/s)" % [b.definition.building_name, malware_count, malware_count * MALWARE_HEAT_PER_MB])
 
 	# Phase 2: Coolant Rig zone cooling (tile-based: combined coolant zones)
 	var coolant_rigs: Array[Node] = []
