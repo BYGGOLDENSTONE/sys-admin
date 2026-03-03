@@ -1,7 +1,7 @@
 # SYS_ADMIN - Proje Durumu
 
-## Mevcut Aşama: DEMO GELİŞTİRME — Faz 2 Düzeltmeleri ✓ → Sırada Faz 3
-Vertical slice tamamlandı. Demo Faz 1 (Separator + Compressor) ve Faz 2 (Decryptor + Research Lab) tamamlandı. Hedef: Haziran 2026 Steam Next Fest.
+## Mevcut Aşama: DEMO GELİŞTİRME — Faz 3 Devam Ediyor → Kullanıcı Testi Bekliyor
+Vertical slice tamamlandı. Demo Faz 1-2 tamamlandı. Faz 3 (Recoverer + Patch Data + Upgrade) implementasyonu bitti, kullanıcı testi bekliyor. Hedef: Haziran 2026 Steam Next Fest.
 
 ## Tasarım Dökümanı
 - **GDD:** `docs/GDD.md` (v0.4) - Tüm tasarım kararları burada
@@ -32,12 +32,14 @@ Yapılar özel sınıflar değil, **component Resource'larının birleşimi.** H
 | `CoolantComponent` | `coolant_component.gd` | Zone'da soğutur (`zone_radius`, `cooling_rate`) |
 | `ProcessorComponent` | `processor_component.gd` | Veri işler (`processing_rate`, `input_types`, `output_type`, `rule`, `efficiency`) |
 | `ResearchCollectorComponent` | `research_collector_component.gd` | Research verisini tüketip RP üretir (`collection_rate`, `accepted_types`, `research_per_mb`) |
+| `UpgradeComponent` | `upgrade_component.gd` | Yapı upgrade yolunu tanımlar (`max_level`, `costs`, `stat_target`, `level_values`) |
 
 **Yapı = BuildingDefinition + opsiyonel component'ler.** `BuildingDefinition`'da her component nullable export:
 ```
 @export var generator: GeneratorComponent    # null = bu yapı üretici değil
 @export var storage: StorageComponent        # null = bu yapı depolama yapmaz
 @export var seller: SellerComponent          # null = bu yapı satış yapmaz
+@export var upgrade: UpgradeComponent        # null = bu yapı upgrade edilemez
 ...
 ```
 
@@ -56,7 +58,8 @@ Yapılar özel sınıflar değil, **component Resource'larının birleşimi.** H
 - **Compressor** = `processor` component (rule="compressor", 5 MB/s, %75 verimlilik) + `storage` (10 MB buffer)
 - **Decryptor** = `processor` component (rule="decryptor", 4 MB/s, %70 verimlilik, encrypted→research) + `storage` (10 MB buffer)
 - **Research Lab** = `research_collector` component (5 MB/s, 1 RP/MB) + `storage` (20 MB buffer)
-- **Recoverer, Quarantine vb.** = henüz component yok (pasif yapılar, demo'da aktifleşecek)
+- **Recoverer** = `processor` component (rule="recoverer", 4 MB/s, %70 verimlilik, corrupted→patch data) + `storage` (10 MB buffer)
+- **Quarantine vb.** = henüz component yok (pasif yapılar, demo'da aktifleşecek)
 
 ### Data-Driven Tasarım
 - Yapı değerleri → **component sub-resource** olarak .tres dosyasında
@@ -174,11 +177,14 @@ Yapılar özel sınıflar değil, **component Resource'larının birleşimi.** H
 - [x] **Parçacık efekti düzeltmesi** — Veri akışı durduğunda downstream kablo parçacıkları da durmalı
 - [x] **Ctrl+sürükle yapı taşıma** — Ctrl basılıyken yapıyı kablolarıyla birlikte yeni konuma taşı
 
-### Faz 3: Recoverer + Patch Data
-- [ ] Recoverer aktifleştirme (Corrupted → Patch Data)
-- [ ] Patch Data upgrade sistemi (yapı geliştirme mekaniği)
-- [ ] Yapı upgrade UI ("Geliştir" butonu, seviye göstergesi)
-- [ ] Bilgi paneli + tooltip güncelleme
+### Faz 3: Recoverer + Patch Data (Kullanıcı Testi Bekliyor)
+- [x] Recoverer aktifleştirme (Corrupted → Patch Data, 4 MB/s, %70 verimlilik)
+- [x] Patch Data global kaynak + UI göstergesi (Credits/Research yanında)
+- [x] UpgradeComponent sistemi (data-driven, .tres konfigürasyonlu)
+- [x] Yapı upgrade mekaniği (get_effective_value, 6 yapıda 3 seviye upgrade)
+- [x] Yapı seçim + Upgrade UI paneli ("Geliştir" butonu, maliyet, stat gösterimi)
+- [x] Tooltip güncelleme (Recoverer bilgisi, upgrade seviye gösterimi, efektif değerler)
+- [ ] Kullanıcı görsel/UX testi
 
 ### Faz 4: Quarantine + Malware
 - [ ] Quarantine aktifleştirme (Malware bertaraf)

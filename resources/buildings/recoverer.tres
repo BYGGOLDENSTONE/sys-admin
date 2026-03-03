@@ -1,15 +1,33 @@
-[gd_resource type="Resource" script_class="BuildingDefinition" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="BuildingDefinition" load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://resources/buildings/building_definition.gd" id="1"]
+[ext_resource type="Script" path="res://resources/components/processor_component.gd" id="2"]
+[ext_resource type="Script" path="res://resources/components/storage_component.gd" id="3"]
+
+[sub_resource type="Resource" id="proc1"]
+script = ExtResource("2")
+processing_rate = 4.0
+input_types = Array[String](["corrupted"])
+output_type = ""
+rule = "recoverer"
+efficiency = 0.7
+
+[sub_resource type="Resource" id="stor1"]
+script = ExtResource("3")
+capacity = 10
+forward_rate = 0.0
 
 [resource]
 script = ExtResource("1")
 building_name = "Recoverer"
-description = "Recovers corrupted data into Patch Data for upgrading buildings. Power-intensive process."
+description = "Bozuk veriyi kurtararak Patch Data'ya dönüştürür. Yapıları geliştirmek için kullanılır."
 grid_size = Vector2i(2, 2)
 color = Color(0.9, 0.6, 0.2, 1)
 category = "processing"
 base_cost = 180
 visual_type = "recoverer"
-output_ports = Array[String](["right"])
+output_ports = Array[String]([])
 input_ports = Array[String](["left"])
+heat_generation = 0.8
+processor = SubResource("proc1")
+storage = SubResource("stor1")

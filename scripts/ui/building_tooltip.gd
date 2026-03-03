@@ -86,7 +86,7 @@ func _update_stats() -> void:
 			lines.append(_stat("Çıktı", _format_data_weights(def.generator.data_weights)))
 	if def.storage and def.processor == null:
 		var total: int = b.get_total_stored()
-		var cap: int = def.storage.capacity
+		var cap: int = int(b.get_effective_value("capacity"))
 		var pct: int = int(float(total) / float(cap) * 100.0) if cap > 0 else 0
 		var fill_color: String = "#ff6644" if pct >= 90 else "#ffcc44" if pct >= 70 else "#44ff88"
 		lines.append(_stat("Doluluk", "[color=%s]%d / %d MB (%d%%)[/color]" % [fill_color, total, cap, pct]))
@@ -101,25 +101,28 @@ func _update_stats() -> void:
 		if clean_buf > 0:
 			lines.append(_stat("Buffer", "%d MB Clean" % clean_buf))
 	if def.power_provider:
-		var tile_range: int = int(def.power_provider.zone_radius / 64.0)
+		var tile_range: int = int(b.get_effective_value("zone_radius") / 64.0)
 		lines.append(_stat("Zone", "%d tile yarıçap" % tile_range))
 		lines.append(_stat("Beslenen", "%d yapı" % _count_powered_buildings(b)))
 	if def.coolant:
-		var tile_range: int = int(def.coolant.zone_radius / 64.0)
+		var tile_range: int = int(b.get_effective_value("zone_radius") / 64.0)
 		lines.append(_stat("Zone", "%d tile yarıçap" % tile_range))
-		lines.append(_stat("Soğutma", "%.1f °C/s" % def.coolant.cooling_rate))
+		lines.append(_stat("Soğutma", "%.1f °C/s" % b.get_effective_value("cooling_rate")))
 	if def.processor:
-		lines.append(_stat("İşleme", "%d MB/s" % int(def.processor.processing_rate)))
-		lines.append(_stat("Verimlilik", "%d%%" % int(def.processor.efficiency * 100)))
+		lines.append(_stat("İşleme", "%d MB/s" % int(b.get_effective_value("processing_rate"))))
+		lines.append(_stat("Verimlilik", "%d%%" % int(b.get_effective_value("efficiency") * 100)))
 		if def.processor.rule == "separator":
 			var filter_name: String = b.separator_filter.capitalize()
 			lines.append(_stat("Sağ Port →", "[color=#44ff88]%s[/color]" % filter_name))
 			lines.append(_stat("Alt Port  →", "[color=#ff8844]Corrupted[/color], [color=#44aaff]Encrypted[/color], [color=#ff4466]Malware[/color]"))
 		elif def.processor.rule == "compressor":
-			lines.append(_stat("Sıkıştırma", "T1 — %d%% çıktı" % int(def.processor.efficiency * 100)))
+			lines.append(_stat("Sıkıştırma", "%d%% çıktı" % int(b.get_effective_value("efficiency") * 100)))
 		elif def.processor.rule == "decryptor":
 			lines.append(_stat("Giriş", "[color=#44aaff]Encrypted[/color]"))
 			lines.append(_stat("Çıkış", "[color=#aa88ff]Research[/color]"))
+		elif def.processor.rule == "recoverer":
+			lines.append(_stat("Giriş", "[color=#ff8844]Corrupted[/color]"))
+			lines.append(_stat("Çıkış", "[color=#ffaa44]Patch Data[/color]"))
 	if def.research_collector:
 		var rc: ResearchCollectorComponent = def.research_collector
 		lines.append(_stat("Toplama", "%d MB/s" % int(rc.collection_rate)))
@@ -127,6 +130,15 @@ func _update_stats() -> void:
 		var research_buf: int = b.stored_data.get("research", 0)
 		if research_buf > 0:
 			lines.append(_stat("Buffer", "[color=#aa88ff]%d MB Research[/color]" % research_buf))
+
+	# Upgrade info
+	if def.upgrade:
+		var upg: UpgradeComponent = def.upgrade
+		var lvl: int = b.upgrade_level
+		if lvl >= upg.max_level:
+			lines.append(_stat("Seviye", "[color=#44ff88]%d/%d (MAX)[/color]" % [lvl, upg.max_level]))
+		else:
+			lines.append(_stat("Seviye", "%d/%d" % [lvl, upg.max_level]))
 
 	# Heat (all buildings)
 	var heat_pct: int = int(b.heat_ratio * 100.0)
@@ -202,7 +214,7 @@ func _count_powered_buildings(power_cell: Node2D) -> int:
 
 
 func _is_in_zone(source: Node2D, target: Node2D) -> bool:
-	var tile_range: int = int(source.definition.get_zone_radius() / 64)
+	var tile_range: int = int(source.get_effective_value("zone_radius") / 64)
 	var src_cell: Vector2i = source.grid_cell
 	var src_size: Vector2i = source.definition.grid_size
 	var tgt_cell: Vector2i = target.grid_cell

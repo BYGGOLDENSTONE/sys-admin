@@ -32,6 +32,7 @@ var has_power: bool = false
 var is_overheated: bool = false
 var is_working: bool = false  ## True when building did actual work this tick
 var separator_filter: String = "clean"  ## For separator: which type goes to primary output port
+var upgrade_level: int = 0  ## Current upgrade level (0 = base)
 
 # Preview state (set by BuildingManager during placement)
 var power_preview: int = 0  ## 0=none, 1=will be powered, -1=will lose power
@@ -76,7 +77,7 @@ func get_total_stored() -> int:
 
 
 func can_accept_data(amount: int = 1) -> bool:
-	var cap: int = definition.get_storage_capacity()
+	var cap: int = int(get_effective_value("capacity")) if definition.storage else 0
 	if cap <= 0:
 		return true
 	return get_total_stored() + amount <= cap
@@ -100,6 +101,32 @@ func is_active() -> bool:
 	return has_power and not is_overheated
 
 
+func get_effective_value(stat: String) -> float:
+	if definition.upgrade == null or upgrade_level <= 0:
+		return _get_base_value(stat)
+	if definition.upgrade.stat_target != stat:
+		return _get_base_value(stat)
+	var idx: int = upgrade_level - 1
+	if idx < definition.upgrade.level_values.size():
+		return definition.upgrade.level_values[idx]
+	return _get_base_value(stat)
+
+
+func _get_base_value(stat: String) -> float:
+	match stat:
+		"efficiency":
+			return definition.processor.efficiency if definition.processor else 1.0
+		"processing_rate":
+			return definition.processor.processing_rate if definition.processor else 0.0
+		"capacity":
+			return float(definition.storage.capacity) if definition.storage else 0.0
+		"zone_radius":
+			return definition.get_zone_radius()
+		"cooling_rate":
+			return definition.coolant.cooling_rate if definition.coolant else 0.0
+	return 0.0
+
+
 func get_center_world() -> Vector2:
 	return global_position + Vector2(
 		definition.grid_size.x * TILE_SIZE / 2.0,
@@ -111,7 +138,7 @@ func update_display() -> void:
 	if definition == null:
 		return
 	heat_ratio = current_heat / definition.max_heat if definition.max_heat > 0.0 else 0.0
-	var cap: int = definition.get_storage_capacity()
+	var cap: int = int(get_effective_value("capacity")) if definition.storage else 0
 	if cap > 0:
 		fill_ratio = float(get_total_stored()) / float(cap)
 	else:
@@ -146,7 +173,7 @@ func _draw() -> void:
 	var dim_accent: Color = Color(accent, 0.15) if not powered else accent
 
 	# Zone radius (Power Cell, Coolant Rig)
-	var zone_r: float = definition.get_zone_radius()
+	var zone_r: float = get_effective_value("zone_radius")
 	if zone_r > 0.0:
 		_draw_zone(center, zone_r, accent, _is_ghost)
 

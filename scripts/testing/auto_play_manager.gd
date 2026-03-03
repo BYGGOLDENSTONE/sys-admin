@@ -188,6 +188,10 @@ func _handle_assert(action: Dictionary) -> bool:
 		"storage_below":
 			var b: Node2D = _building_refs.get(action.get("id", ""))
 			result = b != null and b.get_total_stored() < action.get("value", 0)
+		"patch_data_gt":
+			result = simulation_manager.total_patch_data > action.get("value", 0)
+		"research_gt":
+			result = simulation_manager.total_research > action.get("value", 0)
 		_:
 			push_error("[AutoPlay] Unknown assert check: %s" % check)
 			return false

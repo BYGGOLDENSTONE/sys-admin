@@ -1,0 +1,33 @@
+{
+  "name": "recoverer_patch_test",
+  "actions": [
+    {"action": "place", "building": "power_cell", "cell": [8, 4], "id": "pc1"},
+    {"action": "place", "building": "power_cell", "cell": [14, 4], "id": "pc2"},
+    {"action": "place", "building": "power_cell", "cell": [7, 11], "id": "pc3"},
+    {"action": "place", "building": "coolant_rig", "cell": [6, 4], "id": "cr1"},
+    {"action": "place", "building": "coolant_rig", "cell": [12, 4], "id": "cr2"},
+    {"action": "place", "building": "coolant_rig", "cell": [5, 11], "id": "cr3"},
+    {"action": "place", "building": "coolant_rig", "cell": [11, 11], "id": "cr4"},
+
+    {"action": "place", "building": "uplink", "cell": [5, 5], "id": "up1"},
+    {"action": "place", "building": "separator", "cell": [8, 5], "id": "sep1"},
+    {"action": "place", "building": "storage", "cell": [11, 5], "id": "st_clean"},
+    {"action": "place", "building": "data_broker", "cell": [14, 5], "id": "db1"},
+
+    {"action": "place", "building": "storage", "cell": [5, 8], "id": "st_other"},
+    {"action": "place", "building": "recoverer", "cell": [8, 8], "id": "rec1"},
+
+    {"action": "connect", "from": "up1", "from_port": "right", "to": "sep1", "to_port": "left"},
+    {"action": "connect", "from": "sep1", "from_port": "right", "to": "st_clean", "to_port": "left"},
+    {"action": "connect", "from": "sep1", "from_port": "bottom", "to": "st_other", "to_port": "left"},
+    {"action": "connect", "from": "st_clean", "from_port": "right", "to": "db1", "to_port": "left"},
+    {"action": "connect", "from": "st_other", "from_port": "right", "to": "rec1", "to_port": "left"},
+
+    {"action": "wait_ticks", "count": 40},
+    {"action": "snapshot", "label": "after_40_ticks"},
+
+    {"action": "assert", "check": "building_active", "id": "rec1"},
+    {"action": "assert", "check": "credits_gt", "value": 0},
+    {"action": "assert", "check": "patch_data_gt", "value": 0}
+  ]
+}

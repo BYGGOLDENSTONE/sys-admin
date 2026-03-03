@@ -4,6 +4,8 @@ signal building_placed(building: Node2D, cell: Vector2i)
 signal building_removed(building: Node2D, cell: Vector2i)
 signal building_hovered(building: Node2D)
 signal building_unhovered()
+signal building_selected(building: Node2D)
+signal building_deselected()
 
 enum State { IDLE, PLACING, CONNECTING, MOVING }
 
@@ -21,6 +23,7 @@ var _current_definition: BuildingDefinition = null
 var _ghost_cell: Vector2i = Vector2i.ZERO
 var _can_place_here: bool = false
 var _hovered_building: Node2D = null
+var _selected_building: Node2D = null
 
 # Connecting state
 var _connecting_from_building: Node2D = null
@@ -36,6 +39,7 @@ const INVALID_COLOR := Color(1, 0.2, 0.2, 0.4)
 
 func start_placement(def: BuildingDefinition) -> void:
 	_cancel_connecting()
+	_deselect_building()
 	_current_definition = def
 	_state = State.PLACING
 	ghost_preview.visible = true
@@ -112,6 +116,14 @@ func _handle_idle_input(event: InputEvent) -> void:
 		if not port_info.is_empty():
 			_start_connecting(port_info.building, port_info.side)
 			return
+
+		# Click on building: select it
+		var cell: Vector2i = grid_system.world_to_grid(world_pos)
+		var clicked: Node = grid_system.get_building_at(cell)
+		if clicked != null:
+			_select_building(clicked)
+		else:
+			_deselect_building()
 
 	elif event.button_index == MOUSE_BUTTON_RIGHT:
 		# Try to delete a cable first
@@ -243,14 +255,33 @@ func _remove_building(building: Node2D) -> void:
 	var def: BuildingDefinition = building.definition
 	grid_system.free_cells(cell, def.grid_size)
 	building_removed.emit(building, cell)
-	# Clear hover if removed building was hovered
+	# Clear hover/selection if removed building was hovered/selected
 	if building == _hovered_building:
 		_hovered_building = null
 		building_unhovered.emit()
+	if building == _selected_building:
+		_deselect_building()
 	print("[BuildingManager] Building removed — %s at (%d,%d)" % [
 		def.building_name, cell.x, cell.y
 	])
 	building.queue_free()
+
+
+## --- SELECTION ---
+
+func _select_building(building: Node2D) -> void:
+	if building == _selected_building:
+		return
+	_deselect_building()
+	_selected_building = building
+	building_selected.emit(building)
+
+
+func _deselect_building() -> void:
+	if _selected_building == null:
+		return
+	_selected_building = null
+	building_deselected.emit()
 
 
 ## Programmatic API (AutoPlayManager ve test sistemleri için)

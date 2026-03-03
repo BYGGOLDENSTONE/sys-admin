@@ -2,6 +2,7 @@ extends Node
 
 signal credits_changed(new_total: float)
 signal research_changed(new_total: float)
+signal patch_data_changed(new_total: float)
 signal tick_completed(tick_count: int)
 signal data_type_discovered(data_type: String)
 
@@ -12,6 +13,7 @@ const POWER_CELL_HEAT_PER_TILE: float = 0.04  ## C/s per powered tile (2x2 build
 
 var total_credits: float = 0.0
 var total_research: float = 0.0
+var total_patch_data: float = 0.0
 var _tick_count: int = 0
 var discovered_types: Dictionary = {"clean": true, "corrupted": false, "encrypted": false, "malware": false, "research": false}
 var connection_manager: Node = null
@@ -52,7 +54,7 @@ func _on_sim_tick() -> void:
 # --- ZONE HELPERS (grid-aligned square) ---
 # Target must be FULLY inside zone (all tiles of target within zone bounds)
 func _is_in_zone(source: Node2D, target: Node2D) -> bool:
-	var zone_radius: float = source.definition.get_zone_radius()
+	var zone_radius: float = source.get_effective_value("zone_radius")
 	if zone_radius <= 0.0:
 		return false
 	var tile_range: int = int(zone_radius / TILE_SIZE)
@@ -75,7 +77,7 @@ func _is_in_zone(source: Node2D, target: Node2D) -> bool:
 # --- TILE-BASED ZONE CHECK ---
 # Checks if a single tile is within a source building's zone
 func _is_tile_in_zone(source: Node2D, tile: Vector2i) -> bool:
-	var zone_radius: float = source.definition.get_zone_radius()
+	var zone_radius: float = source.get_effective_value("zone_radius")
 	if zone_radius <= 0.0:
 		return false
 	var tile_range: int = int(zone_radius / TILE_SIZE)
@@ -241,7 +243,7 @@ func _update_processing(buildings: Array[Node]) -> void:
 		if b.get_total_stored() <= 0:
 			continue
 		var proc: ProcessorComponent = b.definition.processor
-		var max_process: int = int(proc.processing_rate)
+		var max_process: int = int(b.get_effective_value("processing_rate"))
 		var processed: int = 0
 		match proc.rule:
 			"separator":
@@ -250,6 +252,8 @@ func _update_processing(buildings: Array[Node]) -> void:
 				processed = _process_compressor(b, proc, max_process)
 			"decryptor":
 				processed = _process_decryptor(b, proc, max_process)
+			"recoverer":
+				processed = _process_recoverer(b, proc, max_process)
 		if processed > 0:
 			b.is_working = true
 		# Clear processor buffer — unsent data is discarded (no accumulation)
@@ -257,7 +261,8 @@ func _update_processing(buildings: Array[Node]) -> void:
 			b.stored_data[dtype] = 0
 
 
-func _process_separator(b: Node2D, proc: ProcessorComponent, max_process: int) -> int:
+func _process_separator(b: Node2D, _proc: ProcessorComponent, max_process: int) -> int:
+	var eff: float = b.get_effective_value("efficiency")
 	var primary_port: String = b.definition.output_ports[0] if b.definition.output_ports.size() > 0 else ""
 	var secondary_port: String = b.definition.output_ports[1] if b.definition.output_ports.size() > 1 else ""
 	var processed: int = 0
@@ -268,7 +273,7 @@ func _process_separator(b: Node2D, proc: ProcessorComponent, max_process: int) -
 		if available <= 0:
 			continue
 		var to_process: int = mini(available, max_process - processed)
-		var output_amount: int = maxi(1, roundi(to_process * proc.efficiency))
+		var output_amount: int = maxi(1, roundi(to_process * eff))
 		# Route by filter: matching type → primary port, rest → secondary port
 		var target_port: String = primary_port if dtype == b.separator_filter else secondary_port
 		if target_port == "":
@@ -285,7 +290,8 @@ func _process_separator(b: Node2D, proc: ProcessorComponent, max_process: int) -
 	return processed
 
 
-func _process_compressor(b: Node2D, proc: ProcessorComponent, max_process: int) -> int:
+func _process_compressor(b: Node2D, _proc: ProcessorComponent, max_process: int) -> int:
+	var eff: float = b.get_effective_value("efficiency")
 	var processed: int = 0
 	for dtype in b.stored_data:
 		if processed >= max_process:
@@ -294,7 +300,7 @@ func _process_compressor(b: Node2D, proc: ProcessorComponent, max_process: int) 
 		if available <= 0:
 			continue
 		var to_process: int = mini(available, max_process - processed)
-		var output_amount: int = maxi(1, roundi(to_process * proc.efficiency))
+		var output_amount: int = maxi(1, roundi(to_process * eff))
 		var sent: int = _push_data_from(b, dtype, output_amount)
 		if sent > 0:
 			b.stored_data[dtype] -= to_process
@@ -303,6 +309,7 @@ func _process_compressor(b: Node2D, proc: ProcessorComponent, max_process: int) 
 
 
 func _process_decryptor(b: Node2D, proc: ProcessorComponent, max_process: int) -> int:
+	var eff: float = b.get_effective_value("efficiency")
 	var processed: int = 0
 	for dtype in proc.input_types:
 		if processed >= max_process:
@@ -311,7 +318,7 @@ func _process_decryptor(b: Node2D, proc: ProcessorComponent, max_process: int) -
 		if available <= 0:
 			continue
 		var to_process: int = mini(available, max_process - processed)
-		var output_amount: int = maxi(1, roundi(to_process * proc.efficiency))
+		var output_amount: int = maxi(1, roundi(to_process * eff))
 		var sent: int = _push_data_from(b, "research", output_amount)
 		if sent > 0:
 			b.stored_data[dtype] -= to_process
@@ -321,6 +328,25 @@ func _process_decryptor(b: Node2D, proc: ProcessorComponent, max_process: int) -
 				discovered_types["research"] = true
 				data_type_discovered.emit("research")
 				print("[Discovery] Yeni veri tipi keşfedildi: research")
+	return processed
+
+
+func _process_recoverer(b: Node2D, proc: ProcessorComponent, max_process: int) -> int:
+	var eff: float = b.get_effective_value("efficiency")
+	var processed: int = 0
+	for dtype in proc.input_types:
+		if processed >= max_process:
+			break
+		var available: int = b.stored_data.get(dtype, 0)
+		if available <= 0:
+			continue
+		var to_process: int = mini(available, max_process - processed)
+		var output_amount: int = maxi(1, roundi(to_process * eff))
+		b.stored_data[dtype] -= to_process
+		processed += to_process
+		total_patch_data += output_amount
+		patch_data_changed.emit(total_patch_data)
+		print("[Recoverer] Processed %d corrupted → %d Patch Data" % [to_process, output_amount])
 	return processed
 
 
@@ -373,7 +399,7 @@ func _update_selling(buildings: Array[Node]) -> void:
 
 # Count tiles occupied by working non-infrastructure buildings within a source's zone
 func _count_working_tiles_in_zone(source: Node2D, buildings: Array[Node]) -> int:
-	var tile_range: int = int(source.definition.get_zone_radius() / TILE_SIZE)
+	var tile_range: int = int(source.get_effective_value("zone_radius") / TILE_SIZE)
 	var src_cell: Vector2i = source.grid_cell
 	var src_size: Vector2i = source.definition.grid_size
 	var zone_left: int = src_cell.x - tile_range
@@ -424,7 +450,7 @@ func _update_heat(buildings: Array[Node]) -> void:
 			# All tiles covered — apply cooling from each rig that touches this building
 			for rig in coolant_rigs:
 				if _has_any_tile_in_zone(rig, target):
-					target.current_heat -= rig.definition.coolant.cooling_rate
+					target.current_heat -= rig.get_effective_value("cooling_rate")
 
 	# Phase 3: Natural cooling (only idle buildings) + clamping + overheat check
 	for b in buildings:
@@ -444,6 +470,30 @@ func _update_heat(buildings: Array[Node]) -> void:
 func _update_displays(buildings: Array[Node]) -> void:
 	for b in buildings:
 		b.update_display()
+
+
+# --- UPGRADE ---
+func upgrade_building(building: Node2D) -> bool:
+	var upg: UpgradeComponent = building.definition.upgrade
+	if upg == null:
+		return false
+	if building.upgrade_level >= upg.max_level:
+		return false
+	var cost: int = upg.costs[building.upgrade_level] if building.upgrade_level < upg.costs.size() else 0
+	if total_patch_data < cost:
+		return false
+	total_patch_data -= cost
+	patch_data_changed.emit(total_patch_data)
+	building.upgrade_level += 1
+	print("[Upgrade] %s upgraded to level %d" % [building.definition.building_name, building.upgrade_level])
+	return true
+
+
+func get_upgrade_cost(building: Node2D) -> int:
+	var upg: UpgradeComponent = building.definition.upgrade
+	if upg == null or building.upgrade_level >= upg.max_level:
+		return -1
+	return upg.costs[building.upgrade_level] if building.upgrade_level < upg.costs.size() else 0
 
 
 # --- BUILDING EVENTS ---

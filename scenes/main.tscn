@@ -93,11 +93,20 @@ offset_right = 241.0
 offset_bottom = 58.0
 text = "Research: 0"
 
-[node name="TechTreePanel" type="PanelContainer" parent="UILayer" unique_id=1562056194]
+[node name="PatchDataLabel" type="Label" parent="UILayer"]
 offset_left = 240.0
 offset_top = 60.0
+offset_right = 241.0
+offset_bottom = 83.0
+theme_override_colors/font_color = Color(0.9, 0.6, 0.2, 1)
+theme_override_font_sizes/font_size = 16
+text = "Patch Data: 0"
+
+[node name="TechTreePanel" type="PanelContainer" parent="UILayer" unique_id=1562056194]
+offset_left = 240.0
+offset_top = 85.0
 offset_right = 520.0
-offset_bottom = 60.0
+offset_bottom = 85.0
 script = ExtResource("11_jkv2x")
 
 [node name="CRTLayer" type="CanvasLayer" parent="." unique_id=937429296]

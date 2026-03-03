@@ -23,6 +23,7 @@ extends Resource
 @export var coolant: CoolantComponent
 @export var processor: ProcessorComponent
 @export var research_collector: ResearchCollectorComponent
+@export var upgrade: UpgradeComponent
 
 
 func get_zone_radius() -> float:

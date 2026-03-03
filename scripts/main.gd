@@ -10,10 +10,12 @@ extends Node2D
 @onready var simulation_manager = $SimulationManager
 @onready var credits_label: Label = $UILayer/CreditsLabel
 @onready var research_label: Label = $UILayer/ResearchLabel
+@onready var patch_data_label: Label = $UILayer/PatchDataLabel
 @onready var tech_tree_panel: PanelContainer = $UILayer/TechTreePanel
 
 var _tooltip_scene: PackedScene = preload("res://scenes/ui/building_tooltip.tscn")
 var _tooltip: PanelContainer = null
+var _upgrade_panel: PanelContainer = null
 
 
 func _ready() -> void:
@@ -43,7 +45,22 @@ func _ready() -> void:
 	building_manager.simulation_manager = simulation_manager
 	simulation_manager.credits_changed.connect(_on_credits_changed)
 	simulation_manager.research_changed.connect(_on_research_changed)
+	simulation_manager.patch_data_changed.connect(_on_patch_data_changed)
 	simulation_manager.data_type_discovered.connect(_on_data_type_discovered)
+
+	# Setup upgrade panel
+	var UpgradePanelScript = preload("res://scripts/ui/upgrade_panel.gd")
+	_upgrade_panel = PanelContainer.new()
+	_upgrade_panel.set_script(UpgradePanelScript)
+	_upgrade_panel.anchors_preset = Control.PRESET_BOTTOM_LEFT
+	_upgrade_panel.offset_left = 240.0
+	_upgrade_panel.offset_bottom = -10.0
+	_upgrade_panel.offset_top = -10.0
+	_upgrade_panel.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	ui_layer.add_child(_upgrade_panel)
+	_upgrade_panel.setup(simulation_manager)
+	building_manager.building_selected.connect(_upgrade_panel.show_for_building)
+	building_manager.building_deselected.connect(_upgrade_panel.hide_panel)
 
 	# Setup tech tree
 	tech_tree_panel.setup(simulation_manager, building_panel)
@@ -116,6 +133,10 @@ func _on_credits_changed(new_total: float) -> void:
 
 func _on_research_changed(new_total: float) -> void:
 	research_label.text = "Research: %d" % int(new_total)
+
+
+func _on_patch_data_changed(new_total: float) -> void:
+	patch_data_label.text = "Patch Data: %d" % int(new_total)
 
 
 func _on_building_unlocked(building_name: String) -> void:
