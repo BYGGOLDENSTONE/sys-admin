@@ -1,0 +1,21 @@
+{
+  "name": "Heat Stress Test",
+  "description": "Full chain without Coolant Rig. Data Broker keeps flow alive so Uplink keeps working and generating heat. Tests overheat at 0.5 C/s (needs ~200 ticks to reach 100C).",
+  "actions": [
+    {"action": "place", "building": "power_cell", "cell": [12, 10], "id": "pc1"},
+    {"action": "place", "building": "uplink", "cell": [10, 12], "id": "up1"},
+    {"action": "place", "building": "storage", "cell": [12, 12], "id": "st1"},
+    {"action": "place", "building": "data_broker", "cell": [14, 12], "id": "db1"},
+    {"action": "connect", "from": "up1", "from_port": "right", "to": "st1", "to_port": "left"},
+    {"action": "connect", "from": "st1", "from_port": "right", "to": "db1", "to_port": "left"},
+    {"action": "snapshot", "label": "no_coolant_setup"},
+    {"action": "wait_ticks", "count": 210},
+    {"action": "snapshot", "label": "after_210_no_coolant"},
+    {"action": "assert", "check": "building_overheated", "id": "up1"},
+    {"action": "place", "building": "coolant_rig", "cell": [13, 10], "id": "cr1"},
+    {"action": "snapshot", "label": "coolant_added"},
+    {"action": "wait_ticks", "count": 120},
+    {"action": "snapshot", "label": "after_120_with_coolant"},
+    {"action": "assert", "check": "building_not_overheated", "id": "up1"}
+  ]
+}

@@ -12,6 +12,8 @@
 [ext_resource type="Shader" uid="uid://dbuy13pxot3fk" path="res://shaders/bloom_vignette.gdshader" id="10"]
 [ext_resource type="Shader" uid="uid://bcsicp7mrd3ll" path="res://shaders/crt.gdshader" id="11"]
 [ext_resource type="Script" uid="uid://b4368firahglh" path="res://scripts/simulation_manager.gd" id="12_eb6dy"]
+[ext_resource type="Script" uid="uid://uaho8jxduw0r" path="res://scripts/testing/auto_play_manager.gd" id="13_trceg"]
+[ext_resource type="Script" uid="uid://b0itnwi6u1obt" path="res://scripts/testing/data_collector.gd" id="14_a8y0u"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_bloom"]
 shader = ExtResource("10")
@@ -102,3 +104,9 @@ script = ExtResource("12_eb6dy")
 
 [node name="SimTimer" type="Timer" parent="SimulationManager" unique_id=1253296612]
 autostart = true
+
+[node name="AutoPlayManager" type="Node" parent="." unique_id=125593124]
+script = ExtResource("13_trceg")
+
+[node name="DataCollector" type="Node" parent="." unique_id=1761038339]
+script = ExtResource("14_a8y0u")

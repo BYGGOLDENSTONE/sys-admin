@@ -200,6 +200,73 @@ Yapılar özel sınıflar değil, **component'lerin birleşimi:**
 
 ---
 
+## AutoPlay Test Sistemi
+
+### Genel Bakış
+Oyun mekaniklerini otomatik test edip veri toplayan sistem. JSON senaryolarla çalışır, headless modda test eder, Python ile analiz yapar.
+
+### Dosyalar
+
+| Dosya | Açıklama |
+|-------|----------|
+| `scripts/testing/auto_play_manager.gd` | JSON senaryo okur, adım adım çalıştırır |
+| `scripts/testing/data_collector.gd` | Her tick'te oyun state'ini snapshot'lar, JSON'a yazar |
+| `resources/test_scenarios/*.json` | Test senaryoları |
+| `testing/analyzer.py` | Python: sonuçları analiz eder, grafik çizer |
+
+### Senaryo Formatı (JSON)
+```json
+{
+  "name": "Test Adı",
+  "actions": [
+    {"action": "place", "building": "uplink", "cell": [10, 12], "id": "up1"},
+    {"action": "connect", "from": "up1", "from_port": "right", "to": "st1", "to_port": "left"},
+    {"action": "wait_ticks", "count": 30},
+    {"action": "snapshot", "label": "checkpoint"},
+    {"action": "assert", "check": "credits_gt", "value": 0},
+    {"action": "remove", "id": "up1"}
+  ]
+}
+```
+
+### Desteklenen Aksiyonlar
+| Aksiyon | Açıklama |
+|---------|----------|
+| `place` | Yapı yerleştir (building adı = .tres dosya adı) |
+| `connect` | İki yapıyı bağla (id referanslarıyla) |
+| `remove` | Yapı kaldır |
+| `wait_ticks` | N tick bekle |
+| `snapshot` | Anlık durum kaydı al |
+| `assert` | Koşul kontrol (credits_gt/lt, building_overheated, building_active, storage_above/below) |
+
+### Kullanım
+```bash
+# Headless senaryo çalıştır
+"D:/godot/Godot_v4.6-stable_win64_console.exe" --path "D:/godotproject/sys-admin" --headless -- --scenario=res://resources/test_scenarios/basic_income.json
+
+# Sonuçları analiz et
+python testing/analyzer.py                    # En son sonucu otomatik bul
+python testing/analyzer.py --no-charts        # Sadece konsol raporu
+python testing/analyzer.py path/to/file.json  # Belirli dosya
+```
+
+### Ölçeklenebilirlik
+- **Yeni yapı eklendi** → senaryoda hemen kullanılır, kod değişmez
+- **Yeni aksiyon gerekli** → `auto_play_manager.gd`'ye `_handle_xxx()` method ekle
+- **Yeni metrik gerekli** → `data_collector.gd`'de snapshot'a 1 satır ekle
+- **Yeni test** → `resources/test_scenarios/` altına yeni JSON dosyası
+
+### Programatik API (BuildingManager)
+- `place_building_at(def: BuildingDefinition, cell: Vector2i) -> Node2D`
+- `remove_building_at(cell: Vector2i) -> bool`
+- Bu API'lar AutoPlay dışında da kullanılabilir (ör: tutorial, undo sistemi)
+
+### Sonuç Dosyaları
+- Konum: `user://test_results/` (Windows: `%APPDATA%/Godot/app_userdata/SYS_ADMIN/test_results/`)
+- Format: JSON (tick bazlı snapshot'lar: credits, ısı, güç, storage, bağlantılar)
+
+---
+
 ## Önemli Kurallar
 - Kullanıcı teknik değil - ne ve neden açıkla, kod detayı değil
 - Her commit kullanıcı onayı ile yapılır

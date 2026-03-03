@@ -237,6 +237,31 @@ func _remove_building(building: Node2D) -> void:
 	building.queue_free()
 
 
+## Programmatic API (AutoPlayManager ve test sistemleri için)
+
+func place_building_at(def: BuildingDefinition, cell: Vector2i) -> Node2D:
+	if not grid_system.can_place(cell, def.grid_size):
+		push_warning("[BuildingManager] Cannot place %s at (%d,%d) — blocked" % [def.building_name, cell.x, cell.y])
+		return null
+	var building: Node2D = _building_scene.instantiate()
+	building.setup(def, cell)
+	building.position = grid_system.grid_to_world(cell)
+	building_container.add_child(building)
+	grid_system.occupy(cell, def.grid_size, building)
+	building_placed.emit(building, cell)
+	print("[BuildingManager] API placed — %s at (%d,%d)" % [def.building_name, cell.x, cell.y])
+	return building
+
+
+func remove_building_at(cell: Vector2i) -> bool:
+	var building: Node = grid_system.get_building_at(cell)
+	if building == null:
+		push_warning("[BuildingManager] No building at (%d,%d)" % [cell.x, cell.y])
+		return false
+	_remove_building(building)
+	return true
+
+
 func _get_world_mouse_position() -> Vector2:
 	return get_viewport().get_canvas_transform().affine_inverse() * get_viewport().get_mouse_position()
 

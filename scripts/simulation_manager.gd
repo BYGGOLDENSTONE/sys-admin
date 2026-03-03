@@ -1,6 +1,7 @@
 extends Node
 
 signal credits_changed(new_total: float)
+signal tick_completed(tick_count: int)
 
 const TILE_SIZE: int = 64
 const NATURAL_COOLING: float = 0.1
@@ -8,6 +9,7 @@ const OVERHEAT_RECOVERY_RATIO: float = 0.8
 const POWER_CELL_HEAT_PER_BUILDING: float = 0.15  ## C/s per powered building
 
 var total_credits: float = 0.0
+var _tick_count: int = 0
 var connection_manager: Node = null
 var building_container: Node2D = null
 var grid_system: Node2D = null
@@ -37,6 +39,8 @@ func _on_sim_tick() -> void:
 	_update_selling(buildings)
 	_update_heat(buildings)
 	_update_displays(buildings)
+	_tick_count += 1
+	tick_completed.emit(_tick_count)
 
 
 # --- ZONE HELPERS (grid-aligned square) ---
