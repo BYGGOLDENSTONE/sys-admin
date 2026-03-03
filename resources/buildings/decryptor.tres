@@ -1,11 +1,26 @@
-[gd_resource type="Resource" script_class="BuildingDefinition" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="BuildingDefinition" load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://resources/buildings/building_definition.gd" id="1"]
+[ext_resource type="Script" path="res://resources/components/processor_component.gd" id="2"]
+[ext_resource type="Script" path="res://resources/components/storage_component.gd" id="3"]
+
+[sub_resource type="Resource" id="proc1"]
+script = ExtResource("2")
+processing_rate = 4.0
+input_types = Array[String](["encrypted"])
+output_type = "research"
+rule = "decryptor"
+efficiency = 0.7
+
+[sub_resource type="Resource" id="stor1"]
+script = ExtResource("3")
+capacity = 10
+forward_rate = 0.0
 
 [resource]
 script = ExtResource("1")
 building_name = "Decryptor"
-description = "Decrypts encrypted data into Research points. High power and heat cost, increases Trace."
+description = "Encrypted veriyi çözer, Research verisine dönüştürür. Yüksek ısı üretir."
 grid_size = Vector2i(2, 2)
 color = Color(0.7, 0.3, 0.9, 1)
 category = "processing"
@@ -13,3 +28,6 @@ base_cost = 200
 visual_type = "decryptor"
 output_ports = Array[String](["right"])
 input_ports = Array[String](["left"])
+heat_generation = 0.8
+processor = SubResource("proc1")
+storage = SubResource("stor1")

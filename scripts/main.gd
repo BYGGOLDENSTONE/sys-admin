@@ -9,6 +9,8 @@ extends Node2D
 @onready var connection_layer: Node2D = $ConnectionLayer
 @onready var simulation_manager = $SimulationManager
 @onready var credits_label: Label = $UILayer/CreditsLabel
+@onready var research_label: Label = $UILayer/ResearchLabel
+@onready var tech_tree_panel: PanelContainer = $UILayer/TechTreePanel
 
 var _tooltip_scene: PackedScene = preload("res://scenes/ui/building_tooltip.tscn")
 var _tooltip: PanelContainer = null
@@ -40,7 +42,13 @@ func _ready() -> void:
 	building_manager.building_removed.connect(simulation_manager._on_building_removed)
 	building_manager.simulation_manager = simulation_manager
 	simulation_manager.credits_changed.connect(_on_credits_changed)
+	simulation_manager.research_changed.connect(_on_research_changed)
 	simulation_manager.data_type_discovered.connect(_on_data_type_discovered)
+
+	# Setup tech tree
+	tech_tree_panel.setup(simulation_manager, building_panel)
+	building_panel._tech_tree = tech_tree_panel
+	tech_tree_panel.building_unlocked.connect(_on_building_unlocked)
 
 	# Center camera on grid
 	camera.position = Vector2(
@@ -94,29 +102,38 @@ func _on_scenario_finished(scenario_name: String, success: bool) -> void:
 	if data_collector and data_collector._is_collecting:
 		data_collector.stop_collecting()
 		data_collector.save_to_file(scenario_name)
-	# Quit if running headless
-	var args := OS.get_cmdline_user_args()
-	for arg in args:
-		if arg.begins_with("--scenario="):
-			print("[Main] Headless done — %s: %s" % [scenario_name, "PASSED" if success else "FAILED"])
-			get_tree().quit(0 if success else 1)
-			return
+	# Quit only if running headless
+	if DisplayServer.get_name() == "headless":
+		print("[Main] Headless done — %s: %s" % [scenario_name, "PASSED" if success else "FAILED"])
+		get_tree().quit(0 if success else 1)
+	else:
+		print("[Main] Scenario done — %s: %s (oyun devam ediyor)" % [scenario_name, "PASSED" if success else "FAILED"])
 
 
 func _on_credits_changed(new_total: float) -> void:
 	credits_label.text = "Credits: %d" % int(new_total)
 
 
+func _on_research_changed(new_total: float) -> void:
+	research_label.text = "Research: %d" % int(new_total)
+
+
+func _on_building_unlocked(building_name: String) -> void:
+	print("[Main] Yapı açıldı: %s" % building_name)
+
+
 func _on_data_type_discovered(data_type: String) -> void:
 	var type_names: Dictionary = {
 		"corrupted": "CORRUPTED DATA",
 		"encrypted": "ENCRYPTED DATA",
-		"malware": "MALWARE"
+		"malware": "MALWARE",
+		"research": "RESEARCH DATA"
 	}
 	var type_colors: Dictionary = {
 		"corrupted": Color(1.0, 0.53, 0.27),
 		"encrypted": Color(0.27, 0.67, 1.0),
-		"malware": Color(1.0, 0.27, 0.4)
+		"malware": Color(1.0, 0.27, 0.4),
+		"research": Color(0.67, 0.53, 1.0)
 	}
 	var display_name: String = type_names.get(data_type, data_type.to_upper())
 	var color: Color = type_colors.get(data_type, Color.WHITE)

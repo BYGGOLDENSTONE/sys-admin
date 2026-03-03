@@ -1,11 +1,24 @@
-[gd_resource type="Resource" script_class="BuildingDefinition" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="BuildingDefinition" load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://resources/buildings/building_definition.gd" id="1"]
+[ext_resource type="Script" path="res://resources/components/storage_component.gd" id="2"]
+[ext_resource type="Script" path="res://resources/components/research_collector_component.gd" id="3"]
+
+[sub_resource type="Resource" id="stor1"]
+script = ExtResource("2")
+capacity = 20
+forward_rate = 0.0
+
+[sub_resource type="Resource" id="res1"]
+script = ExtResource("3")
+collection_rate = 5.0
+accepted_types = Array[String](["research"])
+research_per_mb = 1.0
 
 [resource]
 script = ExtResource("1")
 building_name = "Research Lab"
-description = "Converts Research points from decrypted data into new building unlocks and technologies."
+description = "Research verisini analiz ederek Research puanı üretir. Yeni yapı türleri açmak için kullanılır."
 grid_size = Vector2i(2, 2)
 color = Color(0.4, 0.6, 1, 1)
 category = "output"
@@ -13,3 +26,6 @@ base_cost = 250
 visual_type = "research"
 output_ports = Array[String]([])
 input_ports = Array[String](["left"])
+heat_generation = 0.3
+storage = SubResource("stor1")
+research_collector = SubResource("res1")

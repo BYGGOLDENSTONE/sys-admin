@@ -26,7 +26,7 @@ var _glow_time: float = 0.0
 var _is_ghost: bool = false
 
 # Runtime state (set by SimulationManager)
-var stored_data: Dictionary = {"clean": 0, "corrupted": 0, "encrypted": 0, "malware": 0}
+var stored_data: Dictionary = {"clean": 0, "corrupted": 0, "encrypted": 0, "malware": 0, "research": 0}
 var current_heat: float = 0.0
 var has_power: bool = false
 var is_overheated: bool = false
@@ -80,6 +80,20 @@ func can_accept_data(amount: int = 1) -> bool:
 	if cap <= 0:
 		return true
 	return get_total_stored() + amount <= cap
+
+
+func accepts_data_type(dtype: String) -> bool:
+	## Processor with input_types: only accept those
+	if definition.processor and not definition.processor.input_types.is_empty():
+		return dtype in definition.processor.input_types
+	## Seller with accepted_types: only accept those
+	if definition.seller and not definition.seller.accepted_types.is_empty():
+		return dtype in definition.seller.accepted_types
+	## Research collector with accepted_types: only accept those
+	if definition.research_collector and not definition.research_collector.accepted_types.is_empty():
+		return dtype in definition.research_collector.accepted_types
+	## No filter — accept everything
+	return true
 
 
 func is_active() -> bool:

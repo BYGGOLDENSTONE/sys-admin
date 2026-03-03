@@ -9,6 +9,8 @@ const BUTTON_HOVER_COLOR := Color("#2a2e3e")
 const TITLE_COLOR := Color("#00ccff")
 
 var _definitions: Array[BuildingDefinition] = []
+var _tech_tree: Node = null
+var _button_container_ref: VBoxContainer = null
 
 
 func _ready() -> void:
@@ -36,15 +38,31 @@ func _load_definitions() -> void:
 
 
 func _create_buttons() -> void:
-	var container := $MarginContainer/VBoxContainer/ScrollContainer/ButtonContainer
+	_button_container_ref = $MarginContainer/VBoxContainer/ScrollContainer/ButtonContainer
+	_rebuild_buttons()
+
+
+func refresh_buttons() -> void:
+	_rebuild_buttons()
+
+
+func _rebuild_buttons() -> void:
+	if _button_container_ref == null:
+		return
+	# Clear old buttons
+	for child in _button_container_ref.get_children():
+		child.queue_free()
+	# Re-create visible buttons
 	for def in _definitions:
+		if _tech_tree and not _tech_tree.is_building_unlocked(def.building_name):
+			continue
 		var button := Button.new()
 		button.text = def.building_name
 		button.tooltip_text = def.description
 		button.custom_minimum_size = Vector2(180, 48)
 		_style_button(button, def.color)
 		button.pressed.connect(_on_building_button_pressed.bind(def))
-		container.add_child(button)
+		_button_container_ref.add_child(button)
 
 
 func _on_building_button_pressed(def: BuildingDefinition) -> void:

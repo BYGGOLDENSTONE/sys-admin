@@ -11,6 +11,7 @@
 [ext_resource type="Script" uid="uid://dhwkdkj0w6noa" path="res://scripts/connection_layer.gd" id="9"]
 [ext_resource type="Shader" uid="uid://dbuy13pxot3fk" path="res://shaders/bloom_vignette.gdshader" id="10"]
 [ext_resource type="Shader" uid="uid://bcsicp7mrd3ll" path="res://shaders/crt.gdshader" id="11"]
+[ext_resource type="Script" uid="uid://c65et5logtucj" path="res://scripts/ui/tech_tree_panel.gd" id="11_jkv2x"]
 [ext_resource type="Script" uid="uid://b4368firahglh" path="res://scripts/simulation_manager.gd" id="12_eb6dy"]
 [ext_resource type="Script" uid="uid://uaho8jxduw0r" path="res://scripts/testing/auto_play_manager.gd" id="13_trceg"]
 [ext_resource type="Script" uid="uid://b0itnwi6u1obt" path="res://scripts/testing/data_collector.gd" id="14_a8y0u"]
@@ -84,6 +85,20 @@ offset_bottom = 10.0
 theme_override_colors/font_color = Color(0, 1, 0.53, 1)
 theme_override_font_sizes/font_size = 18
 text = "Credits: 0"
+
+[node name="ResearchLabel" type="Label" parent="UILayer" unique_id=95302643]
+offset_left = 240.0
+offset_top = 35.0
+offset_right = 241.0
+offset_bottom = 58.0
+text = "Research: 0"
+
+[node name="TechTreePanel" type="PanelContainer" parent="UILayer" unique_id=1562056194]
+offset_left = 240.0
+offset_top = 60.0
+offset_right = 520.0
+offset_bottom = 60.0
+script = ExtResource("11_jkv2x")
 
 [node name="CRTLayer" type="CanvasLayer" parent="." unique_id=937429296]
 layer = 100

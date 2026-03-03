@@ -1,6 +1,7 @@
 extends Node
 
 signal credits_changed(new_total: float)
+signal research_changed(new_total: float)
 signal tick_completed(tick_count: int)
 signal data_type_discovered(data_type: String)
 
@@ -10,8 +11,9 @@ const OVERHEAT_RECOVERY_RATIO: float = 0.8
 const POWER_CELL_HEAT_PER_BUILDING: float = 0.15  ## C/s per powered building
 
 var total_credits: float = 0.0
+var total_research: float = 0.0
 var _tick_count: int = 0
-var discovered_types: Dictionary = {"clean": true, "corrupted": false, "encrypted": false, "malware": false}
+var discovered_types: Dictionary = {"clean": true, "corrupted": false, "encrypted": false, "malware": false, "research": false}
 var connection_manager: Node = null
 var building_container: Node2D = null
 var grid_system: Node2D = null
@@ -39,6 +41,7 @@ func _on_sim_tick() -> void:
 	_update_generation(buildings)
 	_update_storage_forward(buildings)
 	_update_processing(buildings)
+	_update_research(buildings)
 	_update_selling(buildings)
 	_update_heat(buildings)
 	_update_displays(buildings)
@@ -136,6 +139,8 @@ func _push_data_from(source: Node2D, data_type: String, amount: int, from_port: 
 		var to_send: int = mini(per_target, amount)
 		if to_send <= 0:
 			break
+		if not target.accepts_data_type(data_type):
+			continue
 		if target.can_accept_data(to_send):
 			target.stored_data[data_type] += to_send
 			amount -= to_send
@@ -202,6 +207,8 @@ func _update_processing(buildings: Array[Node]) -> void:
 				processed = _process_separator(b, proc, max_process)
 			"compressor":
 				processed = _process_compressor(b, proc, max_process)
+			"decryptor":
+				processed = _process_decryptor(b, proc, max_process)
 		if processed > 0:
 			b.is_working = true
 
@@ -249,6 +256,51 @@ func _process_compressor(b: Node2D, proc: ProcessorComponent, max_process: int) 
 			b.stored_data[dtype] -= to_process
 			processed += to_process
 	return processed
+
+
+func _process_decryptor(b: Node2D, proc: ProcessorComponent, max_process: int) -> int:
+	var processed: int = 0
+	for dtype in proc.input_types:
+		if processed >= max_process:
+			break
+		var available: int = b.stored_data.get(dtype, 0)
+		if available <= 0:
+			continue
+		var to_process: int = mini(available, max_process - processed)
+		var output_amount: int = maxi(1, roundi(to_process * proc.efficiency))
+		var sent: int = _push_data_from(b, "research", output_amount)
+		if sent > 0:
+			b.stored_data[dtype] -= to_process
+			processed += to_process
+			# Discovery: first time producing research data
+			if not discovered_types.get("research", false):
+				discovered_types["research"] = true
+				data_type_discovered.emit("research")
+				print("[Discovery] Yeni veri tipi keşfedildi: research")
+	return processed
+
+
+# --- RESEARCH COLLECTION (Research Lab) ---
+func _update_research(buildings: Array[Node]) -> void:
+	for b in buildings:
+		if b.definition.research_collector == null or not b.is_active():
+			continue
+		var rc: ResearchCollectorComponent = b.definition.research_collector
+		var to_collect: int = int(rc.collection_rate)
+		var collected: int = 0
+		for accepted_type in rc.accepted_types:
+			if collected >= to_collect:
+				break
+			var available: int = b.stored_data.get(accepted_type, 0)
+			if available > 0:
+				var collect_amount: int = mini(available, to_collect - collected)
+				b.stored_data[accepted_type] -= collect_amount
+				collected += collect_amount
+		if collected > 0:
+			b.is_working = true
+			var earned: float = collected * rc.research_per_mb
+			total_research += earned
+			research_changed.emit(total_research)
 
 
 # --- SELLING (Data Broker) ---

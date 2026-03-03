@@ -113,9 +113,20 @@ func _update_stats() -> void:
 		lines.append(_stat("Verimlilik", "%d%%" % int(def.processor.efficiency * 100)))
 		if def.processor.rule == "separator":
 			var filter_name: String = b.separator_filter.capitalize()
-			lines.append(_stat("Filtre", "[color=#44ff88]%s → Sağ[/color] | Diğer → Alt" % filter_name))
+			lines.append(_stat("Sağ Port →", "[color=#44ff88]%s[/color]" % filter_name))
+			lines.append(_stat("Alt Port  →", "[color=#ff8844]Corrupted[/color], [color=#44aaff]Encrypted[/color], [color=#ff4466]Malware[/color]"))
 		elif def.processor.rule == "compressor":
 			lines.append(_stat("Sıkıştırma", "T1 — %d%% çıktı" % int(def.processor.efficiency * 100)))
+		elif def.processor.rule == "decryptor":
+			lines.append(_stat("Giriş", "[color=#44aaff]Encrypted[/color]"))
+			lines.append(_stat("Çıkış", "[color=#aa88ff]Research[/color]"))
+	if def.research_collector:
+		var rc: ResearchCollectorComponent = def.research_collector
+		lines.append(_stat("Toplama", "%d MB/s" % int(rc.collection_rate)))
+		lines.append(_stat("Kazanım", "%.1f RP/MB" % rc.research_per_mb))
+		var research_buf: int = b.stored_data.get("research", 0)
+		if research_buf > 0:
+			lines.append(_stat("Buffer", "[color=#aa88ff]%d MB Research[/color]" % research_buf))
 
 	# Heat (all buildings)
 	var heat_pct: int = int(b.heat_ratio * 100.0)
@@ -147,7 +158,8 @@ func _format_data_weights(weights: Dictionary) -> String:
 		"clean": "#44ff88",
 		"corrupted": "#ff8844",
 		"encrypted": "#44aaff",
-		"malware": "#ff4466"
+		"malware": "#ff4466",
+		"research": "#aa88ff"
 	}
 	for dtype in weights:
 		var pct: int = int(weights[dtype] * 100)
@@ -162,7 +174,8 @@ func _format_stored_data(data: Dictionary) -> String:
 		"clean": "#44ff88",
 		"corrupted": "#ff8844",
 		"encrypted": "#44aaff",
-		"malware": "#ff4466"
+		"malware": "#ff4466",
+		"research": "#aa88ff"
 	}
 	for dtype in data:
 		if data[dtype] > 0:

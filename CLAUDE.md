@@ -1,7 +1,7 @@
 # SYS_ADMIN - Proje Durumu
 
-## Mevcut Aşama: DEMO GELİŞTİRME — Faz 1 ✓ → Sırada Faz 2
-Vertical slice tamamlandı. Demo Faz 1 (Separator + Compressor) tamamlandı. Hedef: Haziran 2026 Steam Next Fest.
+## Mevcut Aşama: DEMO GELİŞTİRME — Faz 2 ✓ → Sırada Faz 2 Düzeltmeleri + Faz 3
+Vertical slice tamamlandı. Demo Faz 1 (Separator + Compressor) ve Faz 2 (Decryptor + Research Lab) tamamlandı. Hedef: Haziran 2026 Steam Next Fest.
 
 ## Tasarım Dökümanı
 - **GDD:** `docs/GDD.md` (v0.4) - Tüm tasarım kararları burada
@@ -31,6 +31,7 @@ Yapılar özel sınıflar değil, **component Resource'larının birleşimi.** H
 | `PowerProviderComponent` | `power_provider_component.gd` | Zone'da güç sağlar (`zone_radius`, `power_output`) |
 | `CoolantComponent` | `coolant_component.gd` | Zone'da soğutur (`zone_radius`, `cooling_rate`) |
 | `ProcessorComponent` | `processor_component.gd` | Veri işler (`processing_rate`, `input_types`, `output_type`, `rule`, `efficiency`) |
+| `ResearchCollectorComponent` | `research_collector_component.gd` | Research verisini tüketip RP üretir (`collection_rate`, `accepted_types`, `research_per_mb`) |
 
 **Yapı = BuildingDefinition + opsiyonel component'ler.** `BuildingDefinition`'da her component nullable export:
 ```
@@ -53,7 +54,9 @@ Yapılar özel sınıflar değil, **component Resource'larının birleşimi.** H
 - **Coolant Rig** = `coolant` component (192px zone, 2°C/s)
 - **Separator** = `processor` component (rule="separator", 5 MB/s, %60 verimlilik) + `storage` (20 MB buffer)
 - **Compressor** = `processor` component (rule="compressor", 5 MB/s, %75 verimlilik) + `storage` (10 MB buffer)
-- **Decryptor, Recoverer, Quarantine vb.** = henüz component yok (pasif yapılar, demo'da aktifleşecek)
+- **Decryptor** = `processor` component (rule="decryptor", 4 MB/s, %70 verimlilik, encrypted→research) + `storage` (10 MB buffer)
+- **Research Lab** = `research_collector` component (5 MB/s, 1 RP/MB) + `storage` (20 MB buffer)
+- **Recoverer, Quarantine vb.** = henüz component yok (pasif yapılar, demo'da aktifleşecek)
 
 ### Data-Driven Tasarım
 - Yapı değerleri → **component sub-resource** olarak .tres dosyasında
@@ -153,11 +156,23 @@ Yapılar özel sınıflar değil, **component Resource'larının birleşimi.** H
 - [x] Bilgi paneli güncelleme (processor yapılar: hız, verimlilik, filtre bilgisi)
 - [x] AutoPlay test senaryosu (separator_compressor_test.json — PASSED)
 
-### Faz 2: Decryptor + Research Lab
-- [ ] Decryptor aktifleştirme (Encrypted → Research)
-- [ ] Research Lab aktifleştirme (Research puanı biriktirme)
-- [ ] Teknoloji ağacı UI (yeni yapı açma ekranı)
-- [ ] Bilgi paneli + tooltip güncelleme
+### Faz 2: Decryptor + Research Lab ✓
+- [x] Decryptor aktifleştirme (Encrypted → Research, 4 MB/s, %70 verimlilik)
+- [x] Research Lab aktifleştirme (Research puanı biriktirme, 5 MB/s, 1 RP/MB)
+- [x] ResearchCollectorComponent oluşturma (yeni component)
+- [x] "research" veri tipi ekleme (5. tip, keşif sistemi dahil)
+- [x] Teknoloji ağacı UI ([T] tuşuyla açılır, RP ile yapı kilidi açma)
+- [x] Research puanı UI göstergesi (Credits yanında)
+- [x] Veri tipi filtresi (accepts_data_type — yapılar sadece işleyebildikleri tipleri kabul eder)
+- [x] Bilgi paneli + tooltip güncelleme (Decryptor, Research Lab, renk kodları)
+- [x] AutoPlay test senaryosu (decryptor_research_test.json — PASSED)
+- [x] Görsel mod senaryo desteği (senaryo bitince oyun kapanmaz)
+
+### Faz 2 Düzeltmeleri (YAPILACAK — sonraki session)
+- [ ] **Her porttan tek kablo kuralı** — 1 output port = 1 kablo çıkış, 1 input port = 1 kablo giriş
+- [ ] **Processor yapılarda buffer kaldırma** — Separator/Compressor/Decryptor'da doluluk barı gizle, gönderilemeyen veri otomatik silinsin (tıkanma olmasın)
+- [ ] **Parçacık efekti düzeltmesi** — Veri akışı durduğunda downstream kablo parçacıkları da durmalı
+- [ ] **Ctrl+sürükle yapı taşıma** — Ctrl basılıyken yapıyı kablolarıyla birlikte yeni konuma taşı
 
 ### Faz 3: Recoverer + Patch Data
 - [ ] Recoverer aktifleştirme (Corrupted → Patch Data)
