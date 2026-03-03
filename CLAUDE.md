@@ -1,7 +1,7 @@
 # SYS_ADMIN - Proje Durumu
 
-## Mevcut Aşama: VERTICAL SLICE — Faz 5 tamamlandı, Faz 6 sırada
-Tasarım çekirdek kararları tamamlandı (GDD v0.4). Vertical slice geliştiriliyor.
+## Mevcut Aşama: VERTICAL SLICE TAMAMLANDI — Sırada DEMO
+Tasarım çekirdek kararları tamamlandı (GDD v0.4). Vertical slice tamamlandı. Sırada Steam sayfası ve demo hazırlığı.
 
 ## Tasarım Dökümanı
 - **GDD:** `docs/GDD.md` (v0.4) - Tüm tasarım kararları burada
@@ -110,10 +110,13 @@ Yapılar özel sınıflar değil, **component'lerin birleşimi:**
 - [x] Zone önizlemesi (yerleştirme sırasında etkilenecek yapılar yeşil highlight)
 - [x] Credits UI göstergesi
 
-### Faz 6: Screenshot ve Steam Sayfası
-- [ ] UI çerçevesi (Credits göstergesi, Heat/Trace barları)
-- [ ] Ekran görüntüleri al
-- [ ] Steam sayfası aç
+### Faz 6: Bilgi Paneli ve Mekanik Düzeltmeleri ✓
+- [x] Detaylı yapı bilgi paneli (hover: durum, akış, doluluk, ısı, güç, zone bilgisi)
+- [x] Canlı güncellenen istatistikler (RichTextLabel + BBCode renk kodlu)
+- [x] Yapı tipi bazlı bilgi gösterimi (generator/storage/seller/power/coolant)
+- [x] Isı mekanığı düzeltmesi: sadece çalışan yapılar ısı üretir
+- [x] Kablo görünürlük düzeltmesi: inaktif kablolar görünür kalır (0.3 alpha)
+- [x] Doğal soğuma sadece boştaki yapılara uygulanır (çalışanlar Coolant Rig şart)
 
 ---
 

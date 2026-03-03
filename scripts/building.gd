@@ -30,6 +30,7 @@ var stored_data: Dictionary = {"clean": 0, "corrupted": 0, "encrypted": 0, "malw
 var current_heat: float = 0.0
 var has_power: bool = false
 var is_overheated: bool = false
+var is_working: bool = false  ## True when building did actual work this tick
 
 # Preview state (set by BuildingManager during placement)
 var power_preview: int = 0  ## 0=none, 1=will be powered, -1=will lose power

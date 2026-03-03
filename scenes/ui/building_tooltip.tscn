@@ -28,3 +28,10 @@ layout_mode = 2
 theme_override_colors/font_color = Color(0.5, 0.55, 0.6, 1)
 theme_override_font_sizes/font_size = 10
 text = "CATEGORY | 100 CR"
+
+[node name="StatsLabel" type="RichTextLabel" parent="MarginContainer/VBoxContainer" unique_id=458194565]
+custom_minimum_size = Vector2(200, 0)
+layout_mode = 2
+bbcode_enabled = true
+fit_content = true
+scroll_active = false

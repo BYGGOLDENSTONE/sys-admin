@@ -28,6 +28,9 @@ func _on_sim_tick() -> void:
 			buildings.append(child)
 	if buildings.is_empty():
 		return
+	# Reset work flags
+	for b in buildings:
+		b.is_working = false
 	_update_power(buildings)
 	_update_generation(buildings)
 	_update_storage_forward(buildings)
@@ -83,9 +86,12 @@ func _update_generation(buildings: Array[Node]) -> void:
 		if b.definition.building_type != "generator" or not b.is_active():
 			continue
 		var amount: int = int(b.definition.generation_rate)
+		var total_pushed: int = 0
 		for i in range(amount):
 			var data_type: String = _roll_data_type(b.definition.data_weights)
-			_push_data_from(b, data_type, 1)
+			total_pushed += _push_data_from(b, data_type, 1)
+		if total_pushed > 0:
+			b.is_working = true
 
 
 func _roll_data_type(weights: Dictionary) -> String:
@@ -100,16 +106,17 @@ func _roll_data_type(weights: Dictionary) -> String:
 	return "clean"
 
 
-func _push_data_from(source: Node2D, data_type: String, amount: int) -> void:
+func _push_data_from(source: Node2D, data_type: String, amount: int) -> int:
 	var conns: Array[Dictionary] = connection_manager.get_connections()
 	var targets: Array[Dictionary] = []
 	for conn in conns:
 		if conn.from_building == source:
 			targets.append(conn)
 	if targets.is_empty():
-		return
+		return 0
 	# Distribute evenly among connected targets
 	var per_target: int = maxi(1, amount / targets.size())
+	var total_sent: int = 0
 	for conn in targets:
 		var target: Node2D = conn.to_building
 		if not target.has_method("can_accept_data"):
@@ -120,6 +127,8 @@ func _push_data_from(source: Node2D, data_type: String, amount: int) -> void:
 		if target.can_accept_data(to_send):
 			target.stored_data[data_type] += to_send
 			amount -= to_send
+			total_sent += to_send
+	return total_sent
 
 
 # --- STORAGE FORWARD ---
@@ -158,6 +167,8 @@ func _update_storage_forward(buildings: Array[Node]) -> void:
 					b.stored_data[dtype] -= to_send
 					sent += to_send
 					available -= to_send
+		if sent > 0:
+			b.is_working = true
 
 
 # --- SELLING (Data Broker) ---
@@ -174,6 +185,7 @@ func _update_selling(buildings: Array[Node]) -> void:
 			b.stored_data["clean"] -= sell_amount
 			sold += sell_amount
 		if sold > 0:
+			b.is_working = true
 			var earned: float = sold * b.definition.credits_per_mb
 			total_credits += earned
 			credits_changed.emit(total_credits)
@@ -195,7 +207,7 @@ func _update_heat(buildings: Array[Node]) -> void:
 					powered_count += 1
 			b.current_heat += powered_count * POWER_CELL_HEAT_PER_BUILDING
 			continue
-		if not b.is_active():
+		if not b.is_active() or not b.is_working:
 			continue
 		b.current_heat += b.definition.heat_generation
 
@@ -209,9 +221,10 @@ func _update_heat(buildings: Array[Node]) -> void:
 			if _is_in_zone(b, target):
 				target.current_heat -= b.definition.cooling_rate
 
-	# Phase 3: Natural cooling + clamping + overheat check
+	# Phase 3: Natural cooling (only idle buildings) + clamping + overheat check
 	for b in buildings:
-		b.current_heat -= NATURAL_COOLING
+		if not b.is_working:
+			b.current_heat -= NATURAL_COOLING
 		b.current_heat = clampf(b.current_heat, 0.0, b.definition.max_heat)
 		if b.current_heat >= b.definition.max_heat:
 			if not b.is_overheated:

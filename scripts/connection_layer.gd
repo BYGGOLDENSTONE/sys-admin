@@ -3,7 +3,7 @@ extends Node2D
 const CABLE_WIDTH: float = 2.0
 const CABLE_GLOW_WIDTH: float = 6.0
 const CABLE_GLOW_ALPHA: float = 0.25
-const CABLE_INACTIVE_ALPHA: float = 0.08
+const CABLE_INACTIVE_ALPHA: float = 0.3
 const PARTICLE_COLOR := Color("#00ff88")
 const PARTICLE_SPEED: float = 0.4
 const PARTICLES_PER_CABLE: int = 8
