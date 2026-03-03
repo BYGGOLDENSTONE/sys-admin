@@ -205,11 +205,12 @@ Yapılar özel sınıflar değil, **component Resource'larının birleşimi.** H
 - [x] AutoPlay test senaryosu (splitter_merger_test.json — PASSED)
 - [ ] Kullanıcı görsel/UX testi
 
-### Faz 6: Trace + Veri Kaynakları
-- [ ] Trace sistemi (global sayaç, kaynak erişimi kısıtlama)
-- [ ] Trace UI göstergesi
-- [ ] Uplink kaynak seçim menüsü (Web, Deep Web, Corporate, Military, Blackwall)
-- [ ] Kaynak bazlı veri dağılımı farklılıkları
+### Faz 6: Yerel Trace Sistemi
+- [ ] Trace zone mekaniği (malware tutan Storage etrafında Trace yayılımı)
+- [ ] Trace seviye sistemi (düşük→orta→yüksek→kritik, yapı bozulma ihtimali)
+- [ ] Trace UI göstergesi (yapı üzerinde Trace seviyesi + zone görselleştirme)
+- [ ] Trace uyarı sistemi (bozulmadan önce mor titreme efekti)
+- [ ] Yapı bozulma mekaniği (bozuk yapı durur, Patch Data ile onarım)
 
 ### Faz 7: Ekonomi + Undo/Redo
 - [ ] Credits ile yapı satın alma sistemi

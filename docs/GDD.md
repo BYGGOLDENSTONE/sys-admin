@@ -1,6 +1,6 @@
 # SYS_ADMIN - Game Design Document
-**Versiyon:** 0.4 (Tasarım Aşaması)
-**Son Güncelleme:** 2026-03-02
+**Versiyon:** 0.5 (Tasarım Aşaması)
+**Son Güncelleme:** 2026-03-03
 **Motor:** Godot 4.6 (Forward Plus, Jolt Physics, D3D12)
 **Durum:** Tasarım tamamlanıyor, vertical slice planlanıyor
 
@@ -145,7 +145,7 @@ Bunlar acil krizler değil, yavaş yavaş biriken ve çözüm gerektiren durumla
 | **Malware Data** | Tehlike | En son keşfedilen (???). Filtrelenmezse yapılara hasar verir. Karantina ile bertaraf |
 | **Power** | Altyapı | Her yapı tüketir. Override ile artırılabilir (risk/ödül). Yetersizse sistem durur |
 | **Heat** | Kötü birikim | Her çalışan yapı üretir. Soğutulmazsa yapılar yavaşlar → hasar alır → bozulur |
-| **Trace** | Kötü birikim | Uplink, decrypt, recover artırır. Yükselince kaynak erişimi kısıtlanır |
+| **Trace** | Kötü birikim (yerel) | Malware tutan Storage'dan zone-based yayılır. Etraftaki yapıları bozar |
 | **Credits** | Para birimi | Clean Data satışından kazanılır. Yeni yapı satın almak için kullanılır |
 
 ### Her Veri Tipinin Kendine Özgü Amacı
@@ -161,26 +161,41 @@ Bunlar acil krizler değil, yavaş yavaş biriken ve çözüm gerektiren durumla
 
 ### Kaynak Etkileşimleri
 ```
-Daha çok Uplink       → Daha çok veri AMA daha çok Power + Heat + Trace
+Daha çok Uplink       → Daha çok veri AMA daha çok Power + Heat
 Override kullan        → Daha hızlı AMA daha çok Heat
-Decrypt/Recover        → Değerli çıktı AMA Trace ↑↑
-Malware filtrele       → Güvenli AMA işleme kapasitesi harcanır
-Trace yükselirse       → Kaynak erişimi kısıtlanır / kesilir
+Decrypt/Recover        → Değerli çıktı AMA işleme kapasitesi harcanır
+Malware filtrele       → Güvenli AMA Quarantine kapasitesi harcanır
+Malware depolanırsa    → Storage etrafında Trace yayılır → yapılar bozulur
 ```
 
 ### İki Kötü Kaynak: Heat ve Trace
 - **Heat** = Fiziksel tehdit → Çok birikirse yapılar yavaşlar → hasar alır → bozulur
-- **Trace** = Tespit riski → Çok birikirse kaynak erişimi kısıtlanır → kesilir
+- **Trace** = Dijital kirlilik (yerel) → Malware tutan Storage'dan yayılır → etraftaki yapıları bozar
 
-### Trace Tespit Sistemi
-Trace saldırı dalgası tetiklemez (savunma yok). Bunun yerine **kaynak erişimini etkiler:**
+### Trace Sistemi (Zone-Based Dijital Kirlilik)
+Trace global bir sayaç değil, **yerel bir zone etkisi.** Malware verisi tutan Storage yapıları etraflarına Trace yayar:
 ```
-Trace düşük:     Tüm kaynaklara rahat erişim
-Trace orta:      Yüksek tier kaynaklar fark etti → bağlantı yavaşlar
-Trace yüksek:    Corporate/Military erişim kesildi → düşük kaynaklara geçmek zorunlu
-Trace kritik:    Tüm kaynaklar kilitlendi → Trace düşene kadar bekle
+Storage'da malware var  → Trace zone aktif (Power Cell gibi ama kötü etki)
+Trace düşük:             Uyarı yok, güvenli
+Trace orta:              Görsel uyarı (mor titreme efekti)
+Trace yüksek:            Etraftaki yapılarda bozulma ihtimali başlar
+Trace kritik:            Bozulma hızlanır, acil müdahale gerekir
 ```
-Trace zamanla doğal olarak düşer, ama aktif işlem yapıldıkça artar.
+
+**Trace nasıl yükselir:**
+- Storage'da depolanan malware miktarına orantılı (daha çok malware = daha güçlü Trace)
+- Malware boyutu arttıkça Trace zone'u genişler ve şiddeti artar
+
+**Trace nasıl düşer:**
+- Quarantine ile malware bertaraf edilir → Storage'daki malware azalır → Trace düşer
+- Malware Storage'dan temizlenirse Trace sıfırlanır
+
+**Bozulma mekaniği:**
+- Trace zone içindeki yapılar belli bir ihtimalle "bozuk" duruma düşer
+- Bozuk yapı çalışmayı durdurur, onarım gerektirir (Patch Data ile)
+- Bozulmadan önce uyarı verilir (oyuncu tepki verebilir)
+
+**Gelecek güncelleme:** Trace azaltıcı özel yapılar (Trace zone'unu küçülten/zayıflatan yapı tipi)
 
 ### Power Override Mekaniği
 Oyuncu her yapıya ne kadar güç vereceğini seçebilir:
@@ -351,13 +366,13 @@ Decryptor açılır → Encrypted veri keşfedilir!
 
 ### Faz 4: Trace Baskısı
 ```
-İşlenemeyen veri storage'da Trace yayıyor!
-  → Trace birikim ████████ → Kaynak erişimi kısıtlanıyor!
-  → Corporate bağlantısı kesildi → daha düşük kaynaklara geçmek zorunda
-  → Trace düşürmenin yolu: işlenemeyen veriyi azaltmak
+Malware storage'da birikti → etrafta Trace yayılıyor!
+  → Yakındaki yapılar bozulmaya başlıyor!
+  → Quarantine kurup malware'ı bertaraf et → Trace düşer
+  → Malware'ı hızlıca temizlemeyen oyuncu yapı kaybeder
 ```
-- Oyuncu anlar: "Bu birikmiş veriler sorun yaratıyor"
-- Motivasyon: işlenemeyen veriyi çözmek için yeni yapılar araştır
+- Oyuncu anlar: "Malware'ı depolamak tehlikeli, hızlıca bertaraf etmeliyim"
+- Motivasyon: Quarantine hattı kurmak, malware akışını optimize etmek
 
 ### Faz 5: Corrupted Data Kurtarma (Upgrade Başlangıcı)
 ```
@@ -382,17 +397,52 @@ Son "???" ortaya çıkar: MALWARE!
 - Geçmişteki rastgele hasar/yavaşlamaların sebebi açıklanıyor
 - **Eureka anı:** Oyunun en büyük "aha!" momenti
 
-### Faz 7: Scale ve Optimizasyon
+### Faz 7: Gig Sistemi ve Scale
 ```
 Tüm veri tipleri açık, tüm process hatları kurulu
-  → Daha yüksek tier kaynaklar (Deep Web, Corporate, Military)
-  → Her kaynak farklı pipeline gerektirir
+  → Gig panosu açılır — sözleşmeler farklı zorluk/ödül sunar
+  → Her gig farklı veri kompozisyonu + farklı talep
   → Tier atlama → üstel büyüme
+  → Oyuncu evrensel bir fabrika kurmaya doğru ilerler
 ```
 
-### Geç Oyun: Yeniden Şifreleme Siparişleri
+### Gig (Sözleşme) Sistemi
+Uplink kaynak seçimi yerine **Gig panosu** sistemi. Her gig tek seferlik bir sözleşme:
+- Gig kabul edilir → Uplink belirli miktarda veriyi indirir (ör: 1 GB) → Gig biter
+- Her gig'in kendine özgü veri kompozisyonu var (ör: %50 encrypted, %30 clean, %20 malware)
+- Bazı gig'ler özel çıktı ister (ör: "şifreyi çöz, tekrar şifrele, premium olarak sat")
+- Birden fazla Uplink = birden fazla eşzamanlı gig
+- Gig panosu her zaman seçenek sunar — oyuncu hiç boş kalmaz
+
+**Gig Kategorileri:**
+| Kategori | Zorluk | İçerik | Ödül |
+|----------|--------|--------|------|
+| **Web Traffic** | Kolay | %80 clean, düşük hacim | Düşük Credits |
+| **Deep Web** | Orta | Çok encrypted/corrupted, orta hacim | Orta Credits + Research |
+| **Corporate** | Zor | Ağır encrypted, yüksek hacim, çok malware | Yüksek Credits |
+| **Military** | Çok Zor | Encrypted + malware, çok yüksek hacim | Çok yüksek Credits |
+| **Blackwall** | Endgame | Hibrit kombolar (corrupted+encrypted), devasa hacim | Premium ödüller |
+
+**Gig boyut ölçeklemesi:**
 ```
-Müşteri siparişi: "256-bit şifreli temiz veri istiyorum"
+Erken oyun:  500 MB — küçük, öğretici, tek hat yeterli
+Orta oyun:   50 GB — birkaç paralel hat lazım
+Geç oyun:    10 TB — devasa sistem gerektirir
+Endgame:     100 TB+ — sonsuz döngüde artan zorluk
+```
+
+**Endgame gig döngüsü:** Oyun asla bitmez. Endgame gig'leri sonsuz döngüde gelir, her seferinde biraz daha büyük/karmaşık. Shapez'in sonsuz hub talepleri gibi.
+
+**Neden gig sistemi (Uplink kaynak seçimi yerine):**
+- Her gig = farklı challenge (Shapez'in hub talepleri gibi)
+- Doğal ilerleme: kolay → zor → endgame
+- Evrensel fabrika hedefi: oyuncu sonunda her gig'i çözebilen genel bir sistem kurar
+- Tek seferlik yapı: eski hatlar yıkılmaz, yanına yeni hatlar eklenir (fabrika büyür)
+
+### Geç Oyun: Özel Gig Talepleri
+Bazı gig'ler sadece veri indirip işlemek değil, **özel çıktı** ister:
+```
+Gig: "256-bit şifreli temiz veri paketi hazırla"
 
 Uplink → Separator → Clean → Compressor → Storage
                                              ↓
@@ -404,14 +454,14 @@ Uplink → Separator → Clean → Compressor → Storage
 ```
 - Mevcut pipeline'ı kullanıyor (yeni yapı sadece Encryptor)
 - Daha uzun zincir = daha fazla ödül
-- Farklı müşteriler farklı şifreleme seviyeleri ister
+- Farklı gig'ler farklı işleme adımları ister
 - "Veri madencisi"nden "veri broker'ı"na geçiş
 
 ### Geç Oyun: Karışık Veri Paketleri
-İleri oyunda veriler tek tip değil, **karışım** olarak geliyor:
+İleri gig'lerde veriler tek tip değil, **karışım** olarak geliyor:
 ```
-Erken oyun: Veri ya Clean ya Encrypted → tek process yeterli
-Geç oyun:   "Corrupted-Encrypted paketi"
+Erken gig:  Veri ya Clean ya Encrypted → tek process yeterli
+Geç gig:    "Corrupted-Encrypted paketi"
   → Önce corruption düzelt → sonra şifreyi çöz
   → Tek veri paketi birden fazla process hattından geçmek zorunda
 ```
@@ -419,13 +469,13 @@ Geç oyun:   "Corrupted-Encrypted paketi"
 ### Tasarım Prensibi: Katmanlı Büyüme
 ```
 BAŞLANGIÇ          → ORTA OYUN              → GEÇ OYUN
-Tek hat, toptan    → Paralel hatlar,        → Hatlar birleşiyor,
-sat                  tier büyümesi             özel siparişler
+Kolay gig'ler,     → Zor gig'ler,          → Özel talepler,
+tek hat              paralel hatlar           evrensel fabrika
 
 Yapılar basit      → Yapılar büyüyor        → Yapılar birleşiyor
 1 iş = 1 bina       1 iş = N bina (tier)      N sistem = 1 yeni sistem
 
-1 kaynak           → 3 kaynak               → 5 kaynak + siparişler
+500 MB gig'ler     → 50 GB gig'ler          → 10 TB+ gig'ler
 ```
 
 ---
@@ -437,17 +487,22 @@ Yapılar basit      → Yapılar büyüyor        → Yapılar birleşiyor
 **Çıkarım:**
 | Yapı | Tooltip | Fonksiyon |
 |------|---------|-----------|
-| **Uplink** | "Ağa bağlanıp veri indirir" | Ham veri çeker. Üzerinden kaynak seçilir (Web, Deep Web, Corporate, Military, Blackwall) |
+| **Uplink** | "Ağa bağlanıp veri indirir" | Gig panosundan seçilen sözleşmeyi indirir. Her gig farklı veri kompozisyonu getirir |
 
-**Uplink Veri Kaynakları:**
-Uplink = makine, kaynak = ayar. Aynı yapı, farklı kaynağa bağlanır:
-| Kaynak | İçerik | Özel Mekanik |
-|--------|--------|-------------|
-| Web Traffic | Çoğu clean, düşük tier, düşük hacim | Yok — güvenli, öğretici |
-| Deep Web | Çok encrypted/corrupted, orta tier | Dalga halinde gelir (düzensiz akış) |
-| Corporate Network | Ağır encrypted, yüksek tier | İzlenebilir — Trace hızlı artar |
-| Military Channel | Encrypted + malware, çok yüksek tier | Yeniden şifreleme gerekir (Encryptor lazım) |
-| Blackwall | Hibrit (corrupted+encrypted kombinasyonları) | Yapılara hasar verir (hostile veri) |
+**Uplink ve Gig Sistemi:**
+Uplink = indirme makinesi. Gig panosu'ndan seçilen sözleşme Uplink'e atanır, Uplink gig boyutunca veri indirir:
+- Her Uplink'e 1 gig atanabilir (birden fazla Uplink = birden fazla eşzamanlı gig)
+- Gig bitince Uplink boşta kalır, yeni gig atanabilir
+- Uplink hızı upgrade ile artar (başlangıç 10 MB/s → endgame 1 TB/s)
+
+**Gig Kategorileri (Bkz. Bölüm 7 — Gig Sistemi):**
+| Kategori | İçerik | Özel Mekanik |
+|----------|--------|-------------|
+| Web Traffic | Çoğu clean, düşük hacim | Güvenli, öğretici |
+| Deep Web | Çok encrypted/corrupted, orta hacim | Düzensiz akış |
+| Corporate | Ağır encrypted, yüksek hacim | Çok malware, Trace riski |
+| Military | Encrypted + malware, çok yüksek hacim | Encryptor gerektirir |
+| Blackwall | Hibrit kombinasyonlar, devasa hacim | Yapılara hasar (hostile veri) |
 
 **Ayırma & Depolama:**
 | Yapı | Tooltip | Fonksiyon |
@@ -589,11 +644,12 @@ Power Cell kapsama alanı:
 - Çok ısınan yapı: yavaşlar → hasar alır → bozulur
 - **Oyuncu kararı:** Sıkıştırıp alan kazanmak mı, dağıtıp ısıyı kontrol etmek mi?
 
-### Trace: Global Sayaç
-- Trace bölgesel değil, global bir sayaç
-- Artıran: Uplink çekimi, Decrypt/Recover işlemleri, Storage'daki işlenemeyen veri
-- Zamanla doğal olarak düşer
-- Eşiklere ulaşınca kaynak erişimi kısıtlanır (bkz. Bölüm 5: Trace Tespit Sistemi)
+### Trace: Zone-Based Dijital Kirlilik
+- Trace bölgesel (zone-based), global değil
+- **Kaynak:** Malware verisi tutan Storage yapıları etraflarına Trace yayar
+- **Etki:** Trace zone içindeki yapılar bozulma riski taşır
+- **Çözüm:** Quarantine ile malware'ı hızlıca bertaraf et → Trace düşer
+- Bkz. Bölüm 5: Trace Sistemi (Zone-Based Dijital Kirlilik)
 
 ---
 
@@ -611,24 +667,34 @@ Power Cell kapsama alanı:
 - Tier 1 → Tier 4 arası üstel büyüme
 - Oyun doğal olarak devasa base'ler yaratıyor
 
-**2. Veri Kaynakları (Uplink Kaynakları):**
+**2. Gig Sistemi (ana ilerleme motoru):**
+Her gig farklı pipeline gerektirir. Gig'ler büyüdükçe sistem büyümek zorunda:
 ```
-Web Traffic:      Düşük hacim, çoğu clean, güvenli
-Deep Web:         Orta hacim, daha fazla encrypted/corrupted, dalga halinde
-Corporate:        Yüksek hacim, ağır encrypted, Trace hızlı artar
-Military:         Çok yüksek tier, encrypted + malware, Encryptor gerektirir
-Blackwall:        Hibrit veri (kombinasyonlar), hostile, yapılara hasar verir
+Web Traffic gig:   500 MB, %80 clean — tek hat yeterli
+Deep Web gig:      5 GB, çok encrypted — Decryptor hattı kur
+Corporate gig:     50 GB, ağır encrypted + malware — paralel hatlar + Quarantine
+Military gig:      500 GB, yoğun malware — devasa altyapı
+Blackwall gig:     10 TB+, hibrit kombolar — evrensel fabrika
 ```
-Her yeni kaynak farklı pipeline gerektirir.
+Endgame gig'leri sonsuz döngüde gelir (Shapez hub talepleri gibi).
 
-**3. Trace Doğal Scale:**
-- Büyüme → Trace ↑ → Kaynak erişimi kısıtlanır → Optimize et veya yavaşla
+**3. Astronomik Veri Ölçeklemesi:**
+Uplink hızı ve gig boyutları oyun ilerledikçe astronomik olarak büyür:
+```
+Uplink hızı:   10 MB/s → 100 MB/s → 1 GB/s → 100 GB/s → 1 TB/s+
+Gig boyutu:    500 MB → 50 GB → 10 TB → 100 TB+
+```
+Upgrade sistemi (Patch Data) bu ölçeklemeyi sağlar. Oyuncu her aşamada "ne kadar büyüdüm" hisseder.
+
+**4. Trace Doğal Scale:**
+- Daha büyük gig = daha çok malware = daha çok Trace riski
+- Malware'ı hızlı işleyemeyen oyuncu yapı kaybeder → sistemi optimize etmeli
 - Oyuncuyu dengede tutar
 
-**4. Premium Siparişler (geç oyun):**
-- Müşteriler belirli formatta veri ister
+**5. Özel Gig Talepleri (geç oyun):**
+- Bazı gig'ler belirli formatta çıktı ister (ör: "şifrele ve sat")
 - Daha uzun pipeline = daha fazla kazanç
-- Yeniden şifreleme sistemi
+- Yeniden şifreleme sistemi (Encryptor)
 
 ### Devasa Base Vizyonu (Geç Oyun)
 ```
@@ -829,13 +895,16 @@ Oyun chill otomasyon olarak çıkar. Savunma sistemi başarılı olursa sonradan
 - [ ] Decryptor + Research Lab (Faz 3)
 - [ ] Recoverer + Patch Data upgrade sistemi (Faz 5)
 - [ ] Quarantine + Malware bertaraf (Faz 6)
-- [ ] Veri kaynakları özel mekanikleri (Deep Web, Corporate, Military, Blackwall)
+- [ ] Gig sistemi temel implementasyonu
 
 ### İleride Tasarlanacak
 - [ ] Ekonomi dengeleme (credits, fiyatlar, verimlilik oranları)
 - [ ] Teknoloji ağacı yapısı
 - [ ] Veri kombinasyonları tam listesi ve process sıraları
-- [ ] Premium sipariş sistemi detayları
+- [ ] Gig panosu UI tasarımı
+- [ ] Gig zorluk/ödül dengeleme
+- [ ] Trace zone parametreleri (radius, bozulma ihtimali, eşikler)
+- [ ] Trace azaltıcı yapı tasarımı (post-release)
 - [ ] Encryptor geç oyun mekaniği
 - [ ] Savunma sistemi (büyük güncelleme / DLC)
 
@@ -860,12 +929,14 @@ Oyun chill otomasyon olarak çıkar. Savunma sistemi başarılı olursa sonradan
 - [x] Bilinmeyen veri tipleri keşif sistemi (??? → keşfet)
 - [x] Saflık/verimlilik sistemi (separator %60 başlar, Patch Data ile gelişir)
 - [x] Sıkıştırma (Compression) process'i — tier'lı
-- [x] Uplink = makine, kaynak = ayar (aynı yapı, farklı kaynağa bağlanır)
-- [x] 5 veri kaynağı: Web, Deep Web, Corporate, Military, Blackwall
+- [x] **Gig sistemi** (Uplink kaynak seçimi yerine tek seferlik sözleşme sistemi)
+- [x] **Sonsuz endgame gig döngüsü** (Shapez hub talepleri gibi)
+- [x] **Astronomik veri ölçeklemesi** (10 MB/s → 1 TB/s, 500 MB gig → 100 TB+ gig)
+- [x] 5 gig kategorisi: Web Traffic, Deep Web, Corporate, Military, Blackwall
 - [x] Oyuncu ilerleme fazları (Çöpçü → Madenci → Mühendis → Sistem Mimarı)
 - [x] Karışık veri paketleri geç oyunda
 - [x] Tier çeşitleri farklı process yolları gerektirir
-- [x] **Trace = tespit sistemi** (kaynak erişimi kısıtlama, saldırı dalgası değil)
+- [x] **Trace = zone-based dijital kirlilik** (malware Storage'dan yayılır, etraftaki yapıları bozar)
 - [x] **Doğrudan link (kablo) bağlantı sistemi** (konveyör değil)
 - [x] **Power: zone-based** (Power Cell kapsama alanı)
 - [x] **Heat: yapı bazlı + bölgesel yayılma** (Coolant Rig zone)
@@ -880,4 +951,4 @@ Oyun chill otomasyon olarak çıkar. Savunma sistemi başarılı olursa sonradan
 ---
 
 *Bu döküman canlıdır ve her tasarım session'ında güncellenecektir.*
-*Versiyon 0.4 — Chill otomasyon kararı, yapı listesi finalize, bağlantı ve altyapı sistemleri tanımlandı.*
+*Versiyon 0.5 — Trace zone-based yeniden tasarım, Gig sistemi, astronomik ölçekleme kararları.*
