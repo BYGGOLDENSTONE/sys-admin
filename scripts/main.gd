@@ -5,6 +5,8 @@ extends Node2D
 @onready var building_panel: PanelContainer = $UILayer/BuildingPanel
 @onready var camera: Camera2D = $GameCamera
 @onready var ui_layer: CanvasLayer = $UILayer
+@onready var connection_manager: Node = $ConnectionManager
+@onready var connection_layer: Node2D = $ConnectionLayer
 
 var _tooltip_scene: PackedScene = preload("res://scenes/ui/building_tooltip.tscn")
 var _tooltip: PanelContainer = null
@@ -18,6 +20,14 @@ func _ready() -> void:
 	ui_layer.add_child(_tooltip)
 	building_manager.building_hovered.connect(_tooltip.show_for_building)
 	building_manager.building_unhovered.connect(_tooltip.hide_tooltip)
+
+	# Wire up connection system
+	building_manager.connection_manager = connection_manager
+	building_manager.connection_layer = connection_layer
+	connection_layer.connection_manager = connection_manager
+
+	# Auto-remove connections when building is removed
+	building_manager.building_removed.connect(connection_manager.remove_connections_for)
 
 	# Center camera on grid
 	camera.position = Vector2(

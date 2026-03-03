@@ -11,3 +11,5 @@ color = Color(0.5, 0.7, 0.9, 1)
 category = "processing"
 base_cost = 80
 visual_type = "compressor"
+output_ports = Array[String](["right"])
+input_ports = Array[String](["left"])

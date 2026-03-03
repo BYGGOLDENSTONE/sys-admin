@@ -9,3 +9,5 @@ extends Resource
 @export var base_cost: int = 100
 @export var visual_type: String = "default"
 @export var zone_radius: float = 0.0
+@export var output_ports: Array[String] = []
+@export var input_ports: Array[String] = []

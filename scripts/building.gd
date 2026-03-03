@@ -10,6 +10,9 @@ const BAR_MARGIN: float = 6.0
 const BAR_GAP: float = 2.0
 const ICON_GLOW_WIDTH: float = 3.0
 const ICON_GLOW_ALPHA: float = 0.25
+const PORT_RADIUS: float = 6.0
+const PORT_GLOW_RADIUS: float = 10.0
+const PORT_HIT_RADIUS: float = 24.0
 
 var definition: BuildingDefinition
 var grid_cell: Vector2i = Vector2i.ZERO
@@ -21,6 +24,38 @@ func setup(def: BuildingDefinition, cell: Vector2i) -> void:
 	definition = def
 	grid_cell = cell
 	queue_redraw()
+
+
+func get_port_local_position(port_side: String) -> Vector2:
+	var size := Vector2(definition.grid_size.x * TILE_SIZE, definition.grid_size.y * TILE_SIZE)
+	match port_side:
+		"right":
+			return Vector2(size.x, size.y / 2.0)
+		"left":
+			return Vector2(0, size.y / 2.0)
+		"top":
+			return Vector2(size.x / 2.0, 0)
+		"bottom":
+			return Vector2(size.x / 2.0, size.y)
+	return size / 2.0
+
+
+func get_port_world_position(port_side: String) -> Vector2:
+	return global_position + get_port_local_position(port_side)
+
+
+func get_port_at(local_pos: Vector2) -> Dictionary:
+	if definition == null:
+		return {}
+	for port_side in definition.output_ports:
+		var port_pos := get_port_local_position(port_side)
+		if local_pos.distance_to(port_pos) <= PORT_HIT_RADIUS:
+			return {"side": port_side, "is_output": true}
+	for port_side in definition.input_ports:
+		var port_pos := get_port_local_position(port_side)
+		if local_pos.distance_to(port_pos) <= PORT_HIT_RADIUS:
+			return {"side": port_side, "is_output": false}
+	return {}
 
 
 func _draw() -> void:
@@ -69,6 +104,9 @@ func _draw() -> void:
 	# Text shadow
 	draw_string(font, text_pos + Vector2(1, 1), text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(0, 0, 0, 0.5))
 	draw_string(font, text_pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color.WHITE)
+
+	# Ports
+	_draw_ports(size, accent)
 
 	# Status bars
 	_draw_status_bars(size, accent)
@@ -444,6 +482,24 @@ func _draw_icon_merger(center: Vector2, size: Vector2, accent: Color) -> void:
 # --- DEFAULT: Simple dot ---
 func _draw_icon_default(center: Vector2, _size: Vector2, accent: Color) -> void:
 	draw_circle(center, 4.0, Color(accent, 0.5))
+
+
+# --- PORTS ---
+func _draw_ports(size: Vector2, accent: Color) -> void:
+	if definition == null:
+		return
+	# Output ports (accent color)
+	for port_side in definition.output_ports:
+		var pos := get_port_local_position(port_side)
+		draw_circle(pos, PORT_GLOW_RADIUS, Color(accent, 0.15))
+		draw_circle(pos, PORT_RADIUS, Color(accent, 0.8))
+		draw_circle(pos, PORT_RADIUS * 0.4, Color.WHITE)
+	# Input ports (white/dim)
+	for port_side in definition.input_ports:
+		var pos := get_port_local_position(port_side)
+		draw_circle(pos, PORT_GLOW_RADIUS, Color(1, 1, 1, 0.1))
+		draw_circle(pos, PORT_RADIUS, Color(0.6, 0.65, 0.7, 0.8))
+		draw_circle(pos, PORT_RADIUS * 0.4, Color.WHITE)
 
 
 # --- ZONE RADIUS ---

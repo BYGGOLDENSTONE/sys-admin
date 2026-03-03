@@ -1,6 +1,6 @@
 # SYS_ADMIN - Proje Durumu
 
-## Mevcut Aşama: VERTICAL SLICE — Faz 2 tamamlandı, Faz 3 sırada
+## Mevcut Aşama: VERTICAL SLICE — Faz 3 tamamlandı, Faz 4 sırada
 Tasarım çekirdek kararları tamamlandı (GDD v0.4). Vertical slice geliştiriliyor.
 
 ## Tasarım Dökümanı
@@ -85,10 +85,10 @@ Yapılar özel sınıflar değil, **component'lerin birleşimi:**
 - [x] Kalan 8 yapının tanımları (Separator, Compressor, Decryptor, Recoverer, Quarantine, Research Lab, Splitter, Merger)
 - [x] 13 yapının tamamı için benzersiz prosedürel ikonlar
 
-### Faz 3: Bağlantı ve Veri Akışı
-- [ ] Yapılar arası link çekme (kablo sistemi)
-- [ ] Akan veri parçacıkları (yeşil 0/1'ler)
-- [ ] Parlayan bağlantı çizgileri
+### Faz 3: Bağlantı ve Veri Akışı ✓
+- [x] Yapılar arası link çekme (kablo sistemi)
+- [x] Akan veri parçacıkları (yeşil 0/1'ler)
+- [x] Parlayan bağlantı çizgileri
 
 ### Faz 4: Shader ve Efektler
 - [ ] Bloom shader (neon parlama)

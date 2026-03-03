@@ -11,3 +11,5 @@ color = Color(0.7, 0.3, 0.9, 1)
 category = "processing"
 base_cost = 200
 visual_type = "decryptor"
+output_ports = Array[String](["right"])
+input_ports = Array[String](["left"])

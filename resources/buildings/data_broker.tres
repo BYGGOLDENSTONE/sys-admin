@@ -11,3 +11,5 @@ color = Color(1, 0.8, 0, 1)
 category = "output"
 base_cost = 150
 visual_type = "broker"
+output_ports = Array[String]([])
+input_ports = Array[String](["left"])

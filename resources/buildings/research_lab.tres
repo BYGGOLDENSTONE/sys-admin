@@ -11,3 +11,5 @@ color = Color(0.4, 0.6, 1, 1)
 category = "output"
 base_cost = 250
 visual_type = "research"
+output_ports = Array[String]([])
+input_ports = Array[String](["left"])

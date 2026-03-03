@@ -11,3 +11,5 @@ color = Color(0, 1, 0.533, 1)
 category = "storage"
 base_cost = 75
 visual_type = "storage"
+output_ports = Array[String]([])
+input_ports = Array[String](["left"])

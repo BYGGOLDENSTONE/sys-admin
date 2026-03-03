@@ -11,3 +11,5 @@ color = Color(0.6, 0.8, 0.2, 1)
 category = "processing"
 base_cost = 120
 visual_type = "separator"
+output_ports = Array[String](["right", "bottom"])
+input_ports = Array[String](["left"])

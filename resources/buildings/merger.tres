@@ -11,3 +11,5 @@ color = Color(0.8, 0.8, 0.8, 1)
 category = "routing"
 base_cost = 60
 visual_type = "merger"
+output_ports = Array[String](["right"])
+input_ports = Array[String](["left", "top"])

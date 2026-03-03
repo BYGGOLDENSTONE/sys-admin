@@ -11,3 +11,5 @@ color = Color(1, 0.2, 0.2, 1)
 category = "processing"
 base_cost = 160
 visual_type = "quarantine"
+output_ports = Array[String]([])
+input_ports = Array[String](["left"])
