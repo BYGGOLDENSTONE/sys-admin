@@ -8,8 +8,8 @@
 [sub_resource type="Resource" id="proc1"]
 script = ExtResource("2")
 processing_rate = 4.0
-input_types = Array[String](["malware"])
-output_type = ""
+input_states = Array[int]([3])
+output_state = -1
 rule = "quarantine"
 efficiency = 1.0
 
@@ -29,7 +29,7 @@ level_values = Array[float]([5.0, 6.0, 8.0])
 [resource]
 script = ExtResource("1")
 building_name = "Quarantine"
-description = "Malware verilerini güvenle imha eder. Karantinasız malware yapılarınıza ekstra ısı vererek hasar verir."
+description = "Malware verilerini güvenle imha eder. Karantinasız malware yapılarınızda kalarak zarar verir."
 grid_size = Vector2i(2, 2)
 color = Color(1, 0.2, 0.2, 1)
 category = "processing"

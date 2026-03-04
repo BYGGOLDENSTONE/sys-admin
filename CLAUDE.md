@@ -233,16 +233,23 @@ Yapılar birbirinden habersiz çalışır. Hiçbir yapı "Decryptor'a gönder" d
 - [x] Malware ısı hasarı mekaniği kaldır
 - [x] Test: 7/7 senaryo PASSED — yapılar güç/ısı olmadan normal çalışıyor
 
-### Refactor Faz 2: Veri Modeli — Content + State
-- [ ] DataPacket Resource oluştur (content: ContentType, state: DataState, tier: int)
-- [ ] ContentType enum: STANDARD, FINANCIAL, BIOMETRIC, BLUEPRINT, RESEARCH, CLASSIFIED
-- [ ] DataState enum: CLEAN, ENCRYPTED, CORRUPTED, MALWARE
-- [ ] GeneratorComponent güncelle: content_weights + state_weights (eski data_weights yerine)
-- [ ] ProcessorComponent güncelle: state-based işleme (Decryptor: Encrypted→Clean, Recoverer: Corrupted→Clean)
-- [ ] SellerComponent güncelle: content → credits_multiplier eşlemesi + Blueprint → Patch Data
-- [ ] Separator güncelle: konfigüre edilebilir mod (state modu / content modu)
-- [ ] Eski string-based veri tipi sistemi tamamen kaldır
-- [ ] Test: Uplink üretim → Separator ayırma → Decryptor/Recoverer → Data Broker akışı
+### Refactor Faz 2: Veri Modeli — Content + State ✓
+- [x] DataEnums oluştur (ContentType enum, DataState enum, key helpers, color maps)
+- [x] ContentType enum: STANDARD, FINANCIAL, BIOMETRIC, BLUEPRINT, RESEARCH, CLASSIFIED
+- [x] DataState enum: CLEAN, ENCRYPTED, CORRUPTED, MALWARE
+- [x] GeneratorComponent güncelle: content_weights + state_weights (eski data_weights yerine)
+- [x] ProcessorComponent güncelle: input_states + output_state + separator_mode
+- [x] SellerComponent güncelle: accepted_states + content_price_multipliers + Blueprint→Patch Data
+- [x] ResearchCollectorComponent güncelle: accepted_content + accepted_states
+- [x] Separator: konfigüre edilebilir mod (state modu / content modu)
+- [x] Decryptor: Encrypted→Clean (content korunur)
+- [x] Recoverer: Corrupted→Clean (content korunur), output port eklendi
+- [x] Data Broker: content-based fiyatlandırma (Classified 10x, Financial 5x, Biometric 3x)
+- [x] Blueprint(Clean) → Data Broker → Patch Data akışı
+- [x] Eski string-based veri tipi sistemi tamamen kaldırıldı
+- [x] Tooltip + Discovery sistemi güncellendi
+- [x] 11 .tres dosyası güncellendi
+- [x] Test: content_state_flow_test — PASSED
 
 ### Refactor Faz 3: Görsel Güncelleme
 - [ ] Parçacık sistemi: renk = state (yeşil/mor/sarı/kırmızı), şekil/ikon = content

@@ -25,9 +25,10 @@ var _glow_time: float = 0.0
 var _is_ghost: bool = false
 
 # Runtime state (set by SimulationManager)
-var stored_data: Dictionary = {"clean": 0, "corrupted": 0, "encrypted": 0, "malware": 0, "research": 0}
+var stored_data: Dictionary = {}  ## Key: "content_state" (e.g. "0_0"), Value: int MB
 var is_working: bool = false  ## True when building did actual work this tick
-var separator_filter: String = "clean"  ## For separator: which type goes to primary output port
+var separator_mode: String = "state"  ## For separator: "state" or "content"
+var separator_filter_value: int = 0  ## Filter value for separator (state or content int)
 var upgrade_level: int = 0  ## Current upgrade level (0 = base)
 
 
@@ -76,18 +77,8 @@ func can_accept_data(amount: int = 1) -> bool:
 	return get_total_stored() + amount <= cap
 
 
-func accepts_data_type(dtype: String) -> bool:
-	## Processor with input_types: only accept those
-	if definition.processor and not definition.processor.input_types.is_empty():
-		return dtype in definition.processor.input_types
-	## Seller with accepted_types: only accept those
-	if definition.seller and not definition.seller.accepted_types.is_empty():
-		return dtype in definition.seller.accepted_types
-	## Research collector with accepted_types: only accept those
-	if definition.research_collector and not definition.research_collector.accepted_types.is_empty():
-		return dtype in definition.research_collector.accepted_types
-	## No filter — accept everything
-	return true
+func accepts_data(content: int, state: int) -> bool:
+	return definition.accepts_data(content, state)
 
 
 func is_active() -> bool:
@@ -121,6 +112,25 @@ func get_center_world() -> Vector2:
 		definition.grid_size.x * TILE_SIZE / 2.0,
 		definition.grid_size.y * TILE_SIZE / 2.0
 	)
+
+
+func _has_malware() -> bool:
+	for key in stored_data:
+		if stored_data[key] <= 0:
+			continue
+		var parsed: Dictionary = DataEnums.parse_key(key)
+		if parsed.state == DataEnums.DataState.MALWARE:
+			return true
+	return false
+
+
+func get_malware_amount() -> int:
+	var total: int = 0
+	for key in stored_data:
+		var parsed: Dictionary = DataEnums.parse_key(key)
+		if parsed.state == DataEnums.DataState.MALWARE:
+			total += stored_data[key]
+	return total
 
 
 func update_display() -> void:
@@ -206,7 +216,7 @@ func _draw() -> void:
 	_draw_status_bars(size, accent)
 
 	# Malware overlay (purple-red flicker)
-	if not _is_ghost and stored_data.get("malware", 0) > 0:
+	if not _is_ghost and _has_malware():
 		if definition.processor == null or definition.processor.rule != "quarantine":
 			var malware_alpha: float = 0.12 + sin(_glow_time * 6.0) * 0.06
 			draw_rect(rect, Color(0.8, 0.0, 0.3, malware_alpha), true)

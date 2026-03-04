@@ -8,8 +8,8 @@
 [sub_resource type="Resource" id="proc1"]
 script = ExtResource("2")
 processing_rate = 5.0
-input_types = Array[String](["clean", "corrupted", "encrypted", "malware"])
-output_type = ""
+input_states = Array[int]([0, 1, 2, 3])
+output_state = -1
 rule = "compressor"
 efficiency = 0.75
 
@@ -29,7 +29,7 @@ level_values = Array[float]([0.82, 0.88, 0.95])
 [resource]
 script = ExtResource("1")
 building_name = "Compressor"
-description = "Compresses data before storage, reducing size and power/heat costs. Tiered compression rates."
+description = "Compresses data before storage, reducing size. Preserves content and state. Tiered compression rates."
 grid_size = Vector2i(1, 1)
 color = Color(0.5, 0.7, 0.9, 1)
 category = "processing"

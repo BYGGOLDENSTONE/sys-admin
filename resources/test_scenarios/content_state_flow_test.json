@@ -1,0 +1,27 @@
+{
+  "name": "content_state_flow_test",
+  "description": "Tests Content+State data model: Uplink generates mixed data, Separator routes by state, Decryptor/Recoverer clean data, Data Broker sells for credits",
+  "actions": [
+    {"action": "place", "building": "uplink", "cell": [5, 10], "id": "up1"},
+    {"action": "place", "building": "separator", "cell": [8, 10], "id": "sep1"},
+    {"action": "place", "building": "storage", "cell": [11, 8], "id": "st_clean"},
+    {"action": "place", "building": "decryptor", "cell": [11, 13], "id": "dec1"},
+    {"action": "place", "building": "storage", "cell": [14, 8], "id": "st_sell"},
+    {"action": "place", "building": "storage", "cell": [14, 13], "id": "st_dec"},
+    {"action": "place", "building": "data_broker", "cell": [17, 8], "id": "db1"},
+    {"action": "place", "building": "data_broker", "cell": [17, 13], "id": "db2"},
+
+    {"action": "connect", "from": "up1", "from_port": "right", "to": "sep1", "to_port": "left"},
+    {"action": "connect", "from": "sep1", "from_port": "right", "to": "st_clean", "to_port": "left"},
+    {"action": "connect", "from": "sep1", "from_port": "bottom", "to": "dec1", "to_port": "left"},
+    {"action": "connect", "from": "st_clean", "from_port": "right", "to": "st_sell", "to_port": "left"},
+    {"action": "connect", "from": "st_sell", "from_port": "right", "to": "db1", "to_port": "left"},
+    {"action": "connect", "from": "dec1", "from_port": "right", "to": "st_dec", "to_port": "left"},
+    {"action": "connect", "from": "st_dec", "from_port": "right", "to": "db2", "to_port": "left"},
+
+    {"action": "wait_ticks", "count": 30},
+    {"action": "snapshot", "label": "after_30_ticks"},
+
+    {"action": "assert", "check": "credits_gt", "value": 0}
+  ]
+}

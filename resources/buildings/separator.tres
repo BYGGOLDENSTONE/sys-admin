@@ -8,10 +8,11 @@
 [sub_resource type="Resource" id="proc1"]
 script = ExtResource("2")
 processing_rate = 5.0
-input_types = Array[String](["clean", "corrupted", "encrypted", "malware"])
-output_type = ""
+input_states = Array[int]([0, 1, 2, 3])
+output_state = -1
 rule = "separator"
 efficiency = 0.6
+separator_mode = "state"
 
 [sub_resource type="Resource" id="stor1"]
 script = ExtResource("3")
@@ -29,7 +30,7 @@ level_values = Array[float]([0.7, 0.8, 0.9])
 [resource]
 script = ExtResource("1")
 building_name = "Separator"
-description = "Splits raw data into recognized types. Starts at 60% efficiency, upgradeable with Patch Data."
+description = "Splits data by state or content type. Routes matching data to primary port, rest to secondary. Starts at 60% efficiency."
 grid_size = Vector2i(2, 2)
 color = Color(0.6, 0.8, 0.2, 1)
 category = "processing"

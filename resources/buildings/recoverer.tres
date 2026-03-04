@@ -7,8 +7,8 @@
 [sub_resource type="Resource" id="proc1"]
 script = ExtResource("2")
 processing_rate = 4.0
-input_types = Array[String](["corrupted"])
-output_type = ""
+input_states = Array[int]([2])
+output_state = 0
 rule = "recoverer"
 efficiency = 0.7
 
@@ -20,13 +20,13 @@ forward_rate = 0.0
 [resource]
 script = ExtResource("1")
 building_name = "Recoverer"
-description = "Bozuk veriyi kurtararak Patch Data'ya dönüştürür. Yapıları geliştirmek için kullanılır."
+description = "Bozuk veriyi kurtararak Clean state'e dönüştürür. Content korunur. Blueprint(Clean) → Data Broker → Patch Data."
 grid_size = Vector2i(2, 2)
 color = Color(0.9, 0.6, 0.2, 1)
 category = "processing"
 base_cost = 180
 visual_type = "recoverer"
-output_ports = Array[String]([])
+output_ports = Array[String](["right"])
 input_ports = Array[String](["left"])
 processor = SubResource("proc1")
 storage = SubResource("stor1")

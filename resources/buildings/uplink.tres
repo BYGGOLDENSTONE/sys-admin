@@ -6,7 +6,8 @@
 [sub_resource type="Resource" id="gen1"]
 script = ExtResource("2")
 generation_rate = 5.0
-data_weights = {"clean": 0.3, "corrupted": 0.25, "encrypted": 0.25, "malware": 0.2}
+content_weights = {0: 0.30, 1: 0.15, 2: 0.15, 3: 0.10, 4: 0.20, 5: 0.10}
+state_weights = {0: 0.30, 1: 0.25, 2: 0.25, 3: 0.20}
 
 [resource]
 script = ExtResource("1")

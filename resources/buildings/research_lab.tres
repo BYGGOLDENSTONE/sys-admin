@@ -12,13 +12,14 @@ forward_rate = 0.0
 [sub_resource type="Resource" id="res1"]
 script = ExtResource("3")
 collection_rate = 5.0
-accepted_types = Array[String](["research"])
+accepted_content = Array[int]([4])
+accepted_states = Array[int]([0])
 research_per_mb = 1.0
 
 [resource]
 script = ExtResource("1")
 building_name = "Research Lab"
-description = "Research verisini analiz ederek Research puanı üretir. Yeni yapı türleri açmak için kullanılır."
+description = "Research content'i (Clean) analiz ederek Research puanı üretir. Yeni yapı türleri açmak için kullanılır."
 grid_size = Vector2i(2, 2)
 color = Color(0.4, 0.6, 1, 1)
 category = "output"

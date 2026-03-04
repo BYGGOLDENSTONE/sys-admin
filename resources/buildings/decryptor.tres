@@ -8,8 +8,8 @@
 [sub_resource type="Resource" id="proc1"]
 script = ExtResource("2")
 processing_rate = 4.0
-input_types = Array[String](["encrypted"])
-output_type = "research"
+input_states = Array[int]([1])
+output_state = 0
 rule = "decryptor"
 efficiency = 0.7
 
@@ -29,7 +29,7 @@ level_values = Array[float]([5.0, 6.0, 8.0])
 [resource]
 script = ExtResource("1")
 building_name = "Decryptor"
-description = "Encrypted veriyi çözer, Research verisine dönüştürür. Yüksek ısı üretir."
+description = "Encrypted veriyi çözerek Clean state'e dönüştürür. Content korunur (Financial kalır Financial)."
 grid_size = Vector2i(2, 2)
 color = Color(0.7, 0.3, 0.9, 1)
 category = "processing"

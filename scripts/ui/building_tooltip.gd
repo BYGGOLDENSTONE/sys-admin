@@ -77,8 +77,10 @@ func _update_stats() -> void:
 	# Type-specific stats (component-based)
 	if def.generator:
 		lines.append(_stat("Akış", "%d MB/s" % int(def.generator.generation_rate)))
-		if not def.generator.data_weights.is_empty():
-			lines.append(_stat("Çıktı", _format_data_weights(def.generator.data_weights)))
+		if not def.generator.content_weights.is_empty():
+			lines.append(_stat("Content", _format_content_weights(def.generator.content_weights)))
+		if not def.generator.state_weights.is_empty():
+			lines.append(_stat("State", _format_state_weights(def.generator.state_weights)))
 	if def.storage and def.processor == null:
 		var total: int = b.get_total_stored()
 		var cap: int = int(b.get_effective_value("capacity"))
@@ -91,25 +93,30 @@ func _update_stats() -> void:
 			lines.append(_stat("İletim", "%d MB/s" % int(def.storage.forward_rate)))
 	if def.seller:
 		lines.append(_stat("Satış", "%d MB/s (Clean)" % int(def.seller.sell_rate)))
-		lines.append(_stat("Kazanç", "%.1f CR/MB" % def.seller.credits_per_mb))
-		var clean_buf: int = b.stored_data.get("clean", 0)
-		if clean_buf > 0:
-			lines.append(_stat("Buffer", "%d MB Clean" % clean_buf))
+		lines.append(_stat("Baz Fiyat", "%.1f CR/MB" % def.seller.credits_per_mb))
+		if not def.seller.content_price_multipliers.is_empty():
+			lines.append(_stat("Fiyatlar", _format_price_multipliers(def.seller)))
 	if def.processor:
 		lines.append(_stat("İşleme", "%d MB/s" % int(b.get_effective_value("processing_rate"))))
 		lines.append(_stat("Verimlilik", "%d%%" % int(b.get_effective_value("efficiency") * 100)))
 		if def.processor.rule == "separator":
-			var filter_name: String = b.separator_filter.capitalize()
+			var mode_name: String = "State" if def.processor.separator_mode == "state" else "Content"
+			var filter_name: String
+			if b.separator_mode == "content":
+				filter_name = DataEnums.content_name(b.separator_filter_value)
+			else:
+				filter_name = DataEnums.state_name(b.separator_filter_value)
+			lines.append(_stat("Mod", mode_name))
 			lines.append(_stat("Sağ Port →", "[color=#44ff88]%s[/color]" % filter_name))
-			lines.append(_stat("Alt Port  →", "[color=#ff8844]Corrupted[/color], [color=#44aaff]Encrypted[/color], [color=#ff4466]Malware[/color]"))
+			lines.append(_stat("Alt Port  →", "Diğer tüm veriler"))
 		elif def.processor.rule == "compressor":
 			lines.append(_stat("Sıkıştırma", "%d%% çıktı" % int(b.get_effective_value("efficiency") * 100)))
 		elif def.processor.rule == "decryptor":
 			lines.append(_stat("Giriş", "[color=#44aaff]Encrypted[/color]"))
-			lines.append(_stat("Çıkış", "[color=#aa88ff]Research[/color]"))
+			lines.append(_stat("Çıkış", "[color=#44ff88]Clean[/color] (content korunur)"))
 		elif def.processor.rule == "recoverer":
 			lines.append(_stat("Giriş", "[color=#ff8844]Corrupted[/color]"))
-			lines.append(_stat("Çıkış", "[color=#ffaa44]Patch Data[/color]"))
+			lines.append(_stat("Çıkış", "[color=#44ff88]Clean[/color] (content korunur)"))
 		elif def.processor.rule == "quarantine":
 			lines.append(_stat("Giriş", "[color=#ff4466]Malware[/color]"))
 			lines.append(_stat("Çıkış", "[color=#44ff88]Güvenli İmha[/color]"))
@@ -123,9 +130,7 @@ func _update_stats() -> void:
 		var rc: ResearchCollectorComponent = def.research_collector
 		lines.append(_stat("Toplama", "%d MB/s" % int(rc.collection_rate)))
 		lines.append(_stat("Kazanım", "%.1f RP/MB" % rc.research_per_mb))
-		var research_buf: int = b.stored_data.get("research", 0)
-		if research_buf > 0:
-			lines.append(_stat("Buffer", "[color=#aa88ff]%d MB Research[/color]" % research_buf))
+		lines.append(_stat("Kabul", "Research(Clean)"))
 
 	# Upgrade info
 	if def.upgrade:
@@ -137,9 +142,9 @@ func _update_stats() -> void:
 			lines.append(_stat("Seviye", "%d/%d" % [lvl, upg.max_level]))
 
 	# Malware warning (non-quarantine buildings holding malware)
-	var malware_stored: int = b.stored_data.get("malware", 0)
-	if malware_stored > 0 and not (def.processor and def.processor.rule == "quarantine"):
-		lines.append(_stat("Malware", "[color=#ff4466]%d MB — Quarantine'e yönlendir![/color]" % malware_stored))
+	var malware_amount: int = b.get_malware_amount()
+	if malware_amount > 0 and not (def.processor and def.processor.rule == "quarantine"):
+		lines.append(_stat("Malware", "[color=#ff4466]%d MB — Quarantine'e yönlendir![/color]" % malware_amount))
 
 	stats_label.text = "\n".join(lines)
 
@@ -148,37 +153,54 @@ func _stat(label: String, value: String) -> String:
 	return "[color=#667788]%s:[/color]  %s" % [label, value]
 
 
-func _format_data_weights(weights: Dictionary) -> String:
+func _format_content_weights(weights: Dictionary) -> String:
 	var parts: PackedStringArray = []
-	var type_colors: Dictionary = {
-		"clean": "#44ff88",
-		"corrupted": "#ff8844",
-		"encrypted": "#44aaff",
-		"malware": "#ff4466",
-		"research": "#aa88ff"
-	}
-	for dtype in weights:
-		var pct: int = int(weights[dtype] * 100)
-		var color: String = type_colors.get(dtype, "#aabbcc")
-		parts.append("[color=%s]%d%% %s[/color]" % [color, pct, dtype.capitalize()])
+	for content_id in weights:
+		var pct: int = int(weights[content_id] * 100)
+		var c: int = int(content_id)
+		var color: String = DataEnums.content_color_hex(c)
+		parts.append("[color=%s]%d%% %s[/color]" % [color, pct, DataEnums.content_name(c)])
+	return ", ".join(parts)
+
+
+func _format_state_weights(weights: Dictionary) -> String:
+	var parts: PackedStringArray = []
+	for state_id in weights:
+		var pct: int = int(weights[state_id] * 100)
+		var s: int = int(state_id)
+		var color: String = DataEnums.state_color_hex(s)
+		parts.append("[color=%s]%d%% %s[/color]" % [color, pct, DataEnums.state_name(s)])
 	return ", ".join(parts)
 
 
 func _format_stored_data(data: Dictionary) -> String:
 	var parts: PackedStringArray = []
-	var type_colors: Dictionary = {
-		"clean": "#44ff88",
-		"corrupted": "#ff8844",
-		"encrypted": "#44aaff",
-		"malware": "#ff4466",
-		"research": "#aa88ff"
-	}
-	for dtype in data:
-		if data[dtype] > 0:
-			var color: String = type_colors.get(dtype, "#aabbcc")
-			parts.append("[color=%s]%d %s[/color]" % [color, data[dtype], dtype.capitalize()])
+	for key in data:
+		if data[key] <= 0:
+			continue
+		var parsed: Dictionary = DataEnums.parse_key(key)
+		var c_color: String = DataEnums.content_color_hex(parsed.content)
+		var s_color: String = DataEnums.state_color_hex(parsed.state)
+		parts.append("[color=%s]%d[/color] [color=%s]%s[/color]([color=%s]%s[/color])" % [
+			s_color, data[key],
+			c_color, DataEnums.content_name(parsed.content),
+			s_color, DataEnums.state_name(parsed.state)
+		])
 	if parts.is_empty():
 		return "Boş"
+	return ", ".join(parts)
+
+
+func _format_price_multipliers(sell: SellerComponent) -> String:
+	var parts: PackedStringArray = []
+	# Sort by multiplier descending for readability
+	var sorted_keys: Array = sell.content_price_multipliers.keys()
+	sorted_keys.sort_custom(func(a, b): return sell.content_price_multipliers[a] > sell.content_price_multipliers[b])
+	for content_id in sorted_keys:
+		var mult: float = sell.content_price_multipliers[content_id]
+		var c: int = int(content_id)
+		var color: String = DataEnums.content_color_hex(c)
+		parts.append("[color=%s]%s(%.0fx)[/color]" % [color, DataEnums.content_name(c), mult])
 	return ", ".join(parts)
 
 

@@ -43,7 +43,8 @@ func _ready() -> void:
 	simulation_manager.credits_changed.connect(_on_credits_changed)
 	simulation_manager.research_changed.connect(_on_research_changed)
 	simulation_manager.patch_data_changed.connect(_on_patch_data_changed)
-	simulation_manager.data_type_discovered.connect(_on_data_type_discovered)
+	simulation_manager.content_discovered.connect(_on_content_discovered)
+	simulation_manager.state_discovered.connect(_on_state_discovered)
 
 	# Setup upgrade panel
 	var UpgradePanelScript = preload("res://scripts/ui/upgrade_panel.gd")
@@ -140,23 +141,19 @@ func _on_building_unlocked(building_name: String) -> void:
 	print("[Main] Yapı açıldı: %s" % building_name)
 
 
-func _on_data_type_discovered(data_type: String) -> void:
-	var type_names: Dictionary = {
-		"corrupted": "CORRUPTED DATA",
-		"encrypted": "ENCRYPTED DATA",
-		"malware": "MALWARE",
-		"research": "RESEARCH DATA"
-	}
-	var type_colors: Dictionary = {
-		"corrupted": Color(1.0, 0.53, 0.27),
-		"encrypted": Color(0.27, 0.67, 1.0),
-		"malware": Color(1.0, 0.27, 0.4),
-		"research": Color(0.67, 0.53, 1.0)
-	}
-	var display_name: String = type_names.get(data_type, data_type.to_upper())
-	var color: Color = type_colors.get(data_type, Color.WHITE)
+func _on_content_discovered(content: int) -> void:
+	var display_name: String = DataEnums.content_name(content).to_upper() + " DATA"
+	var color: Color = DataEnums.content_color(content)
+	_show_discovery_notification(display_name, color)
 
-	# Create floating discovery notification
+
+func _on_state_discovered(state: int) -> void:
+	var display_name: String = DataEnums.state_name(state).to_upper() + " STATE"
+	var color: Color = DataEnums.state_color(state)
+	_show_discovery_notification(display_name, color)
+
+
+func _show_discovery_notification(display_name: String, color: Color) -> void:
 	var notif := Label.new()
 	notif.text = "[ %s KEŞFEDİLDİ ]" % display_name
 	notif.add_theme_font_size_override("font_size", 20)
@@ -166,7 +163,6 @@ func _on_data_type_discovered(data_type: String) -> void:
 	notif.position.y = 80
 	ui_layer.add_child(notif)
 
-	# Fade out and remove after 3 seconds
 	var tween := create_tween()
 	tween.tween_property(notif, "modulate:a", 0.0, 1.0).set_delay(2.0)
 	tween.tween_callback(notif.queue_free)

@@ -7,8 +7,8 @@
 [sub_resource type="Resource" id="proc1"]
 script = ExtResource("2")
 processing_rate = 10.0
-input_types = Array[String]([])
-output_type = ""
+input_states = Array[int]([0, 1, 2, 3])
+output_state = -1
 rule = "splitter"
 efficiency = 1.0
 

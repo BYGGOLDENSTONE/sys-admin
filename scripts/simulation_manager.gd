@@ -4,7 +4,8 @@ signal credits_changed(new_total: float)
 signal research_changed(new_total: float)
 signal patch_data_changed(new_total: float)
 signal tick_completed(tick_count: int)
-signal data_type_discovered(data_type: String)
+signal content_discovered(content: int)
+signal state_discovered(state: int)
 
 const TILE_SIZE: int = 64
 
@@ -13,7 +14,8 @@ var total_research: float = 0.0
 var total_patch_data: float = 0.0
 var total_neutralized: int = 0
 var _tick_count: int = 0
-var discovered_types: Dictionary = {"clean": true, "corrupted": false, "encrypted": false, "malware": false, "research": false}
+var discovered_content: Dictionary = {0: true, 1: false, 2: false, 3: false, 4: false, 5: false}
+var discovered_states: Dictionary = {0: true, 1: false, 2: false, 3: false}
 var connection_manager: Node = null
 var building_container: Node2D = null
 
@@ -45,34 +47,45 @@ func _on_sim_tick() -> void:
 	tick_completed.emit(_tick_count)
 
 
-# --- DATA GENERATION (Uplink) ---
-func _update_generation(buildings: Array[Node]) -> void:
-	for b in buildings:
-		if b.definition.generator == null or not b.is_active():
-			continue
-		var gen: GeneratorComponent = b.definition.generator
-		var amount: int = int(gen.generation_rate)
-		var total_pushed: int = 0
-		for i in range(amount):
-			var data_type: String = _roll_data_type(gen.data_weights)
-			total_pushed += _push_data_from(b, data_type, 1)
-		if total_pushed > 0:
-			b.is_working = true
-
-
-func _roll_data_type(weights: Dictionary) -> String:
+# --- ROLL HELPERS ---
+func _roll_content(weights: Dictionary) -> int:
 	if weights.is_empty():
-		return "clean"
+		return DataEnums.ContentType.STANDARD
 	var roll: float = randf()
 	var cumulative: float = 0.0
-	for dtype in weights:
-		cumulative += weights[dtype]
+	for content_id in weights:
+		cumulative += weights[content_id]
 		if roll <= cumulative:
-			return dtype
-	return "clean"
+			return int(content_id)
+	return DataEnums.ContentType.STANDARD
 
 
-func _push_data_from(source: Node2D, data_type: String, amount: int, from_port: String = "") -> int:
+func _roll_state(weights: Dictionary) -> int:
+	if weights.is_empty():
+		return DataEnums.DataState.CLEAN
+	var roll: float = randf()
+	var cumulative: float = 0.0
+	for state_id in weights:
+		cumulative += weights[state_id]
+		if roll <= cumulative:
+			return int(state_id)
+	return DataEnums.DataState.CLEAN
+
+
+# --- DISCOVERY ---
+func _check_discovery(content: int, state: int) -> void:
+	if not discovered_content.get(content, false):
+		discovered_content[content] = true
+		content_discovered.emit(content)
+		print("[Discovery] Yeni content keşfedildi: %s" % DataEnums.content_name(content))
+	if not discovered_states.get(state, false):
+		discovered_states[state] = true
+		state_discovered.emit(state)
+		print("[Discovery] Yeni state keşfedildi: %s" % DataEnums.state_name(state))
+
+
+# --- DATA PUSH ---
+func _push_data_from(source: Node2D, content: int, state: int, amount: int, from_port: String = "") -> int:
 	var conns: Array[Dictionary] = connection_manager.get_connections()
 	var targets: Array[Dictionary] = []
 	for conn in conns:
@@ -81,7 +94,7 @@ func _push_data_from(source: Node2D, data_type: String, amount: int, from_port: 
 				targets.append(conn)
 	if targets.is_empty():
 		return 0
-	# Distribute evenly among connected targets
+	var key: String = DataEnums.make_key(content, state)
 	var per_target: int = maxi(1, amount / targets.size())
 	var total_sent: int = 0
 	for conn in targets:
@@ -91,13 +104,30 @@ func _push_data_from(source: Node2D, data_type: String, amount: int, from_port: 
 		var to_send: int = mini(per_target, amount)
 		if to_send <= 0:
 			break
-		if not target.accepts_data_type(data_type):
+		if not target.accepts_data(content, state):
 			continue
 		if target.can_accept_data(to_send):
-			target.stored_data[data_type] += to_send
+			target.stored_data[key] = target.stored_data.get(key, 0) + to_send
 			amount -= to_send
 			total_sent += to_send
 	return total_sent
+
+
+# --- DATA GENERATION (Uplink) ---
+func _update_generation(buildings: Array[Node]) -> void:
+	for b in buildings:
+		if b.definition.generator == null or not b.is_active():
+			continue
+		var gen: GeneratorComponent = b.definition.generator
+		var amount: int = int(gen.generation_rate)
+		var total_pushed: int = 0
+		for i in range(amount):
+			var content: int = _roll_content(gen.content_weights)
+			var state: int = _roll_state(gen.state_weights)
+			_check_discovery(content, state)
+			total_pushed += _push_data_from(b, content, state, 1)
+		if total_pushed > 0:
+			b.is_working = true
 
 
 # --- STORAGE FORWARD ---
@@ -106,45 +136,29 @@ func _update_storage_forward(buildings: Array[Node]) -> void:
 		if b.definition.storage == null or not b.is_active():
 			continue
 		if b.definition.processor != null:
-			continue  # Processor buildings handle their own output
+			continue
 		if b.get_total_stored() <= 0:
 			continue
-		# Forward stored data to connected buildings
-		var conns: Array[Dictionary] = connection_manager.get_connections()
-		var targets: Array[Dictionary] = []
-		for conn in conns:
-			if conn.from_building == b:
-				targets.append(conn)
-		if targets.is_empty():
-			continue
-		# Send up to forward_rate or all stored data (whichever is less)
 		var stor: StorageComponent = b.definition.storage
 		var max_forward: int = int(stor.forward_rate) if stor.forward_rate > 0 else b.get_total_stored()
 		max_forward = maxi(1, max_forward)
 		var sent: int = 0
-		for dtype in b.stored_data:
+		for key in b.stored_data:
 			if sent >= max_forward:
 				break
-			var available: int = b.stored_data[dtype]
+			var available: int = b.stored_data[key]
 			if available <= 0:
 				continue
-			for conn in targets:
-				if sent >= max_forward:
-					break
-				var target: Node2D = conn.to_building
-				if not target.has_method("can_accept_data"):
-					continue
-				var to_send: int = mini(available, max_forward - sent)
-				if target.can_accept_data(to_send):
-					target.stored_data[dtype] += to_send
-					b.stored_data[dtype] -= to_send
-					sent += to_send
-					available -= to_send
+			var parsed: Dictionary = DataEnums.parse_key(key)
+			var pushed: int = _push_data_from(b, parsed.content, parsed.state, mini(available, max_forward - sent))
+			if pushed > 0:
+				b.stored_data[key] -= pushed
+				sent += pushed
 		if sent > 0:
 			b.is_working = true
 
 
-# --- PROCESSING (Separator, Compressor) ---
+# --- PROCESSING ---
 func _update_processing(buildings: Array[Node]) -> void:
 	for b in buildings:
 		if b.definition.processor == null or not b.is_active():
@@ -171,54 +185,55 @@ func _update_processing(buildings: Array[Node]) -> void:
 				processed = _process_merger(b, proc, max_process)
 		if processed > 0:
 			b.is_working = true
-		# Clear processor buffer — unsent data is discarded (no accumulation)
-		for dtype in b.stored_data:
-			b.stored_data[dtype] = 0
+		# Clear processor buffer
+		b.stored_data.clear()
 
 
-func _process_separator(b: Node2D, _proc: ProcessorComponent, max_process: int) -> int:
+func _process_separator(b: Node2D, proc: ProcessorComponent, max_process: int) -> int:
 	var eff: float = b.get_effective_value("efficiency")
 	var primary_port: String = b.definition.output_ports[0] if b.definition.output_ports.size() > 0 else ""
 	var secondary_port: String = b.definition.output_ports[1] if b.definition.output_ports.size() > 1 else ""
 	var processed: int = 0
-	for dtype in b.stored_data:
+	var mode: String = proc.separator_mode
+	for key in b.stored_data:
 		if processed >= max_process:
 			break
-		var available: int = b.stored_data[dtype]
+		var available: int = b.stored_data[key]
 		if available <= 0:
 			continue
+		var parsed: Dictionary = DataEnums.parse_key(key)
 		var to_process: int = mini(available, max_process - processed)
 		var output_amount: int = maxi(1, roundi(to_process * eff))
-		# Route by filter: matching type → primary port, rest → secondary port
-		var target_port: String = primary_port if dtype == b.separator_filter else secondary_port
+		# Route: matching value → primary, rest → secondary
+		var matches: bool
+		if mode == "content":
+			matches = (parsed.content == b.separator_filter_value)
+		else:
+			matches = (parsed.state == b.separator_filter_value)
+		var target_port: String = primary_port if matches else secondary_port
 		if target_port == "":
 			continue
-		var sent: int = _push_data_from(b, dtype, output_amount, target_port)
+		var sent: int = _push_data_from(b, parsed.content, parsed.state, output_amount, target_port)
 		if sent > 0:
-			b.stored_data[dtype] -= to_process
+			_check_discovery(parsed.content, parsed.state)
 			processed += to_process
-			# Discovery: first time separating a non-clean type
-			if not discovered_types.get(dtype, false):
-				discovered_types[dtype] = true
-				data_type_discovered.emit(dtype)
-				print("[Discovery] Yeni veri tipi keşfedildi: %s" % dtype)
 	return processed
 
 
 func _process_compressor(b: Node2D, _proc: ProcessorComponent, max_process: int) -> int:
 	var eff: float = b.get_effective_value("efficiency")
 	var processed: int = 0
-	for dtype in b.stored_data:
+	for key in b.stored_data:
 		if processed >= max_process:
 			break
-		var available: int = b.stored_data[dtype]
+		var available: int = b.stored_data[key]
 		if available <= 0:
 			continue
+		var parsed: Dictionary = DataEnums.parse_key(key)
 		var to_process: int = mini(available, max_process - processed)
 		var output_amount: int = maxi(1, roundi(to_process * eff))
-		var sent: int = _push_data_from(b, dtype, output_amount)
+		var sent: int = _push_data_from(b, parsed.content, parsed.state, output_amount)
 		if sent > 0:
-			b.stored_data[dtype] -= to_process
 			processed += to_process
 	return processed
 
@@ -226,55 +241,61 @@ func _process_compressor(b: Node2D, _proc: ProcessorComponent, max_process: int)
 func _process_decryptor(b: Node2D, proc: ProcessorComponent, max_process: int) -> int:
 	var eff: float = b.get_effective_value("efficiency")
 	var processed: int = 0
-	for dtype in proc.input_types:
+	for key in b.stored_data:
 		if processed >= max_process:
 			break
-		var available: int = b.stored_data.get(dtype, 0)
+		var available: int = b.stored_data[key]
 		if available <= 0:
+			continue
+		var parsed: Dictionary = DataEnums.parse_key(key)
+		# Only process matching input states (ENCRYPTED)
+		if not proc.input_states.is_empty() and parsed.state not in proc.input_states:
 			continue
 		var to_process: int = mini(available, max_process - processed)
 		var output_amount: int = maxi(1, roundi(to_process * eff))
-		var sent: int = _push_data_from(b, "research", output_amount)
+		# Encrypted → Clean (content preserved)
+		var sent: int = _push_data_from(b, parsed.content, DataEnums.DataState.CLEAN, output_amount)
 		if sent > 0:
-			b.stored_data[dtype] -= to_process
 			processed += to_process
-			# Discovery: first time producing research data
-			if not discovered_types.get("research", false):
-				discovered_types["research"] = true
-				data_type_discovered.emit("research")
-				print("[Discovery] Yeni veri tipi keşfedildi: research")
 	return processed
 
 
 func _process_recoverer(b: Node2D, proc: ProcessorComponent, max_process: int) -> int:
 	var eff: float = b.get_effective_value("efficiency")
 	var processed: int = 0
-	for dtype in proc.input_types:
+	for key in b.stored_data:
 		if processed >= max_process:
 			break
-		var available: int = b.stored_data.get(dtype, 0)
+		var available: int = b.stored_data[key]
 		if available <= 0:
+			continue
+		var parsed: Dictionary = DataEnums.parse_key(key)
+		# Only process matching input states (CORRUPTED)
+		if not proc.input_states.is_empty() and parsed.state not in proc.input_states:
 			continue
 		var to_process: int = mini(available, max_process - processed)
 		var output_amount: int = maxi(1, roundi(to_process * eff))
-		b.stored_data[dtype] -= to_process
-		processed += to_process
-		total_patch_data += output_amount
-		patch_data_changed.emit(total_patch_data)
-		print("[Recoverer] Processed %d corrupted → %d Patch Data" % [to_process, output_amount])
+		# Corrupted → Clean (content preserved), push to output port
+		var sent: int = _push_data_from(b, parsed.content, DataEnums.DataState.CLEAN, output_amount)
+		if sent > 0:
+			processed += to_process
+			print("[Recoverer] %d MB %s(Corrupted) → %d MB %s(Clean)" % [to_process, DataEnums.content_name(parsed.content), output_amount, DataEnums.content_name(parsed.content)])
 	return processed
 
 
 func _process_quarantine(b: Node2D, proc: ProcessorComponent, max_process: int) -> int:
 	var processed: int = 0
-	for dtype in proc.input_types:
+	for key in b.stored_data:
 		if processed >= max_process:
 			break
-		var available: int = b.stored_data.get(dtype, 0)
+		var available: int = b.stored_data[key]
 		if available <= 0:
 			continue
+		var parsed: Dictionary = DataEnums.parse_key(key)
+		# Only process matching input states (MALWARE)
+		if not proc.input_states.is_empty() and parsed.state not in proc.input_states:
+			continue
 		var to_process: int = mini(available, max_process - processed)
-		b.stored_data[dtype] -= to_process
 		processed += to_process
 		total_neutralized += to_process
 		print("[Quarantine] Neutralized %d MB malware (total: %d)" % [to_process, total_neutralized])
@@ -286,24 +307,23 @@ func _process_splitter(b: Node2D, _proc: ProcessorComponent, max_process: int) -
 	var output_ports: Array[String] = b.definition.output_ports
 	if output_ports.is_empty():
 		return 0
-	for dtype in b.stored_data:
+	for key in b.stored_data:
 		if processed >= max_process:
 			break
-		var available: int = b.stored_data[dtype]
+		var available: int = b.stored_data[key]
 		if available <= 0:
 			continue
+		var parsed: Dictionary = DataEnums.parse_key(key)
 		var to_process: int = mini(available, max_process - processed)
-		# Split evenly among output ports
 		var per_port: int = maxi(1, to_process / output_ports.size())
 		var sent_total: int = 0
 		for port in output_ports:
 			var to_send: int = mini(per_port, to_process - sent_total)
 			if to_send <= 0:
 				break
-			var sent: int = _push_data_from(b, dtype, to_send, port)
+			var sent: int = _push_data_from(b, parsed.content, parsed.state, to_send, port)
 			sent_total += sent
 		if sent_total > 0:
-			b.stored_data[dtype] -= to_process
 			processed += to_process
 	return processed
 
@@ -313,16 +333,16 @@ func _process_merger(b: Node2D, _proc: ProcessorComponent, max_process: int) -> 
 	var output_port: String = b.definition.output_ports[0] if b.definition.output_ports.size() > 0 else ""
 	if output_port == "":
 		return 0
-	for dtype in b.stored_data:
+	for key in b.stored_data:
 		if processed >= max_process:
 			break
-		var available: int = b.stored_data[dtype]
+		var available: int = b.stored_data[key]
 		if available <= 0:
 			continue
+		var parsed: Dictionary = DataEnums.parse_key(key)
 		var to_process: int = mini(available, max_process - processed)
-		var sent: int = _push_data_from(b, dtype, to_process, output_port)
+		var sent: int = _push_data_from(b, parsed.content, parsed.state, to_process, output_port)
 		if sent > 0:
-			b.stored_data[dtype] -= to_process
 			processed += to_process
 	return processed
 
@@ -335,14 +355,21 @@ func _update_research(buildings: Array[Node]) -> void:
 		var rc: ResearchCollectorComponent = b.definition.research_collector
 		var to_collect: int = int(rc.collection_rate)
 		var collected: int = 0
-		for accepted_type in rc.accepted_types:
+		for key in b.stored_data:
 			if collected >= to_collect:
 				break
-			var available: int = b.stored_data.get(accepted_type, 0)
-			if available > 0:
-				var collect_amount: int = mini(available, to_collect - collected)
-				b.stored_data[accepted_type] -= collect_amount
-				collected += collect_amount
+			var available: int = b.stored_data.get(key, 0)
+			if available <= 0:
+				continue
+			var parsed: Dictionary = DataEnums.parse_key(key)
+			# Check content + state acceptance
+			if not rc.accepted_content.is_empty() and parsed.content not in rc.accepted_content:
+				continue
+			if not rc.accepted_states.is_empty() and parsed.state not in rc.accepted_states:
+				continue
+			var collect_amount: int = mini(available, to_collect - collected)
+			b.stored_data[key] -= collect_amount
+			collected += collect_amount
 		if collected > 0:
 			b.is_working = true
 			var earned: float = collected * rc.research_per_mb
@@ -358,20 +385,31 @@ func _update_selling(buildings: Array[Node]) -> void:
 		var sell: SellerComponent = b.definition.seller
 		var to_sell: int = int(sell.sell_rate)
 		var sold: int = 0
-		# Sell accepted types from own buffer
-		for accepted_type in sell.accepted_types:
+		for key in b.stored_data:
 			if sold >= to_sell:
 				break
-			var available: int = b.stored_data.get(accepted_type, 0)
-			if available > 0:
-				var sell_amount: int = mini(available, to_sell - sold)
-				b.stored_data[accepted_type] -= sell_amount
-				sold += sell_amount
+			var available: int = b.stored_data.get(key, 0)
+			if available <= 0:
+				continue
+			var parsed: Dictionary = DataEnums.parse_key(key)
+			# Check state acceptance
+			if not sell.accepted_states.is_empty() and parsed.state not in sell.accepted_states:
+				continue
+			var sell_amount: int = mini(available, to_sell - sold)
+			b.stored_data[key] -= sell_amount
+			sold += sell_amount
+			# Blueprint content → Patch Data instead of Credits
+			if parsed.content == DataEnums.ContentType.BLUEPRINT:
+				total_patch_data += sell_amount
+				patch_data_changed.emit(total_patch_data)
+				print("[DataBroker] Blueprint(Clean) → %d Patch Data" % sell_amount)
+			else:
+				var multiplier: float = sell.content_price_multipliers.get(parsed.content, 1.0)
+				var earned: float = sell_amount * sell.credits_per_mb * multiplier
+				total_credits += earned
+				credits_changed.emit(total_credits)
 		if sold > 0:
 			b.is_working = true
-			var earned: float = sold * sell.credits_per_mb
-			total_credits += earned
-			credits_changed.emit(total_credits)
 
 
 # --- UPDATE DISPLAYS ---
