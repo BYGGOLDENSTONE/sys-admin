@@ -251,12 +251,13 @@ Yapılar birbirinden habersiz çalışır. Hiçbir yapı "Decryptor'a gönder" d
 - [x] 11 .tres dosyası güncellendi
 - [x] Test: content_state_flow_test — PASSED
 
-### Refactor Faz 3: Görsel Güncelleme
-- [ ] Parçacık sistemi: renk = state (yeşil/mor/sarı/kırmızı), şekil/ikon = content
-- [ ] Bilgi paneli: content + state gösterimi
-- [ ] Tooltip: yeni veri modeli bilgisi
-- [ ] Keşif sistemi güncelleme (content + state keşfi)
-- [ ] Test: görsel doğruluk
+### Refactor Faz 3: Görsel Güncelleme ✓
+- [x] Parçacık sistemi: renk = state (yeşil/mavi/turuncu/kırmızı), karakter = content (0/1, $, @, #, ?, !)
+- [x] Karışık veri: aynı kabloda orantısal tip dağılımı
+- [x] SimulationManager'da connection_flow_data takibi
+- [x] Bilgi paneli + Tooltip: Faz 2'de zaten güncellenmişti ✓
+- [x] Keşif sistemi: Faz 2'de zaten güncellenmişti ✓
+- [x] Test: 8/8 senaryo PASSED — regression yok
 
 ### Refactor Faz 4: Ekonomi + Yapı Satın Alma
 - [ ] Credits ile yapı satın alma sistemi

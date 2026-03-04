@@ -18,6 +18,7 @@ var discovered_content: Dictionary = {0: true, 1: false, 2: false, 3: false, 4: 
 var discovered_states: Dictionary = {0: true, 1: false, 2: false, 3: false}
 var connection_manager: Node = null
 var building_container: Node2D = null
+var connection_flow_data: Dictionary = {}  # conn_index → [{content, state, amount}]
 
 @onready var _sim_timer: Timer = $SimTimer
 
@@ -34,7 +35,8 @@ func _on_sim_tick() -> void:
 			buildings.append(child)
 	if buildings.is_empty():
 		return
-	# Reset work flags
+	# Reset work flags and flow tracking
+	connection_flow_data.clear()
 	for b in buildings:
 		b.is_working = false
 	_update_generation(buildings)
@@ -97,6 +99,7 @@ func _push_data_from(source: Node2D, content: int, state: int, amount: int, from
 	var key: String = DataEnums.make_key(content, state)
 	var per_target: int = maxi(1, amount / targets.size())
 	var total_sent: int = 0
+	var all_conns: Array[Dictionary] = conns
 	for conn in targets:
 		var target: Node2D = conn.to_building
 		if not target.has_method("can_accept_data"):
@@ -110,6 +113,12 @@ func _push_data_from(source: Node2D, content: int, state: int, amount: int, from
 			target.stored_data[key] = target.stored_data.get(key, 0) + to_send
 			amount -= to_send
 			total_sent += to_send
+			# Track flow data for particle visuals
+			var conn_idx: int = all_conns.find(conn)
+			if conn_idx >= 0:
+				if not connection_flow_data.has(conn_idx):
+					connection_flow_data[conn_idx] = []
+				connection_flow_data[conn_idx].append({"content": content, "state": state, "amount": to_send})
 	return total_sent
 
 

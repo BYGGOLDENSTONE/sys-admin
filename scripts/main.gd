@@ -31,6 +31,7 @@ func _ready() -> void:
 	building_manager.connection_manager = connection_manager
 	building_manager.connection_layer = connection_layer
 	connection_layer.connection_manager = connection_manager
+	connection_layer.simulation_manager = simulation_manager
 
 	# Auto-remove connections when building is removed
 	building_manager.building_removed.connect(connection_manager.remove_connections_for)

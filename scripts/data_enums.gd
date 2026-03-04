@@ -36,6 +36,17 @@ static func state_color(s: int) -> Color:
 		DataState.MALWARE: return Color("#ff4466")
 	return Color("#aabbcc")
 
+static func content_char(c: int) -> String:
+	match c:
+		ContentType.STANDARD: return ["0", "1"][randi() % 2]
+		ContentType.FINANCIAL: return "$"
+		ContentType.BIOMETRIC: return "@"
+		ContentType.BLUEPRINT: return "#"
+		ContentType.RESEARCH: return "?"
+		ContentType.CLASSIFIED: return "!"
+	return "0"
+
+
 static func content_color(c: int) -> Color:
 	match c:
 		ContentType.STANDARD: return Color("#aabbcc")

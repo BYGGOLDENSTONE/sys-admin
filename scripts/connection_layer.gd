@@ -4,7 +4,6 @@ const CABLE_WIDTH: float = 2.0
 const CABLE_GLOW_WIDTH: float = 6.0
 const CABLE_GLOW_ALPHA: float = 0.25
 const CABLE_INACTIVE_ALPHA: float = 0.3
-const PARTICLE_COLOR := Color("#00ff88")
 const PARTICLE_SPEED: float = 0.4
 const PARTICLES_PER_CABLE: int = 8
 const PARTICLE_FONT_SIZE: int = 16
@@ -12,12 +11,13 @@ const BEZIER_STEPS: int = 30
 const PREVIEW_COLOR := Color(1, 1, 1, 0.4)
 const HOVER_GLOW_WIDTH: float = 10.0
 const HOVER_COLOR := Color(1.0, 0.3, 0.3, 0.6)
+const DEFAULT_PARTICLE_COLOR := Color("#00ff88")
 
 var connection_manager: Node = null
+var simulation_manager: Node = null
 var hovered_cable_index: int = -1
 var _camera: Camera2D = null
 var _particle_time: float = 0.0
-var _particle_chars: Array[String] = []
 
 # Preview state (set by BuildingManager during CONNECTING)
 var preview_from: Vector2 = Vector2.ZERO
@@ -27,9 +27,6 @@ var preview_color: Color = PREVIEW_COLOR
 
 
 func _ready() -> void:
-	# Pre-generate random 0/1 chars for particles
-	for i in range(100):
-		_particle_chars.append("0" if randf() > 0.5 else "1")
 	_camera = get_node_or_null("../GameCamera")
 
 
@@ -53,7 +50,7 @@ func _draw() -> void:
 			_draw_cable_hover(conn)
 		_draw_cable(conn, active)
 		if active:
-			_draw_particles(conn)
+			_draw_particles(conn, i)
 
 	if preview_active:
 		_draw_bezier_line(preview_from, preview_to, preview_color, CABLE_WIDTH, false)
@@ -112,7 +109,46 @@ func _get_visible_particle_count() -> int:
 	return count
 
 
-func _draw_particles(conn: Dictionary) -> void:
+func _get_connection_flow(conn_index: int) -> Array:
+	if simulation_manager == null:
+		return []
+	return simulation_manager.connection_flow_data.get(conn_index, [])
+
+
+func _build_particle_types(flow: Array, count: int) -> Array:
+	# Returns array of {color: Color, char: String} for each particle
+	var result: Array = []
+	if flow.is_empty():
+		# No flow data — use default green 0/1
+		for i in range(count):
+			result.append({"color": DEFAULT_PARTICLE_COLOR, "char": "0" if randi() % 2 == 0 else "1"})
+		return result
+	# Calculate total amount for proportional distribution
+	var total: int = 0
+	for entry in flow:
+		total += entry.amount
+	if total <= 0:
+		for i in range(count):
+			result.append({"color": DEFAULT_PARTICLE_COLOR, "char": "0" if randi() % 2 == 0 else "1"})
+		return result
+	# Assign particles proportionally
+	var assigned: int = 0
+	for ei in range(flow.size()):
+		var entry: Dictionary = flow[ei]
+		var share: int
+		if ei == flow.size() - 1:
+			share = count - assigned
+		else:
+			share = maxi(1, roundi(float(entry.amount) / float(total) * count))
+			share = mini(share, count - assigned)
+		var col: Color = DataEnums.state_color(entry.state)
+		for _j in range(share):
+			result.append({"color": col, "char": DataEnums.content_char(entry.content)})
+		assigned += share
+	return result
+
+
+func _draw_particles(conn: Dictionary, conn_index: int) -> void:
 	var from_building: Node2D = conn.from_building
 	var from_pos: Vector2 = to_local(from_building.get_port_world_position(conn.from_port))
 	var to_pos: Vector2 = to_local(conn.to_building.get_port_world_position(conn.to_port))
@@ -125,18 +161,22 @@ func _draw_particles(conn: Dictionary) -> void:
 	var count: int = _get_visible_particle_count()
 	var half_size: float = PARTICLE_FONT_SIZE * 0.35
 
+	var flow: Array = _get_connection_flow(conn_index)
+	var ptypes: Array = _build_particle_types(flow, count)
+
 	for i in range(count):
 		var offset: float = float(i) / float(count)
 		var t: float = fmod(_particle_time + offset, 1.0)
 		var pos := _cubic_bezier(from_pos, cp1, cp2, to_pos, t)
-		var char_idx: int = (i + int(_particle_time * 10)) % _particle_chars.size()
-		var ch: String = _particle_chars[char_idx]
+		var ptype: Dictionary = ptypes[i] if i < ptypes.size() else {"color": DEFAULT_PARTICLE_COLOR, "char": "0"}
+		var ch: String = ptype.char
+		var col: Color = ptype.color
 		var draw_pos := pos + Vector2(-half_size, half_size)
 
 		# Glow
-		draw_string(font, draw_pos, ch, HORIZONTAL_ALIGNMENT_LEFT, -1, PARTICLE_FONT_SIZE, Color(PARTICLE_COLOR, 0.4))
+		draw_string(font, draw_pos, ch, HORIZONTAL_ALIGNMENT_LEFT, -1, PARTICLE_FONT_SIZE, Color(col, 0.4))
 		# Main character
-		draw_string(font, draw_pos, ch, HORIZONTAL_ALIGNMENT_LEFT, -1, PARTICLE_FONT_SIZE, PARTICLE_COLOR)
+		draw_string(font, draw_pos, ch, HORIZONTAL_ALIGNMENT_LEFT, -1, PARTICLE_FONT_SIZE, col)
 
 
 func _draw_bezier_line(from_pos: Vector2, to_pos: Vector2, color: Color, width: float, use_antialias: bool) -> void:
