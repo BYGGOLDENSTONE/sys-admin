@@ -5,25 +5,17 @@ signal research_changed(new_total: float)
 signal patch_data_changed(new_total: float)
 signal tick_completed(tick_count: int)
 signal data_type_discovered(data_type: String)
-signal malware_damage_detected(building: Node2D)
 
 const TILE_SIZE: int = 64
-const NATURAL_COOLING: float = 0.1
-const OVERHEAT_RECOVERY_RATIO: float = 0.8
-const POWER_CELL_HEAT_PER_TILE: float = 0.04  ## C/s per powered tile (2x2 building = 4 tiles ≈ 0.16)
-const MALWARE_HEAT_PER_MB: float = 0.3  ## Extra heat per MB of malware stored
 
 var total_credits: float = 0.0
 var total_research: float = 0.0
 var total_patch_data: float = 0.0
 var total_neutralized: int = 0
 var _tick_count: int = 0
-var _malware_warning_shown: bool = false
 var discovered_types: Dictionary = {"clean": true, "corrupted": false, "encrypted": false, "malware": false, "research": false}
 var connection_manager: Node = null
 var building_container: Node2D = null
-var grid_system: Node2D = null
-var connection_layer: Node2D = null
 
 @onready var _sim_timer: Timer = $SimTimer
 
@@ -43,101 +35,14 @@ func _on_sim_tick() -> void:
 	# Reset work flags
 	for b in buildings:
 		b.is_working = false
-	_update_power(buildings)
 	_update_generation(buildings)
 	_update_storage_forward(buildings)
 	_update_processing(buildings)
 	_update_research(buildings)
 	_update_selling(buildings)
-	_update_heat(buildings)
 	_update_displays(buildings)
 	_tick_count += 1
 	tick_completed.emit(_tick_count)
-
-
-# --- ZONE HELPERS (grid-aligned square) ---
-# Target must be FULLY inside zone (all tiles of target within zone bounds)
-func _is_in_zone(source: Node2D, target: Node2D) -> bool:
-	var zone_radius: float = source.get_effective_value("zone_radius")
-	if zone_radius <= 0.0:
-		return false
-	var tile_range: int = int(zone_radius / TILE_SIZE)
-	var src_cell: Vector2i = source.grid_cell
-	var src_size: Vector2i = source.definition.grid_size
-	var tgt_cell: Vector2i = target.grid_cell
-	var tgt_size: Vector2i = target.definition.grid_size
-	# Zone extends tile_range tiles from building edges
-	var zone_left: int = src_cell.x - tile_range
-	var zone_top: int = src_cell.y - tile_range
-	var zone_right: int = src_cell.x + src_size.x + tile_range - 1
-	var zone_bottom: int = src_cell.y + src_size.y + tile_range - 1
-	# All 4 corners of target must be inside zone
-	var tgt_right: int = tgt_cell.x + tgt_size.x - 1
-	var tgt_bottom: int = tgt_cell.y + tgt_size.y - 1
-	return tgt_cell.x >= zone_left and tgt_right <= zone_right \
-		and tgt_cell.y >= zone_top and tgt_bottom <= zone_bottom
-
-
-# --- TILE-BASED ZONE CHECK ---
-# Checks if a single tile is within a source building's zone
-func _is_tile_in_zone(source: Node2D, tile: Vector2i) -> bool:
-	var zone_radius: float = source.get_effective_value("zone_radius")
-	if zone_radius <= 0.0:
-		return false
-	var tile_range: int = int(zone_radius / TILE_SIZE)
-	var src_cell: Vector2i = source.grid_cell
-	var src_size: Vector2i = source.definition.grid_size
-	var zone_left: int = src_cell.x - tile_range
-	var zone_top: int = src_cell.y - tile_range
-	var zone_right: int = src_cell.x + src_size.x + tile_range - 1
-	var zone_bottom: int = src_cell.y + src_size.y + tile_range - 1
-	return tile.x >= zone_left and tile.x <= zone_right \
-		and tile.y >= zone_top and tile.y <= zone_bottom
-
-
-# --- POWER ZONE (tile-based) ---
-func _update_power(buildings: Array[Node]) -> void:
-	var power_cells: Array[Node] = []
-	for b in buildings:
-		if b.definition.power_provider != null:
-			power_cells.append(b)
-
-	for b in buildings:
-		if b.definition.is_infrastructure():
-			b.has_power = true
-			continue
-		var was_powered: bool = b.has_power
-		b.has_power = _check_all_tiles_covered(b, power_cells)
-		if was_powered != b.has_power:
-			print("[Power] %s — %s" % [b.definition.building_name, "powered" if b.has_power else "no power"])
-
-
-# Returns true if ANY tile of target is within source's zone
-func _has_any_tile_in_zone(source: Node2D, target: Node2D) -> bool:
-	var cell: Vector2i = target.grid_cell
-	var size: Vector2i = target.definition.grid_size
-	for ty in range(cell.y, cell.y + size.y):
-		for tx in range(cell.x, cell.x + size.x):
-			if _is_tile_in_zone(source, Vector2i(tx, ty)):
-				return true
-	return false
-
-
-# Every tile of the building must be covered by at least one zone source
-func _check_all_tiles_covered(b: Node2D, zone_sources: Array[Node]) -> bool:
-	var cell: Vector2i = b.grid_cell
-	var size: Vector2i = b.definition.grid_size
-	for ty in range(cell.y, cell.y + size.y):
-		for tx in range(cell.x, cell.x + size.x):
-			var tile := Vector2i(tx, ty)
-			var tile_covered: bool = false
-			for src in zone_sources:
-				if _is_tile_in_zone(src, tile):
-					tile_covered = true
-					break
-			if not tile_covered:
-				return false
-	return true
 
 
 # --- DATA GENERATION (Uplink) ---
@@ -467,87 +372,6 @@ func _update_selling(buildings: Array[Node]) -> void:
 			var earned: float = sold * sell.credits_per_mb
 			total_credits += earned
 			credits_changed.emit(total_credits)
-
-
-# Count tiles occupied by working non-infrastructure buildings within a source's zone
-func _count_working_tiles_in_zone(source: Node2D, buildings: Array[Node]) -> int:
-	var tile_range: int = int(source.get_effective_value("zone_radius") / TILE_SIZE)
-	var src_cell: Vector2i = source.grid_cell
-	var src_size: Vector2i = source.definition.grid_size
-	var zone_left: int = src_cell.x - tile_range
-	var zone_top: int = src_cell.y - tile_range
-	var zone_right: int = src_cell.x + src_size.x + tile_range - 1
-	var zone_bottom: int = src_cell.y + src_size.y + tile_range - 1
-	var count: int = 0
-	for other in buildings:
-		if other == source or other.definition.is_infrastructure():
-			continue
-		if not other.is_active() or not other.is_working:
-			continue
-		var o_cell: Vector2i = other.grid_cell
-		var o_size: Vector2i = other.definition.grid_size
-		for ty in range(o_cell.y, o_cell.y + o_size.y):
-			for tx in range(o_cell.x, o_cell.x + o_size.x):
-				if tx >= zone_left and tx <= zone_right and ty >= zone_top and ty <= zone_bottom:
-					count += 1
-	return count
-
-
-# --- HEAT ---
-func _update_heat(buildings: Array[Node]) -> void:
-	# Phase 1: Generate heat for active buildings
-	for b in buildings:
-		if b.definition.coolant != null:
-			continue
-		if b.definition.power_provider != null:
-			# Power Cell heats up based on how many tiles with working buildings are in its zone
-			var working_tiles: int = _count_working_tiles_in_zone(b, buildings)
-			b.current_heat += working_tiles * POWER_CELL_HEAT_PER_TILE
-			continue
-		if not b.is_active() or not b.is_working:
-			continue
-		b.current_heat += b.definition.heat_generation
-
-	# Phase 1.5: Malware extra heat — buildings holding malware get extra heat
-	for b in buildings:
-		if b.definition.processor != null and b.definition.processor.rule == "quarantine":
-			continue  # Quarantine is designed to hold malware safely
-		var malware_count: int = b.stored_data.get("malware", 0)
-		if malware_count > 0:
-			b.current_heat += malware_count * MALWARE_HEAT_PER_MB
-			if not _malware_warning_shown:
-				_malware_warning_shown = true
-				malware_damage_detected.emit(b)
-				print("[Malware] WARNING: %s holding %d MB malware (+%.1f °C/s)" % [b.definition.building_name, malware_count, malware_count * MALWARE_HEAT_PER_MB])
-
-	# Phase 2: Coolant Rig zone cooling (tile-based: combined coolant zones)
-	var coolant_rigs: Array[Node] = []
-	for b in buildings:
-		if b.definition.coolant != null:
-			coolant_rigs.append(b)
-	if not coolant_rigs.is_empty():
-		for target in buildings:
-			if target.definition.coolant != null:
-				continue
-			if not _check_all_tiles_covered(target, coolant_rigs):
-				continue
-			# All tiles covered — apply cooling from each rig that touches this building
-			for rig in coolant_rigs:
-				if _has_any_tile_in_zone(rig, target):
-					target.current_heat -= rig.get_effective_value("cooling_rate")
-
-	# Phase 3: Natural cooling (only idle buildings) + clamping + overheat check
-	for b in buildings:
-		if not b.is_working:
-			b.current_heat -= NATURAL_COOLING
-		b.current_heat = clampf(b.current_heat, 0.0, b.definition.max_heat)
-		if b.current_heat >= b.definition.max_heat:
-			if not b.is_overheated:
-				print("[Heat] %s OVERHEATED" % b.definition.building_name)
-			b.is_overheated = true
-		elif b.is_overheated and b.current_heat <= b.definition.max_heat * OVERHEAT_RECOVERY_RATIO:
-			b.is_overheated = false
-			print("[Heat] %s recovered from overheat" % b.definition.building_name)
 
 
 # --- UPDATE DISPLAYS ---

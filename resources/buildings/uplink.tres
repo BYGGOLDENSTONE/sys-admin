@@ -19,5 +19,4 @@ base_cost = 100
 visual_type = "uplink"
 output_ports = Array[String](["right"])
 input_ports = Array[String]([])
-heat_generation = 0.5
 generator = SubResource("gen1")

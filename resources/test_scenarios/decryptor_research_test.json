@@ -1,15 +1,6 @@
 {
   "name": "decryptor_research_test",
   "actions": [
-    {"action": "place", "building": "power_cell", "cell": [8, 4], "id": "pc1"},
-    {"action": "place", "building": "power_cell", "cell": [14, 4], "id": "pc2"},
-    {"action": "place", "building": "power_cell", "cell": [7, 10], "id": "pc3"},
-    {"action": "place", "building": "power_cell", "cell": [13, 10], "id": "pc4"},
-    {"action": "place", "building": "coolant_rig", "cell": [6, 4], "id": "cr1"},
-    {"action": "place", "building": "coolant_rig", "cell": [12, 4], "id": "cr2"},
-    {"action": "place", "building": "coolant_rig", "cell": [7, 8], "id": "cr3"},
-    {"action": "place", "building": "coolant_rig", "cell": [13, 8], "id": "cr4"},
-
     {"action": "place", "building": "uplink", "cell": [5, 5], "id": "up1"},
     {"action": "place", "building": "separator", "cell": [8, 5], "id": "sep1"},
     {"action": "place", "building": "storage", "cell": [11, 5], "id": "st_clean"},

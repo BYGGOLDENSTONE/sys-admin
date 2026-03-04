@@ -20,5 +20,4 @@ base_cost = 150
 visual_type = "broker"
 output_ports = Array[String]([])
 input_ports = Array[String](["left"])
-heat_generation = 0.3
 seller = SubResource("sell1")

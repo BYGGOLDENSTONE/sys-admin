@@ -68,16 +68,11 @@ func _update_stats() -> void:
 	var def: BuildingDefinition = b.definition
 	var lines: PackedStringArray = []
 
-	# Power & work status (all buildings except power/coolant infrastructure)
-	if not def.is_infrastructure():
-		if not b.has_power:
-			lines.append(_stat("Durum", "[color=#ff6644]● Güç Yok[/color]"))
-		elif b.is_overheated:
-			lines.append(_stat("Durum", "[color=#ff4422]● Aşırı Isı[/color]"))
-		elif b.is_working:
-			lines.append(_stat("Durum", "[color=#44ff88]● Çalışıyor[/color]"))
-		else:
-			lines.append(_stat("Durum", "[color=#ffcc44]● Boşta[/color]"))
+	# Work status
+	if b.is_working:
+		lines.append(_stat("Durum", "[color=#44ff88]● Çalışıyor[/color]"))
+	else:
+		lines.append(_stat("Durum", "[color=#ffcc44]● Boşta[/color]"))
 
 	# Type-specific stats (component-based)
 	if def.generator:
@@ -100,14 +95,6 @@ func _update_stats() -> void:
 		var clean_buf: int = b.stored_data.get("clean", 0)
 		if clean_buf > 0:
 			lines.append(_stat("Buffer", "%d MB Clean" % clean_buf))
-	if def.power_provider:
-		var tile_range: int = int(b.get_effective_value("zone_radius") / 64.0)
-		lines.append(_stat("Zone", "%d tile yarıçap" % tile_range))
-		lines.append(_stat("Beslenen", "%d yapı" % _count_powered_buildings(b)))
-	if def.coolant:
-		var tile_range: int = int(b.get_effective_value("zone_radius") / 64.0)
-		lines.append(_stat("Zone", "%d tile yarıçap" % tile_range))
-		lines.append(_stat("Soğutma", "%.1f °C/s" % b.get_effective_value("cooling_rate")))
 	if def.processor:
 		lines.append(_stat("İşleme", "%d MB/s" % int(b.get_effective_value("processing_rate"))))
 		lines.append(_stat("Verimlilik", "%d%%" % int(b.get_effective_value("efficiency") * 100)))
@@ -152,25 +139,7 @@ func _update_stats() -> void:
 	# Malware warning (non-quarantine buildings holding malware)
 	var malware_stored: int = b.stored_data.get("malware", 0)
 	if malware_stored > 0 and not (def.processor and def.processor.rule == "quarantine"):
-		var extra_heat: float = malware_stored * 0.3
-		lines.append(_stat("Malware", "[color=#ff4466]%d MB (+%.1f °C/s ek ısı!)[/color]" % [malware_stored, extra_heat]))
-
-	# Heat (all buildings)
-	var heat_pct: int = int(b.heat_ratio * 100.0)
-	var heat_color: String
-	if b.is_overheated:
-		heat_color = "#ff6644"
-	elif heat_pct >= 70:
-		heat_color = "#ffcc44"
-	elif heat_pct >= 30:
-		heat_color = "#44ff88"
-	else:
-		heat_color = "#aabbcc"
-	var heat_status: String = " [color=#ff4422]AŞIRI ISI[/color]" if b.is_overheated else ""
-	lines.append(_stat("Isı", "[color=%s]%.1f / %.0f °C[/color]%s" % [heat_color, b.current_heat, def.max_heat, heat_status]))
-
-	if def.heat_generation > 0 and not def.is_infrastructure():
-		lines.append(_stat("Isı Üretimi", "+%.1f °C/s" % def.heat_generation))
+		lines.append(_stat("Malware", "[color=#ff4466]%d MB — Quarantine'e yönlendir![/color]" % malware_stored))
 
 	stats_label.text = "\n".join(lines)
 
@@ -211,37 +180,6 @@ func _format_stored_data(data: Dictionary) -> String:
 	if parts.is_empty():
 		return "Boş"
 	return ", ".join(parts)
-
-
-func _count_powered_buildings(power_cell: Node2D) -> int:
-	var count: int = 0
-	var container: Node2D = power_cell.get_parent()
-	if container == null:
-		return 0
-	for child in container.get_children():
-		if child == power_cell or not child.has_method("is_active"):
-			continue
-		if child.definition == null or child.definition.is_infrastructure():
-			continue
-		if _is_in_zone(power_cell, child):
-			count += 1
-	return count
-
-
-func _is_in_zone(source: Node2D, target: Node2D) -> bool:
-	var tile_range: int = int(source.get_effective_value("zone_radius") / 64)
-	var src_cell: Vector2i = source.grid_cell
-	var src_size: Vector2i = source.definition.grid_size
-	var tgt_cell: Vector2i = target.grid_cell
-	var tgt_size: Vector2i = target.definition.grid_size
-	var zone_left: int = src_cell.x - tile_range
-	var zone_top: int = src_cell.y - tile_range
-	var zone_right: int = src_cell.x + src_size.x + tile_range - 1
-	var zone_bottom: int = src_cell.y + src_size.y + tile_range - 1
-	var tgt_right: int = tgt_cell.x + tgt_size.x - 1
-	var tgt_bottom: int = tgt_cell.y + tgt_size.y - 1
-	return tgt_cell.x >= zone_left and tgt_right <= zone_right \
-		and tgt_cell.y >= zone_top and tgt_bottom <= zone_bottom
 
 
 func _setup_style() -> void:

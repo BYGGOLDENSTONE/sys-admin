@@ -37,7 +37,6 @@ base_cost = 120
 visual_type = "separator"
 output_ports = Array[String](["right", "bottom"])
 input_ports = Array[String](["left"])
-heat_generation = 0.5
 processor = SubResource("proc1")
 storage = SubResource("stor1")
 upgrade = SubResource("upg1")

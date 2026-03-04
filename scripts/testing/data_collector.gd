@@ -56,10 +56,6 @@ func _snapshot_buildings() -> Array:
 			"name": def.building_name,
 			"type": def.visual_type,
 			"cell": [child.grid_cell.x, child.grid_cell.y],
-			"heat": child.current_heat,
-			"heat_max": def.max_heat,
-			"is_overheated": child.is_overheated,
-			"has_power": child.has_power,
 			"is_active": child.is_active(),
 			"is_working": child.is_working,
 			"stored_data": child.stored_data.duplicate(),
@@ -84,10 +80,7 @@ func _snapshot_connections() -> Array:
 
 
 func _snapshot_global_stats() -> Dictionary:
-	var total_heat: float = 0.0
 	var total_stored: int = 0
-	var overheated_count: int = 0
-	var unpowered_count: int = 0
 	var working_count: int = 0
 	var building_count: int = 0
 
@@ -95,22 +88,14 @@ func _snapshot_global_stats() -> Dictionary:
 		if not child.has_method("is_active"):
 			continue
 		building_count += 1
-		total_heat += child.current_heat
 		total_stored += child.get_total_stored()
-		if child.is_overheated:
-			overheated_count += 1
-		if not child.has_power:
-			unpowered_count += 1
 		if child.is_working:
 			working_count += 1
 
 	return {
 		"building_count": building_count,
 		"connection_count": connection_manager.get_connections().size(),
-		"total_heat": total_heat,
 		"total_stored": total_stored,
-		"overheated_count": overheated_count,
-		"unpowered_count": unpowered_count,
 		"working_count": working_count,
 	}
 

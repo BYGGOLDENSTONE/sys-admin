@@ -1,15 +1,6 @@
 {
   "name": "splitter_merger_test",
   "actions": [
-    {"action": "place", "building": "power_cell", "cell": [7, 4], "id": "pc1"},
-    {"action": "place", "building": "power_cell", "cell": [13, 4], "id": "pc2"},
-    {"action": "place", "building": "power_cell", "cell": [7, 10], "id": "pc3"},
-    {"action": "place", "building": "power_cell", "cell": [13, 10], "id": "pc4"},
-    {"action": "place", "building": "coolant_rig", "cell": [6, 4], "id": "cr1"},
-    {"action": "place", "building": "coolant_rig", "cell": [12, 4], "id": "cr2"},
-    {"action": "place", "building": "coolant_rig", "cell": [6, 10], "id": "cr3"},
-    {"action": "place", "building": "coolant_rig", "cell": [12, 10], "id": "cr4"},
-
     {"action": "place", "building": "uplink", "cell": [5, 5], "id": "up1"},
     {"action": "place", "building": "splitter", "cell": [8, 5], "id": "spl1"},
     {"action": "place", "building": "storage", "cell": [10, 5], "id": "st1"},
@@ -30,9 +21,6 @@
     {"action": "place", "building": "uplink", "cell": [5, 13], "id": "up3"},
     {"action": "place", "building": "merger", "cell": [8, 12], "id": "mrg1"},
     {"action": "place", "building": "storage", "cell": [10, 11], "id": "st3"},
-
-    {"action": "place", "building": "power_cell", "cell": [7, 14], "id": "pc5"},
-    {"action": "place", "building": "coolant_rig", "cell": [8, 14], "id": "cr5"},
 
     {"action": "connect", "from": "up2", "from_port": "right", "to": "mrg1", "to_port": "left"},
     {"action": "connect", "from": "up3", "from_port": "right", "to": "mrg1", "to_port": "top"},

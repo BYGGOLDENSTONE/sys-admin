@@ -28,6 +28,5 @@ base_cost = 60
 visual_type = "merger"
 output_ports = Array[String](["right"])
 input_ports = Array[String](["left", "top"])
-heat_generation = 0.2
 processor = SubResource("proc1")
 storage = SubResource("stor1")

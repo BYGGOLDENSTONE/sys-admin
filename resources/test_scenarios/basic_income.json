@@ -1,9 +1,7 @@
 {
   "name": "Basic Income Chain",
-  "description": "Power Cell + Coolant Rig + Uplink -> Storage -> Data Broker. Tests full data flow and credit generation.",
+  "description": "Uplink -> Storage -> Data Broker. Tests full data flow and credit generation.",
   "actions": [
-    {"action": "place", "building": "power_cell", "cell": [12, 10], "id": "pc1"},
-    {"action": "place", "building": "coolant_rig", "cell": [13, 10], "id": "cr1"},
     {"action": "place", "building": "uplink", "cell": [10, 12], "id": "up1"},
     {"action": "place", "building": "storage", "cell": [12, 12], "id": "st1"},
     {"action": "place", "building": "data_broker", "cell": [14, 12], "id": "db1"},
@@ -18,8 +16,6 @@
     {"action": "assert", "check": "credits_gt", "value": 0},
     {"action": "wait_ticks", "count": 50},
     {"action": "snapshot", "label": "after_60_ticks"},
-    {"action": "assert", "check": "credits_gt", "value": 20},
-    {"action": "assert", "check": "building_not_overheated", "id": "up1"},
-    {"action": "assert", "check": "building_not_overheated", "id": "st1"}
+    {"action": "assert", "check": "credits_gt", "value": 20}
   ]
 }

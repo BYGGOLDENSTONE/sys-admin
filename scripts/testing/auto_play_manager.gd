@@ -170,12 +170,6 @@ func _handle_assert(action: Dictionary) -> bool:
 			result = simulation_manager.total_credits > action.get("value", 0)
 		"credits_lt":
 			result = simulation_manager.total_credits < action.get("value", 0)
-		"building_overheated":
-			var b: Node2D = _building_refs.get(action.get("id", ""))
-			result = b != null and b.is_overheated
-		"building_not_overheated":
-			var b: Node2D = _building_refs.get(action.get("id", ""))
-			result = b != null and not b.is_overheated
 		"building_active":
 			var b: Node2D = _building_refs.get(action.get("id", ""))
 			result = b != null and b.is_active()

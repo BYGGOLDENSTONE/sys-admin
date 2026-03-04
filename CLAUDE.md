@@ -223,15 +223,15 @@ Yapılar birbirinden habersiz çalışır. Hiçbir yapı "Decryptor'a gönder" d
 - Yeni state işleme = yeni processor rule + .tres'te tanımla → KOD DEĞİŞMEZ
 - Yeni mekanik = yeni component Resource scripti oluştur → sadece 1 yeni dosya
 
-### Refactor Faz 1: Temizlik — Power/Heat/Coolant Kaldırma
-- [ ] PowerProviderComponent ve CoolantComponent Resource scriptleri kaldır
-- [ ] Power Cell ve Coolant Rig .tres yapı tanımları kaldır
-- [ ] SimulationManager'dan heat/power/coolant güncelleme döngüleri kaldır
-- [ ] Building'den heat/power state'leri kaldır (overheat overlay, güçsüz karartma, zone)
-- [ ] Yapı seçim panelinden Power Cell ve Coolant Rig kaldır
-- [ ] Bilgi paneli ve tooltip'ten heat/power/zone satırları kaldır
-- [ ] Malware ısı hasarı mekaniği kaldır
-- [ ] Test: mevcut yapılar güç/ısı olmadan normal çalışmalı
+### Refactor Faz 1: Temizlik — Power/Heat/Coolant Kaldırma ✓
+- [x] PowerProviderComponent ve CoolantComponent Resource scriptleri kaldır
+- [x] Power Cell ve Coolant Rig .tres yapı tanımları kaldır
+- [x] SimulationManager'dan heat/power/coolant güncelleme döngüleri kaldır
+- [x] Building'den heat/power state'leri kaldır (overheat overlay, güçsüz karartma, zone)
+- [x] Yapı seçim panelinden Power Cell ve Coolant Rig kaldır (otomatik — .tres silinince)
+- [x] Bilgi paneli ve tooltip'ten heat/power/zone satırları kaldır
+- [x] Malware ısı hasarı mekaniği kaldır
+- [x] Test: 7/7 senaryo PASSED — yapılar güç/ısı olmadan normal çalışıyor
 
 ### Refactor Faz 2: Veri Modeli — Content + State
 - [ ] DataPacket Resource oluştur (content: ContentType, state: DataState, tier: int)
@@ -398,7 +398,7 @@ Oyun mekaniklerini otomatik test edip veri toplayan sistem. JSON senaryolarla ç
 | `remove` | Yapı kaldır |
 | `wait_ticks` | N tick bekle |
 | `snapshot` | Anlık durum kaydı al |
-| `assert` | Koşul kontrol (credits_gt/lt, building_overheated, building_active, storage_above/below) |
+| `assert` | Koşul kontrol (credits_gt/lt, building_active, storage_above/below, patch_data_gt, research_gt, neutralized_gt) |
 
 ### Kullanım
 ```bash

@@ -120,10 +120,6 @@ func _format_stat(stat_target: String, value: float) -> String:
 			return "%d MB/s" % int(value)
 		"capacity":
 			return "%d MB" % int(value)
-		"zone_radius":
-			return "%d px" % int(value)
-		"cooling_rate":
-			return "%.1f °C/s" % value
 	return "%.1f" % value
 
 

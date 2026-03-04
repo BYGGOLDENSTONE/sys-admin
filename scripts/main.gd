@@ -38,16 +38,12 @@ func _ready() -> void:
 	# Wire up simulation
 	simulation_manager.connection_manager = connection_manager
 	simulation_manager.building_container = $BuildingContainer
-	simulation_manager.grid_system = grid_system
-	simulation_manager.connection_layer = connection_layer
 	building_manager.building_placed.connect(simulation_manager._on_building_placed)
 	building_manager.building_removed.connect(simulation_manager._on_building_removed)
-	building_manager.simulation_manager = simulation_manager
 	simulation_manager.credits_changed.connect(_on_credits_changed)
 	simulation_manager.research_changed.connect(_on_research_changed)
 	simulation_manager.patch_data_changed.connect(_on_patch_data_changed)
 	simulation_manager.data_type_discovered.connect(_on_data_type_discovered)
-	simulation_manager.malware_damage_detected.connect(_on_malware_damage)
 
 	# Setup upgrade panel
 	var UpgradePanelScript = preload("res://scripts/ui/upgrade_panel.gd")
@@ -176,17 +172,3 @@ func _on_data_type_discovered(data_type: String) -> void:
 	tween.tween_callback(notif.queue_free)
 
 
-func _on_malware_damage(building: Node2D) -> void:
-	var building_name: String = building.definition.building_name if building.definition else "???"
-	var notif := Label.new()
-	notif.text = "[ UYARI: MALWARE TESPİT EDİLDİ — %s ]" % building_name
-	notif.add_theme_font_size_override("font_size", 20)
-	notif.add_theme_color_override("font_color", Color(1.0, 0.2, 0.3))
-	notif.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	notif.anchors_preset = Control.PRESET_CENTER_TOP
-	notif.position.y = 80
-	ui_layer.add_child(notif)
-
-	var tw := create_tween()
-	tw.tween_property(notif, "modulate:a", 0.0, 1.0).set_delay(2.0)
-	tw.tween_callback(notif.queue_free)

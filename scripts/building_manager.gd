@@ -15,7 +15,6 @@ enum State { IDLE, PLACING, CONNECTING, MOVING }
 
 var connection_manager: Node = null
 var connection_layer: Node2D = null
-var simulation_manager = null
 
 var _building_scene: PackedScene = preload("res://scenes/building.tscn")
 var _state: State = State.IDLE
@@ -56,7 +55,6 @@ func start_placement(def: BuildingDefinition) -> void:
 func cancel_placement() -> void:
 	if _state != State.PLACING:
 		return
-	_clear_power_preview()
 	_state = State.IDLE
 	_current_definition = null
 	ghost_preview.visible = false
@@ -220,7 +218,6 @@ func _update_ghost_position() -> void:
 	ghost_preview.grid_cell = _ghost_cell
 	_can_place_here = grid_system.can_place(_ghost_cell, _current_definition.grid_size)
 	ghost_preview.modulate = VALID_COLOR if _can_place_here else INVALID_COLOR
-	_update_power_preview()
 
 
 func _update_hover() -> void:
@@ -250,7 +247,6 @@ func _clear_cable_hover() -> void:
 
 
 func _place_building() -> void:
-	_clear_power_preview()
 	var building: Node2D = _building_scene.instantiate()
 	building.setup(_current_definition, _ghost_cell)
 	building.position = grid_system.grid_to_world(_ghost_cell)
@@ -364,11 +360,9 @@ func _update_move_preview() -> void:
 	ghost_preview.grid_cell = _ghost_cell
 	_can_place_here = grid_system.can_place(_ghost_cell, _moving_building.definition.grid_size)
 	ghost_preview.modulate = VALID_COLOR if _can_place_here else INVALID_COLOR
-	_update_power_preview()
 
 
 func _complete_move() -> void:
-	_clear_power_preview()
 	var def: BuildingDefinition = _moving_building.definition
 	# Occupy new cells
 	grid_system.occupy(_ghost_cell, def.grid_size, _moving_building)
@@ -384,7 +378,6 @@ func _complete_move() -> void:
 
 
 func _cancel_moving() -> void:
-	_clear_power_preview()
 	# Restore original cells
 	var def: BuildingDefinition = _moving_building.definition
 	grid_system.occupy(_moving_original_cell, def.grid_size, _moving_building)
@@ -397,76 +390,3 @@ func _cancel_moving() -> void:
 
 func _get_world_mouse_position() -> Vector2:
 	return get_viewport().get_canvas_transform().affine_inverse() * get_viewport().get_mouse_position()
-
-
-func _update_power_preview() -> void:
-	if simulation_manager == null:
-		return
-	# Clear previous preview
-	_clear_power_preview()
-
-	var active_def: BuildingDefinition = _current_definition if _current_definition else (_moving_building.definition if _moving_building else null)
-	if active_def == null:
-		return
-
-	if active_def.power_provider != null:
-		# Placing a Power Cell: highlight buildings that would become fully powered
-		# (existing PCs + this new one combined must cover ALL tiles)
-		var power_cells: Array[Node] = []
-		for building in building_container.get_children():
-			if not building.has_method("is_active"):
-				continue
-			if building == ghost_preview or building == _moving_building:
-				continue
-			if building.definition.power_provider != null:
-				power_cells.append(building)
-		power_cells.append(ghost_preview)
-		for building in building_container.get_children():
-			if not building.has_method("is_active"):
-				continue
-			if building == ghost_preview or building == _moving_building:
-				continue
-			if building.definition.is_infrastructure():
-				continue
-			if simulation_manager._check_all_tiles_covered(building, power_cells):
-				building.power_preview = 1
-	elif active_def.coolant != null:
-		# Placing a Coolant Rig: highlight buildings that would be fully cooled
-		# (existing Coolants + this new one combined must cover ALL tiles)
-		var coolant_rigs: Array[Node] = []
-		for building in building_container.get_children():
-			if not building.has_method("is_active"):
-				continue
-			if building == ghost_preview or building == _moving_building:
-				continue
-			if building.definition.coolant != null:
-				coolant_rigs.append(building)
-		coolant_rigs.append(ghost_preview)
-		for building in building_container.get_children():
-			if not building.has_method("is_active"):
-				continue
-			if building == ghost_preview or building == _moving_building:
-				continue
-			if building.definition.is_infrastructure():
-				continue
-			if simulation_manager._check_all_tiles_covered(building, coolant_rigs):
-				building.power_preview = 1
-	else:
-		# Placing a regular building: check if ALL tiles are powered (possibly by multiple zones)
-		var power_cells: Array[Node] = []
-		for building in building_container.get_children():
-			if not building.has_method("is_active"):
-				continue
-			if building == _moving_building:
-				continue
-			if building.definition.power_provider != null:
-				power_cells.append(building)
-		var all_powered: bool = simulation_manager._check_all_tiles_covered(ghost_preview, power_cells)
-		ghost_preview.power_preview = 1 if all_powered else 0
-
-
-func _clear_power_preview() -> void:
-	ghost_preview.power_preview = 0
-	for building in building_container.get_children():
-		if building.has_method("is_active"):
-			building.power_preview = 0

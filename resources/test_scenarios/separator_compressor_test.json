@@ -1,11 +1,6 @@
 {
   "name": "separator_compressor_test",
   "actions": [
-    {"action": "place", "building": "power_cell", "cell": [8, 5], "id": "pc1"},
-    {"action": "place", "building": "power_cell", "cell": [14, 5], "id": "pc2"},
-    {"action": "place", "building": "coolant_rig", "cell": [8, 8], "id": "cr1"},
-    {"action": "place", "building": "coolant_rig", "cell": [14, 8], "id": "cr2"},
-
     {"action": "place", "building": "uplink", "cell": [5, 4], "id": "up1"},
     {"action": "place", "building": "compressor", "cell": [8, 4], "id": "comp1"},
     {"action": "place", "building": "separator", "cell": [9, 4], "id": "sep1"},

@@ -28,6 +28,5 @@ base_cost = 75
 visual_type = "storage"
 output_ports = Array[String](["right"])
 input_ports = Array[String](["left"])
-heat_generation = 0.1
 storage = SubResource("stor1")
 upgrade = SubResource("upg1")
