@@ -1,8 +1,8 @@
 # SYS_ADMIN - Game Design Document
-**Versiyon:** 0.5 (Tasarım Aşaması)
-**Son Güncelleme:** 2026-03-03
+**Versiyon:** 0.6 (Harita Sistemi + Content/State Veri Modeli)
+**Son Güncelleme:** 2026-03-04
 **Motor:** Godot 4.6 (Forward Plus, Jolt Physics, D3D12)
-**Durum:** Tasarım tamamlanıyor, vertical slice planlanıyor
+**Durum:** Demo Faz 5 tamamlandı, büyük tasarım pivotu — harita sistemi + veri modeli yeniden tasarlandı
 
 ---
 
@@ -11,37 +11,40 @@
 2. [Tasarım Sütunları](#2-tasarım-sütunları)
 3. [Teknik Kararlar](#3-teknik-kararlar)
 4. [Çekirdek Döngü](#4-çekirdek-döngü)
-5. [Kaynak Sistemi](#5-kaynak-sistemi)
-6. [Veri Tipleri ve Tier Sistemi](#6-veri-tipleri-ve-tier-sistemi)
-7. [Veri İşleme Zinciri](#7-veri-i̇şleme-zinciri)
-8. [Yapı/Bileşen Listesi](#8-yapıbileşen-listesi)
-9. [Bağlantı Sistemi](#9-bağlantı-sistemi)
-10. [Power ve Heat Sistemi](#10-power-ve-heat-sistemi)
-11. [İlerleme ve Scale](#11-i̇lerleme-ve-scale)
-12. [Görsel Tasarım](#12-görsel-tasarım)
-13. [Pazar Araştırması](#13-pazar-araştırması)
-14. [Referans Oyunlar](#14-referans-oyunlar)
-15. [Gelecek Güncellemeler](#15-gelecek-güncellemeler)
-16. [Açık Sorular ve Yapılacaklar](#16-açık-sorular-ve-yapılacaklar)
+5. [Harita Sistemi](#5-harita-sistemi)
+6. [Veri Modeli: Content + State](#6-veri-modeli-content--state)
+7. [Kaynak Sistemi](#7-kaynak-sistemi)
+8. [Veri İşleme Zinciri](#8-veri-i̇şleme-zinciri)
+9. [Yapı/Bileşen Listesi](#9-yapıbileşen-listesi)
+10. [Bağlantı Sistemi](#10-bağlantı-sistemi)
+11. [Power ve Heat Sistemi](#11-power-ve-heat-sistemi)
+12. [İlerleme ve Scale](#12-i̇lerleme-ve-scale)
+13. [Görsel Tasarım](#13-görsel-tasarım)
+14. [Pazar Araştırması](#14-pazar-araştırması)
+15. [Referans Oyunlar](#15-referans-oyunlar)
+16. [Gelecek Güncellemeler](#16-gelecek-güncellemeler)
+17. [Açık Sorular ve Yapılacaklar](#17-açık-sorular-ve-yapılacaklar)
 
 ---
 
 ## 1. Oyun Özeti
 
-**SYS_ADMIN**, oyuncunun bir **netrunner** olarak dijital bir sistemi yönettiği 2D top-down chill otomasyon/management oyunudur.
+**SYS_ADMIN**, oyuncunun bir **netrunner** olarak dijital dünyada dolaşıp, haritaya yayılmış veri kaynaklarından veri çekerek otomasyon hatları kurduğu 2D top-down chill otomasyon/management oyunudur.
 
 **Temel Konsept:**
-- Oyuncu bir netrunner'ın rig'ini kurar ve yönetir
-- Ağdan veri çeker, işler, dönüştürür ve satar
+- Oyuncu dijital dünyada bir netrunner olarak hareket eder
+- Haritada dağılmış veri kaynakları (corpo sunucuları, askeri ağlar, dark web node'ları) bulur
+- Kaynağın yanına Uplink kurarak veri çeker
+- Çekilen veriyi otomasyon hatlarıyla işler, dönüştürür ve satar
+- Farklı kaynaklar farklı **içerik tipleri** ve **veri durumları** içerir → her kaynak benzersiz bir otomasyon challenge'ı sunar
 - Sistemin ısınmasını, enerji ihtiyacını ve iz bırakma riskini dengeler
-- Verimli pipeline'lar kurarak giderek daha değerli veriler işler
 
 **Tür:** Chill Otomasyon/Management
 **Perspektif:** 2D Top-Down
-**Tema:** Cyberpunk / Netrunner
+**Tema:** Cyberpunk / Netrunner — Dijital Dünya
 **Hedef:** Rehberli Sandbox - kazanma koşulu yok, oyuncu sürekli yönetir ve optimize eder
 
-**Tek Cümle:** "Bir netrunner olarak dijital sisteminizi kurun, veri akışlarını yönetin ve en verimli pipeline'ı tasarlayın."
+**Tek Cümle:** "Dijital dünyada veri kaynaklarını keşfet, otomasyon hatları kur ve en verimli pipeline'ı tasarla."
 
 ---
 
@@ -51,26 +54,26 @@
 - Oyuncu kararlarının sonuçlarını görmeli
 - Verimli bir sistem kurmak tatmin edici hissetmeli
 - Override gibi risk/ödül mekanikleri ile "akıllı hamle" anları yaratılmalı
-- Erken oyunda "çöp" olan kaynakların ilerledikçe değerli hale gelmesi eureka anları yaratır
+- Yeni bir kaynak keşfedince "bu farklı bir challenge, nasıl çözeceğim?" düşüncesi
 
 ### Sütun 2: Sandbox - Kendi Çözümlerini Optimize Etsin
 - Tek doğru çözüm yok, oyuncu kendi pipeline'ını tasarlıyor
 - Aynı soruna farklı yaklaşımlar mümkün
 - "Rehberli sandbox" - teknoloji ağacı/açılma sistemi yön verir ama oyuncuyu zorlamaz
-- Factorio'nun "The Factory Must Grow" → bizde "The System Must Scale"
+- Harita keşfi doğal yönlendirme sağlar
 
 ### Sütun 3: Sistemsel Baskı (Savaş Değil, Denge)
 - Artan veri hacmi mevcut sistemi yetersiz bırakır
 - Heat birikimi yapılara hasar verir
 - Trace birikimi kaynak erişimini kısıtlar
-- Tier atlama anlarında pipeline yeniden tasarlanmalı
+- Uzak kaynaklar lojistik zorluk getirir
 - Oyuncu kendi sistemine karşı mücadele eder, düşmana karşı değil
 
 ### Sütun 4: Diegetic Aesthetic (Dünya İle Bütünleşik Estetik)
 - Her görsel eleman oyun dünyasına ait hissettirmeli
+- Harita = dijital dünya, kaynaklar = ağ node'ları
 - Basit şekiller + shader efektleri ile "pahalı" görünüm
 - CRT shader, bloom, glitch efektleri dünyayı güçlendirir
-- Zukowski: "Grafikleriniz son teknoloji olmak zorunda değil ama niyetiniz net olmalı"
 
 ---
 
@@ -81,124 +84,273 @@
 | **Perspektif** | 2D Top-Down | Solo geliştirici için hız, otomasyon türünde kanıtlanmış (Factorio %97, Shapez %96) |
 | **Asset Pipeline** | Prosedürel şekiller + shader efektleri | Minimum asset ihtiyacı, kod ile üretim |
 | **Zaman Mekaniği** | Real-time with pause | Otomasyon kurma = düşünme zamanı. Hız kontrolü: 1x, 2x, 3x + duraklat |
-| **İlerleme** | Rehberli Sandbox | Teknoloji ağacı yön verir ama oyuncuyu zorlamaz. Kazanma yok, sadece yönet |
+| **İlerleme** | Rehberli Sandbox | Teknoloji ağacı + harita keşfi yön verir ama oyuncuyu zorlamaz |
 | **İsimlendirme** | Cyberpunk terimleri | Uplink, Decryptor gibi tematik isimler. Tooltip ile gerçek karşılığı açıklanır |
 | **Motor** | Godot 4.6 | Forward Plus renderer, Jolt Physics, D3D12 |
+| **Harita** | Prosedürel dijital dünya | Kaynak dağılımı rastgele, her oyunda farklı deneyim |
 
 ---
 
 ## 4. Çekirdek Döngü
 
-### Ana Metafor: "Tabak Çevirme" (Plate Spinning)
-Oyuncu aynı anda birden fazla sistemi dengede tutuyor. Bir şeyi düzeltmek başka bir ihtiyacı ortaya çıkarıyor.
+### Ana Metafor: "Keşfet, Kur, Optimize Et"
+Oyuncu dijital dünyayı keşfeder, kaynakları bulur, otomasyon kurar ve optimize eder. Yeni bölgeler yeni zorluklar getirir.
 
 ### Dakika Dakika Akış
 ```
-[VERİ GELİR] → Uplink ile ağdan veri çekilir
+[KEŞFET] → Haritada yeni veri kaynağı bul
       ↓
-[AYIR] → Separator ile veri tiplerine ayrılır
+[ÇEK] → Kaynağın yanına Uplink kur, veri çekmeye başla
       ↓
-[DEPOLA] → Storage'da tamponlanır
+[AYIR] → Separator ile içerik tiplerini ve durumları ayır
       ↓
-[İŞLE] → Her veri tipi kendi process hattından geçer
+[İŞLE] → Duruma göre: Decrypt / Recover / Quarantine
       ↓
-[SONUÇ] → Credits, Research, Patch Data veya Malware bertarafı
+[KULLAN] → İçerik tipine göre: Sat (Credits) / Araştır (Research) / Geliştir (Patch Data)
       ↓
-[GENİŞLE] → Yeni yapılar al, sistemi büyüt
+[GENİŞLE] → Yeni yapılar al, yeni bölgelere git, sistemi büyüt
       ↓
-[BASKI] → Heat yükseldi, Trace arttı, Storage doldu
+[BASKI] → Heat yükseldi, Trace arttı, Storage doldu, uzak kaynak lojistiği
       ↓
 [OPTİMİZE] → Pipeline'ı iyileştir, dengeyi kur
       ↓
-[TEKRAR] → ...döngü, artan karmaşıklıkla
+[TEKRAR] → Daha uzak, daha karmaşık kaynaklara doğru...
 ```
 
 ### Temel Gerilim
-**"Büyümek ZORUNDASIN ama büyümek yeni sorunlar yaratır."**
-- Daha fazla veri = daha fazla gelir AMA daha fazla Power/Heat/Trace
-- Daha büyük sistem = daha fazla kapasite AMA daha fazla ısı yönetimi
-- Daha hızlı işleme = daha verimli AMA daha fazla ısı ve iz
-
-### Oyun Temposu
-Chill otomasyon oyunu — oyuncu kendi hızında ilerler. Baskı düşmandan değil, sistemin kendi dinamiklerinden gelir:
-- Storage doluyor → pipeline tıkanır
-- Heat birikir → yapılar yavaşlar/hasar alır
-- Trace yükselir → kaynak erişimi kısıtlanır
-- Power yetmiyor → yapılar durur
-
-Bunlar acil krizler değil, yavaş yavaş biriken ve çözüm gerektiren durumlar.
+**"Daha uzak kaynaklar daha değerli AMA daha karmaşık."**
+- Yakın kaynaklar basit içerik, tek durum → kolay pipeline
+- Uzak kaynaklar karışık içerik, birden fazla durum + yüksek tier → karmaşık pipeline
+- Daha büyük sistem = daha fazla kapasite AMA daha fazla ısı/güç/Trace yönetimi
 
 ### "Bir Şey Daha" Faktörü (Bağımlılık Döngüsü)
-> "Storage dolmak üzere, bir tane daha koyayım... ama Power yetmiyor, Power Cell ekleyeyim... hmm Heat çok yükseldi, Coolant lazım... oh Trace yüksek, kaynak değiştireyim... tamam şimdi Storage'a döneyim..."
+> "Şu corpo sunucusundaki Financial Data çok değerli, oraya hat çekeyim... ama Encrypted T2, daha çok Decryptor lazım... Power yetmiyor, Power Cell ekleyeyim... hmm Heat çok yükseldi, Coolant lazım... oh şurada bir Biotech lab var, Research Data içeriyor, oraya da hat çekeyim..."
 
 ---
 
-## 5. Kaynak Sistemi
+## 5. Harita Sistemi
 
-### Temel Kaynaklar
+### Temel Konsept
+Dijital dünya = oyuncunun dolaştığı harita. Haritada çeşitli **veri kaynakları** dağılmış durumda. Her kaynak farklı içerik tipleri ve durumları barındırır.
 
-| Kaynak | Tipi | Rol |
-|--------|------|-----|
-| **Clean Data** | Ana kaynak | **Ana gelir kaynağı.** Ne kadar saf, o kadar değerli. Credits'e dönüşür |
-| **Corrupted Data** | Dönüştürülebilir | Başta waste (???). Recover edilince **Patch Data** → mevcut yapıları geliştirme kaynağı |
-| **Encrypted Data** | Dönüştürülebilir | Başta waste (???). Decrypt edilince **Research** → yeni yapı tipi açma kaynağı |
-| **Malware Data** | Tehlike | En son keşfedilen (???). Filtrelenmezse yapılara hasar verir. Karantina ile bertaraf |
-| **Power** | Altyapı | Her yapı tüketir. Override ile artırılabilir (risk/ödül). Yetersizse sistem durur |
-| **Heat** | Kötü birikim | Her çalışan yapı üretir. Soğutulmazsa yapılar yavaşlar → hasar alır → bozulur |
-| **Trace** | Kötü birikim (yerel) | Malware tutan Storage'dan zone-based yayılır. Etraftaki yapıları bozar |
-| **Credits** | Para birimi | Clean Data satışından kazanılır. Yeni yapı satın almak için kullanılır |
+### Kaynak Yapısı
+Her veri kaynağı şu bilgilere sahip:
+- **Konum:** Haritadaki pozisyon (merkeze yakınlık = zorluk)
+- **İçerik dağılımı:** Hangi Content type'ları içeriyor (ör: %40 Financial, %30 Biometric, %30 Standard)
+- **Durum dağılımı:** İçeriklerin hangi State'lerde olduğu (ör: %50 Clean, %30 Encrypted T1, %20 Corrupted)
+- **Kapasite:** Kaynaktan çekilebilecek toplam veri miktarı (tükenebilir veya tükenmez — TBD)
+- **Bant genişliği:** Kaynağın saniyedeki maksimum çıkış hızı
 
-### Her Veri Tipinin Kendine Özgü Amacı
+### Kaynak Bölgeleri
 
-| Veri Tipi | Çıktı | Oyundaki Rolü |
-|-----------|-------|---------------|
-| **Clean Data** | Credits | Yeni yapı **satın al** (ana gelir) |
-| **Encrypted Data** | Research | Yeni yapı tipi **aç** |
-| **Corrupted Data** | Patch Data | Mevcut yapıları **geliştir** (upgrade kaynağı) |
-| **Malware** | — | Bertaraf et (yoksa sisteme hasar verir) |
+| Bölge | Uzaklık | İçerik | Durumlar | Zorluk |
+|-------|---------|--------|----------|--------|
+| **ISP Backbone** | Yakın | Çoğu Standard, az Biometric | Çoğu Clean, az Corrupted | Kolay — gelir başlangıcı |
+| **Public Database** | Yakın | Standard + Biometric T1 | Clean + az Corrupted | Kolay-Orta |
+| **Corporate Server** | Orta | Financial + Blueprint + Standard | Encrypted T1-T2 + Clean + az Malware | Orta |
+| **Biotech Lab** | Orta | Biometric T2 + Research | Encrypted T1 + Corrupted + Clean | Orta |
+| **Dark Web Node** | Orta-Uzak | Karışık her şey | Çok Corrupted + Malware + Encrypted T2 | Orta-Zor |
+| **Government Archive** | Uzak | Research + Blueprint | Ağır Encrypted T2-T3 | Zor |
+| **Military Network** | Uzak | Blueprint T3 + Research | Encrypted T3 + Malware | Çok Zor |
+| **Blackwall Fragment** | Çok Uzak | Nadir/özel içerikler | Her şey yüksek tier, çok Malware | Endgame |
 
-**Kritik tasarım:** Her veri tipinin gideceği yer belli. Oyuncu "hangisini satsam" ikileminde kalmıyor. Clean = para, Encrypted = araştırma, Corrupted = upgrade, Malware = tehlike.
+### Oyuncu ve Kaynak Etkileşimi
+1. Oyuncu haritada dolaşır, kaynağı bulur
+2. Kaynağın yanına Uplink yerleştirir
+3. Uplink kaynaktan veri çekmeye başlar (kaynağın composition'ına göre)
+4. Çekilen veri otomasyon hattına girer
+5. Oyuncu pipeline'ını kaynağın içeriğine göre tasarlar
+
+### Harita Özellikleri
+- **Prosedürel üretim** (her oyunda farklı kaynak dağılımı — replayability)
+- **Merkez → dış:** Zorluk ve değer artar
+- **Keşif mekaniği:** Uzak kaynaklar başta görünmez, keşfedilmeli
+- **Lojistik:** Uzak kaynaktan veriyi ana üsse taşımak bir challenge (uzun kablo veya relay sistemi — TBD)
+
+### Shapez/Mindustry Paralelleri
+- **Shapez:** Sonsuz harita, kaynak yatakları dağılmış, extractor ile çıkar → kemer ile taşı → işle
+- **Mindustry:** Haritada cevherler, drill ile çıkar → konveyör ile taşı → rafine et
+- **SYS_ADMIN:** Haritada veri kaynakları, Uplink ile çek → kablo ile taşı → işle
+
+---
+
+## 6. Veri Modeli: Content + State
+
+### Temel Prensip
+Her veri paketi **iki boyutlu:**
+- **Content (İçerik):** Verinin **ne** olduğu → hedefi ve değeri belirler
+- **State (Durum):** Verinin **ne halde** olduğu → işleme yolunu belirler
+
+```
+Bir veri paketi = Content + State
+Örnek: Financial Data (Encrypted T2) = "Finansal veri, 16-bit şifreli"
+```
+
+Bu iki katmanlı sistem **çarpımsal çeşitlilik** sağlar:
+- 6 içerik x 4 durum = 24 temel kombinasyon
+- Durumların tier'ları dahil: yüzlerce varyant
+- Yeni içerik eklemek = anında 4+ yeni kombinasyon
+
+### Neden Bu Model?
+Eski model: `Veri = Tip (Clean, Encrypted, Corrupted, Malware)`
+- Clean Data = tier'sız, çeşitlilik yok
+- 4 tiple sınırlı
+- Her kaynak "aynı" hissediyor
+
+Yeni model: `Veri = İçerik (ne) + Durum (nasıl)`
+- Shapez paraleli: Şekil (daire, kare) + Renk (kırmızı, mavi) = sonsuz kombinasyon
+- SYS_ADMIN: İçerik (Financial, Biometric) + Durum (Clean, Encrypted) = sonsuz kombinasyon
+- Her kaynak gerçekten **unique** hissediyor
+
+### Content (İçerik) Katmanı — "Bu veri ne?"
+
+İçerik tipi verinin **ne olduğunu** belirler. Her içerik tipinin kendine özgü **amacı** ve **değeri** vardır.
+
+**İçerik Tipleri (Kesinleştirilecek — Öneriler):**
+
+| İçerik Tipi | Cyberpunk Karşılığı | Oyundaki Amacı | Değer |
+|-------------|---------------------|----------------|-------|
+| **Standard Data** | Genel ağ trafiği, web verisi | Temel gelir kaynağı → Credits | Düşük |
+| **Financial Data** | Banka, kripto, şirket hesapları | Premium gelir → Credits | Yüksek |
+| **Biometric Data** | Parmak izi, retina, neural imprint | Gelir → Credits (anonimleştirme gerekir?) | Orta-Yüksek |
+| **Blueprint Data** | Teknik şemalar, firmware, silah planları | Yapı geliştirme → Patch Data | Özel |
+| **Research Data** | Bilimsel deneyler, AI eğitim verisi | Yeni yapı açma → Research Points | Özel |
+| **Classified Data** | Devlet/askeri sırlar | Premium gelir → Credits (çok yüksek değer, çok yüksek risk) | Çok Yüksek |
+
+**İçerik katmanı sonsuz genişletilebilir** — yeni bir içerik tipi eklemek, tüm State varyantlarını otomatik olarak yaratır.
+
+**NOT:** İçerik tipleri henüz kesinleşmedi. Yukarıdaki liste öneri niteliğindedir. Minimum 6 içerik tipi hedefleniyor.
+
+### State (Durum) Katmanı — "Bu veri ne halde?"
+
+Durum, verinin **işlenmeden önceki halini** belirler. Her durum farklı bir **işleme yapısı** gerektirir.
+
+| Durum | İşleyici Yapı | Çıktı | Tier Sistemi |
+|-------|---------------|-------|-------------|
+| **Clean** | Yok (direkt kullanılabilir) | İçerik tipine göre son kullanım | Tier yok — temiz veri |
+| **Encrypted** | Decryptor | Clean halindeki aynı içerik | Tier: 4-bit → 16-bit → 256-bit → Kuantum |
+| **Corrupted** | Recoverer | Clean halindeki aynı içerik | Tier: %10 → %30 → %60 → %90 bozulma |
+| **Malware-infected** | Quarantine | İmha (veri kurtarılamaz) | Tier: Worm → Trojan → Ransomware → Rootkit |
+
+**Durum işleme mantığı:**
+```
+Financial Data (Encrypted T2) → Decryptor → Financial Data (Clean) → Data Broker → Credits
+Biometric Data (Corrupted %30) → Recoverer → Biometric Data (Clean) → Data Broker → Credits
+Blueprint Data (Malware-infected) → Quarantine → İmha (veri kaybolur)
+Research Data (Clean) → Research Lab → Research Points
+```
+
+### State Tier Detayları
+
+**Encrypted Tier'ları (Şifreleme Yöntemi):**
+```
+T1: 4-bit şifreleme    → 1 Decryptor, hızlı çözme
+T2: 16-bit şifreleme   → 4 Decryptor paralel (Splitter → Merger)
+T3: 256-bit şifreleme  → 16 Decryptor + karmaşık routing
+T4: Kuantum şifreleme  → Özel yapı gerektirebilir (geç oyun)
+```
+
+**Corrupted Tier'ları (Bozulma Oranı):**
+```
+T1: %10 bozuk   → 1 Recoverer, hızlı düzeltme
+T2: %30 bozuk   → Birden fazla Recoverer, birden fazla geçiş
+T3: %60 bozuk   → Önce parçala, ayrı ayrı kurtar, birleştir
+T4: %90 bozuk   → Neredeyse tamamen yeniden yapılandır
+```
+
+**Malware Tier'ları (Zararlı Türü):**
+```
+T1: Worm         → Hızlı karantina lazım, yayılır
+T2: Trojan       → Gizlenir, önce tespit lazım
+T3: Ransomware   → Verileri kilitler, acil müdahale
+T4: Rootkit      → Sisteme gömülür, katmanlı temizlik
+```
+
+**NOT:** Düşük tier corrupted veriye ağır Recoverer hattı kurmak vakit ve güç kaybettirir. Oyuncu doğru tier'a doğru miktarda kaynak ayırmalı → optimizasyon kararı.
+
+### Combinatorial Örnek
+
+Aynı kaynak (Corporate Server):
+```
+Financial Data (Encrypted T2)  → Decrypt → Clean Financial → Sat → Yüksek Credits
+Blueprint Data (Clean)          → Direkt → Patch Data → Yapı upgrade
+Standard Data (Corrupted %30)   → Recover → Clean Standard → Sat → Düşük Credits
+Standard Data (Malware-Worm)    → Quarantine → İmha
+```
+
+4 farklı veri, 3 farklı işleme yolu, 3 farklı çıktı — tek bir kaynaktan.
+
+### Gelecek: 3. Katman — Protocol (Protokol)
+
+> **NOT: 3. katman şu an planlanmıyor.** Gelecek güncelleme için not düşülmüştür.
+
+**Konsept:** Verinin iletişim protokolü — "bunu hangi sistemle okuyabilirim?"
+- Her bölge farklı protokol kullanır (CorpNet, MilSpec, DarkNet, Legacy...)
+- Her protokolü okumak için farklı Decoder yapısı gerekir
+- Content + State + Protocol = üç boyutlu kombinasyon
+
+**Neden şimdi değil:**
+- 2 katman zaten yeterli çeşitlilik sağlıyor (6 içerik x 4 durum x tier = yüzlerce)
+- 3. katman öğrenme eğrisini ve karmaşıklığı artırır
+- Eğer eklenecekse, oyunun geç aşamasında tanıtılması en sağlıklısı
+
+**Cyberpunk uyumu çok güçlü** — CorpNet, MilSpec, DarkNet protokolleri harita bölgeleriyle doğal eşleşir. Gelecekte değerlendirilecek.
+
+---
+
+## 7. Kaynak Sistemi
+
+### İşlenmiş Kaynaklar (Çıktılar)
+
+| Kaynak | Nasıl Elde Edilir | Oyundaki Rolü |
+|--------|-------------------|---------------|
+| **Credits** | Content'i Clean state'te Data Broker'a sat | Yapı satın alma (ana para birimi) |
+| **Research Points** | Research Data (Clean) → Research Lab | Yeni yapı tipi açma |
+| **Patch Data** | Blueprint Data (Clean) → doğrudan veya işleme | Mevcut yapıları upgrade etme |
+| **Power** | Power Cell yapıları | Yapıların çalışması için gerekli (zone-based) |
+
+### Kötü Kaynaklar (Birikimler)
+
+| Kaynak | Kaynak | Tehlike |
+|--------|--------|---------|
+| **Heat** | Her çalışan yapı üretir | Çok birikirse yapılar yavaşlar → hasar alır → bozulur |
+| **Trace** | Malware-infected veri tutan Storage yayar | Zone-based dijital kirlilik, etraftaki yapıları bozar |
+
+### Content → Çıktı Eşlemesi
+
+Oyuncu kararı artık **"hangi içerik tipini işleyeyim"** üzerinde:
+
+| Content Type | Clean State'te Ne Olur | Strateji |
+|--------------|------------------------|----------|
+| Standard Data | Data Broker → düşük Credits | Kolay gelir, erken oyun |
+| Financial Data | Data Broker → yüksek Credits | Yüksek gelir ama genelde Encrypted |
+| Biometric Data | Data Broker → orta Credits | Dengeli gelir |
+| Blueprint Data | → Patch Data (upgrade kaynağı) | Yapı geliştirmek için |
+| Research Data | Research Lab → Research Points | Yeni yapı tipi açmak için |
+| Classified Data | Data Broker → çok yüksek Credits | En değerli ama en riskli (Trace, Malware) |
 
 ### Kaynak Etkileşimleri
 ```
-Daha çok Uplink       → Daha çok veri AMA daha çok Power + Heat
-Override kullan        → Daha hızlı AMA daha çok Heat
-Decrypt/Recover        → Değerli çıktı AMA işleme kapasitesi harcanır
-Malware filtrele       → Güvenli AMA Quarantine kapasitesi harcanır
-Malware depolanırsa    → Storage etrafında Trace yayılır → yapılar bozulur
+Uzak kaynak      → Değerli içerik AMA zor State'ler + lojistik zorluk
+Encrypted veri   → İçeriği çöz → değerli AMA Power + Heat tüketir
+Corrupted veri   → Kurtarılınca faydalı AMA düşük tier'ı işlemek israf
+Malware veri     → İmha et → veri kaybı AMA Trace önlenir
+Karışık kaynak   → Her tip ayrı hat ister → karmaşık ama verimli
 ```
-
-### İki Kötü Kaynak: Heat ve Trace
-- **Heat** = Fiziksel tehdit → Çok birikirse yapılar yavaşlar → hasar alır → bozulur
-- **Trace** = Dijital kirlilik (yerel) → Malware tutan Storage'dan yayılır → etraftaki yapıları bozar
 
 ### Trace Sistemi (Zone-Based Dijital Kirlilik)
-Trace global bir sayaç değil, **yerel bir zone etkisi.** Malware verisi tutan Storage yapıları etraflarına Trace yayar:
+Trace global bir sayaç değil, **yerel bir zone etkisi.** Malware-infected veri tutan Storage yapıları etraflarına Trace yayar:
 ```
-Storage'da malware var  → Trace zone aktif (Power Cell gibi ama kötü etki)
-Trace düşük:             Uyarı yok, güvenli
-Trace orta:              Görsel uyarı (mor titreme efekti)
-Trace yüksek:            Etraftaki yapılarda bozulma ihtimali başlar
-Trace kritik:            Bozulma hızlanır, acil müdahale gerekir
+Storage'da Malware-infected veri var → Trace zone aktif
+Trace düşük:    Uyarı yok, güvenli
+Trace orta:     Görsel uyarı (mor titreme efekti)
+Trace yüksek:   Etraftaki yapılarda bozulma ihtimali başlar
+Trace kritik:   Bozulma hızlanır, acil müdahale gerekir
 ```
 
-**Trace nasıl yükselir:**
-- Storage'da depolanan malware miktarına orantılı (daha çok malware = daha güçlü Trace)
-- Malware boyutu arttıkça Trace zone'u genişler ve şiddeti artar
-
-**Trace nasıl düşer:**
-- Quarantine ile malware bertaraf edilir → Storage'daki malware azalır → Trace düşer
-- Malware Storage'dan temizlenirse Trace sıfırlanır
-
-**Bozulma mekaniği:**
-- Trace zone içindeki yapılar belli bir ihtimalle "bozuk" duruma düşer
-- Bozuk yapı çalışmayı durdurur, onarım gerektirir (Patch Data ile)
-- Bozulmadan önce uyarı verilir (oyuncu tepki verebilir)
-
-**Gelecek güncelleme:** Trace azaltıcı özel yapılar (Trace zone'unu küçülten/zayıflatan yapı tipi)
+**Çözüm:** Quarantine ile Malware-infected veriyi hızlıca bertaraf et → Trace düşer.
 
 ### Power Override Mekaniği
-Oyuncu her yapıya ne kadar güç vereceğini seçebilir:
 ```
 Düşük güç ──── Normal ──── Override
 Yavaş          Standart     Hızlı
@@ -208,321 +360,117 @@ Verimli        Dengeli      Riskli
 
 ---
 
-## 6. Veri Tipleri ve Tier Sistemi
-
-### 4 Temel Veri Tipi
-1. **Clean Data** (Temiz Veri) - Yeşil — Ana gelir kaynağı (Credits)
-2. **Corrupted Data** (Bozuk Veri) - Sarı — Upgrade kaynağı (Patch Data)
-3. **Encrypted Data** (Şifreli Veri) - Mor — Araştırma kaynağı (Research)
-4. **Malware Data** (Zararlı Veri) - Kırmızı — Tehlike, bertaraf edilmeli
-
-### Bilinmeyen Veri Tipleri (Keşif Sistemi)
-Oyuncu başta sadece Clean data'yı tanıyor. Diğerleri "???" olarak görünür:
-```
-ERKEN OYUN:                    ORTA OYUN:                    GEÇ OYUN:
-  Clean:     30%                 Clean:     30%                Clean:     30%
-  ???:       25%                 Encrypted: 25%  ← keşfedildi Encrypted: 25%
-  ???:       25%                 Corrupted: 25%  ← keşfedildi Corrupted: 25%
-  ???:       20%                 ???:       20%                Malware:   20%  ← keşfedildi
-```
-Her yeni process yapısı bir veri tipini keşfettirir. "Meğer bu da varmış!" eureka anları yaratır.
-
-### Tier Çeşitleri (Content Derinliği)
-Her veri tipinin tier'ı sadece "daha fazla bina koy" değil, **farklı process yolu** da gerektirebilir:
-
-**Encrypted Tier Çeşitleri:**
-```
-4-bit şifreleme   → 1 Decryptor, standart yöntem
-16-bit şifreleme  → 4 Decryptor paralel (Splitter → Merger)
-256-bit şifreleme → 16 Decryptor + farklı çözme algoritması (yeni yapı?)
-Kuantum şifreleme → Tamamen farklı process hattı
-```
-
-**Corrupted Tier Çeşitleri:**
-```
-%10 bozuk  → 1 Recoverer, hızlı düzeltme
-%30 bozuk  → Birden fazla Recoverer, birden fazla geçiş
-%60 bozuk  → Önce parçala, sonra ayrı ayrı kurtar, sonra birleştir
-%90 bozuk  → Neredeyse tamamen yeniden yapılandır (özel yapı?)
-```
-
-**Malware Tier Çeşitleri:**
-```
-Worm       → Hızlı karantina lazım, yayılır
-Trojan     → Gizlenir, önce tespit lazım
-Ransomware → Verileri kilitler, acil müdahale
-Rootkit    → Sisteme gömülür, katmanlı temizlik
-```
-
-### Veri Kombinasyonları (Geç Oyun Content)
-Geç oyunda veriler tek tip değil, **karışım** olarak gelir. Her kombinasyon farklı process sırası gerektirir:
-```
-"16-bit Encrypted + %30 Corrupted":
-  Yol A: Decrypt → Recover (hızlı ama verimlilik düşük ~%70)
-  Yol B: Recover → Decrypt (yavaş ama verimlilik yüksek ~%90)
-```
-**Process sıralaması = optimizasyon puzzle'ı.** Oyuncu her karışım için en verimli sırayı bulmaya çalışır.
-
-4 veri tipi × 4 tier × kombinasyonlar = çok geniş content havuzu.
-
-### Saflık / Verimlilik Sistemi
-Separator mükemmel ayırmaz. Başta ~%60 verimlilik:
-```
-100 GB ham veri (gerçek: 30 Clean + 70 diğer)
-  → Separator (%60 verimlilik)
-  → Çıktı: ~18 GB saf clean + ~12 GB hâlâ karışık
-```
-Oyuncu saflığı artırmak için:
-- Aynı veriyi **birden fazla kez** separator'dan geçirir (zaman + enerji maliyeti)
-- Veya separator'ı Patch Data ile geliştirir (upgrade)
-- **Karar:** "Tekrar mı işleyeyim yoksa upgrade mı yapayım?"
-
-### Sıkıştırma (Compression) Sistemi
-Storage'a koymadan önce veri sıkıştırılır:
-```
-100 GB ham veri → [Compressor T1] → 75 GB (başlangıç)
-100 GB ham veri → [Compressor T2] → 50 GB (orta oyun)
-100 GB ham veri → [Compressor T3] → 30 GB (geç oyun)
-```
-- Sıkıştırılmış veri daha az güç + ısı tüketir storage'da
-- Kötü sıkıştırma değerli veriyi de kaybettirir
-- Veri hacmi oyun ilerledikçe 100GB'den TB/PB'lara çıkar, sıkıştırma zorunlu hale gelir
-
-### Tier Sistemi: Yeni Bina Değil, Daha Fazla Bina
-Factorio mantığı: "Tier 2 fırın" yok, daha fazla fırın koyarsın. Bizde de:
-```
-Tier 1 (4-bit şifreleme):
-  → 1 Decryptor yeterli
-  → Düşük Trace
-
-Tier 2 (16-bit şifreleme):
-  → 4 Decryptor paralel çalışır
-  → Splitter ile veri dağıtılır, Merger ile birleştirilir
-  → 4x Power, 4x Heat
-
-Tier 3 (256-bit şifreleme):
-  → 16 Decryptor + karmaşık routing
-  → 16x Power, 16x Heat
-
-Tier 4 (Kuantum şifreleme):
-  → 64 Decryptor + yeni özel yapı gerektirebilir
-  → Devasa altyapı
-```
-
----
-
-## 7. Veri İşleme Zinciri ve Oyuncu İlerlemesi
+## 8. Veri İşleme Zinciri ve Oyuncu İlerlemesi
 
 ### Tasarım Prensibi
-Oyuncu başta "çöpçü" gibi, ilerledikçe "sistem mimarı" oluyor. Aynı ham maddeden giderek daha fazla değer çıkarıyor. Her yeni process katmanı bir karar noktası ekliyor.
+Oyuncu başta yakın, basit kaynakları işler. İlerledikçe uzak, karmaşık kaynakları keşfeder. Her yeni bölge yeni bir otomasyon challenge'ı sunar.
 
 **İlerleme modeli:**
 | Aşama | Oyuncu Ne Yapıyor | His |
 |-------|-------------------|-----|
-| Çöpçü | Ham veri toptan sat | "Çöpçüyüm" |
-| Filtreleme | Veri tiplerini ayırmayı öğrenir | "Madenciyim" |
-| Çok aşamalı işleme | Her tip kendi hattına | "Mühendisim" |
-| Hat birleştirme | Karışık verileri çözer, özel siparişler | "Sistem mimarıyım" |
+| Çöpçü (Scavenger) | Yakın ISP'den Standard Data topla, sat | "İlk adımlar" |
+| Filtreleme (Filter) | Karışık kaynakları ayırmayı öğrenir | "Farklı veriler varmış!" |
+| Mühendis (Engineer) | Her content+state için ayrı hat kurar | "Her şeyin yeri var" |
+| Sistem Mimarı (Architect) | Uzak karmaşık kaynakları verimli işler | "Evrensel fabrika!" |
 
-### Faz 1: Çöpçü (Başlangıç)
+### Faz 1: Çöpçü (Başlangıç — Yakın Kaynaklar)
 ```
-Uplink → 100GB ham veri
-  → [Compressor T1] → 75GB (kötü sıkıştırma, veri kaybı var)
-  → Storage (75 birim güç + ısı)
-  → Toptan sat → ~30 Credits (sadece içindeki clean data değerli)
+ISP Backbone kaynağı: çoğu Standard Data (Clean)
+  → Uplink → Standard Data (Clean) → Data Broker → Credits
 ```
-Oyuncu sadece veri çekip depoluyor ve toptan satıyor. Basit, öğretici.
+Basit, tek hat. Oyuncu temel mekanikleri öğreniyor.
 
-### Faz 2: İlk Filtreleme (Corrupted Keşfi)
+### Faz 2: İlk Karışıklık (Corrupted Keşfi)
 ```
-Separator açılır → Corrupted veri keşfedilir!
-  Ham veri → [Separator %60] → ~18GB saf clean + karışık
-  Clean → [Compressor] → Storage → Sat (daha verimli!)
-  Corrupted → Storage'da bekler (henüz işe yaramıyor, Trace yayar)
+Public Database kaynağı: Standard + Biometric, bazıları Corrupted
+  → Uplink → Separator → Content tiplerini ayır
+  → Clean olanlar → direkt sat
+  → Corrupted olanlar → ??? (henüz Recoverer yok, depolansın)
 ```
-- Corrupted ayıklanıyor ama henüz waste
-- Temiz satış daha çok credits kazandırıyor
-- **Oyuncu öğrenir:** Birden fazla separator geçişi = daha fazla verim ama daha fazla enerji
-- İşlenemeyen veri storage'da Trace yayıyor
+Oyuncu öğrenir: "Tüm veriler aynı değil, bazıları bozuk!"
 
-### Faz 3: Encrypted Keşfi (Araştırma Başlangıcı)
+### Faz 3: Encrypted Keşfi (Değerli Veriler)
 ```
-Decryptor açılır → Encrypted veri keşfedilir!
-  Separator artık encrypted'ı da ayırır (%60 verimlilikle)
-  → Decryptor → çözülmüş veri → Research Lab → Yeni yapı tipleri açılır!
+Corporate Server kaynağı: Financial (Encrypted T1) + Blueprint (Clean)
+  → Uplink → Separator → Content ayır
+  → Financial (Encrypted) → Decryptor → Financial (Clean) → Sat → Yüksek Credits!
+  → Blueprint (Clean) → Patch Data → Yapıları upgrade et!
 ```
-- Research ile yeni yapılar açılmaya başlar
-- **Eureka:** "Meğer bu verinin içinde bu kadar bilgi varmış!"
+**Eureka:** "Bu şifreli verinin içinde çok değerli bilgi varmış!"
 
-### Faz 3.5: İlk Tier Atlama
+### Faz 4: Karmaşık Kaynaklar (Multi-State)
 ```
-16-bit encrypted gelmeye başlar
-  → 1 Decryptor yetmez → 4 tane paralel kur
-  → Splitter → 4x Decryptor → Merger
+Dark Web Node: her şey karışık, çok Malware
+  → Uplink → Separator → State'lere göre ayır
+  → Clean → direkt kullan
+  → Encrypted → Decryptor hattı
+  → Corrupted → Recoverer hattı
+  → Malware-infected → Quarantine → imha (Trace önle!)
 ```
-- Oyuncu ilk kez birden fazla yapıyı birleştirerek bir sorunu çözer
-- 4x Power, 4x Heat → Coolant ve Power yatırımı gerekir
-- **His:** "Zordu ama çözdüm, zekiyim"
+Oyuncu ilk kez **4 paralel hat** kuruyor. Her hat farklı işleme yapıyor.
 
-### Faz 4: Trace Baskısı
+### Faz 5: Tier Atlama
 ```
-Malware storage'da birikti → etrafta Trace yayılıyor!
-  → Yakındaki yapılar bozulmaya başlıyor!
-  → Quarantine kurup malware'ı bertaraf et → Trace düşer
-  → Malware'ı hızlıca temizlemeyen oyuncu yapı kaybeder
+Government Archive: Research Data (Encrypted T2)
+  → 1 Decryptor yetmiyor → Splitter → 4x Decryptor → Merger
+  → Research Data (Clean) → Research Lab → Yeni yapı tipi aç!
 ```
-- Oyuncu anlar: "Malware'ı depolamak tehlikeli, hızlıca bertaraf etmeliyim"
-- Motivasyon: Quarantine hattı kurmak, malware akışını optimize etmek
+4x Power, 4x Heat → altyapı yatırımı gerekir. **His:** "Zordu ama çözdüm."
 
-### Faz 5: Corrupted Data Kurtarma (Upgrade Başlangıcı)
+### Faz 6: Evrensel Fabrika
 ```
-Research ile Recoverer açılır
-  Storage'daki Corrupted → [Recoverer] → Patch Data
-  Patch Data ile mevcut yapıları geliştir:
-    → Separator %60 → %70 verimlilik
-    → Decryptor hız artışı
-    → Power Cell kapsama genişlemesi
-```
-- **Eureka:** "O çöp sandığım veri aslında yapılarımı geliştirmemi sağlıyormuş!"
-- Trace düşer çünkü artık corrupted işlenebiliyor
-
-### Faz 6: Malware Keşfi (En Son, En Tehlikeli)
-```
-Son "???" ortaya çıkar: MALWARE!
-  → Oyuncu fark eder: "Bu ŞİMDİYE KADAR tüm verimde vardı
-    ve ben bilmiyordum! O yüzden yapılarım sürekli hasar alıyordu!"
-  → Quarantine ile güvenle bertaraf edilebilir
-  → Diğer hatlar malware'den arınmış → verimlilik artar
-```
-- Geçmişteki rastgele hasar/yavaşlamaların sebebi açıklanıyor
-- **Eureka anı:** Oyunun en büyük "aha!" momenti
-
-### Faz 7: Gig Sistemi ve Scale
-```
-Tüm veri tipleri açık, tüm process hatları kurulu
-  → Gig panosu açılır — sözleşmeler farklı zorluk/ödül sunar
-  → Her gig farklı veri kompozisyonu + farklı talep
-  → Tier atlama → üstel büyüme
-  → Oyuncu evrensel bir fabrika kurmaya doğru ilerler
+Birden fazla kaynak bölgesi aktif, her biri farklı composition
+  → Oyuncu genel amaçlı bir işleme sistemi kurmaya başlar
+  → Her content tipi kendi hattına, her state kendi işleyicisine
+  → Yeni kaynak bulunca pipeline'a "takıyor"
 ```
 
 ### Gig (Sözleşme) Sistemi
-Uplink kaynak seçimi yerine **Gig panosu** sistemi. Her gig tek seferlik bir sözleşme:
-- Gig kabul edilir → Uplink belirli miktarda veriyi indirir (ör: 1 GB) → Gig biter
-- Her gig'in kendine özgü veri kompozisyonu var (ör: %50 encrypted, %30 clean, %20 malware)
-- Bazı gig'ler özel çıktı ister (ör: "şifreyi çöz, tekrar şifrele, premium olarak sat")
-- Birden fazla Uplink = birden fazla eşzamanlı gig
-- Gig panosu her zaman seçenek sunar — oyuncu hiç boş kalmaz
+Harita sistemiyle birlikte Gig'ler artık **bölge sözleşmeleri** olarak çalışır:
+- Gig panosu belirli bir kaynak bölgesindeki işi tanımlar
+- "Bu Corporate Server'dan 50 GB Financial Data çıkar ve işle"
+- Bazı gig'ler özel çıktı ister: "Şifreyi çöz, tekrar şifrele, premium olarak sat"
+- Gig boyutu ve karmaşıklığı oyuncu ilerledikçe artar
 
 **Gig Kategorileri:**
-| Kategori | Zorluk | İçerik | Ödül |
-|----------|--------|--------|------|
-| **Web Traffic** | Kolay | %80 clean, düşük hacim | Düşük Credits |
-| **Deep Web** | Orta | Çok encrypted/corrupted, orta hacim | Orta Credits + Research |
-| **Corporate** | Zor | Ağır encrypted, yüksek hacim, çok malware | Yüksek Credits |
-| **Military** | Çok Zor | Encrypted + malware, çok yüksek hacim | Çok yüksek Credits |
-| **Blackwall** | Endgame | Hibrit kombolar (corrupted+encrypted), devasa hacim | Premium ödüller |
-
-**Gig boyut ölçeklemesi:**
-```
-Erken oyun:  500 MB — küçük, öğretici, tek hat yeterli
-Orta oyun:   50 GB — birkaç paralel hat lazım
-Geç oyun:    10 TB — devasa sistem gerektirir
-Endgame:     100 TB+ — sonsuz döngüde artan zorluk
-```
-
-**Endgame gig döngüsü:** Oyun asla bitmez. Endgame gig'leri sonsuz döngüde gelir, her seferinde biraz daha büyük/karmaşık. Shapez'in sonsuz hub talepleri gibi.
-
-**Neden gig sistemi (Uplink kaynak seçimi yerine):**
-- Her gig = farklı challenge (Shapez'in hub talepleri gibi)
-- Doğal ilerleme: kolay → zor → endgame
-- Evrensel fabrika hedefi: oyuncu sonunda her gig'i çözebilen genel bir sistem kurar
-- Tek seferlik yapı: eski hatlar yıkılmaz, yanına yeni hatlar eklenir (fabrika büyür)
-
-### Geç Oyun: Özel Gig Talepleri
-Bazı gig'ler sadece veri indirip işlemek değil, **özel çıktı** ister:
-```
-Gig: "256-bit şifreli temiz veri paketi hazırla"
-
-Uplink → Separator → Clean → Compressor → Storage
-                                             ↓
-                                     [Encryptor] ← (yeni yapı, Decryptor'ın tersi)
-                                             ↓
-                                   "Encrypted Clean Package"
-                                             ↓
-                                        Data Broker → $$$$$ Premium Credits
-```
-- Mevcut pipeline'ı kullanıyor (yeni yapı sadece Encryptor)
-- Daha uzun zincir = daha fazla ödül
-- Farklı gig'ler farklı işleme adımları ister
-- "Veri madencisi"nden "veri broker'ı"na geçiş
-
-### Geç Oyun: Karışık Veri Paketleri
-İleri gig'lerde veriler tek tip değil, **karışım** olarak geliyor:
-```
-Erken gig:  Veri ya Clean ya Encrypted → tek process yeterli
-Geç gig:    "Corrupted-Encrypted paketi"
-  → Önce corruption düzelt → sonra şifreyi çöz
-  → Tek veri paketi birden fazla process hattından geçmek zorunda
-```
-
-### Tasarım Prensibi: Katmanlı Büyüme
-```
-BAŞLANGIÇ          → ORTA OYUN              → GEÇ OYUN
-Kolay gig'ler,     → Zor gig'ler,          → Özel talepler,
-tek hat              paralel hatlar           evrensel fabrika
-
-Yapılar basit      → Yapılar büyüyor        → Yapılar birleşiyor
-1 iş = 1 bina       1 iş = N bina (tier)      N sistem = 1 yeni sistem
-
-500 MB gig'ler     → 50 GB gig'ler          → 10 TB+ gig'ler
-```
+| Kategori | Kaynak Bölgesi | İçerik | Zorluk |
+|----------|---------------|--------|--------|
+| **Web Traffic** | ISP Backbone | Çoğu Standard (Clean) | Kolay |
+| **Deep Web** | Dark Web Node | Karışık, çok Corrupted | Orta |
+| **Corporate** | Corporate Server | Financial (Encrypted), Blueprint | Zor |
+| **Military** | Military Network | Blueprint T3 (Encrypted T3) + Malware | Çok Zor |
+| **Blackwall** | Blackwall Fragment | Her şey yüksek tier, hibrit | Endgame |
 
 ---
 
-## 8. Yapı/Bileşen Listesi
+## 9. Yapı/Bileşen Listesi
 
-### Yapı Listesi (13 Yapı + 1 Geç Oyun)
+### Yapı Listesi (Mevcut 13 + Yeni Yapılar)
 
 **Çıkarım:**
 | Yapı | Tooltip | Fonksiyon |
 |------|---------|-----------|
-| **Uplink** | "Ağa bağlanıp veri indirir" | Gig panosundan seçilen sözleşmeyi indirir. Her gig farklı veri kompozisyonu getirir |
-
-**Uplink ve Gig Sistemi:**
-Uplink = indirme makinesi. Gig panosu'ndan seçilen sözleşme Uplink'e atanır, Uplink gig boyutunca veri indirir:
-- Her Uplink'e 1 gig atanabilir (birden fazla Uplink = birden fazla eşzamanlı gig)
-- Gig bitince Uplink boşta kalır, yeni gig atanabilir
-- Uplink hızı upgrade ile artar (başlangıç 10 MB/s → endgame 1 TB/s)
-
-**Gig Kategorileri (Bkz. Bölüm 7 — Gig Sistemi):**
-| Kategori | İçerik | Özel Mekanik |
-|----------|--------|-------------|
-| Web Traffic | Çoğu clean, düşük hacim | Güvenli, öğretici |
-| Deep Web | Çok encrypted/corrupted, orta hacim | Düzensiz akış |
-| Corporate | Ağır encrypted, yüksek hacim | Çok malware, Trace riski |
-| Military | Encrypted + malware, çok yüksek hacim | Encryptor gerektirir |
-| Blackwall | Hibrit kombinasyonlar, devasa hacim | Yapılara hasar (hostile veri) |
+| **Uplink** | "Veri kaynağına bağlanıp veri indirir" | Haritadaki kaynak node'unun yanına yerleştirilir, kaynaktan veri çeker |
 
 **Ayırma & Depolama:**
 | Yapı | Tooltip | Fonksiyon |
 |------|---------|-----------|
-| **Separator** | "Veriyi tiplerine ayırır" | Ham veriyi tanınan tiplere ayırır. Verimlilik %60 başlar, Patch Data ile geliştirilebilir |
-| **Compressor** | "Veriyi sıkıştırır" | Storage'a koymadan önce boyutu küçültür → daha az güç/ısı. Tier'lı |
-| **Storage** | "Veri depolar" | Her türlü veriyi depolar. İşlenemeyen veri Trace yayar. Dolarsa pipeline tıkanır |
+| **Separator** | "Veriyi ayırır" | Gelen veriyi Content tipine ve/veya State'e göre ayırır. Verimlilik %60 başlar |
+| **Compressor** | "Veriyi sıkıştırır" | Storage'a koymadan önce boyutu küçültür → daha az güç/ısı |
+| **Storage** | "Veri depolar" | Her türlü veriyi depolar. Malware-infected veri Trace yayar |
 
-**İşleme:**
+**Durum İşleme (State Processing):**
 | Yapı | Tooltip | Fonksiyon |
 |------|---------|-----------|
-| **Decryptor** | "Şifreli veriyi çözer" | Encrypted data → Research. Çok Power, çok Heat, Trace ↑ |
-| **Recoverer** | "Bozuk veriyi kurtarır" | Corrupted data → Patch Data (upgrade kaynağı). Çok güç + ısı |
-| **Quarantine** | "Zararlı veriyi bertaraf eder" | Malware → güvenli imha. Malware bertaraf edilmezse yapılara hasar verir |
+| **Decryptor** | "Şifreli veriyi çözer" | Encrypted state → Clean state. Çok Power, çok Heat |
+| **Recoverer** | "Bozuk veriyi kurtarır" | Corrupted state → Clean state. Çok Power, çok Heat |
+| **Quarantine** | "Zararlı veriyi bertaraf eder" | Malware-infected → imha. Hızlı temizleme Trace'i önler |
 
 **Çıktı:**
 | Yapı | Tooltip | Fonksiyon |
 |------|---------|-----------|
-| **Data Broker** | "Temiz veriyi satar" | Clean Data → Credits. Ne kadar saf veri, o kadar çok kazanç |
-| **Research Lab** | "Yeni teknoloji araştırır" | Research puanı (Encrypted'dan) → yeni yapı tipi açma |
+| **Data Broker** | "Temiz veriyi satar" | Clean state veriyi Credits'e çevirir. İçerik tipine göre farklı fiyat |
+| **Research Lab** | "Araştırma verisi toplar" | Research Data (Clean) → Research Points |
 
 **Altyapı:**
 | Yapı | Tooltip | Fonksiyon |
@@ -539,87 +487,74 @@ Uplink = indirme makinesi. Gig panosu'ndan seçilen sözleşme Uplink'e atanır,
 **Geç Oyun:**
 | Yapı | Tooltip | Fonksiyon |
 |------|---------|-----------|
-| **Encryptor** | "Veriyi şifreler" | Clean Data → Encrypted paket. Premium sipariş sistemi için. Decryptor'ın tersi |
+| **Encryptor** | "Veriyi şifreler" | Clean veriyi Encrypted state'e çevirir. Premium sipariş sistemi için |
 
-**Toplam: 13 temel + 1 geç oyun = 14 yapı**
+**Potansiyel Yeni Yapılar (Harita Sistemi ile):**
+| Yapı | Tooltip | Fonksiyon | Durum |
+|------|---------|-----------|-------|
+| **Relay** | "Veriyi uzak mesafeye iletir" | Uzak kaynaktan ana üsse veri taşıma | TBD |
+| **Scanner** | "Çevredeki kaynakları tarar" | Keşfedilmemiş veri kaynaklarını görünür yapar | TBD |
 
 ### Güncellenmiş Akış Haritası
 ```
-                    ┌──→ Compressor → Storage → Data Broker ────→ Credits
-                    │                              (ana gelir)
-                    │
-Uplink → Separator ─┼──→ Storage → Decryptor ──→ Research Lab ──→ Unlock (yeni yapılar)
-                    │
-                    ├──→ Storage → Recoverer ──→ Patch Data (yapı geliştirme kaynağı)
-                    │
-                    └──→ Storage → Quarantine ──→ Güvenli imha
-                            ↑
-                        (Trace yayar!)
+[HAR İTA — Kaynak Node]
+        ↓
+      Uplink (veri çek)
+        ↓
+    Separator (Content + State ayır)
+     ↓    ↓    ↓    ↓
+   Clean  Enc  Cor  Malware
+     ↓     ↓     ↓     ↓
+   Direkt  Dec  Rec  Quarantine
+     ↓     ↓     ↓     ↓(imha)
+     ↓   Clean Clean
+     ↓     ↓     ↓
+     └──┬──┘──┬──┘
+        ↓     ↓
+   İçerik Tipine Göre Yönlendir:
+   ├── Standard/Financial/Biometric/Classified → Data Broker → Credits
+   ├── Research Data → Research Lab → Research Points
+   └── Blueprint Data → Patch Data (yapı upgrade)
 
 GEÇ OYUN:
-Clean Data → ... → [Encryptor] → Premium paket → Data Broker → Premium Credits
+Clean veri → [Encryptor] → Premium paket → Data Broker → Premium Credits
 ```
 
 ### Patch Data Upgrade Sistemi
-Patch Data ayrı bir yapıda harcanmaz. Doğrudan yapı üzerinde kullanılır:
-- Oyuncu bir yapıyı seçer → "Geliştir" butonu → Patch Data harcanır
-- Her yapının geliştirilebilir özellikleri var:
-  - Separator: verimlilik %60 → %70 → %80 → %90
-  - Decryptor: işleme hızı artışı
-  - Compressor: sıkıştırma oranı artışı
-  - Power Cell: kapsama alanı genişlemesi
-  - Coolant Rig: soğutma etkinliği artışı
-  - Storage: kapasite artışı
-  - vs.
-
-### Yapı Okunabilirliği (Görsel Ayırt Etme)
-**3 Katmanlı sistem:**
-1. **Siluet (uzaktan):** Her yapının grid boyutu ve oranı farklı
-2. **Renk (orta mesafe):** Her kategori sabit renk
-3. **Detay (yakından):** İkon, isim etiketi, durum barları
-
-**Durum ile renk değişimi:**
-```
-Normal:  Standart renk, sakin animasyon
-Yüklü:  Sarıya kayar, hızlı animasyon
-Kritik:  Kırmızı, yanıp sönme
-Bozuk:   Koyu gri, durgun
-```
-
-**Overlay/Heatmap modları:**
-- [H] Isı haritası
-- [E] Enerji haritası
+Blueprint Data (Clean state) doğrudan Patch Data'ya dönüşür. Patch Data ile yapılar geliştirilir:
+- Separator: verimlilik %60 → %70 → %80 → %90
+- Decryptor: işleme hızı artışı
+- Power Cell: kapsama alanı genişlemesi
+- Coolant Rig: soğutma etkinliği artışı
+- Storage: kapasite artışı
+- vs.
 
 ---
 
-## 9. Bağlantı Sistemi
+## 10. Bağlantı Sistemi
 
 ### Doğrudan Link (Kablo) Sistemi
-Factorio'nun konveyör bantları çok karmaşık, otomatik bağlantı çok basit. Biz ortasını kullanıyoruz:
-
-**Nasıl çalışır:**
 - Yapılar grid üzerine yerleştirilir
 - Bir yapının çıkış portunu başka yapının giriş portuna bağlarsın (kablo çekersin)
 - Veri bağlantı üzerinden anında akar (konveyör hızı yok)
 - Tıkanıklık yapının işleme hızından kaynaklanır, kablodan değil
-- Görsel: kablolar üzerinde renkli veri parçacıkları akar (0/1'ler)
+- Görsel: kablolar üzerinde renkli veri parçacıkları akar
 
-**Neden bu sistem:**
+### Neden Bu Sistem
 - Konveyör bantları (Factorio) → çok karmaşık, başlı başına bir oyun
 - Otomatik bağlantı → çok basit, lojistik kararı yok
 - Doğrudan link → "neyi nereye bağlayayım" kararı var ama "bant hızı hesaplama" yok
 
-**Splitter/Merger bu sistemde:**
-```
-Separator ──→ [Splitter] ──→ Decryptor 1 ──→ [Merger] ──→ Research Lab
-                  ├──→ Decryptor 2 ──────────→ ↑
-                  ├──→ Decryptor 3 ──────────→ ↑
-                  └──→ Decryptor 4 ──────────→ ↑
-```
+### Uzak Mesafe Lojistiği (TBD)
+Harita sistemiyle birlikte uzak kaynaklardan veri taşıma bir challenge. Seçenekler:
+- Uzun kablo çekme (güç + bakım maliyeti?)
+- Relay yapısı ile zıplama
+- Kaynak başına lokal işleme + Credits transferi
+- **Karar bekleniyor**
 
 ---
 
-## 10. Power ve Heat Sistemi
+## 11. Power ve Heat Sistemi
 
 ### Power: Bölgesel (Zone-Based)
 ```
@@ -628,180 +563,152 @@ Power Cell kapsama alanı:
     │  ○ ○ ○ ○ ○  │
     │  ○ ○ ■ ○ ○  │  ■ = Power Cell
     │  ○ ○ ○ ○ ○  │  ○ = Kapsama alanı
-    │  ○ ○ ○ ○ ○  │
     └─────────────┘
 ```
-- Her Power Cell belirli bir alan besler (ör. 5x5 tile)
+- Her Power Cell belirli bir alan besler
 - O alandaki yapılar otomatik güç alır
-- Power Cell'in kapasitesi var — çok yapı bağlarsan yetmez
 - Aşırı yüklenme = ekstra Heat
-- **Oyuncu kararı:** Yapıları nereye koyayım ki Power Cell kapsasın? Sıkıştırayım mı (ısı riski), dağıtayım mı (daha çok Power Cell)?
+- **Karar:** Yapıları sıkıştır (ısı riski) mı, dağıt (daha çok Power Cell) mı?
 
 ### Heat: Yapı Bazlı + Bölgesel Yayılma
 - Her çalışan yapı Heat üretir (Override'da daha çok)
-- Yakın yapılar birbirinin ısısını artırır (kümelenme riski)
-- Coolant Rig belirli bir alanı soğutur (Power Cell gibi zone)
+- Coolant Rig belirli bir alanı soğutur
 - Çok ısınan yapı: yavaşlar → hasar alır → bozulur
-- **Oyuncu kararı:** Sıkıştırıp alan kazanmak mı, dağıtıp ısıyı kontrol etmek mi?
+- **Çalışan yapı:** ısı üretir, doğal soğuma YOK → Coolant Rig şart
+- **Boşta yapı:** ısı üretmez, doğal soğuma var (0.1°C/s)
 
 ### Trace: Zone-Based Dijital Kirlilik
-- Trace bölgesel (zone-based), global değil
-- **Kaynak:** Malware verisi tutan Storage yapıları etraflarına Trace yayar
-- **Etki:** Trace zone içindeki yapılar bozulma riski taşır
-- **Çözüm:** Quarantine ile malware'ı hızlıca bertaraf et → Trace düşer
-- Bkz. Bölüm 5: Trace Sistemi (Zone-Based Dijital Kirlilik)
+- Trace bölgesel, global değil
+- **Kaynak:** Malware-infected veri tutan Storage yapıları Trace yayar
+- **Etki:** Zone içindeki yapılar bozulma riski taşır
+- **Çözüm:** Quarantine ile Malware-infected veriyi hızlıca bertaraf et
+- **Bozulma:** Bozuk yapı çalışmayı durdurur, Patch Data ile onarılır
 
 ---
 
-## 11. İlerleme ve Scale
+## 12. İlerleme ve Scale
 
-### Rehberli Sandbox Modeli
-- Shapez/Factorio referansı: oyunun kendisi sandbox, ama teknoloji ağacı yön veriyor
-- Oyuncu kendi hızında ilerliyor ama hep bir "sonraki hedef" var
-- Kazanma koşulu yok - sistem büyüdükçe talepler de büyüyor
+### Rehberli Sandbox + Harita Keşfi
+Artık iki ilerleme ekseni var:
+1. **Teknoloji ağacı** — Research ile yeni yapı tipleri aç
+2. **Harita keşfi** — Yeni bölgelere git, daha değerli kaynaklar bul
 
 ### Scale Mekanikleri
 
-**1. Veri Tier'ları (ana scale kaynağı):**
-- Her tier öncekinin ~4 katı yapı gerektiriyor
-- Tier 1 → Tier 4 arası üstel büyüme
-- Oyun doğal olarak devasa base'ler yaratıyor
+**1. Harita Mesafesi (ana scale kaynağı):**
+- Yakın kaynaklar: basit, düşük değer, kolay State'ler
+- Uzak kaynaklar: karmaşık, yüksek değer, zor State tier'ları
+- Doğal zorluk eğrisi — "daha uzağa git" = "daha zor challenge"
 
-**2. Gig Sistemi (ana ilerleme motoru):**
-Her gig farklı pipeline gerektirir. Gig'ler büyüdükçe sistem büyümek zorunda:
-```
-Web Traffic gig:   500 MB, %80 clean — tek hat yeterli
-Deep Web gig:      5 GB, çok encrypted — Decryptor hattı kur
-Corporate gig:     50 GB, ağır encrypted + malware — paralel hatlar + Quarantine
-Military gig:      500 GB, yoğun malware — devasa altyapı
-Blackwall gig:     10 TB+, hibrit kombolar — evrensel fabrika
-```
-Endgame gig'leri sonsuz döngüde gelir (Shapez hub talepleri gibi).
+**2. Veri State Tier'ları:**
+- Her tier öncekinin ~4 katı yapı gerektirir
+- Encrypted T1 → T4 arası üstel büyüme
 
-**3. Astronomik Veri Ölçeklemesi:**
-Uplink hızı ve gig boyutları oyun ilerledikçe astronomik olarak büyür:
+**3. Content Çeşitliliği:**
+- Yakın kaynaklar 1-2 content tipi içerir
+- Uzak kaynaklar 4-5 content tipi karışık → karmaşık ayrıştırma hatları
+
+**4. Gig Sistemi (ilerleme motoru):**
+```
+Web Traffic:   Yakın ISP, basit — tek hat yeterli
+Corporate:     Orta mesafe, Financial (Encrypted) — Decryptor hattı kur
+Military:      Uzak, Blueprint T3 (Encrypted T3) + Malware — devasa altyapı
+Blackwall:     Çok uzak, her şey yüksek tier — evrensel fabrika
+```
+
+**5. Astronomik Veri Ölçeklemesi:**
 ```
 Uplink hızı:   10 MB/s → 100 MB/s → 1 GB/s → 100 GB/s → 1 TB/s+
-Gig boyutu:    500 MB → 50 GB → 10 TB → 100 TB+
+Kaynak boyutu:  500 MB → 50 GB → 10 TB → 100 TB+
 ```
-Upgrade sistemi (Patch Data) bu ölçeklemeyi sağlar. Oyuncu her aşamada "ne kadar büyüdüm" hisseder.
-
-**4. Trace Doğal Scale:**
-- Daha büyük gig = daha çok malware = daha çok Trace riski
-- Malware'ı hızlı işleyemeyen oyuncu yapı kaybeder → sistemi optimize etmeli
-- Oyuncuyu dengede tutar
-
-**5. Özel Gig Talepleri (geç oyun):**
-- Bazı gig'ler belirli formatta çıktı ister (ör: "şifrele ve sat")
-- Daha uzun pipeline = daha fazla kazanç
-- Yeniden şifreleme sistemi (Encryptor)
 
 ### Devasa Base Vizyonu (Geç Oyun)
 ```
-┌──────────────────────────────────────────────────────┐
-│ [UPLINK ÇİFTLİĞİ]                                    │
-│  ■■■■■■■■■■■■                                        │
-│     ↓                                                │
-│ [SEPARATOR DİZİSİ]                                   │
-│  ▣▣▣▣▣▣▣▣                                           │
-│  ↓    ↓    ↓    ↓                                    │
-│ [DEPO] [DEPO] [DEPO] [DEPO]                          │
-│  ↓     ↓      ↓       ↓                             │
-│ [DECRYPT DİZİSİ]  [RECOVER DİZİSİ]  [QUARANTINE]    │
-│  ◆◆◆◆◆◆◆◆◆◆◆◆◆◆   ◇◇◇◇◇◇◇◇◇◇     ⬡⬡⬡⬡⬡⬡       │
-│     ↓                  ↓                             │
-│ [ÇIKTILAR]                                           │
-│  Research Lab  ←── Decrypted Data                     │
-│  Data Broker   ←── Clean Data                         │
-│  Patch Data    ←── Recovered Data (yapılara harcanır) │
-│                                                      │
-│ [POWER GRID]  ████████████████  [COOLING] ◎◎◎◎◎◎◎◎◎ │
-└──────────────────────────────────────────────────────┘
+[HAR İTA]
+   │
+   ├── ISP Bölgesi (yakın) ── Uplink ── basit hat ── Data Broker
+   │
+   ├── Corporate Bölgesi (orta) ── Uplink ── Separator ── Decryptor dizisi ── Broker
+   │                                                    └── Blueprint → Patch Data
+   │
+   ├── Military Bölgesi (uzak) ── Uplink ── Separator ── karmaşık routing
+   │                                    ├── Encrypted T3 hat (16x Decryptor)
+   │                                    ├── Quarantine hattı
+   │                                    └── Blueprint T3 → Patch Data
+   │
+   └── Blackwall (çok uzak) ── Uplink ── evrensel fabrika sistemi
 ```
+
+Her bölge kendi otomasyon challenge'ı, hepsi bir arada çalışıyor.
 
 ---
 
-## 12. Görsel Tasarım
+## 13. Görsel Tasarım
 
 ### Sanat Stili: Tamamen Prosedürel (Kod ile Üretim)
-**Perspektif:** 2D Top-Down (izometrik değil)
+**Perspektif:** 2D Top-Down
 **Yaklaşım:** Sıfır harici art asset. Her şey kod ile çizilir + shader efektleri.
 
-**Neden bu yaklaşım:**
-- Solo geliştirici, sanat yeteneği gerektirmiyor
-- Cyberpunk/hacker estetiği zaten koyu arka plan + neon + minimal geometri
-- Shader efektleri basit şekilleri profesyonel gösteriyor
-- Görsel tutarlılık otomatik garanti (her şey aynı sistemle üretiliyor)
-- Shapez referansı: renkli geometrik şekiller, sıfır geleneksel art, %96 Steam puanı
+### Harita Görselleştirmesi
+- Dijital dünya estetiği: koyu arka plan, neon grid çizgileri
+- Kaynak node'ları haritada parlayan noktalar olarak görünür
+- Her kaynak bölgesi farklı renk teması (corpo = mavi, dark web = mor, military = kırmızı)
+- Keşfedilmemiş bölgeler karanlık/bulanık
 
 ### Yapılar: Geometrik Şekiller + Glow
 ```
 ┌─────────┐
 │ UPLINK  │  ← Koyu gri dikdörtgen, neon kenar parlaması
-│  ◉───   │  ← İçinde basit ikon (kod ile çizilen çizgiler/şekiller)
-│ ▓▓▓▓▓▓  │  ← Durum barı (doluluk, ısı vs.)
+│  ◉───   │  ← İçinde basit ikon
+│ ▓▓▓▓▓▓  │  ← Durum barı
 └─────────┘
-   ↕ neon glow (cyan kenar parlaması)
 ```
 
-### Geometrik Fonksiyonellik (Şekillerin Dili)
-Her şekle bir görev vererek oyuncunun ekranı bir bakışta "okumasını" sağla.
-- **Daireler (Nodes):** Giriş ve çıkış noktaları. Verinin doğduğu ve bittiği yerler
-- **Kareler (Logic):** Verinin manipüle edildiği yerler (filtreleme, şifreleme, ayrıştırma)
-- **Üçgenler (Gates):** Verinin hangi yöne gideceğine karar veren switch noktaları (Splitter/Merger)
+### Veri Temsili: İçerik + Durum Renklendirme
+Bağlantılar üzerinde akan parçacıklar artık **iki bilgi** taşır:
+- **Parçacık şekli/ikonu:** Content tipi (ör: Financial = $ sembolü, Biometric = parmak izi ikonu)
+- **Parçacık rengi:** State durumu
 
-### Veri Temsili: Hareketli 0/1 Parçacıkları
-Bağlantılar üzerinde akan küçük 0 ve 1'ler:
-- **Yeşil 0/1:** Temiz veri (Clean)
-- **Sarı 0/1:** Bozuk veri (Corrupted)
-- **Mor 0/1:** Şifreli veri (Encrypted)
-- **Kırmızı 0/1:** Zararlı veri (Malware)
-
-### Bağlantılar: Parlayan Kablolar
-- Yapılar arası bağlantılar neon renkli çizgiler
-- Üzerinde veri parçacıkları akar
-- Aktif bağlantı parlar, boş bağlantı soluk
-
-### Arka Plan: Grid Sistemi
-- Koyu gri/lacivert tonlarında hafif ızgara
-- "Buraya bir şey koyabilirim" hissi verir
-- Cyberpunk devre kartı estetiği
-
-### Shader Efektleri (İşin Büyüğünü Yapan Kısım)
-- **Bloom:** Neon parlamaları — basit şekilleri "pahalı" gösterir
-- **CRT Shader:** Tarama çizgileri, hafif kenar bükülmesi — terminal hissi
-- **Vignette:** Ekran kenarlarında kararma — odak yaratır
-- **Glow outline:** Yapı kenarlarında renk kodlu parlama
+**State renkleri:**
+- **Yeşil:** Clean (temiz, hazır)
+- **Mor:** Encrypted (şifreli)
+- **Sarı:** Corrupted (bozuk)
+- **Kırmızı:** Malware-infected (zararlı)
 
 ### Renk Paleti
 ```
-Arka plan:    Koyu gri / lacivert (#0a0e14, #1a1e2e)
-Grid:         Hafif açık çizgiler (#2a2e3e)
-Yapılar:      Koyu gri gövde + renkli neon kenar
-Clean veri:   Neon yeşil (#00ff88)
-Corrupted:    Neon sarı (#ffcc00)
-Encrypted:    Neon mor (#cc44ff)
-Malware:      Neon kırmızı (#ff2244)
-Enerji:       Cyan (#00ccff)
-Isı:          Turuncu → Kırmızı (#ff8800 → #ff2200)
-UI:           Neon cyan + beyaz
+Arka plan:     Koyu gri / lacivert (#0a0e14, #1a1e2e)
+Grid:          Hafif açık çizgiler (#2a2e3e)
+Yapılar:       Koyu gri gövde + renkli neon kenar
+State renkleri:
+  Clean:       Neon yeşil (#00ff88)
+  Encrypted:   Neon mor (#cc44ff)
+  Corrupted:   Neon sarı (#ffcc00)
+  Malware:     Neon kırmızı (#ff2244)
+Enerji:        Cyan (#00ccff)
+Isı:           Turuncu → Kırmızı (#ff8800 → #ff2200)
+UI:            Neon cyan + beyaz
+Harita bölgeleri:
+  ISP:         Açık mavi
+  Corporate:   Koyu mavi
+  Dark Web:    Mor
+  Military:    Kırmızı
+  Blackwall:   Turuncu-kırmızı
 ```
 
-### Durum Göstergeleri
-```
-Normal:  Standart renk, sakin animasyon
-Yüklü:  Sarıya kayar, hızlı animasyon
-Kritik:  Kırmızı, yanıp sönme
-Bozuk:   Koyu gri, durgun, kırık efekt
-```
+### Shader Efektleri
+- **Bloom:** Neon parlamaları
+- **CRT Shader:** Tarama çizgileri, hafif kenar bükülmesi
+- **Vignette:** Ekran kenarlarında kararma
+- **Glow outline:** Yapı kenarlarında renk kodlu parlama
 
 ### Overlay Modları
-- [H] Isı haritası — yapıların ısı durumunu gösterir
-- [E] Enerji haritası — Power Cell kapsama alanlarını gösterir
+- [H] Isı haritası
+- [E] Enerji haritası
 
 ---
 
-## 13. Pazar Araştırması
+## 14. Pazar Araştırması
 
 ### Zukowski (howtomarketagame.com) Bulguları
 
@@ -811,144 +718,138 @@ Bozuk:   Koyu gri, durgun, kırık efekt
 - Sistem tabanlı oyunlar az içerikle çok oyun süresi yaratır
 
 **Görsel Kalite:**
-- "Programcı sanatı hemen fark edilir" - minimum görsel eşik aşılmalı
-- Aydinlatma, shader, parçacık efektleri basit görselleri profesyonel gösterir
+- Shader efektleri basit şekilleri profesyonel gösterir
 - Görsel TUTARLILIK, görsel KALİTEDEN daha önemli
 
 **Hook + Anchor Formülü:**
-- Hook (kanca): "Netrunner olarak dijital sistemi yönet" (benzersiz)
-- Anchor (çapa): "Factorio/Shapez benzeri otomasyon" (tanıdık)
-- İkisi birlikte oyuncuyu çeker
+- Hook: "Dijital dünyada veri kaynaklarını keşfet ve otomasyon kur" (benzersiz)
+- Anchor: "Shapez/Mindustry benzeri kaynak çıkarma ve otomasyon" (tanıdık)
 
 **Pazarlama Stratejisi:**
-- Kapsül görseli #1 yatırım - profesyonel çizdirilmeli
 - Demo + Steam Next Fest stratejisi şart
 - Steam sayfası mümkün olan en erken açılmalı
-- Ekran görüntülerinde gerçek oyun içi gösterilmeli, UI dahil
-
-**Wishlist Verileri:**
-- İyi dönüşüm oranı: %20, %15 bile başarılı
-- Wishlist'ler bayatlamaz
-- Lansman öncesi en az 7.000+ wishlist hedeflenmeli
+- Ekran görüntülerinde gerçek oyun içi gösterilmeli
 
 ---
 
-## 14. Referans Oyunlar
+## 15. Referans Oyunlar
 
 ### Ana Referanslar
 
 | Oyun | Steam Puanı | Neden Referans | Alınacak Ders |
 |------|-------------|----------------|---------------|
-| **Factorio** | %97 (224K+ yorum) | Otomasyon türünün kralı | İç içe geçen döngüler, "The Factory Must Grow", teknoloji ağacı |
-| **Shapez** | %96 (14K+ yorum) | Minimalist chill otomasyon | Az yapı tipiyle derin oynanış, başlangıçta 2 yapı ile yumuşak giriş |
-| **Hacknet** | %94 (7.5K+ yorum) | Hacking estetiği | Terminal estetiği çalışıyor AMA tekrarcılık öldürücü |
+| **Factorio** | %97 (224K+) | Otomasyon türünün kralı | İç içe geçen döngüler, üstel büyüme |
+| **Shapez 2** | %96 (14K+) | Minimalist chill otomasyon | Az yapı tipiyle derin oynanış, sonsuz harita + kaynak dağılımı, combinatorial complexity (şekil + renk + katman) |
+| **Mindustry** | %95 (28K+) | Kaynak haritası + otomasyon | Haritada dağılmış cevherler, tier'lı kaynaklar (bakır→titanyum→thorium), drill ile çıkarma |
+| **Hacknet** | %94 (7.5K+) | Hacking estetiği | Terminal estetiği çalışıyor AMA tekrarcılık öldürücü |
 
 ### İkincil Referanslar
 | Oyun | Alınacak Ders |
 |------|---------------|
-| **Zachtronics (TIS-100, EXAPUNKS)** | Optimizasyon metrikleri, tekrar oynama motivasyonu |
+| **Zachtronics** | Optimizasyon metrikleri, tekrar oynama motivasyonu |
 | **Bitburner** | Meta-otomasyon, prestige sistemi |
-| **while True: learn()** | Veri akışı görselleştirmesi, pipe-and-filter mekaniği |
-| **Oxygen Not Included** | Çoklu kaynak dengeleme, kademeli açılma, heatmap overlay'ler |
+| **while True: learn()** | Veri akışı görselleştirmesi |
+| **Oxygen Not Included** | Çoklu kaynak dengeleme, heatmap overlay'ler |
 
 ### Kritik Uyarılar
-
-**Hacknet uyarısı:** Tekrarcılık öldürücü - her görev gerçekten farklı hissetmeli.
-
-**Zachtronics uyarısı:** Gerçek programlama gerektirmek kitleyi daraltır. Oyun "programlama hissi" vermeli ama gerçek kod yazdırmamalı.
-
-**Shapez uyarısı:** Tüm mekanikler açıldıktan sonra motivasyon düşebilir - endgame derinliği şart (bizde: premium siparişler, karışık veri paketleri, tier 4).
+- **Hacknet:** Tekrarcılık öldürücü — harita sistemi her kaynağı farklı kılıyor
+- **Shapez:** Endgame motivasyonu düşebilir — harita keşfi ve gig sistemi bunu çözüyor
+- **Mindustry:** Savunma elementi dikkat dağıtabilir — bizde savaş yok, saf otomasyon
 
 ---
 
-## 15. Gelecek Güncellemeler
+## 16. Gelecek Güncellemeler
 
-### Savunma Sistemi (Potansiyel Büyük Güncelleme / DLC)
-Oyun chill otomasyon olarak çıkar. Savunma sistemi başarılı olursa sonradan eklenebilir:
+### Protocol Katmanı (3. Katman — Potansiyel Güncelleme)
+Content + State'e ek olarak **Protocol** katmanı:
+- CorpNet, MilSpec, DarkNet, Legacy protokolleri
+- Her protokol farklı Decoder yapısı gerektirir
+- Harita bölgeleriyle doğal eşleşme
+- Oyunun geç aşamasında tanıtılabilir
 
-**Planlanan konseptler (henüz tasarlanmadı):**
+### Savunma Sistemi (Potansiyel DLC)
 - Dijital katman (TAB geçişi) — savunma yapıları için ayrı katman
-- Trace → saldırı dalgası tetikleme (mevcut: kaynak kısıtlama)
-- Virüs yayılımı mekaniği (Creeper World referansı)
-- Malware → Defense Intel dönüşümü (mevcut: sadece bertaraf)
-- Savunma yapıları: ICE, Black ICE, Daemon, Honeypot vs.
-
-**Neden şimdi değil:**
-- Solo geliştirici olarak kapsam kontrolü
-- İki sistemi dengelemek (otomasyon + savunma) çok karmaşık
-- Chill otomasyon kendi başına yeterli pazar potansiyeline sahip (Shapez referansı)
-- Altyapı zaten savunma eklemeye uygun (Trace sistemi, Malware tipi, grid yapısı)
+- Trace → saldırı dalgası tetikleme
+- Savunma yapıları: ICE, Black ICE, Daemon, Honeypot
+- Neden şimdi değil: solo geliştirici kapsam kontrolü
 
 ---
 
-## 16. Açık Sorular ve Yapılacaklar
+## 17. Açık Sorular ve Yapılacaklar
 
-### Öncelikli (Vertical Slice İçin)
-- [ ] Sanat stili finalizasyonu
-- [ ] 5 temel yapı ile çalışan prototip (Uplink, Storage, Data Broker, Power Cell, Coolant Rig)
-- [ ] Grid yerleştirme sistemi
-- [ ] Temel veri akış görselleştirmesi
-- [ ] Steam sayfası için ekran görüntüleri
+### Acil Kararlar (Refactor İçin)
+- [ ] Content tipleri kesinleştirme (6+ tip: Standard, Financial, Biometric, Blueprint, Research, Classified?)
+- [ ] Kaynaklar tükenir mi tükenmez mi? (Shapez: tükenmez, Mindustry: tükenmez ama sınırlı alan)
+- [ ] Harita prosedürel mi sabit mi?
+- [ ] Uzak mesafe lojistiği nasıl çalışacak? (uzun kablo / relay / lokal işleme)
+- [ ] Separator Content'e mi, State'e mi, her ikisine mi göre ayırıyor?
+- [ ] Data Broker farklı Content tipleri için farklı fiyat mı veriyor?
+- [ ] Blueprint Data → Patch Data dönüşümü nasıl? (otomatik mi, yapı mı gerekiyor?)
+- [ ] Harita boyutu ve zoom seviyesi
 
-### Sonraki Adımlar (Prototip Sonrası)
-- [ ] Separator eklenmesi (Faz 2 deneyimi)
-- [ ] Decryptor + Research Lab (Faz 3)
-- [ ] Recoverer + Patch Data upgrade sistemi (Faz 5)
-- [ ] Quarantine + Malware bertaraf (Faz 6)
-- [ ] Gig sistemi temel implementasyonu
+### Sonraki Adımlar (Refactor Planı İçin)
+- [ ] Mevcut veri sistemi refactor'u (4 tip → Content + State modeli)
+- [ ] Harita sistemi temel implementasyonu
+- [ ] Kaynak node sistemi
+- [ ] Separator mekaniği güncelleme (content + state ayırma)
+- [ ] Data Broker content-based fiyatlandırma
+- [ ] Yeni içerik tipleri için Resource dosyaları
+- [ ] Parçacık sistemi güncelleme (content + state görselleştirme)
 
 ### İleride Tasarlanacak
-- [ ] Ekonomi dengeleme (credits, fiyatlar, verimlilik oranları)
-- [ ] Teknoloji ağacı yapısı
-- [ ] Veri kombinasyonları tam listesi ve process sıraları
-- [ ] Gig panosu UI tasarımı
-- [ ] Gig zorluk/ödül dengeleme
-- [ ] Trace zone parametreleri (radius, bozulma ihtimali, eşikler)
-- [ ] Trace azaltıcı yapı tasarımı (post-release)
+- [ ] Ekonomi dengeleme (content tipleri fiyat dengesi)
+- [ ] Teknoloji ağacı güncelleme (harita keşfi ile entegrasyon)
+- [ ] Gig sistemi harita entegrasyonu
+- [ ] Protocol katmanı tasarımı (gelecek güncelleme)
+- [ ] Trace zone parametreleri
 - [ ] Encryptor geç oyun mekaniği
-- [ ] Savunma sistemi (büyük güncelleme / DLC)
+- [ ] Savunma sistemi (DLC)
 
 ### Kesinleşmiş Kararlar ✅
 - [x] 2D Top-Down perspektif
 - [x] Godot 4.6 motoru
-- [x] **Chill otomasyon** (savunma yok, gelecek güncelleme olarak planlandı)
-- [x] Real-time with pause zaman mekaniği
+- [x] **Chill otomasyon** (savunma yok, gelecek güncelleme)
+- [x] Real-time with pause
 - [x] Rehberli sandbox ilerleme
-- [x] Cyberpunk/Netrunner teması
-- [x] Cyberpunk isimlendirme + tooltip açıklama
-- [x] 4 temel veri tipi: Clean, Corrupted, Encrypted, Malware
-- [x] **Her veri tipinin kendine özgü amacı:** Clean→Credits, Encrypted→Research, Corrupted→Patch Data, Malware→bertaraf
+- [x] Cyberpunk / Netrunner — Dijital Dünya teması
+- [x] **Harita sistemi: dijital dünyada dağılmış veri kaynakları** (Shapez/Mindustry modeli)
+- [x] **Veri modeli: Content (İçerik) + State (Durum) iki katmanlı sistem**
+- [x] **Content:** Verinin ne olduğu (Financial, Biometric, Blueprint, Research vb.) → hedef ve değer belirler
+- [x] **State:** Verinin durumu (Clean, Encrypted, Corrupted, Malware-infected) → işleme yolu belirler
+- [x] **Combinatorial çeşitlilik:** Content x State x Tier = yüzlerce benzersiz veri varyantı
+- [x] **Her State'in tier sistemi:** Encrypted (şifreleme yöntemi), Corrupted (bozulma oranı), Malware (zararlı türü)
+- [x] **Protocol 3. katman olarak not düşüldü** (şimdi uygulanmayacak, gelecek güncelleme)
+- [x] **Kaynak bölgeleri:** ISP, Corporate, Biotech, Dark Web, Government, Military, Blackwall
+- [x] **Merkez → dış zorluk eğrisi:** yakın=kolay, uzak=zor
+- [x] **Credits:** Content'i Clean state'te satmaktan (farklı content = farklı değer)
+- [x] **Research:** Research Data (Clean) → Research Lab
+- [x] **Patch Data:** Blueprint Data (Clean) → yapı upgrade
 - [x] 3 altyapı kaynağı: Power, Heat (kötü), Trace (kötü)
-- [x] Credits para birimi (sadece Clean Data'dan)
-- [x] **Patch Data upgrade sistemi** (Corrupted → yapı geliştirme)
 - [x] Tier sistemi: yeni bina değil, daha fazla bina (üstel büyüme)
-- [x] Veri renk kodlaması: Yeşil, Sarı, Mor, Kırmızı
 - [x] Power Override mekaniği
-- [x] Diegetic aesthetic tasarım sütunu
 - [x] Prosedürel asset'ler + shader efektleri
-- [x] Bilinmeyen veri tipleri keşif sistemi (??? → keşfet)
-- [x] Saflık/verimlilik sistemi (separator %60 başlar, Patch Data ile gelişir)
-- [x] Sıkıştırma (Compression) process'i — tier'lı
-- [x] **Gig sistemi** (Uplink kaynak seçimi yerine tek seferlik sözleşme sistemi)
-- [x] **Sonsuz endgame gig döngüsü** (Shapez hub talepleri gibi)
-- [x] **Astronomik veri ölçeklemesi** (10 MB/s → 1 TB/s, 500 MB gig → 100 TB+ gig)
-- [x] 5 gig kategorisi: Web Traffic, Deep Web, Corporate, Military, Blackwall
-- [x] Oyuncu ilerleme fazları (Çöpçü → Madenci → Mühendis → Sistem Mimarı)
-- [x] Karışık veri paketleri geç oyunda
-- [x] Tier çeşitleri farklı process yolları gerektirir
-- [x] **Trace = zone-based dijital kirlilik** (malware Storage'dan yayılır, etraftaki yapıları bozar)
-- [x] **Doğrudan link (kablo) bağlantı sistemi** (konveyör değil)
-- [x] **Power: zone-based** (Power Cell kapsama alanı)
-- [x] **Heat: yapı bazlı + bölgesel yayılma** (Coolant Rig zone)
-- [x] **13 temel + 1 geç oyun yapı** (savunma yapıları gelecek güncellemeye ertelendi)
+- [x] Bilinmeyen veri tipleri keşif sistemi
+- [x] **Gig sistemi** (harita bölge sözleşmeleri)
+- [x] **Sonsuz endgame gig döngüsü**
+- [x] **Doğrudan link (kablo) bağlantı sistemi**
+- [x] **Power: zone-based**
+- [x] **Heat: yapı bazlı + bölgesel yayılma**
+- [x] **Trace: zone-based dijital kirlilik**
+- [x] **13 temel + 1 geç oyun yapı** (+ potansiyel Relay, Scanner)
 - [x] **Geç oyun: Encryptor + premium sipariş sistemi**
-- [x] **Yapı adı: Uplink** (eski: Data Siphon)
-- [x] Malware tier çeşitleri: Worm, Trojan, Ransomware, Rootkit
-- [x] **Sanat stili: Tamamen prosedürel** (kod ile üretim, sıfır harici art asset)
-- [x] **2D Top-Down** (izometrik/2.5D değil)
+- [x] Sanat stili: tamamen prosedürel
 - [x] Shader efektleri: Bloom, CRT, Vignette, Glow outline
+
+### Reddedilen/Değişen Kararlar
+- ~~4 temel veri tipi (Clean, Corrupted, Encrypted, Malware)~~ → **Content + State modeline dönüştü.** Clean, Encrypted, Corrupted, Malware artık STATE (durum), tip değil.
+- ~~Uplink havadan veri çekme~~ → **Haritadaki kaynak node'larından çekme**
+- ~~Soyut sandbox (mekân yok)~~ → **Dijital dünya haritası**
+- Fragment veri tipi (çıkarıldı)
+- Savunma sistemi v1.0'da (ertelendi — DLC)
+- Relay Node (kaldırılmıştı, harita sistemiyle geri gelebilir — TBD)
+- Global Trace sistemi (reddedildi, zone-based)
 
 ---
 
 *Bu döküman canlıdır ve her tasarım session'ında güncellenecektir.*
-*Versiyon 0.5 — Trace zone-based yeniden tasarım, Gig sistemi, astronomik ölçekleme kararları.*
+*Versiyon 0.6 — Harita sistemi pivotu, Content + State veri modeli, Protocol 3. katman notu.*
