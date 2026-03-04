@@ -6,6 +6,7 @@ signal patch_data_changed(new_total: float)
 signal tick_completed(tick_count: int)
 signal content_discovered(content: int)
 signal state_discovered(state: int)
+signal speed_changed(multiplier: int, paused: bool)
 
 const TILE_SIZE: int = 64
 
@@ -14,6 +15,8 @@ var total_research: float = 0.0
 var total_patch_data: float = 0.0
 var total_neutralized: int = 0
 var _tick_count: int = 0
+var speed_multiplier: int = 1
+var is_paused: bool = false
 var discovered_content: Dictionary = {0: true, 1: false, 2: false, 3: false, 4: false, 5: false}
 var discovered_states: Dictionary = {0: true, 1: false, 2: false, 3: false}
 var connection_manager: Node = null
@@ -26,6 +29,23 @@ var connection_flow_data: Dictionary = {}  # conn_index → [{content, state, am
 func _ready() -> void:
 	_sim_timer.timeout.connect(_on_sim_tick)
 	print("[Simulation] Manager initialized — tick: %.1fs" % _sim_timer.wait_time)
+
+
+func set_speed(multiplier: int) -> void:
+	speed_multiplier = clampi(multiplier, 1, 3)
+	_sim_timer.wait_time = 1.0 / speed_multiplier
+	if is_paused:
+		is_paused = false
+		_sim_timer.paused = false
+	speed_changed.emit(speed_multiplier, is_paused)
+	print("[Simulation] Speed set to %dx (tick: %.2fs)" % [speed_multiplier, _sim_timer.wait_time])
+
+
+func toggle_pause() -> void:
+	is_paused = not is_paused
+	_sim_timer.paused = is_paused
+	speed_changed.emit(speed_multiplier, is_paused)
+	print("[Simulation] %s" % ("Paused" if is_paused else "Resumed at %dx" % speed_multiplier))
 
 
 func _on_sim_tick() -> void:

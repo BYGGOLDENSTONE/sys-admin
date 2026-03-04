@@ -17,6 +17,7 @@ enum State { IDLE, PLACING, CONNECTING, MOVING }
 
 var connection_manager: Node = null
 var connection_layer: Node2D = null
+var undo_manager: Node = null
 
 var _building_scene: PackedScene = preload("res://scenes/building.tscn")
 var _state: State = State.IDLE
@@ -132,6 +133,17 @@ func _handle_idle_input(event: InputEvent) -> void:
 		# Try to delete a cable first
 		if connection_manager and connection_manager.get_connection_at_point(world_pos) >= 0:
 			var idx: int = connection_manager.get_connection_at_point(world_pos)
+			var conns: Array[Dictionary] = connection_manager.get_connections()
+			if idx >= 0 and idx < conns.size():
+				var conn: Dictionary = conns[idx]
+				if undo_manager and not undo_manager.is_undoing:
+					undo_manager.push_command({
+						type = "remove_connection",
+						from_cell = conn.from_building.grid_cell,
+						from_port = conn.from_port,
+						to_cell = conn.to_building.grid_cell,
+						to_port = conn.to_port,
+					})
 			connection_manager.remove_connection(idx)
 			return
 		# Otherwise try to delete a building
@@ -179,7 +191,15 @@ func _start_connecting(building: Node2D, port_side: String) -> void:
 
 func _complete_connection(to_building: Node2D, to_port: String) -> void:
 	if connection_manager:
-		connection_manager.add_connection(_connecting_from_building, _connecting_from_port, to_building, to_port)
+		var added: bool = connection_manager.add_connection(_connecting_from_building, _connecting_from_port, to_building, to_port)
+		if added and undo_manager and not undo_manager.is_undoing:
+			undo_manager.push_command({
+				type = "add_connection",
+				from_cell = _connecting_from_building.grid_cell,
+				from_port = _connecting_from_port,
+				to_cell = to_building.grid_cell,
+				to_port = to_port,
+			})
 	_state = State.IDLE
 	_connecting_from_building = null
 	_connecting_from_port = ""
@@ -269,6 +289,8 @@ func _place_building() -> void:
 	building_container.add_child(building)
 	grid_system.occupy(_ghost_cell, _current_definition.grid_size, building)
 	building_placed.emit(building, _ghost_cell)
+	if undo_manager and not undo_manager.is_undoing:
+		undo_manager.push_command({type = "place", definition = _current_definition, cell = _ghost_cell})
 	print("[BuildingManager] Building placed — %s at (%d,%d)" % [
 		_current_definition.building_name, _ghost_cell.x, _ghost_cell.y
 	])
@@ -280,6 +302,16 @@ func _place_building() -> void:
 func _remove_building(building: Node2D) -> void:
 	var cell: Vector2i = building.grid_cell
 	var def: BuildingDefinition = building.definition
+	# Capture connections before removal for undo
+	if undo_manager and not undo_manager.is_undoing:
+		var saved_conns: Array[Dictionary] = undo_manager.get_connections_for_building(building)
+		undo_manager.push_command({
+			type = "remove",
+			definition = def,
+			cell = cell,
+			upgrade_level = building.upgrade_level,
+			connections = saved_conns,
+		})
 	grid_system.free_cells(cell, def.grid_size)
 	building_removed.emit(building, cell)
 	# Clear hover/selection if removed building was hovered/selected
@@ -386,6 +418,13 @@ func _complete_move() -> void:
 	_moving_building.position = grid_system.grid_to_world(_ghost_cell)
 	_moving_building.visible = true
 	ghost_preview.visible = false
+	if undo_manager and not undo_manager.is_undoing:
+		undo_manager.push_command({
+			type = "move",
+			definition = def,
+			old_cell = _moving_original_cell,
+			new_cell = _ghost_cell,
+		})
 	print("[BuildingManager] Building moved — %s to (%d,%d)" % [
 		def.building_name, _ghost_cell.x, _ghost_cell.y
 	])

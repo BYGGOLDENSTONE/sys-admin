@@ -15,10 +15,12 @@ extends Node2D
 
 @onready var source_manager: Node = $SourceManager
 @onready var source_container: Node2D = $SourceContainer
+@onready var speed_label: Label = $UILayer/SpeedLabel
 
 var _tooltip_scene: PackedScene = preload("res://scenes/ui/building_tooltip.tscn")
 var _tooltip: PanelContainer = null
 var _upgrade_panel: PanelContainer = null
+var _undo_manager: Node = null
 
 var _isp_backbone_def: DataSourceDefinition = preload("res://resources/sources/isp_backbone.tres")
 var _corporate_server_def: DataSourceDefinition = preload("res://resources/sources/corporate_server.tres")
@@ -75,6 +77,22 @@ func _ready() -> void:
 	building_panel._tech_tree = tech_tree_panel
 	tech_tree_panel.building_unlocked.connect(_on_building_unlocked)
 
+	# Wire up speed control
+	simulation_manager.speed_changed.connect(_on_speed_changed)
+	_update_speed_label(1, false)
+
+	# Setup undo manager
+	var UndoManagerScript = preload("res://scripts/undo_manager.gd")
+	_undo_manager = Node.new()
+	_undo_manager.set_script(UndoManagerScript)
+	_undo_manager.name = "UndoManager"
+	add_child(_undo_manager)
+	_undo_manager.building_manager = building_manager
+	_undo_manager.connection_manager = connection_manager
+	_undo_manager.grid_system = grid_system
+	_undo_manager.source_manager = source_manager
+	building_manager.undo_manager = _undo_manager
+
 	# Wire up source manager
 	source_manager.grid_system = grid_system
 	source_manager.source_container = source_container
@@ -91,6 +109,27 @@ func _ready() -> void:
 	_setup_testing_systems()
 
 	print("[Main] SYS_ADMIN initialized")
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not (event is InputEventKey and event.pressed):
+		return
+	if event.ctrl_pressed:
+		match event.keycode:
+			KEY_Z:
+				_undo_manager.undo()
+			KEY_Y:
+				_undo_manager.redo()
+		return
+	match event.keycode:
+		KEY_SPACE:
+			simulation_manager.toggle_pause()
+		KEY_1:
+			simulation_manager.set_speed(1)
+		KEY_2:
+			simulation_manager.set_speed(2)
+		KEY_3:
+			simulation_manager.set_speed(3)
 
 
 func _place_initial_sources() -> void:
@@ -161,6 +200,20 @@ func _on_research_changed(new_total: float) -> void:
 
 func _on_patch_data_changed(new_total: float) -> void:
 	patch_data_label.text = "Patch Data: %d" % int(new_total)
+
+
+func _on_speed_changed(multiplier: int, paused: bool) -> void:
+	_update_speed_label(multiplier, paused)
+
+
+func _update_speed_label(multiplier: int, paused: bool) -> void:
+	if paused:
+		speed_label.text = "|| DURAKLAT"
+		speed_label.add_theme_color_override("font_color", Color(1, 0.4, 0.4, 1))
+	else:
+		var arrows: String = ">".repeat(multiplier)
+		speed_label.text = "%s %dx" % [arrows, multiplier]
+		speed_label.add_theme_color_override("font_color", Color(0, 1, 0.53, 1))
 
 
 func _on_building_unlocked(building_name: String) -> void:
