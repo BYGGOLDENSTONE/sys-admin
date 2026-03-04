@@ -1,10 +1,10 @@
 # SYS_ADMIN - Proje Durumu
 
-## Mevcut Aşama: DEMO GELİŞTİRME — Faz 5 Tamamlandı → Kullanıcı Testi Bekliyor
-Vertical slice tamamlandı. Demo Faz 1-4 tamamlandı. Faz 5 (Splitter + Merger + Kablo Hover) implementasyonu bitti, kullanıcı testi bekliyor. Hedef: Haziran 2026 Steam Next Fest.
+## Mevcut Aşama: BÜYÜK REFACTOR — Content+State Veri Modeli + Saf Otomasyon + Harita Sistemi
+Vertical slice + Demo Faz 1-5 tamamlandı (eski sistem). Büyük tasarım pivotu sonrası refactor başlıyor. Power/Heat/Trace kaldırılacak, Content+State veri modeli uygulanacak, harita sistemi eklenecek. Hedef: Haziran 2026 Steam Next Fest.
 
 ## Tasarım Dökümanı
-- **GDD:** `docs/GDD.md` (v0.4) - Tüm tasarım kararları burada
+- **GDD:** `docs/GDD.md` (v0.8) - Tüm tasarım kararları burada
 
 ## Proje Özeti
 - **Tür:** 2D Top-Down Chill Otomasyon/Management
@@ -25,43 +25,43 @@ Yapılar özel sınıflar değil, **component Resource'larının birleşimi.** H
 
 | Component Resource | Dosya | Ne Yapar |
 |-------------------|-------|----------|
-| `GeneratorComponent` | `generator_component.gd` | Veri üretir (`generation_rate`, `data_weights`) |
+| `GeneratorComponent` | `generator_component.gd` | Veri üretir (`generation_rate`, `content_weights`, `state_weights`) |
 | `StorageComponent` | `storage_component.gd` | Veri depolar (`capacity`, `forward_rate`) |
-| `SellerComponent` | `seller_component.gd` | Veri satar (`sell_rate`, `credits_per_mb`, `accepted_types`) |
-| `PowerProviderComponent` | `power_provider_component.gd` | Zone'da güç sağlar (`zone_radius`, `power_output`) |
-| `CoolantComponent` | `coolant_component.gd` | Zone'da soğutur (`zone_radius`, `cooling_rate`) |
-| `ProcessorComponent` | `processor_component.gd` | Veri işler (`processing_rate`, `input_types`, `output_type`, `rule`, `efficiency`) |
-| `ResearchCollectorComponent` | `research_collector_component.gd` | Research verisini tüketip RP üretir (`collection_rate`, `accepted_types`, `research_per_mb`) |
+| `SellerComponent` | `seller_component.gd` | Veri satar — content'e göre Credits veya Patch Data üretir (`sell_rate`, `content_price_multipliers`) |
+| `ProcessorComponent` | `processor_component.gd` | Veri işler (`processing_rate`, `input_states`, `output_state`, `rule`, `efficiency`, `separator_mode`) |
+| `ResearchCollectorComponent` | `research_collector_component.gd` | Research verisini tüketip RP üretir (`collection_rate`, `accepted_content`, `research_per_mb`) |
 | `UpgradeComponent` | `upgrade_component.gd` | Yapı upgrade yolunu tanımlar (`max_level`, `costs`, `stat_target`, `level_values`) |
+
+**KALDIRILDI (v0.8):** `PowerProviderComponent`, `CoolantComponent` — saf otomasyon, siberuzayda fiziksel kısıt yok
 
 **Yapı = BuildingDefinition + opsiyonel component'ler.** `BuildingDefinition`'da her component nullable export:
 ```
 @export var generator: GeneratorComponent    # null = bu yapı üretici değil
 @export var storage: StorageComponent        # null = bu yapı depolama yapmaz
 @export var seller: SellerComponent          # null = bu yapı satış yapmaz
+@export var processor: ProcessorComponent    # null = bu yapı işleme yapmaz
+@export var research_collector: ResearchCollectorComponent  # null
 @export var upgrade: UpgradeComponent        # null = bu yapı upgrade edilemez
-...
 ```
 
 **Helper methodlar** (`BuildingDefinition` üzerinde):
-- `get_zone_radius() -> float` — power_provider veya coolant'tan zone_radius döner
-- `is_infrastructure() -> bool` — power_provider veya coolant varsa true
 - `get_storage_capacity() -> int` — storage varsa capacity döner
+- `accepts_data(content, state) -> bool` — component'lere göre bu veriyi kabul eder mi
 
-### Mevcut Yapı-Component Eşlemesi
-- **Uplink** = `generator` component (5 MB/s, karma veri)
-- **Storage** = `storage` component (100 MB kapasite)
-- **Data Broker** = `seller` component (3 MB/s, Clean only)
-- **Power Cell** = `power_provider` component (192px zone, 50W)
-- **Coolant Rig** = `coolant` component (192px zone, 2°C/s)
-- **Separator** = `processor` component (rule="separator", 5 MB/s, %60 verimlilik) + `storage` (20 MB buffer)
-- **Compressor** = `processor` component (rule="compressor", 5 MB/s, %75 verimlilik) + `storage` (10 MB buffer)
-- **Decryptor** = `processor` component (rule="decryptor", 4 MB/s, %70 verimlilik, encrypted→research) + `storage` (10 MB buffer)
-- **Research Lab** = `research_collector` component (5 MB/s, 1 RP/MB) + `storage` (20 MB buffer)
-- **Recoverer** = `processor` component (rule="recoverer", 4 MB/s, %70 verimlilik, corrupted→patch data) + `storage` (10 MB buffer)
-- **Quarantine** = `processor` component (rule="quarantine", 4 MB/s, %100 verimlilik, malware→imha) + `storage` (10 MB buffer) + `upgrade` (processing_rate)
-- **Splitter** = `processor` component (rule="splitter", 10 MB/s, %100 verimlilik, eşit dağılım) + `storage` (10 MB buffer)
-- **Merger** = `processor` component (rule="merger", 10 MB/s, %100 verimlilik, birleştirme) + `storage` (10 MB buffer)
+### Hedef Yapı-Component Eşlemesi (Refactor Sonrası)
+- **Uplink** = `generator` (5 MB/s, kaynak node'unun content+state dağılımına göre veri üretir)
+- **Storage** = `storage` (100 MB kapasite, her türlü DataPacket)
+- **Data Broker** = `seller` (3 MB/s, Clean only → content'e göre Credits veya Patch Data)
+- **Separator** = `processor` (rule="separator", 5 MB/s, %60 verimlilik, mod: state veya content ayırma)
+- **Compressor** = `processor` (rule="compressor", 5 MB/s, %75 verimlilik)
+- **Decryptor** = `processor` (rule="decryptor", 4 MB/s, %70 verimlilik, Encrypted→Clean)
+- **Recoverer** = `processor` (rule="recoverer", 4 MB/s, %70 verimlilik, Corrupted→Clean)
+- **Quarantine** = `processor` (rule="quarantine", 4 MB/s, %100 verimlilik, Malware→imha) + `upgrade`
+- **Research Lab** = `research_collector` (5 MB/s, 1 RP/MB, Research Data Clean only)
+- **Splitter** = `processor` (rule="splitter", 10 MB/s, %100 verimlilik, eşit dağılım)
+- **Merger** = `processor` (rule="merger", 10 MB/s, %100 verimlilik, birleştirme)
+- ~~**Power Cell**~~ KALDIRILDI — siberuzayda fiziksel güç yok
+- ~~**Coolant Rig**~~ KALDIRILDI — siberuzayda fiziksel ısı yok
 
 ### Data-Driven Tasarım
 - Yapı değerleri → **component sub-resource** olarak .tres dosyasında
@@ -77,19 +77,22 @@ Yapılar özel sınıflar değil, **component Resource'larının birleşimi.** H
 ### Kurallar — HER DEĞİŞİKLİKTE UYGULA
 - **ASLA** `building_type == "xxx"` string kontrolü YAZMA → `if def.component != null` kullan
 - **ASLA** yapıya özel davranışı if/match ile kodlama → component varlığını kontrol et
+- **ASLA** content/state kontrolünü yapı koduna gömme → component'in `accepts_data()` methoduna sor
 - Değerleri koda gömme → component Resource'a koy
 - Yeni yapı için yeni script yazma → mevcut component'leri .tres'de birleştir
+- Yeni content/state eklemek = enum + weight, KOD DEĞİŞMEZ
 - Yeni mekanik gerekiyorsa → yeni component Resource scripti oluştur
 - Sistem eklerken diğer sistemleri bilmek zorunda olma → signal ile haberleş
 - `SimulationManager`'da tip kontrolü: `b.definition.generator != null` (string değil)
-- `building.gd`'de alan erişimi: `definition.get_zone_radius()`, `definition.get_storage_capacity()`, `definition.is_infrastructure()` (doğrudan alan değil)
+- `building.gd`'de alan erişimi: `definition.get_storage_capacity()`, `definition.accepts_data()` (doğrudan alan değil)
+- Yapılar birbirinden habersiz çalışır — port+kablo ile doğal bağlantı, hardcoded bağımlılık yok
 
 ---
 
 ## Geliştirme Yol Haritası
 
-### 1. VERTICAL SLICE (Şu an) — Steam sayfası için görsel test
-### 2. DEMO — Haziran Steam Next Fest için oynanabilir demo
+### 1. VERTICAL SLICE ✓ — Tamamlandı (eski sistemle)
+### 2. REFACTOR + DEMO (Şu an) — Content+State + Saf Otomasyon + Harita → Haziran Steam Next Fest
 ### 3. RELEASE — Tam oyun
 
 ---
@@ -205,29 +208,76 @@ Yapılar özel sınıflar değil, **component Resource'larının birleşimi.** H
 - [x] AutoPlay test senaryosu (splitter_merger_test.json — PASSED)
 - [ ] Kullanıcı görsel/UX testi
 
-### Faz 6: Yerel Trace Sistemi
-- [ ] Trace zone mekaniği (malware tutan Storage etrafında Trace yayılımı)
-- [ ] Trace seviye sistemi (düşük→orta→yüksek→kritik, yapı bozulma ihtimali)
-- [ ] Trace UI göstergesi (yapı üzerinde Trace seviyesi + zone görselleştirme)
-- [ ] Trace uyarı sistemi (bozulmadan önce mor titreme efekti)
-- [ ] Yapı bozulma mekaniği (bozuk yapı durur, Patch Data ile onarım)
+---
 
-### Faz 7: Ekonomi + Undo/Redo
+## Refactor Planı (Yeni Demo)
+
+### Mimari Prensip: Her Şey Data-Driven, Hiçbir Şey Hardcoded
+
+**DataPacket = Content + State + Tier** → Her veri paketi bu üç bilgiyi taşır.
+Yapılar birbirinden habersiz çalışır. Hiçbir yapı "Decryptor'a gönder" demez — sadece portuna veri koyar, kablo bağlıysa karşı yapının component'i kabul edip etmeyeceğine karar verir.
+
+**Yeni yapı/content/state eklemek:**
+- Yeni content tipi = enum'a değer ekle + kaynak node'a weight ekle → KOD DEĞİŞMEZ
+- Yeni yapı = yeni .tres + mevcut component'leri birleştir → KOD DEĞİŞMEZ
+- Yeni state işleme = yeni processor rule + .tres'te tanımla → KOD DEĞİŞMEZ
+- Yeni mekanik = yeni component Resource scripti oluştur → sadece 1 yeni dosya
+
+### Refactor Faz 1: Temizlik — Power/Heat/Coolant Kaldırma
+- [ ] PowerProviderComponent ve CoolantComponent Resource scriptleri kaldır
+- [ ] Power Cell ve Coolant Rig .tres yapı tanımları kaldır
+- [ ] SimulationManager'dan heat/power/coolant güncelleme döngüleri kaldır
+- [ ] Building'den heat/power state'leri kaldır (overheat overlay, güçsüz karartma, zone)
+- [ ] Yapı seçim panelinden Power Cell ve Coolant Rig kaldır
+- [ ] Bilgi paneli ve tooltip'ten heat/power/zone satırları kaldır
+- [ ] Malware ısı hasarı mekaniği kaldır
+- [ ] Test: mevcut yapılar güç/ısı olmadan normal çalışmalı
+
+### Refactor Faz 2: Veri Modeli — Content + State
+- [ ] DataPacket Resource oluştur (content: ContentType, state: DataState, tier: int)
+- [ ] ContentType enum: STANDARD, FINANCIAL, BIOMETRIC, BLUEPRINT, RESEARCH, CLASSIFIED
+- [ ] DataState enum: CLEAN, ENCRYPTED, CORRUPTED, MALWARE
+- [ ] GeneratorComponent güncelle: content_weights + state_weights (eski data_weights yerine)
+- [ ] ProcessorComponent güncelle: state-based işleme (Decryptor: Encrypted→Clean, Recoverer: Corrupted→Clean)
+- [ ] SellerComponent güncelle: content → credits_multiplier eşlemesi + Blueprint → Patch Data
+- [ ] Separator güncelle: konfigüre edilebilir mod (state modu / content modu)
+- [ ] Eski string-based veri tipi sistemi tamamen kaldır
+- [ ] Test: Uplink üretim → Separator ayırma → Decryptor/Recoverer → Data Broker akışı
+
+### Refactor Faz 3: Görsel Güncelleme
+- [ ] Parçacık sistemi: renk = state (yeşil/mor/sarı/kırmızı), şekil/ikon = content
+- [ ] Bilgi paneli: content + state gösterimi
+- [ ] Tooltip: yeni veri modeli bilgisi
+- [ ] Keşif sistemi güncelleme (content + state keşfi)
+- [ ] Test: görsel doğruluk
+
+### Refactor Faz 4: Ekonomi + Yapı Satın Alma
 - [ ] Credits ile yapı satın alma sistemi
+- [ ] Data Broker content-based fiyatlandırma (Standard=1x, Biometric=3x, Financial=5x, Classified=10x)
+- [ ] Blueprint Data (Clean) → Data Broker → Patch Data akışı
 - [ ] Yapı mağazası UI
-- [ ] Undo/Redo sistemi
-- [ ] Fiyat dengeleme
 
-### Faz 8: Hız Kontrolü + Polish
+### Refactor Faz 5: Harita Sistemi Temeli
+- [ ] DataSourceDefinition Resource (content_weights, state_weights, bandwidth)
+- [ ] Kaynak node görselleştirmesi (haritada parlayan noktalar)
+- [ ] ISP Backbone başlangıç kaynağı
+- [ ] Uplink-kaynak bağlantısı (Uplink kaynağın yanına yerleştirilir, kaynağın composition'ını kullanır)
+- [ ] Harita kamerası (pan ile geniş alan gezintisi)
+
+### Refactor Faz 6: Harita Genişleme + Demo Polish
+- [ ] Seed-based prosedürel kaynak dağılımı
+- [ ] Bölge sistemi (ISP, Corporate, Dark Web, Military, Blackwall)
+- [ ] Keşif mekaniği (uzak kaynaklar başta görünmez)
 - [ ] Hız kontrolü (1x, 2x, 3x + duraklat)
-- [ ] Overlay modları ([H] ısı haritası, [E] enerji haritası)
+- [ ] Undo/Redo sistemi
 - [ ] Genel UI polish
-- [ ] Yapı seçim paneli kategori grupları
+- [ ] Steam Next Fest demo build hazırlığı
 
 ### Her Fazda Sürekli
-- Bilgi paneli güncellenmesi (yeni yapılar eklendikçe)
+- Bilgi paneli güncellenmesi
 - Tooltip güncellenmesi
-- Test ve dengeleme
+- AutoPlay test senaryoları güncellenmesi
+- Component-based mimari kurallarına uygunluk kontrolü
 
 ---
 
@@ -257,10 +307,10 @@ Yapılar özel sınıflar değil, **component Resource'larının birleşimi.** H
 
 ### YAPILACAK (Event-Based Loglama)
 - Durum değişikliklerinde logla (yapı yerleştirildi, bağlantı kuruldu, veri işlendi)
-- Hata anında logla (yetersiz güç, depolama dolu, bağlantı başarısız)
+- Hata anında logla (depolama dolu, bağlantı başarısız, veri reddedildi)
 - Oyuncu aksiyonlarında logla (satın alma, yerleştirme, silme)
 - Log formatı: `[SistemAdı] Olay açıklaması — ilgili_değer`
-- Örnek: `[Power] Cell placed at (3,5) — zone_radius: 4`
+- Örnek: `[Separator] Data routed to Encrypted port — Financial(Enc T2)`
 - Örnek: `[Storage] Capacity full — current: 100/100`
 
 ### YAPILMAYACAK (Kaçınılacak Loglar)

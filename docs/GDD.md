@@ -1,8 +1,8 @@
 # SYS_ADMIN - Game Design Document
-**Versiyon:** 0.7 (Saf Otomasyon — Power/Heat kaldırıldı)
+**Versiyon:** 0.8 (Açık sorular kapatıldı — Refactor hazır)
 **Son Güncelleme:** 2026-03-04
 **Motor:** Godot 4.6 (Forward Plus, Jolt Physics, D3D12)
-**Durum:** Demo Faz 5 tamamlandı, büyük tasarım pivotu — harita sistemi + veri modeli + saf otomasyon
+**Durum:** Demo Faz 5 tamamlandı (eski sistem), büyük refactor başlıyor — Content+State + saf otomasyon + harita sistemi
 
 ---
 
@@ -140,7 +140,7 @@ Her veri kaynağı şu bilgilere sahip:
 - **Konum:** Haritadaki pozisyon (merkeze yakınlık = zorluk)
 - **İçerik dağılımı:** Hangi Content type'ları içeriyor (ör: %40 Financial, %30 Biometric, %30 Standard)
 - **Durum dağılımı:** İçeriklerin hangi State'lerde olduğu (ör: %50 Clean, %30 Encrypted T1, %20 Corrupted)
-- **Kapasite:** Kaynaktan çekilebilecek toplam veri miktarı (tükenebilir veya tükenmez — TBD)
+- **Kapasite:** Tükenmez (Shapez modeli — chill otomasyon, kaynak bitmesi stresi yok)
 - **Bant genişliği:** Kaynağın saniyedeki maksimum çıkış hızı
 
 ### Kaynak Bölgeleri
@@ -208,7 +208,7 @@ Yeni model: `Veri = İçerik (ne) + Durum (nasıl)`
 
 İçerik tipi verinin **ne olduğunu** belirler. Her içerik tipinin kendine özgü **amacı** ve **değeri** vardır.
 
-**İçerik Tipleri (Kesinleştirilecek — Öneriler):**
+**İçerik Tipleri (Kesinleşti):**
 
 | İçerik Tipi | Cyberpunk Karşılığı | Oyundaki Amacı | Değer |
 |-------------|---------------------|----------------|-------|
@@ -219,9 +219,7 @@ Yeni model: `Veri = İçerik (ne) + Durum (nasıl)`
 | **Research Data** | Bilimsel deneyler, AI eğitim verisi | Yeni yapı açma → Research Points | Özel |
 | **Classified Data** | Devlet/askeri sırlar | Premium gelir → Credits (çok yüksek değer) | Çok Yüksek |
 
-**İçerik katmanı sonsuz genişletilebilir** — yeni bir içerik tipi eklemek, tüm State varyantlarını otomatik olarak yaratır.
-
-**NOT:** İçerik tipleri henüz kesinleşmedi. Yukarıdaki liste öneri niteliğindedir. Minimum 6 içerik tipi hedefleniyor.
+**İçerik katmanı sonsuz genişletilebilir** — yeni bir içerik tipi eklemek, tüm State varyantlarını otomatik olarak yaratır. Yeni content = enum'a değer ekle + kaynak node'a weight ekle, kod değişmez.
 
 ### State (Durum) Katmanı — "Bu veri ne halde?"
 
@@ -424,7 +422,7 @@ Harita sistemiyle birlikte Gig'ler **bölge sözleşmeleri** olarak çalışır:
 **Ayırma & Depolama:**
 | Yapı | Tooltip | Fonksiyon |
 |------|---------|-----------|
-| **Separator** | "Veriyi ayırır" | Gelen veriyi Content tipine ve/veya State'e göre ayırır. Verimlilik %60 başlar |
+| **Separator** | "Veriyi ayırır" | İki mod: **State modu** (Clean/Encrypted/Corrupted/Malware ayır) veya **Content modu** (content tiplerine göre ayır). Oyuncu mod seçer. Verimlilik %60 başlar |
 | **Compressor** | "Veriyi sıkıştırır" | Storage'a koymadan önce boyutu küçültür |
 | **Storage** | "Veri depolar" | Her türlü veriyi depolar. Dolarsa pipeline tıkanır |
 
@@ -438,7 +436,7 @@ Harita sistemiyle birlikte Gig'ler **bölge sözleşmeleri** olarak çalışır:
 **Çıktı:**
 | Yapı | Tooltip | Fonksiyon |
 |------|---------|-----------|
-| **Data Broker** | "Temiz veriyi satar" | Clean state veriyi Credits'e çevirir. İçerik tipine göre farklı fiyat |
+| **Data Broker** | "Temiz veriyi satar" | Clean state veriyi Credits'e çevirir (content'e göre: Standard=1x, Biometric=3x, Financial=5x, Classified=10x). Blueprint Data (Clean) → Patch Data üretir |
 | **Research Lab** | "Araştırma verisi toplar" | Research Data (Clean) → Research Points |
 
 **Dağıtım:**
@@ -510,12 +508,8 @@ Blueprint Data (Clean state) doğrudan Patch Data'ya dönüşür. Patch Data ile
 - Otomatik bağlantı → çok basit, lojistik kararı yok
 - Doğrudan link → "neyi nereye bağlayayım" kararı var ama "bant hızı hesaplama" yok
 
-### Uzak Mesafe Lojistiği (TBD)
-Harita sistemiyle birlikte uzak kaynaklardan veri taşıma bir challenge. Seçenekler:
-- Uzun kablo çekme
-- Relay yapısı ile zıplama
-- Kaynak başına lokal işleme + Credits transferi
-- **Karar bekleniyor**
+### Uzak Mesafe Lojistiği
+Kablo mesafe sınırı yok. Siberuzayda fiziksel mesafe kısıtı tematik olarak zayıf — zorluk content+state karmaşıklığından gelir, kablo uzunluğundan değil. Relay yapısı v1.0'da yok, gerekirse post-release eklenebilir.
 
 ---
 
@@ -730,26 +724,15 @@ Saf otomasyon oyununa ek olarak savunma katmanı:
 
 ## 17. Açık Sorular ve Yapılacaklar
 
-### Acil Kararlar (Refactor İçin)
-- [ ] Content tipleri kesinleştirme (6+ tip: Standard, Financial, Biometric, Blueprint, Research, Classified?)
-- [ ] Kaynaklar tükenir mi tükenmez mi? (Shapez: tükenmez, Mindustry: tükenmez ama sınırlı alan)
-- [ ] Harita prosedürel mi sabit mi?
-- [ ] Uzak mesafe lojistiği nasıl çalışacak? (uzun kablo / relay / lokal işleme)
-- [ ] Separator Content'e mi, State'e mi, her ikisine mi göre ayırıyor?
-- [ ] Data Broker farklı Content tipleri için farklı fiyat mı veriyor?
-- [ ] Blueprint Data → Patch Data dönüşümü nasıl? (otomatik mi, yapı mı gerekiyor?)
-- [ ] Harita boyutu ve zoom seviyesi
-
-### Sonraki Adımlar (Refactor Planı İçin)
-- [ ] Mevcut veri sistemi refactor'u (4 tip → Content + State modeli)
-- [ ] Power/Heat/Trace sistemi kaldırma
-- [ ] Power Cell ve Coolant Rig yapıları kaldırma
-- [ ] Harita sistemi temel implementasyonu
-- [ ] Kaynak node sistemi
-- [ ] Separator mekaniği güncelleme (content + state ayırma)
-- [ ] Data Broker content-based fiyatlandırma
-- [ ] Yeni içerik tipleri için Resource dosyaları
-- [ ] Parçacık sistemi güncelleme (content + state görselleştirme)
+### Acil Kararlar — TÜMÜ KESİNLEŞTİ ✅
+- [x] **Content tipleri:** 6 tip kesinleşti (Standard, Financial, Biometric, Blueprint, Research, Classified)
+- [x] **Kaynaklar tükenmez** (Shapez modeli — chill, stressiz)
+- [x] **Harita:** Seed-based prosedürel, sabit bölge kurallarıyla (merkez=ISP, dış=Blackwall)
+- [x] **Uzak mesafe:** Kablo sınırı yok, Relay v1.0'da yok — zorluk content+state'ten gelir
+- [x] **Separator:** İki mod — State modu (Clean/Enc/Cor/Mal ayır) veya Content modu (content tiplerine göre ayır)
+- [x] **Data Broker:** Content'e göre farklı fiyat (Standard=1x, Biometric=3x, Financial=5x, Classified=10x)
+- [x] **Blueprint → Patch Data:** Data Broker content'e göre Credits veya Patch Data üretir (Blueprint Clean → Patch Data)
+- [x] **Harita boyutu:** Test ile belirlenecek (implementasyon sırasında)
 
 ### İleride Tasarlanacak
 - [ ] Ekonomi dengeleme (content tipleri fiyat dengesi)
@@ -789,6 +772,13 @@ Saf otomasyon oyununa ek olarak savunma katmanı:
 - [x] **Geç oyun: Encryptor + premium sipariş sistemi**
 - [x] Sanat stili: tamamen prosedürel
 - [x] Shader efektleri: Bloom, CRT, Vignette, Glow outline
+- [x] **6 Content tipi kesinleşti:** Standard, Financial, Biometric, Blueprint, Research, Classified
+- [x] **Kaynaklar tükenmez** (Shapez modeli)
+- [x] **Harita:** Seed-based prosedürel, sabit bölge kuralları
+- [x] **Kablo mesafe sınırı yok**, Relay v1.0'da yok
+- [x] **Separator:** İki mod (State modu / Content modu)
+- [x] **Data Broker:** Content'e göre farklı fiyat (1x-10x) + Blueprint → Patch Data
+- [x] **Blueprint Data (Clean) → Data Broker → Patch Data** (yeni yapı gerekmez)
 
 ### Reddedilen/Değişen Kararlar
 - ~~4 temel veri tipi (Clean, Corrupted, Encrypted, Malware)~~ → **Content + State modeline dönüştü**
