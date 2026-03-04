@@ -1,7 +1,7 @@
 # SYS_ADMIN - Proje Durumu
 
-## Mevcut Aşama: BÜYÜK REFACTOR — Content+State Veri Modeli + Saf Otomasyon + Harita Sistemi
-Vertical slice + Demo Faz 1-5 tamamlandı (eski sistem). Büyük tasarım pivotu sonrası refactor başlıyor. Power/Heat/Trace kaldırılacak, Content+State veri modeli uygulanacak, harita sistemi eklenecek. Hedef: Haziran 2026 Steam Next Fest.
+## Mevcut Aşama: BÜYÜK REFACTOR — Faz 5 Tamamlandı, Faz 6'ya Geçiliyor
+Refactor Faz 1-3 + Faz 5 tamamlandı. Faz 4 (Ekonomi) atlandı (test sürecini zorlaştırır). Harita sistemi temeli kuruldu: kaynak node'ları, organik şekiller, Uplink bağlantısı. Sırada Faz 6 (Harita Genişleme + Demo Polish). Hedef: Haziran 2026 Steam Next Fest.
 
 ## Tasarım Dökümanı
 - **GDD:** `docs/GDD.md` (v0.8) - Tüm tasarım kararları burada
@@ -259,18 +259,22 @@ Yapılar birbirinden habersiz çalışır. Hiçbir yapı "Decryptor'a gönder" d
 - [x] Keşif sistemi: Faz 2'de zaten güncellenmişti ✓
 - [x] Test: 8/8 senaryo PASSED — regression yok
 
-### Refactor Faz 4: Ekonomi + Yapı Satın Alma
+### Refactor Faz 4: Ekonomi + Yapı Satın Alma — ATLANADI (test kolaylığı için)
 - [ ] Credits ile yapı satın alma sistemi
 - [ ] Data Broker content-based fiyatlandırma (Standard=1x, Biometric=3x, Financial=5x, Classified=10x)
 - [ ] Blueprint Data (Clean) → Data Broker → Patch Data akışı
 - [ ] Yapı mağazası UI
 
-### Refactor Faz 5: Harita Sistemi Temeli
-- [ ] DataSourceDefinition Resource (content_weights, state_weights, bandwidth)
-- [ ] Kaynak node görselleştirmesi (haritada parlayan noktalar)
-- [ ] ISP Backbone başlangıç kaynağı
-- [ ] Uplink-kaynak bağlantısı (Uplink kaynağın yanına yerleştirilir, kaynağın composition'ını kullanır)
-- [ ] Harita kamerası (pan ile geniş alan gezintisi)
+### Refactor Faz 5: Harita Sistemi Temeli ✓
+- [x] DataSourceDefinition Resource (content_weights, state_weights, bandwidth, cell_count_range)
+- [x] Organik şekilli kaynak node'ları (flood-fill ile rastgele hücre kümesi, neon border, sinyal halkaları)
+- [x] 3 başlangıç kaynağı: ISP Backbone (kolay), Corporate Server (orta), Dark Web Node (zor)
+- [x] Grid genişleme: 64x64 → 256x256 + sadece görünen çizgileri çizen performans optimizasyonu
+- [x] SourceManager: kaynak yerleştirme, organik şekil üretimi, Uplink otomatik bağlantı
+- [x] Uplink-kaynak bağlantısı (Uplink kaynağın yanına yerleştirilince otomatik olarak kaynağın composition'ını kullanır)
+- [x] Kaynak hover tooltip (isim, bandwidth, content/state dağılımı, bağlı Uplink sayısı)
+- [x] Uplink tooltip'te bağlı kaynak bilgisi veya "kaynağın yanına yerleştir" uyarısı
+- [x] Test: 9/9 senaryo PASSED (8 regresyon + map_source_test)
 
 ### Refactor Faz 6: Harita Genişleme + Demo Polish
 - [ ] Seed-based prosedürel kaynak dağılımı
