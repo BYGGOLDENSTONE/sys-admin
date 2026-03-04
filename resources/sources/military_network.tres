@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="DataSourceDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://resources/sources/data_source_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+source_name = "Military Network"
+description = "Active military communications grid. Extremely valuable blueprints and classified data, but riddled with encryption and hostile malware countermeasures. Quarantine recommended."
+color = Color(1.0, 0.4, 0.2, 1.0)
+content_weights = {0: 0.05, 1: 0.05, 2: 0.05, 3: 0.30, 4: 0.20, 5: 0.35}
+state_weights = {0: 0.05, 1: 0.40, 2: 0.20, 3: 0.35}
+bandwidth = 12.0
+cell_count_range = Vector2i(5, 9)

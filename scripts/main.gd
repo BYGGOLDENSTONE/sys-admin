@@ -18,13 +18,12 @@ extends Node2D
 @onready var speed_label: Label = $UILayer/SpeedLabel
 
 var _tooltip_scene: PackedScene = preload("res://scenes/ui/building_tooltip.tscn")
+var _MapGeneratorScript = preload("res://scripts/map_generator.gd")
 var _tooltip: PanelContainer = null
 var _upgrade_panel: PanelContainer = null
 var _undo_manager: Node = null
-
-var _isp_backbone_def: DataSourceDefinition = preload("res://resources/sources/isp_backbone.tres")
-var _corporate_server_def: DataSourceDefinition = preload("res://resources/sources/corporate_server.tres")
-var _dark_web_node_def: DataSourceDefinition = preload("res://resources/sources/dark_web_node.tres")
+var _map_generator: RefCounted = null
+var _current_seed: int = 0
 
 
 func _ready() -> void:
@@ -99,11 +98,16 @@ func _ready() -> void:
 	building_manager.building_placed.connect(source_manager.on_building_placed)
 	building_manager.building_removed.connect(source_manager.on_building_removed)
 
-	# Place starting data sources
-	_place_initial_sources()
+	# Seed-based procedural map generation
+	_current_seed = _get_seed_from_args()
+	_map_generator = _MapGeneratorScript.new()
+	_map_generator.generate_map(_current_seed, source_manager)
 
-	# Center camera on ISP Backbone (first source)
+	# Center camera on map center
 	camera.position = Vector2(128 * 64 + 64, 128 * 64 + 64)
+
+	# Show seed in UI
+	_setup_seed_label()
 
 	# Wire up testing systems (optional — skip if nodes not present)
 	_setup_testing_systems()
@@ -132,13 +136,26 @@ func _unhandled_input(event: InputEvent) -> void:
 			simulation_manager.set_speed(3)
 
 
-func _place_initial_sources() -> void:
-	# ISP Backbone — center of map, easy starting source
-	source_manager.place_source(_isp_backbone_def, Vector2i(126, 126), 42)
-	# Corporate Server — northeast, medium difficulty
-	source_manager.place_source(_corporate_server_def, Vector2i(158, 98), 123)
-	# Dark Web Node — southwest, hard
-	source_manager.place_source(_dark_web_node_def, Vector2i(88, 168), 777)
+func _get_seed_from_args() -> int:
+	var args := OS.get_cmdline_user_args()
+	for arg in args:
+		if arg.begins_with("--seed="):
+			return int(arg.substr(7))
+	return randi()
+
+
+func _setup_seed_label() -> void:
+	var seed_label := Label.new()
+	seed_label.name = "SeedLabel"
+	seed_label.text = "Seed: %d" % _current_seed
+	seed_label.add_theme_font_size_override("font_size", 14)
+	seed_label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5, 0.8))
+	seed_label.anchors_preset = Control.PRESET_BOTTOM_LEFT
+	seed_label.offset_left = 10.0
+	seed_label.offset_bottom = -10.0
+	seed_label.offset_top = -30.0
+	seed_label.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	ui_layer.add_child(seed_label)
 
 
 func _setup_testing_systems() -> void:

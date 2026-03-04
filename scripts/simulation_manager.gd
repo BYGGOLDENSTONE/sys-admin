@@ -53,7 +53,9 @@ func _on_sim_tick() -> void:
 	for child in building_container.get_children():
 		if child.has_method("is_active"):
 			buildings.append(child)
+	_tick_count += 1
 	if buildings.is_empty():
+		tick_completed.emit(_tick_count)
 		return
 	# Reset work flags and flow tracking
 	connection_flow_data.clear()
@@ -65,7 +67,6 @@ func _on_sim_tick() -> void:
 	_update_research(buildings)
 	_update_selling(buildings)
 	_update_displays(buildings)
-	_tick_count += 1
 	tick_completed.emit(_tick_count)
 
 

@@ -225,6 +225,51 @@ func _handle_place_source(action: Dictionary) -> bool:
 	return source != null
 
 
+func _handle_generate_map(action: Dictionary) -> bool:
+	if source_manager == null:
+		push_error("[AutoPlay] source_manager not set")
+		return false
+	var seed_val: int = int(action.get("seed", 12345))
+	source_manager.clear_all_sources()
+	var MapGeneratorScript = preload("res://scripts/map_generator.gd")
+	var generator := MapGeneratorScript.new()
+	generator.generate_map(seed_val, source_manager)
+	print("[AutoPlay] Map generated — seed: %d" % seed_val)
+	return true
+
+
+func _handle_set_seed(action: Dictionary) -> bool:
+	## Set seed for subsequent generate_map calls (stored in action, no persistent state needed)
+	print("[AutoPlay] Seed noted: %d (use generate_map to apply)" % int(action.get("seed", 0)))
+	return true
+
+
+func _handle_assert_source_count(action: Dictionary) -> bool:
+	if source_manager == null:
+		push_error("[AutoPlay] source_manager not set")
+		return false
+	var sources: Array = source_manager.get_all_sources()
+	var count: int = sources.size()
+	var check: String = action.get("check", "gte")
+	var value: int = int(action.get("value", 0))
+	var result: bool = false
+	match check:
+		"gte":
+			result = count >= value
+		"lte":
+			result = count <= value
+		"eq":
+			result = count == value
+		_:
+			push_error("[AutoPlay] Unknown source_count check: %s" % check)
+			return false
+	if not result:
+		push_warning("[AutoPlay] Assert source_count FAILED — count: %d, check: %s %d" % [count, check, value])
+	else:
+		print("[AutoPlay] Assert source_count PASSED — count: %d %s %d" % [count, check, value])
+	return result
+
+
 # --- HELPERS ---
 
 func _load_definition(building_name: String) -> BuildingDefinition:

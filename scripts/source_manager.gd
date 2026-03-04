@@ -87,6 +87,16 @@ func get_source_for_uplink(uplink: Node2D) -> Node2D:
 	return _uplink_source_map.get(uplink, null)
 
 
+func clear_all_sources() -> void:
+	for source in _sources:
+		if is_instance_valid(source):
+			grid_system.free_source_cells(source.cells)
+			source.queue_free()
+	_sources.clear()
+	_uplink_source_map.clear()
+	print("[SourceManager] All sources cleared")
+
+
 ## --- ORGANIC SHAPE GENERATION ---
 
 func _generate_organic_shape(origin: Vector2i, count_range: Vector2i, rng_seed: int = -1) -> Array[Vector2i]:
