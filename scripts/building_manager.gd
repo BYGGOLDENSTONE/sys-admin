@@ -6,6 +6,8 @@ signal building_hovered(building: Node2D)
 signal building_unhovered()
 signal building_selected(building: Node2D)
 signal building_deselected()
+signal source_hovered(source: Node2D)
+signal source_unhovered()
 
 enum State { IDLE, PLACING, CONNECTING, MOVING }
 
@@ -22,6 +24,7 @@ var _current_definition: BuildingDefinition = null
 var _ghost_cell: Vector2i = Vector2i.ZERO
 var _can_place_here: bool = false
 var _hovered_building: Node2D = null
+var _hovered_source: Node2D = null
 var _selected_building: Node2D = null
 
 # Connecting state
@@ -231,6 +234,19 @@ func _update_hover() -> void:
 			building_hovered.emit(building)
 		else:
 			building_unhovered.emit()
+
+	# Source hover (when not hovering a building)
+	if building == null:
+		var source: Node2D = grid_system.get_source_at(cell)
+		if source != _hovered_source:
+			_hovered_source = source
+			if source != null:
+				source_hovered.emit(source)
+			else:
+				source_unhovered.emit()
+	elif _hovered_source != null:
+		_hovered_source = null
+		source_unhovered.emit()
 
 
 func _update_cable_hover() -> void:

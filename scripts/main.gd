@@ -13,9 +13,16 @@ extends Node2D
 @onready var patch_data_label: Label = $UILayer/PatchDataLabel
 @onready var tech_tree_panel: PanelContainer = $UILayer/TechTreePanel
 
+@onready var source_manager: Node = $SourceManager
+@onready var source_container: Node2D = $SourceContainer
+
 var _tooltip_scene: PackedScene = preload("res://scenes/ui/building_tooltip.tscn")
 var _tooltip: PanelContainer = null
 var _upgrade_panel: PanelContainer = null
+
+var _isp_backbone_def: DataSourceDefinition = preload("res://resources/sources/isp_backbone.tres")
+var _corporate_server_def: DataSourceDefinition = preload("res://resources/sources/corporate_server.tres")
+var _dark_web_node_def: DataSourceDefinition = preload("res://resources/sources/dark_web_node.tres")
 
 
 func _ready() -> void:
@@ -26,6 +33,8 @@ func _ready() -> void:
 	ui_layer.add_child(_tooltip)
 	building_manager.building_hovered.connect(_tooltip.show_for_building)
 	building_manager.building_unhovered.connect(_tooltip.hide_tooltip)
+	building_manager.source_hovered.connect(_tooltip.show_for_source)
+	building_manager.source_unhovered.connect(_tooltip.hide_tooltip)
 
 	# Wire up connection system
 	building_manager.connection_manager = connection_manager
@@ -66,16 +75,31 @@ func _ready() -> void:
 	building_panel._tech_tree = tech_tree_panel
 	tech_tree_panel.building_unlocked.connect(_on_building_unlocked)
 
-	# Center camera on grid
-	camera.position = Vector2(
-		grid_system.GRID_WIDTH * grid_system.TILE_SIZE / 2.0,
-		grid_system.GRID_HEIGHT * grid_system.TILE_SIZE / 2.0
-	)
+	# Wire up source manager
+	source_manager.grid_system = grid_system
+	source_manager.source_container = source_container
+	building_manager.building_placed.connect(source_manager.on_building_placed)
+	building_manager.building_removed.connect(source_manager.on_building_removed)
+
+	# Place starting data sources
+	_place_initial_sources()
+
+	# Center camera on ISP Backbone (first source)
+	camera.position = Vector2(128 * 64 + 64, 128 * 64 + 64)
 
 	# Wire up testing systems (optional — skip if nodes not present)
 	_setup_testing_systems()
 
 	print("[Main] SYS_ADMIN initialized")
+
+
+func _place_initial_sources() -> void:
+	# ISP Backbone — center of map, easy starting source
+	source_manager.place_source(_isp_backbone_def, Vector2i(126, 126), 42)
+	# Corporate Server — northeast, medium difficulty
+	source_manager.place_source(_corporate_server_def, Vector2i(158, 98), 123)
+	# Dark Web Node — southwest, hard
+	source_manager.place_source(_dark_web_node_def, Vector2i(88, 168), 777)
 
 
 func _setup_testing_systems() -> void:
@@ -92,6 +116,7 @@ func _setup_testing_systems() -> void:
 		auto_play.connection_manager = connection_manager
 		auto_play.simulation_manager = simulation_manager
 		auto_play.data_collector = data_collector
+		auto_play.source_manager = source_manager
 		simulation_manager.tick_completed.connect(auto_play._on_tick_completed)
 		auto_play.scenario_finished.connect(_on_scenario_finished)
 

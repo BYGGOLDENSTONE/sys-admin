@@ -129,10 +129,13 @@ func _update_generation(buildings: Array[Node]) -> void:
 			continue
 		var gen: GeneratorComponent = b.definition.generator
 		var amount: int = int(gen.generation_rate)
+		# Use runtime weights from linked source if available, otherwise definition weights
+		var c_weights: Dictionary = b.runtime_content_weights if not b.runtime_content_weights.is_empty() else gen.content_weights
+		var s_weights: Dictionary = b.runtime_state_weights if not b.runtime_state_weights.is_empty() else gen.state_weights
 		var total_pushed: int = 0
 		for i in range(amount):
-			var content: int = _roll_content(gen.content_weights)
-			var state: int = _roll_state(gen.state_weights)
+			var content: int = _roll_content(c_weights)
+			var state: int = _roll_state(s_weights)
 			_check_discovery(content, state)
 			total_pushed += _push_data_from(b, content, state, 1)
 		if total_pushed > 0:

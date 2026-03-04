@@ -15,6 +15,7 @@
 [ext_resource type="Script" uid="uid://b4368firahglh" path="res://scripts/simulation_manager.gd" id="12_eb6dy"]
 [ext_resource type="Script" uid="uid://uaho8jxduw0r" path="res://scripts/testing/auto_play_manager.gd" id="13_trceg"]
 [ext_resource type="Script" uid="uid://b0itnwi6u1obt" path="res://scripts/testing/data_collector.gd" id="14_a8y0u"]
+[ext_resource type="Script" path="res://scripts/source_manager.gd" id="15_srcmgr"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_bloom"]
 shader = ExtResource("10")
@@ -34,6 +35,8 @@ script = ExtResource("1")
 
 [node name="GridSystem" type="Node2D" parent="." unique_id=878305488]
 script = ExtResource("2")
+
+[node name="SourceContainer" type="Node2D" parent="."]
 
 [node name="ConnectionLayer" type="Node2D" parent="." unique_id=1632572815]
 script = ExtResource("9")
@@ -122,6 +125,9 @@ offset_right = 13.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
+
+[node name="SourceManager" type="Node" parent="."]
+script = ExtResource("15_srcmgr")
 
 [node name="SimulationManager" type="Node" parent="." unique_id=547972428]
 script = ExtResource("12_eb6dy")

@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="DataSourceDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://resources/sources/data_source_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+source_name = "ISP Backbone"
+description = "Public internet backbone. Mostly clean standard traffic with occasional corrupted packets. A safe starting point for any netrunner."
+color = Color(0.4, 0.8, 1.0, 1.0)
+content_weights = {0: 0.70, 1: 0.05, 2: 0.10, 3: 0.05, 4: 0.05, 5: 0.05}
+state_weights = {0: 0.70, 1: 0.10, 2: 0.15, 3: 0.05}
+bandwidth = 5.0
+cell_count_range = Vector2i(10, 14)

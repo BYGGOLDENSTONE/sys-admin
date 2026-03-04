@@ -8,6 +8,7 @@ var building_manager: Node = null
 var connection_manager: Node = null
 var simulation_manager: Node = null
 var data_collector: Node = null
+var source_manager: Node = null
 
 var _scenario: Dictionary = {}
 var _actions: Array = []
@@ -188,6 +189,12 @@ func _handle_assert(action: Dictionary) -> bool:
 			result = simulation_manager.total_research > action.get("value", 0)
 		"neutralized_gt":
 			result = simulation_manager.total_neutralized > action.get("value", 0)
+		"uplink_linked":
+			var b: Node2D = _building_refs.get(action.get("id", ""))
+			result = b != null and b.linked_source != null
+		"uplink_not_linked":
+			var b: Node2D = _building_refs.get(action.get("id", ""))
+			result = b != null and b.linked_source == null
 		_:
 			push_error("[AutoPlay] Unknown assert check: %s" % check)
 			return false
@@ -197,6 +204,25 @@ func _handle_assert(action: Dictionary) -> bool:
 	else:
 		print("[AutoPlay] Assert PASSED — %s" % check)
 	return result
+
+
+func _handle_place_source(action: Dictionary) -> bool:
+	if source_manager == null:
+		push_error("[AutoPlay] source_manager not set")
+		return false
+	var source_name: String = action.get("source", "")
+	var path: String = "res://resources/sources/%s.tres" % source_name
+	if not ResourceLoader.exists(path):
+		push_error("[AutoPlay] Unknown source: %s" % source_name)
+		return false
+	var def = load(path) as DataSourceDefinition
+	if def == null:
+		return false
+	var cell_arr: Array = action.get("cell", [0, 0])
+	var cell := Vector2i(int(cell_arr[0]), int(cell_arr[1]))
+	var seed_val: int = int(action.get("seed", -1))
+	var source: Node2D = source_manager.place_source(def, cell, seed_val)
+	return source != null
 
 
 # --- HELPERS ---

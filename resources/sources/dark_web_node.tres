@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="DataSourceDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://resources/sources/data_source_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+source_name = "Dark Web Node"
+description = "Dangerous dark web relay. Valuable classified and research data mixed with heavy corruption and malware. High risk, high reward."
+color = Color(0.8, 0.2, 0.6, 1.0)
+content_weights = {0: 0.10, 1: 0.10, 2: 0.25, 3: 0.10, 4: 0.25, 5: 0.20}
+state_weights = {0: 0.15, 1: 0.25, 2: 0.30, 3: 0.30}
+bandwidth = 10.0
+cell_count_range = Vector2i(6, 10)

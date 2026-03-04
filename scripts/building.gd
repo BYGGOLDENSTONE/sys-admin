@@ -31,6 +31,11 @@ var separator_mode: String = "state"  ## For separator: "state" or "content"
 var separator_filter_value: int = 0  ## Filter value for separator (state or content int)
 var upgrade_level: int = 0  ## Current upgrade level (0 = base)
 
+# Source link (set by SourceManager when Uplink is near a data source)
+var linked_source: Node2D = null  ## The data source this Uplink is tapped into
+var runtime_content_weights: Dictionary = {}  ## Overrides generator content_weights when linked
+var runtime_state_weights: Dictionary = {}    ## Overrides generator state_weights when linked
+
 
 func _process(delta: float) -> void:
 	if _is_ghost or definition == null:

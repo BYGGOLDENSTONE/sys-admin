@@ -10,6 +10,7 @@ const OFFSET := Vector2(16, 16)
 @onready var stats_label: RichTextLabel = $MarginContainer/VBoxContainer/StatsLabel
 
 var _target_building: Node2D = null
+var _target_source: Node2D = null
 
 
 func _ready() -> void:
@@ -19,6 +20,7 @@ func _ready() -> void:
 
 
 func show_for_building(building: Node2D) -> void:
+	_target_source = null
 	_target_building = building
 	var def: BuildingDefinition = building.definition
 	if def == null:
@@ -33,8 +35,25 @@ func show_for_building(building: Node2D) -> void:
 	visible = true
 
 
+func show_for_source(source: Node2D) -> void:
+	_target_building = null
+	_target_source = source
+	var def = source.definition
+	if def == null:
+		hide_tooltip()
+		return
+
+	name_label.text = def.source_name
+	name_label.add_theme_color_override("font_color", def.color)
+	desc_label.text = def.description
+	info_label.text = "VERİ KAYNAĞI | %d MB/s" % int(def.bandwidth)
+	_update_source_stats()
+	visible = true
+
+
 func hide_tooltip() -> void:
 	_target_building = null
+	_target_source = null
 	visible = false
 
 
@@ -45,6 +64,8 @@ func _process(_delta: float) -> void:
 	# Live update stats while visible
 	if _target_building != null:
 		_update_stats()
+	elif _target_source != null:
+		_update_source_stats()
 
 	var mouse_pos := get_viewport().get_mouse_position()
 	var viewport_size := get_viewport_rect().size
@@ -77,10 +98,18 @@ func _update_stats() -> void:
 	# Type-specific stats (component-based)
 	if def.generator:
 		lines.append(_stat("Akış", "%d MB/s" % int(def.generator.generation_rate)))
-		if not def.generator.content_weights.is_empty():
-			lines.append(_stat("Content", _format_content_weights(def.generator.content_weights)))
-		if not def.generator.state_weights.is_empty():
-			lines.append(_stat("State", _format_state_weights(def.generator.state_weights)))
+		# Show source info if linked, otherwise show default weights
+		if b.linked_source != null:
+			var src_def = b.linked_source.definition
+			lines.append(_stat("Kaynak", "[color=%s]%s[/color]" % [src_def.color.to_html(), src_def.source_name]))
+			lines.append(_stat("Content", _format_content_weights(b.runtime_content_weights)))
+			lines.append(_stat("State", _format_state_weights(b.runtime_state_weights)))
+		else:
+			if not def.generator.content_weights.is_empty():
+				lines.append(_stat("Content", _format_content_weights(def.generator.content_weights)))
+			if not def.generator.state_weights.is_empty():
+				lines.append(_stat("State", _format_state_weights(def.generator.state_weights)))
+			lines.append(_stat("Kaynak", "[color=#ff8844]Bağlı değil — kaynağın yanına yerleştir[/color]"))
 	if def.storage and def.processor == null:
 		var total: int = b.get_total_stored()
 		var cap: int = int(b.get_effective_value("capacity"))
@@ -202,6 +231,25 @@ func _format_price_multipliers(sell: SellerComponent) -> String:
 		var color: String = DataEnums.content_color_hex(c)
 		parts.append("[color=%s]%s(%.0fx)[/color]" % [color, DataEnums.content_name(c), mult])
 	return ", ".join(parts)
+
+
+func _update_source_stats() -> void:
+	if _target_source == null or _target_source.definition == null:
+		stats_label.text = ""
+		return
+	var def = _target_source.definition
+	var lines: PackedStringArray = []
+	lines.append(_stat("Bant Genişliği", "%d MB/s" % int(def.bandwidth)))
+	if not def.content_weights.is_empty():
+		lines.append(_stat("Content", _format_content_weights(def.content_weights)))
+	if not def.state_weights.is_empty():
+		lines.append(_stat("State", _format_state_weights(def.state_weights)))
+	var linked: int = _target_source._linked_uplinks
+	if linked > 0:
+		lines.append(_stat("Bağlı Uplink", "[color=#44ff88]%d[/color]" % linked))
+	else:
+		lines.append(_stat("Bağlı Uplink", "[color=#ff8844]0 — Uplink yerleştir[/color]"))
+	stats_label.text = "\n".join(lines)
 
 
 func _setup_style() -> void:
