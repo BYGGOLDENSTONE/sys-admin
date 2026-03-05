@@ -239,6 +239,12 @@ func _update_source_stats() -> void:
 		return
 	var def = _target_source.definition
 	var lines: PackedStringArray = []
+	# Zone/ring info
+	if def.ring_index >= 0:
+		var ring_labels: Array = ["KOLAY", "ORTA", "ZOR", "ENDGAME"]
+		var ring_colors: Array = ["#44ff66", "#ffee44", "#ff9933", "#ff4444"]
+		var idx: int = clampi(def.ring_index, 0, 3)
+		lines.append(_stat("Bölge", "[color=%s]Ring %d — %s[/color]" % [ring_colors[idx], idx, ring_labels[idx]]))
 	lines.append(_stat("Bant Genişliği", "%d MB/s" % int(def.bandwidth)))
 	if not def.content_weights.is_empty():
 		lines.append(_stat("Content", _format_content_weights(def.content_weights)))

@@ -6,6 +6,15 @@ const GRID_HEIGHT: int = 256
 
 const BG_COLOR := Color("#0a0e14")
 const GRID_LINE_COLOR := Color("#2a2e3e")
+const MAP_CENTER := Vector2(128 * 64, 128 * 64)  ## Center in pixels (128,128 grid * 64px)
+
+## Ring border radii (in grid cells) and colors (easy→endgame)
+const RING_BORDERS: Array = [
+	{"radius": 25, "color": Color(0.3, 1.0, 0.4, 0.25)},   ## Ring 0→1: green
+	{"radius": 50, "color": Color(1.0, 0.9, 0.3, 0.25)},   ## Ring 1→2: yellow
+	{"radius": 80, "color": Color(1.0, 0.6, 0.2, 0.25)},   ## Ring 2→3: orange
+	{"radius": 115, "color": Color(1.0, 0.3, 0.2, 0.25)},  ## Ring 3 outer: red
+]
 
 var _occupied_cells: Dictionary = {}
 var _source_cells: Dictionary = {}  ## cell → source Node2D ref
@@ -58,6 +67,21 @@ func free_source_cells(cells: Array[Vector2i]) -> void:
 		_source_cells.erase(cell)
 
 
+func get_ring_color(ring_index: int) -> Color:
+	if ring_index < 0 or ring_index >= RING_BORDERS.size():
+		return Color.WHITE
+	return RING_BORDERS[ring_index]["color"]
+
+
+func get_ring_label(ring_index: int) -> String:
+	match ring_index:
+		0: return "KOLAY"
+		1: return "ORTA"
+		2: return "ZOR"
+		3: return "ENDGAME"
+		_: return "???"
+
+
 func get_source_at(cell: Vector2i) -> Node:
 	return _source_cells.get(cell, null)
 
@@ -89,3 +113,33 @@ func _draw() -> void:
 			Vector2(end_x * TILE_SIZE, y * TILE_SIZE),
 			GRID_LINE_COLOR, -1.0, true
 		)
+
+	_draw_ring_borders(cam_pos, vp_size)
+
+
+func _draw_ring_borders(cam_pos: Vector2, vp_size: Vector2) -> void:
+	var view_rect := Rect2(cam_pos, vp_size)
+	var seg_count: int = 64
+
+	for ring in RING_BORDERS:
+		var radius_px: float = float(ring["radius"]) * TILE_SIZE
+		var color: Color = ring["color"]
+
+		# Rough visibility check: if ring circle doesn't intersect viewport, skip
+		var ring_rect := Rect2(
+			MAP_CENTER.x - radius_px, MAP_CENTER.y - radius_px,
+			radius_px * 2, radius_px * 2
+		)
+		if not view_rect.intersects(ring_rect):
+			continue
+
+		# Draw dashed neon circle
+		var points := PackedVector2Array()
+		for i in range(seg_count + 1):
+			var angle: float = float(i) / float(seg_count) * TAU
+			points.append(MAP_CENTER + Vector2(cos(angle), sin(angle)) * radius_px)
+
+		# Inner glow (wider, dimmer)
+		draw_polyline(points, Color(color, color.a * 0.4), 4.0, true)
+		# Core line
+		draw_polyline(points, color, 1.5, true)

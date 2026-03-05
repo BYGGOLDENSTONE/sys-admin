@@ -11,3 +11,4 @@ content_weights = {0: 0.70, 1: 0.05, 2: 0.10, 3: 0.05, 4: 0.05, 5: 0.05}
 state_weights = {0: 0.70, 1: 0.10, 2: 0.15, 3: 0.05}
 bandwidth = 5.0
 cell_count_range = Vector2i(10, 14)
+ring_index = 0

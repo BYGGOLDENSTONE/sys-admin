@@ -8,3 +8,4 @@ extends Resource
 @export var state_weights: Dictionary = {}    ## {DataState: weight} probability distribution
 @export var bandwidth: float = 5.0            ## Max MB/s this source can provide
 @export var cell_count_range: Vector2i = Vector2i(8, 12)  ## Min/max cells for organic shape
+@export var ring_index: int = -1  ## Difficulty ring: 0=easy, 1=medium, 2=hard, 3=endgame

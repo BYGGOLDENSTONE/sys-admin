@@ -45,6 +45,9 @@ func _draw() -> void:
 	var base_alpha: float = 0.12 + pulse
 	var border_alpha: float = 0.5 + pulse * 2.0
 
+	# Territory tint (1-cell padding around source for zone feel)
+	_draw_territory_tint(accent)
+
 	# Draw filled cells (organic blob)
 	for cell in cells:
 		var local_pos := Vector2(
@@ -61,6 +64,9 @@ func _draw() -> void:
 	# Signal rings (expanding circles from center)
 	var center: Vector2 = get_center_world() - global_position
 	_draw_signal_rings(center, accent)
+
+	# Zone badge (difficulty indicator above name)
+	_draw_zone_badge(center)
 
 	# Source name at center
 	_draw_source_name(center, accent)
@@ -178,3 +184,55 @@ func _draw_composition_bars(center: Vector2, _accent: Color) -> void:
 		var color: Color = DataEnums.content_color(int(content_id))
 		draw_rect(Rect2(Vector2(bar_x + offset, bar_y), Vector2(seg_width, bar_height)), Color(color, 0.8), true)
 		offset += seg_width
+
+
+func _draw_territory_tint(accent: Color) -> void:
+	var cell_set: Dictionary = {}
+	for cell in cells:
+		cell_set[cell] = true
+
+	# Draw a faint tint on neighboring cells (1-cell padding) that aren't part of source
+	var tint_color := Color(accent, 0.06)
+	for cell in cells:
+		for dx in range(-1, 2):
+			for dy in range(-1, 2):
+				var neighbor := Vector2i(cell.x + dx, cell.y + dy)
+				if cell_set.has(neighbor):
+					continue
+				var local_pos := Vector2(
+					(neighbor.x - grid_cell.x) * TILE_SIZE,
+					(neighbor.y - grid_cell.y) * TILE_SIZE
+				)
+				# Use cell_set to avoid drawing same neighbor multiple times
+				cell_set[neighbor] = false  # Mark as tinted (not a source cell)
+				draw_rect(Rect2(local_pos, Vector2(TILE_SIZE, TILE_SIZE)), tint_color, true)
+
+
+func _draw_zone_badge(center: Vector2) -> void:
+	if definition.ring_index < 0:
+		return
+
+	var ring_labels: Array = ["KOLAY", "ORTA", "ZOR", "ENDGAME"]
+	var ring_colors: Array = [
+		Color(0.3, 1.0, 0.4),   # green
+		Color(1.0, 0.9, 0.3),   # yellow
+		Color(1.0, 0.6, 0.2),   # orange
+		Color(1.0, 0.3, 0.2),   # red
+	]
+
+	var idx: int = clampi(definition.ring_index, 0, 3)
+	var label: String = ring_labels[idx]
+	var badge_color: Color = ring_colors[idx]
+
+	var font := ThemeDB.fallback_font
+	var font_size := 10
+	var text_size := font.get_string_size(label, HORIZONTAL_ALIGNMENT_CENTER, -1, font_size)
+	var badge_pos := Vector2(center.x - text_size.x / 2.0, center.y - 28)
+
+	# Badge background
+	var bg_rect := Rect2(badge_pos.x - 4, badge_pos.y - font_size + 1, text_size.x + 8, font_size + 4)
+	draw_rect(bg_rect, Color(0, 0, 0, 0.6), true)
+	draw_rect(bg_rect, Color(badge_color, 0.5), false, 1.0)
+
+	# Badge text
+	draw_string(font, badge_pos, label, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(badge_color, 0.9))
