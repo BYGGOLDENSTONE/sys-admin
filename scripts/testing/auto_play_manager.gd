@@ -195,6 +195,20 @@ func _handle_assert(action: Dictionary) -> bool:
 		"uplink_not_linked":
 			var b: Node2D = _building_refs.get(action.get("id", ""))
 			result = b != null and b.linked_source == null
+		"discovered_sources_gte":
+			if source_manager:
+				var count: int = source_manager.get_discovered_sources().size()
+				result = count >= int(action.get("value", 0))
+				if not result:
+					push_warning("[AutoPlay] discovered_sources_gte — got %d, expected >= %d" % [count, int(action.get("value", 0))])
+		"undiscovered_sources_gte":
+			if source_manager:
+				var total: int = source_manager.get_all_sources().size()
+				var discovered: int = source_manager.get_discovered_sources().size()
+				var undiscovered: int = total - discovered
+				result = undiscovered >= int(action.get("value", 0))
+				if not result:
+					push_warning("[AutoPlay] undiscovered_sources_gte — got %d, expected >= %d" % [undiscovered, int(action.get("value", 0))])
 		_:
 			push_error("[AutoPlay] Unknown assert check: %s" % check)
 			return false

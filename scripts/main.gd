@@ -24,6 +24,8 @@ var _upgrade_panel: PanelContainer = null
 var _undo_manager: Node = null
 var _map_generator: RefCounted = null
 var _current_seed: int = 0
+var _dev_mode: bool = false
+var _dev_mode_label: Label = null
 
 
 func _ready() -> void:
@@ -97,6 +99,7 @@ func _ready() -> void:
 	source_manager.source_container = source_container
 	building_manager.building_placed.connect(source_manager.on_building_placed)
 	building_manager.building_removed.connect(source_manager.on_building_removed)
+	source_manager.source_discovered.connect(_on_source_discovered)
 
 	# Seed-based procedural map generation
 	_current_seed = _get_seed_from_args()
@@ -108,6 +111,9 @@ func _ready() -> void:
 
 	# Show seed in UI
 	_setup_seed_label()
+
+	# Dev mode label
+	_setup_dev_mode_label()
 
 	# Wire up testing systems (optional — skip if nodes not present)
 	_setup_testing_systems()
@@ -134,6 +140,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			simulation_manager.set_speed(2)
 		KEY_3:
 			simulation_manager.set_speed(3)
+		KEY_F9:
+			_toggle_dev_mode()
 
 
 func _get_seed_from_args() -> int:
@@ -262,5 +270,30 @@ func _show_discovery_notification(display_name: String, color: Color) -> void:
 	var tween := create_tween()
 	tween.tween_property(notif, "modulate:a", 0.0, 1.0).set_delay(2.0)
 	tween.tween_callback(notif.queue_free)
+
+
+func _on_source_discovered(source: Node2D) -> void:
+	var def = source.definition
+	_show_discovery_notification(def.source_name, def.color)
+
+
+func _toggle_dev_mode() -> void:
+	_dev_mode = not _dev_mode
+	source_manager.set_dev_mode(_dev_mode)
+	_dev_mode_label.visible = _dev_mode
+	print("[Main] Dev mode: %s" % ("ON" if _dev_mode else "OFF"))
+
+
+func _setup_dev_mode_label() -> void:
+	_dev_mode_label = Label.new()
+	_dev_mode_label.name = "DevModeLabel"
+	_dev_mode_label.text = "[DEV MODE]"
+	_dev_mode_label.add_theme_font_size_override("font_size", 18)
+	_dev_mode_label.add_theme_color_override("font_color", Color(1, 0.3, 0.3, 1))
+	_dev_mode_label.anchors_preset = Control.PRESET_TOP_LEFT
+	_dev_mode_label.offset_left = 10.0
+	_dev_mode_label.offset_top = 10.0
+	_dev_mode_label.visible = false
+	ui_layer.add_child(_dev_mode_label)
 
 

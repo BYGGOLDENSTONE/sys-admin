@@ -1,11 +1,15 @@
 extends Node
 
 signal source_placed(source: Node2D)
+signal source_discovered(source: Node2D)
 signal uplink_linked(uplink: Node2D, source: Node2D)
 signal uplink_unlinked(uplink: Node2D)
 
+const REVEAL_RADIUS: int = 20  ## Manhattan distance from building to source origin
+
 var grid_system: Node2D = null
 var source_container: Node2D = null
+var dev_mode: bool = false
 
 var _source_scene: PackedScene = preload("res://scenes/data_source.tscn")
 var _sources: Array[Node2D] = []
@@ -21,12 +25,18 @@ func place_source(def: DataSourceDefinition, origin: Vector2i, rng_seed: int = -
 	var source: Node2D = _source_scene.instantiate()
 	source.setup(def, origin, shape)
 	source.position = grid_system.grid_to_world(origin)
+
+	# Ring 0 sources auto-discovered, others start hidden
+	source.discovered = (def.ring_index == 0)
+	source.dev_mode = dev_mode
+
 	source_container.add_child(source)
 
 	grid_system.occupy_source(shape, source)
 	_sources.append(source)
 	source_placed.emit(source)
-	print("[SourceManager] Source placed — %s at (%d,%d), %d cells" % [def.source_name, origin.x, origin.y, shape.size()])
+	print("[SourceManager] Source placed — %s at (%d,%d), %d cells, discovered: %s" % [
+		def.source_name, origin.x, origin.y, shape.size(), str(source.discovered)])
 	return source
 
 
@@ -67,10 +77,15 @@ func unlink_uplink(uplink: Node2D) -> void:
 
 
 func on_building_placed(building: Node2D, _cell: Vector2i) -> void:
-	if building.definition == null or building.definition.generator == null:
+	if building.definition == null:
+		return
+	# Any building can trigger source discovery
+	check_discovery_near(building.grid_cell, building.definition.grid_size)
+	# Uplink auto-link (only to discovered sources)
+	if building.definition.generator == null:
 		return
 	var source: Node2D = get_source_near(building.grid_cell, building.definition.grid_size)
-	if source != null:
+	if source != null and source.discovered:
 		link_uplink_to_source(building, source)
 
 
@@ -79,8 +94,67 @@ func on_building_removed(building: Node2D, _cell: Vector2i) -> void:
 		unlink_uplink(building)
 
 
+func check_discovery_near(building_cell: Vector2i, building_size: Vector2i) -> void:
+	var b_center := Vector2(
+		building_cell.x + building_size.x / 2.0,
+		building_cell.y + building_size.y / 2.0
+	)
+	for source in _sources:
+		if source.discovered:
+			continue
+		var s_origin := Vector2(source.grid_cell.x, source.grid_cell.y)
+		var dist: int = int(abs(b_center.x - s_origin.x) + abs(b_center.y - s_origin.y))
+		if dist <= REVEAL_RADIUS:
+			reveal_source(source)
+
+
+func reveal_source(source: Node2D) -> void:
+	if source.discovered:
+		return
+	source.reveal()
+	source_discovered.emit(source)
+	print("[SourceManager] Source discovered — %s" % source.definition.source_name)
+	# Auto-link any nearby unlinked Uplinks
+	_auto_link_uplinks_near(source)
+
+
+func _auto_link_uplinks_near(source: Node2D) -> void:
+	var checked: Dictionary = {}
+	for cell in source.cells:
+		for dx in range(-1, 2):
+			for dy in range(-1, 2):
+				var neighbor := Vector2i(cell.x + dx, cell.y + dy)
+				if checked.has(neighbor):
+					continue
+				checked[neighbor] = true
+				var building: Node = grid_system.get_building_at(neighbor)
+				if building == null or not is_instance_valid(building):
+					continue
+				if building.definition == null or building.definition.generator == null:
+					continue
+				if _uplink_source_map.has(building):
+					continue
+				var nearby: Node2D = get_source_near(building.grid_cell, building.definition.grid_size)
+				if nearby == source:
+					link_uplink_to_source(building, source)
+
+
+func set_dev_mode(enabled: bool) -> void:
+	dev_mode = enabled
+	for source in _sources:
+		source.dev_mode = enabled
+
+
 func get_all_sources() -> Array[Node2D]:
 	return _sources
+
+
+func get_discovered_sources() -> Array[Node2D]:
+	var result: Array[Node2D] = []
+	for source in _sources:
+		if source.discovered:
+			result.append(source)
+	return result
 
 
 func get_source_for_uplink(uplink: Node2D) -> Node2D:

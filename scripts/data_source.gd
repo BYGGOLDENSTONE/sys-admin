@@ -9,14 +9,19 @@ const RING_COUNT: int = 3
 var definition: DataSourceDefinition
 var grid_cell: Vector2i = Vector2i.ZERO  ## Top-left origin cell
 var cells: Array[Vector2i] = []          ## All occupied cells (organic shape)
+var discovered: bool = false
+var dev_mode: bool = false
 var _glow_time: float = 0.0
 var _linked_uplinks: int = 0  ## How many Uplinks are tapped into this source
+var _reveal_flash: float = 0.0  ## 1.0 = just revealed, fades to 0
 
 
 func _process(delta: float) -> void:
 	if definition == null:
 		return
 	_glow_time += delta
+	if _reveal_flash > 0:
+		_reveal_flash = max(0.0, _reveal_flash - delta * 2.0)
 	queue_redraw()
 
 
@@ -25,6 +30,11 @@ func setup(def: DataSourceDefinition, origin: Vector2i, shape_cells: Array[Vecto
 	grid_cell = origin
 	cells = shape_cells
 	queue_redraw()
+
+
+func reveal() -> void:
+	discovered = true
+	_reveal_flash = 1.0
 
 
 func get_center_world() -> Vector2:
@@ -38,6 +48,11 @@ func get_center_world() -> Vector2:
 
 func _draw() -> void:
 	if definition == null or cells.is_empty():
+		return
+
+	# Hidden state — only show faint blip
+	if not discovered and not dev_mode:
+		_draw_hidden()
 		return
 
 	var accent: Color = definition.color
@@ -68,11 +83,98 @@ func _draw() -> void:
 	# Zone badge (difficulty indicator above name)
 	_draw_zone_badge(center)
 
+	# Dev mode: hidden indicator badge
+	if dev_mode and not discovered:
+		_draw_hidden_badge(center)
+
 	# Source name at center
 	_draw_source_name(center, accent)
 
 	# Content composition indicator (small colored bars)
 	_draw_composition_bars(center, accent)
+
+	# Reveal flash overlay
+	if _reveal_flash > 0:
+		_draw_reveal_flash()
+
+
+func _draw_hidden() -> void:
+	var accent: Color = definition.color
+	var pulse: float = sin(_glow_time * 0.8) * 0.1
+	var alpha: float = 0.15 + pulse
+
+	# Faint blob fill
+	for cell in cells:
+		var local_pos := Vector2(
+			(cell.x - grid_cell.x) * TILE_SIZE,
+			(cell.y - grid_cell.y) * TILE_SIZE
+		)
+		draw_rect(Rect2(local_pos, Vector2(TILE_SIZE, TILE_SIZE)), Color(accent, 0.03), true)
+
+	# Dim border
+	_draw_organic_border(accent, alpha * 0.3)
+
+	# "?" icon at center
+	var center: Vector2 = get_center_world() - global_position
+	var font := ThemeDB.fallback_font
+	var q_size := 20
+	var q_text := "?"
+	var q_dims := font.get_string_size(q_text, HORIZONTAL_ALIGNMENT_CENTER, -1, q_size)
+	var q_pos := Vector2(center.x - q_dims.x / 2.0, center.y + q_dims.y / 4.0)
+	draw_string(font, q_pos + Vector2(1, 1), q_text, HORIZONTAL_ALIGNMENT_LEFT, -1, q_size, Color(0, 0, 0, 0.5))
+	draw_string(font, q_pos, q_text, HORIZONTAL_ALIGNMENT_LEFT, -1, q_size, Color(accent, alpha + 0.15))
+
+	# "Bilinmeyen Sinyal" text below
+	var sub_size := 9
+	var sub_text := "Bilinmeyen Sinyal"
+	var sub_dims := font.get_string_size(sub_text, HORIZONTAL_ALIGNMENT_CENTER, -1, sub_size)
+	var sub_pos := Vector2(center.x - sub_dims.x / 2.0, center.y + 16)
+	draw_string(font, sub_pos, sub_text, HORIZONTAL_ALIGNMENT_LEFT, -1, sub_size, Color(accent, alpha * 0.5))
+
+	# Single slow signal ring
+	var phase: float = fmod(_glow_time * 0.3, 1.0)
+	var radius: float = 15.0 + phase * 50.0
+	var ring_alpha: float = (1.0 - phase) * 0.12
+	if ring_alpha > 0.01:
+		var points := PackedVector2Array()
+		for j in range(33):
+			var angle: float = float(j) / 32.0 * TAU
+			points.append(center + Vector2(cos(angle), sin(angle)) * radius)
+		draw_polyline(points, Color(accent, ring_alpha), 1.0, true)
+
+
+func _draw_hidden_badge(center: Vector2) -> void:
+	var font := ThemeDB.fallback_font
+	var font_size := 10
+	var label := "GİZLİ"
+	var badge_color := Color(1.0, 0.4, 0.2)
+	var text_size := font.get_string_size(label, HORIZONTAL_ALIGNMENT_CENTER, -1, font_size)
+	var badge_pos := Vector2(center.x - text_size.x / 2.0, center.y - 42)
+
+	var bg_rect := Rect2(badge_pos.x - 4, badge_pos.y - font_size + 1, text_size.x + 8, font_size + 4)
+	draw_rect(bg_rect, Color(0, 0, 0, 0.7), true)
+	draw_rect(bg_rect, Color(badge_color, 0.6), false, 1.0)
+	draw_string(font, badge_pos, label, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(badge_color, 0.9))
+
+
+func _draw_reveal_flash() -> void:
+	var accent: Color = definition.color
+	var flash_alpha: float = _reveal_flash * 0.4
+	for cell in cells:
+		var local_pos := Vector2(
+			(cell.x - grid_cell.x) * TILE_SIZE,
+			(cell.y - grid_cell.y) * TILE_SIZE
+		)
+		draw_rect(Rect2(local_pos, Vector2(TILE_SIZE, TILE_SIZE)), Color(accent, flash_alpha), true)
+	# Expanding ring burst
+	var center: Vector2 = get_center_world() - global_position
+	var burst_radius: float = (1.0 - _reveal_flash) * 120.0
+	var burst_alpha: float = _reveal_flash * 0.5
+	var points := PackedVector2Array()
+	for j in range(33):
+		var angle: float = float(j) / 32.0 * TAU
+		points.append(center + Vector2(cos(angle), sin(angle)) * burst_radius)
+	draw_polyline(points, Color(accent, burst_alpha), 2.5, true)
 
 
 func _draw_organic_border(accent: Color, alpha: float) -> void:
