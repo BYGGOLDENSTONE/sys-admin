@@ -8,14 +8,9 @@ extends Node2D
 @onready var connection_manager: Node = $ConnectionManager
 @onready var connection_layer: Node2D = $ConnectionLayer
 @onready var simulation_manager = $SimulationManager
-@onready var credits_label: Label = $UILayer/CreditsLabel
-@onready var research_label: Label = $UILayer/ResearchLabel
-@onready var patch_data_label: Label = $UILayer/PatchDataLabel
 @onready var tech_tree_panel: PanelContainer = $UILayer/TechTreePanel
-
 @onready var source_manager: Node = $SourceManager
 @onready var source_container: Node2D = $SourceContainer
-@onready var speed_label: Label = $UILayer/SpeedLabel
 
 var _tooltip_scene: PackedScene = preload("res://scenes/ui/building_tooltip.tscn")
 var _MapGeneratorScript = preload("res://scripts/map_generator.gd")
@@ -25,7 +20,9 @@ var _undo_manager: Node = null
 var _map_generator: RefCounted = null
 var _current_seed: int = 0
 var _dev_mode: bool = false
-var _dev_mode_label: Label = null
+var _top_bar: PanelContainer = null
+var _minimap: Control = null
+var _shortcut_hints: Label = null
 
 
 func _ready() -> void:
@@ -64,7 +61,7 @@ func _ready() -> void:
 	_upgrade_panel = PanelContainer.new()
 	_upgrade_panel.set_script(UpgradePanelScript)
 	_upgrade_panel.anchors_preset = Control.PRESET_BOTTOM_LEFT
-	_upgrade_panel.offset_left = 240.0
+	_upgrade_panel.offset_left = 200.0
 	_upgrade_panel.offset_bottom = -10.0
 	_upgrade_panel.offset_top = -10.0
 	_upgrade_panel.grow_vertical = Control.GROW_DIRECTION_BEGIN
@@ -78,9 +75,12 @@ func _ready() -> void:
 	building_panel._tech_tree = tech_tree_panel
 	tech_tree_panel.building_unlocked.connect(_on_building_unlocked)
 
+	# Setup top bar
+	_setup_top_bar()
+
 	# Wire up speed control
 	simulation_manager.speed_changed.connect(_on_speed_changed)
-	_update_speed_label(1, false)
+	_top_bar.update_speed(1, false)
 
 	# Setup undo manager
 	var UndoManagerScript = preload("res://scripts/undo_manager.gd")
@@ -109,11 +109,14 @@ func _ready() -> void:
 	# Center camera on map center
 	camera.position = Vector2(128 * 64 + 64, 128 * 64 + 64)
 
-	# Show seed in UI
-	_setup_seed_label()
+	# Update seed in top bar
+	_top_bar.update_seed(_current_seed)
 
-	# Dev mode label
-	_setup_dev_mode_label()
+	# Setup minimap
+	_setup_minimap()
+
+	# Setup shortcut hints
+	_setup_shortcut_hints()
 
 	# Wire up testing systems (optional — skip if nodes not present)
 	_setup_testing_systems()
@@ -142,6 +145,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			simulation_manager.set_speed(3)
 		KEY_F9:
 			_toggle_dev_mode()
+		KEY_H:
+			_toggle_shortcut_hints()
 
 
 func _get_seed_from_args() -> int:
@@ -152,18 +157,56 @@ func _get_seed_from_args() -> int:
 	return randi()
 
 
-func _setup_seed_label() -> void:
-	var seed_label := Label.new()
-	seed_label.name = "SeedLabel"
-	seed_label.text = "Seed: %d" % _current_seed
-	seed_label.add_theme_font_size_override("font_size", 14)
-	seed_label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5, 0.8))
-	seed_label.anchors_preset = Control.PRESET_BOTTOM_LEFT
-	seed_label.offset_left = 10.0
-	seed_label.offset_bottom = -10.0
-	seed_label.offset_top = -30.0
-	seed_label.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	ui_layer.add_child(seed_label)
+func _setup_top_bar() -> void:
+	var TopBarScript = preload("res://scripts/ui/top_bar.gd")
+	_top_bar = PanelContainer.new()
+	_top_bar.set_script(TopBarScript)
+	_top_bar.anchors_preset = Control.PRESET_TOP_WIDE
+	_top_bar.offset_right = -224.0  # Leave space for building panel
+	ui_layer.add_child(_top_bar)
+
+
+func _setup_minimap() -> void:
+	var MinimapScript = preload("res://scripts/ui/minimap.gd")
+	_minimap = Control.new()
+	_minimap.set_script(MinimapScript)
+	_minimap.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	_minimap.offset_left = 10.0
+	_minimap.offset_right = 190.0
+	_minimap.offset_top = -190.0
+	_minimap.offset_bottom = -10.0
+	_minimap.source_manager = source_manager
+	_minimap.building_container = $BuildingContainer
+	_minimap.camera_ref = camera
+	ui_layer.add_child(_minimap)
+
+
+func _setup_shortcut_hints() -> void:
+	_shortcut_hints = Label.new()
+	_shortcut_hints.text = "Space: Duraklat  |  1/2/3: Hiz  |  Ctrl+Z/Y: Geri Al  |  T: Teknoloji  |  H: Gizle"
+	_shortcut_hints.add_theme_font_size_override("font_size", 13)
+	_shortcut_hints.add_theme_color_override("font_color", Color(0.5, 0.7, 0.8, 0.7))
+	_shortcut_hints.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_shortcut_hints.anchors_preset = Control.PRESET_BOTTOM_WIDE
+	_shortcut_hints.offset_bottom = -12.0
+	_shortcut_hints.offset_top = -32.0
+	_shortcut_hints.offset_left = 200.0
+	_shortcut_hints.offset_right = -230.0
+	_shortcut_hints.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	_shortcut_hints.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ui_layer.add_child(_shortcut_hints)
+	# Auto-fade after 8 seconds
+	var tween := create_tween()
+	tween.tween_property(_shortcut_hints, "modulate:a", 0.0, 1.5).set_delay(8.0)
+
+
+func _toggle_shortcut_hints() -> void:
+	if _shortcut_hints.modulate.a < 0.1:
+		_shortcut_hints.modulate.a = 1.0
+		var tween := create_tween()
+		tween.tween_property(_shortcut_hints, "modulate:a", 0.0, 1.5).set_delay(8.0)
+	else:
+		_shortcut_hints.modulate.a = 0.0
 
 
 func _setup_testing_systems() -> void:
@@ -216,33 +259,23 @@ func _on_scenario_finished(scenario_name: String, success: bool) -> void:
 
 
 func _on_credits_changed(new_total: float) -> void:
-	credits_label.text = "Credits: %d" % int(new_total)
+	_top_bar.update_credits(new_total)
 
 
 func _on_research_changed(new_total: float) -> void:
-	research_label.text = "Research: %d" % int(new_total)
+	_top_bar.update_research(new_total)
 
 
 func _on_patch_data_changed(new_total: float) -> void:
-	patch_data_label.text = "Patch Data: %d" % int(new_total)
+	_top_bar.update_patch_data(new_total)
 
 
 func _on_speed_changed(multiplier: int, paused: bool) -> void:
-	_update_speed_label(multiplier, paused)
-
-
-func _update_speed_label(multiplier: int, paused: bool) -> void:
-	if paused:
-		speed_label.text = "|| DURAKLAT"
-		speed_label.add_theme_color_override("font_color", Color(1, 0.4, 0.4, 1))
-	else:
-		var arrows: String = ">".repeat(multiplier)
-		speed_label.text = "%s %dx" % [arrows, multiplier]
-		speed_label.add_theme_color_override("font_color", Color(0, 1, 0.53, 1))
+	_top_bar.update_speed(multiplier, paused)
 
 
 func _on_building_unlocked(building_name: String) -> void:
-	print("[Main] Yapı açıldı: %s" % building_name)
+	print("[Main] Yapi acildi: %s" % building_name)
 
 
 func _on_content_discovered(content: int) -> void:
@@ -259,7 +292,7 @@ func _on_state_discovered(state: int) -> void:
 
 func _show_discovery_notification(display_name: String, color: Color) -> void:
 	var notif := Label.new()
-	notif.text = "[ %s KEŞFEDİLDİ ]" % display_name
+	notif.text = "[ %s KESFEDILDI ]" % display_name
 	notif.add_theme_font_size_override("font_size", 20)
 	notif.add_theme_color_override("font_color", color)
 	notif.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -280,20 +313,5 @@ func _on_source_discovered(source: Node2D) -> void:
 func _toggle_dev_mode() -> void:
 	_dev_mode = not _dev_mode
 	source_manager.set_dev_mode(_dev_mode)
-	_dev_mode_label.visible = _dev_mode
+	_top_bar.set_dev_visible(_dev_mode)
 	print("[Main] Dev mode: %s" % ("ON" if _dev_mode else "OFF"))
-
-
-func _setup_dev_mode_label() -> void:
-	_dev_mode_label = Label.new()
-	_dev_mode_label.name = "DevModeLabel"
-	_dev_mode_label.text = "[DEV MODE]"
-	_dev_mode_label.add_theme_font_size_override("font_size", 18)
-	_dev_mode_label.add_theme_color_override("font_color", Color(1, 0.3, 0.3, 1))
-	_dev_mode_label.anchors_preset = Control.PRESET_TOP_LEFT
-	_dev_mode_label.offset_left = 10.0
-	_dev_mode_label.offset_top = 10.0
-	_dev_mode_label.visible = false
-	ui_layer.add_child(_dev_mode_label)
-
-

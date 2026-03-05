@@ -1,0 +1,125 @@
+extends PanelContainer
+
+const BG_COLOR := Color("#0d1117")
+const BORDER_COLOR := Color("#00ccff")
+const DIVIDER_COLOR := Color("#00ccff40")
+
+var _speed_label: Label
+var _credits_label: Label
+var _research_label: Label
+var _patch_label: Label
+var _seed_label: Label
+var _dev_label: Label
+
+
+func _ready() -> void:
+	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_setup_style()
+	_build_ui()
+
+
+func _setup_style() -> void:
+	var style := StyleBoxFlat.new()
+	style.bg_color = BG_COLOR
+	style.border_color = BORDER_COLOR
+	style.border_width_bottom = 1
+	style.content_margin_left = 16
+	style.content_margin_right = 16
+	style.content_margin_top = 6
+	style.content_margin_bottom = 6
+	add_theme_stylebox_override("panel", style)
+
+
+func _build_ui() -> void:
+	var hbox := HBoxContainer.new()
+	hbox.add_theme_constant_override("separation", 16)
+	hbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(hbox)
+
+	# Speed
+	_speed_label = _make_label("> 1x", Color(0, 1, 0.53), 18)
+	_speed_label.custom_minimum_size.x = 130
+	hbox.add_child(_speed_label)
+
+	hbox.add_child(_make_divider())
+
+	# Credits
+	_credits_label = _make_label("CREDITS: 0", Color(0, 1, 0.53), 16)
+	hbox.add_child(_credits_label)
+
+	hbox.add_child(_make_divider())
+
+	# Research
+	_research_label = _make_label("RESEARCH: 0", Color(0.4, 0.8, 1), 16)
+	hbox.add_child(_research_label)
+
+	hbox.add_child(_make_divider())
+
+	# Patch Data
+	_patch_label = _make_label("PATCH: 0", Color(0.9, 0.6, 0.2), 16)
+	hbox.add_child(_patch_label)
+
+	# Spacer
+	var spacer := Control.new()
+	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hbox.add_child(spacer)
+
+	# Dev mode
+	_dev_label = _make_label("[DEV]", Color(1, 0.3, 0.3), 14)
+	_dev_label.visible = false
+	hbox.add_child(_dev_label)
+
+	# Seed
+	_seed_label = _make_label("SEED: 0", Color(0.5, 0.5, 0.5, 0.7), 14)
+	hbox.add_child(_seed_label)
+
+
+func _make_label(text: String, color: Color, font_size: int) -> Label:
+	var lbl := Label.new()
+	lbl.text = text
+	lbl.add_theme_color_override("font_color", color)
+	lbl.add_theme_font_size_override("font_size", font_size)
+	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return lbl
+
+
+func _make_divider() -> ColorRect:
+	var div := ColorRect.new()
+	div.color = DIVIDER_COLOR
+	div.custom_minimum_size = Vector2(1, 0)
+	div.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	div.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return div
+
+
+# --- Public API ---
+
+func update_speed(multiplier: int, paused: bool) -> void:
+	if paused:
+		_speed_label.text = "|| DURAKLAT"
+		_speed_label.add_theme_color_override("font_color", Color(1, 0.4, 0.4))
+	else:
+		_speed_label.text = "%s %dx" % [">".repeat(multiplier), multiplier]
+		_speed_label.add_theme_color_override("font_color", Color(0, 1, 0.53))
+
+
+func update_credits(value: float) -> void:
+	_credits_label.text = "CREDITS: %d" % int(value)
+
+
+func update_research(value: float) -> void:
+	_research_label.text = "RESEARCH: %d" % int(value)
+
+
+func update_patch_data(value: float) -> void:
+	_patch_label.text = "PATCH: %d" % int(value)
+
+
+func update_seed(seed_value: int) -> void:
+	_seed_label.text = "SEED: %d" % seed_value
+
+
+func set_dev_visible(show: bool) -> void:
+	_dev_label.visible = show

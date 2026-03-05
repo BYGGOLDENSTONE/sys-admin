@@ -80,45 +80,11 @@ offset_left = -220.0
 grow_horizontal = 0
 script = ExtResource("7_o6xl0")
 
-[node name="SpeedLabel" type="Label" parent="UILayer"]
-offset_left = 10.0
-offset_top = 10.0
-offset_right = 230.0
-offset_bottom = 35.0
-theme_override_colors/font_color = Color(0, 1, 0.53, 1)
-theme_override_font_sizes/font_size = 18
-text = "> 1x"
-
-[node name="CreditsLabel" type="Label" parent="UILayer" unique_id=1213788633]
-offset_left = 240.0
-offset_top = 10.0
-offset_right = 240.0
-offset_bottom = 10.0
-theme_override_colors/font_color = Color(0, 1, 0.53, 1)
-theme_override_font_sizes/font_size = 18
-text = "Credits: 0"
-
-[node name="ResearchLabel" type="Label" parent="UILayer" unique_id=95302643]
-offset_left = 240.0
-offset_top = 35.0
-offset_right = 241.0
-offset_bottom = 58.0
-text = "Research: 0"
-
-[node name="PatchDataLabel" type="Label" parent="UILayer"]
-offset_left = 240.0
-offset_top = 60.0
-offset_right = 241.0
-offset_bottom = 83.0
-theme_override_colors/font_color = Color(0.9, 0.6, 0.2, 1)
-theme_override_font_sizes/font_size = 16
-text = "Patch Data: 0"
-
 [node name="TechTreePanel" type="PanelContainer" parent="UILayer" unique_id=1562056194]
-offset_left = 240.0
-offset_top = 85.0
-offset_right = 520.0
-offset_bottom = 85.0
+offset_left = 10.0
+offset_top = 48.0
+offset_right = 290.0
+offset_bottom = 48.0
 script = ExtResource("11_jkv2x")
 
 [node name="CRTLayer" type="CanvasLayer" parent="." unique_id=937429296]

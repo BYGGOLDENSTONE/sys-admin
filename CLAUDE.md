@@ -1,7 +1,7 @@
 # SYS_ADMIN - Proje Durumu
 
-## Mevcut Aşama: REFACTOR FAZ 6 — 6.1-6.5 Tamamlandı, 6.6'ya Geçiliyor
-Refactor Faz 1-3 + Faz 5 tamamlandı. Faz 6 devam ediyor: Hız kontrolü (6.1), Undo/Redo (6.2), Seed-Based Prosedürel Kaynak Dağılımı (6.3), Bölge Sistemi (6.4) ve Keşif Mekaniği (6.5) tamamlandı. Sırada Faz 6.6 (Genel UI Polish). Hedef: Haziran 2026 Steam Next Fest.
+## Mevcut Aşama: REFACTOR FAZ 6 — 6.1-6.6 Tamamlandı, 6.7'ye Geçiliyor
+Refactor Faz 1-3 + Faz 5 tamamlandı. Faz 6 devam ediyor: Hız kontrolü (6.1), Undo/Redo (6.2), Seed-Based Prosedürel Kaynak Dağılımı (6.3), Bölge Sistemi (6.4), Keşif Mekaniği (6.5) ve Genel UI Polish (6.6) tamamlandı. Sırada Faz 6.7 (Steam Next Fest demo build hazırlığı). Hedef: Haziran 2026 Steam Next Fest.
 
 ## Tasarım Dökümanı
 - **GDD:** `docs/GDD.md` (v0.8) - Tüm tasarım kararları burada
@@ -282,7 +282,7 @@ Yapılar birbirinden habersiz çalışır. Hiçbir yapı "Decryptor'a gönder" d
 - [x] Faz 6.3: Seed-based prosedürel kaynak dağılımı (8 kaynak tipi, ring-based dağılım, ~15-20 kaynak/harita, 10/10 test PASSED)
 - [x] Faz 6.4: Bölge sistemi (ring_index, halka sınır çizgileri, bölge tint, zorluk rozeti, tooltip bölge bilgisi, 10/10 test PASSED)
 - [x] Faz 6.5: Keşif mekaniği (Ring 0 auto-discovered, Ring 1-3 gizli, 20 hücre yakınlık keşfi, reveal flash, Dev Mode F9, 11/11 test PASSED)
-- [ ] Faz 6.6: Genel UI polish (minimap, üst bar, kısayol ipuçları)
+- [x] Faz 6.6: Genel UI polish (top bar + minimap + kısayol ipuçları, 11/11 test PASSED)
 - [ ] Faz 6.7: Steam Next Fest demo build hazırlığı
 
 ### Her Fazda Sürekli

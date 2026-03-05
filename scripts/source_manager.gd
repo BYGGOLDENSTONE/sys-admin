@@ -190,7 +190,12 @@ func _generate_organic_shape(origin: Vector2i, count_range: Vector2i, rng_seed: 
 
 	# Grow organically using random flood-fill
 	var frontier: Array[Vector2i] = _get_neighbors(origin)
-	frontier.shuffle()
+	# Shuffle using local rng for deterministic results with seed
+	for i in range(frontier.size() - 1, 0, -1):
+		var j: int = rng.randi_range(0, i)
+		var tmp: Vector2i = frontier[i]
+		frontier[i] = frontier[j]
+		frontier[j] = tmp
 
 	while shape.size() < target_count and not frontier.is_empty():
 		# Pick a random frontier cell (weighted toward cells with more neighbors in shape)
