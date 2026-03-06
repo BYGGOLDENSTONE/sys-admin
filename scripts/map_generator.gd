@@ -3,21 +3,21 @@ extends RefCounted
 ## Seed-based procedural source placement using ring-based distribution.
 ## Center = easy sources, outer rings = harder sources.
 
-const MAP_CENTER := Vector2i(128, 128)
+const MAP_CENTER := Vector2i(256, 256)
 const GRID_MARGIN := 5        ## Min distance from grid edges
-const GRID_MAX := 250         ## Max valid coordinate (256 - margin)
-const MIN_SOURCE_DISTANCE := 15  ## Min cells between source origins
-const MAX_PLACEMENT_ATTEMPTS := 20
+const GRID_MAX := 506         ## Max valid coordinate (512 - margin)
+const MIN_SOURCE_DISTANCE := 14  ## Min cells between source origins
+const MAX_PLACEMENT_ATTEMPTS := 40
 
 ## Ring definitions: [min_radius, max_radius, min_count, max_count, source_pool]
 var _rings: Array = [
-	{ "r_min": 0, "r_max": 25, "count_min": 4, "count_max": 6,
+	{ "r_min": 0, "r_max": 50, "count_min": 10, "count_max": 14,
 	  "sources": ["isp_backbone", "public_database"] },
-	{ "r_min": 25, "r_max": 50, "count_min": 4, "count_max": 6,
+	{ "r_min": 50, "r_max": 105, "count_min": 10, "count_max": 14,
 	  "sources": ["corporate_server", "biotech_lab"] },
-	{ "r_min": 50, "r_max": 80, "count_min": 3, "count_max": 5,
+	{ "r_min": 105, "r_max": 165, "count_min": 8, "count_max": 12,
 	  "sources": ["dark_web_node", "government_archive"] },
-	{ "r_min": 80, "r_max": 115, "count_min": 2, "count_max": 4,
+	{ "r_min": 165, "r_max": 230, "count_min": 6, "count_max": 10,
 	  "sources": ["military_network", "blackwall_fragment"] },
 ]
 

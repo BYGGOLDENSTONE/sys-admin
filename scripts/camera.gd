@@ -2,7 +2,7 @@ extends Camera2D
 
 const PAN_SPEED: float = 600.0
 const ZOOM_SPEED: float = 0.1
-const MIN_ZOOM: float = 0.3
+const MIN_ZOOM: float = 0.1
 const MAX_ZOOM: float = 3.0
 const SMOOTH_FACTOR: float = 8.0
 

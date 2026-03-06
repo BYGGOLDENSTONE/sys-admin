@@ -6,7 +6,7 @@ const BORDER_COLOR := Color(0, 0.8, 1.0, 0.5)
 const CAMERA_COLOR := Color(1, 1, 1, 0.6)
 const BUILDING_COLOR := Color(0, 1, 0.53)
 const TILE_PX: int = 64
-const WORLD_SIZE: float = 256.0 * 64.0
+const WORLD_SIZE: float = 512.0 * 64.0
 
 var source_manager: Node = null
 var building_container: Node2D = null
@@ -46,10 +46,10 @@ func _draw_rings() -> void:
 	var s: float = MINIMAP_SIZE
 	var center := Vector2(s / 2.0, s / 2.0)
 	var rings: Array = [
-		[25, Color(0.3, 1.0, 0.4, 0.2)],
-		[50, Color(1.0, 0.9, 0.3, 0.2)],
-		[80, Color(1.0, 0.6, 0.2, 0.2)],
-		[115, Color(1.0, 0.3, 0.2, 0.2)],
+		[50, Color(0.3, 1.0, 0.4, 0.2)],
+		[105, Color(1.0, 0.9, 0.3, 0.2)],
+		[165, Color(1.0, 0.6, 0.2, 0.2)],
+		[230, Color(1.0, 0.3, 0.2, 0.2)],
 	]
 	for ring in rings:
 		var r_px: float = float(ring[0]) * TILE_PX / WORLD_SIZE * s

@@ -17,6 +17,7 @@ var _MapGeneratorScript = preload("res://scripts/map_generator.gd")
 var _tooltip: PanelContainer = null
 var _upgrade_panel: PanelContainer = null
 var _undo_manager: Node = null
+var _fog_layer: Node2D = null
 var _map_generator: RefCounted = null
 var _current_seed: int = 0
 var _dev_mode: bool = false
@@ -106,8 +107,11 @@ func _ready() -> void:
 	_map_generator = _MapGeneratorScript.new()
 	_map_generator.generate_map(_current_seed, source_manager)
 
+	# Setup fog of war layer (above sources, below buildings)
+	_setup_fog_layer()
+
 	# Center camera on map center
-	camera.position = Vector2(128 * 64 + 64, 128 * 64 + 64)
+	camera.position = Vector2(256 * 64 + 64, 256 * 64 + 64)
 
 	# Update seed in top bar
 	_top_bar.update_seed(_current_seed)
@@ -164,6 +168,17 @@ func _setup_top_bar() -> void:
 	_top_bar.anchors_preset = Control.PRESET_TOP_WIDE
 	_top_bar.offset_right = -224.0  # Leave space for building panel
 	ui_layer.add_child(_top_bar)
+
+
+func _setup_fog_layer() -> void:
+	var FogLayerScript = preload("res://scripts/fog_layer.gd")
+	_fog_layer = Node2D.new()
+	_fog_layer.set_script(FogLayerScript)
+	_fog_layer.name = "FogLayer"
+	add_child(_fog_layer)
+	# Position after SourceContainer (index 1) so fog covers grid+sources but not buildings/cables
+	move_child(_fog_layer, 2)
+	building_manager.building_placed.connect(_fog_layer.explore_around_building)
 
 
 func _setup_minimap() -> void:
@@ -314,4 +329,5 @@ func _toggle_dev_mode() -> void:
 	_dev_mode = not _dev_mode
 	source_manager.set_dev_mode(_dev_mode)
 	_top_bar.set_dev_visible(_dev_mode)
+	_fog_layer.visible = not _dev_mode
 	print("[Main] Dev mode: %s" % ("ON" if _dev_mode else "OFF"))

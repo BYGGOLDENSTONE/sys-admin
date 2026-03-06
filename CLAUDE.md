@@ -283,6 +283,7 @@ Yapılar birbirinden habersiz çalışır. Hiçbir yapı "Decryptor'a gönder" d
 - [x] Faz 6.4: Bölge sistemi (ring_index, halka sınır çizgileri, bölge tint, zorluk rozeti, tooltip bölge bilgisi, 10/10 test PASSED)
 - [x] Faz 6.5: Keşif mekaniği (Ring 0 auto-discovered, Ring 1-3 gizli, 20 hücre yakınlık keşfi, reveal flash, Dev Mode F9, 11/11 test PASSED)
 - [x] Faz 6.6: Genel UI polish (top bar + minimap + kısayol ipuçları, 11/11 test PASSED)
+- [x] Faz 6.6.1: Harita genişleme + Fog of War (512x512 grid, ~35-51 kaynak, chunk-based fog, zoom-adaptive grid, MIN_ZOOM 0.1)
 - [ ] Faz 6.7: Steam Next Fest demo build hazırlığı
 
 ### Her Fazda Sürekli
