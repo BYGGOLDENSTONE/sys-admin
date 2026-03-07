@@ -10,7 +10,6 @@
 [ext_resource type="Script" uid="uid://dh433gxy6rs5h" path="res://scripts/connection_manager.gd" id="8"]
 [ext_resource type="Script" uid="uid://dhwkdkj0w6noa" path="res://scripts/connection_layer.gd" id="9"]
 [ext_resource type="Shader" uid="uid://dbuy13pxot3fk" path="res://shaders/bloom_vignette.gdshader" id="10"]
-[ext_resource type="Shader" uid="uid://bcsicp7mrd3ll" path="res://shaders/crt.gdshader" id="11"]
 [ext_resource type="Script" uid="uid://c65et5logtucj" path="res://scripts/ui/tech_tree_panel.gd" id="11_jkv2x"]
 [ext_resource type="Script" uid="uid://b4368firahglh" path="res://scripts/simulation_manager.gd" id="12_eb6dy"]
 [ext_resource type="Script" uid="uid://dpn0c826sqcaq" path="res://scripts/source_manager.gd" id="15_srcmgr"]
@@ -20,13 +19,12 @@ shader = ExtResource("10")
 shader_parameter/bloom_intensity = 0.6
 shader_parameter/bloom_threshold = 0.35
 shader_parameter/bloom_spread = 3.0
-
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_crt"]
-shader = ExtResource("11")
-shader_parameter/scanline_intensity = 0.08
-shader_parameter/scanline_count = 540.0
-shader_parameter/curvature = 0.01
-shader_parameter/chromatic_aberration = 0.5
+shader_parameter/vignette_focus = 1.0
+shader_parameter/vignette_intensity = 0.5
+shader_parameter/vignette_color = Color(0.02, 0.05, 0.1, 1)
+shader_parameter/tilt_shift_focus_y = 0.5
+shader_parameter/tilt_shift_focus_height = 0.35
+shader_parameter/tilt_shift_blur_amount = 3.0
 
 [node name="Main" type="Node2D" unique_id=1707282092]
 script = ExtResource("1")
@@ -84,20 +82,6 @@ offset_top = 48.0
 offset_right = 290.0
 offset_bottom = 48.0
 script = ExtResource("11_jkv2x")
-
-[node name="CRTLayer" type="CanvasLayer" parent="." unique_id=937429296]
-layer = 100
-
-[node name="CRTRect" type="ColorRect" parent="CRTLayer" unique_id=26477803]
-material = SubResource("ShaderMaterial_crt")
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = 13.0
-offset_right = 13.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 2
 
 [node name="SourceManager" type="Node" parent="." unique_id=368627126]
 script = ExtResource("15_srcmgr")

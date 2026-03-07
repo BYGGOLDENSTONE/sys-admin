@@ -24,8 +24,6 @@ var _dev_mode: bool = false
 var _top_bar: PanelContainer = null
 var _minimap: Control = null
 var _shortcut_hints: Label = null
-var _crt_material: ShaderMaterial = null
-var _glitch_tween: Tween = null
 
 
 func _ready() -> void:
@@ -122,11 +120,6 @@ func _ready() -> void:
 
 	# Setup shortcut hints
 	_setup_shortcut_hints()
-
-	# Cache CRT shader material for glitch effects
-	var crt_rect: ColorRect = $CRTLayer/CRTRect
-	if crt_rect and crt_rect.material is ShaderMaterial:
-		_crt_material = crt_rect.material as ShaderMaterial
 
 	print("[Main] SYS_ADMIN initialized")
 
@@ -261,7 +254,6 @@ func _show_unlock_notification(building_name: String) -> void:
 	tween.tween_property(notif, "modulate:a", 0.0, 0.8).set_delay(2.0)
 	tween.chain().tween_callback(notif.queue_free)
 
-	_trigger_glitch(0.1, 0.3)
 
 
 func _on_content_discovered(content: int) -> void:
@@ -300,9 +292,6 @@ func _show_discovery_notification(display_name: String, color: Color) -> void:
 	tween.tween_property(notif, "modulate:a", 0.0, 0.8).set_delay(2.2).set_trans(Tween.TRANS_QUAD)
 	tween.chain().tween_callback(notif.queue_free)
 
-	# Brief glitch on discovery
-	_trigger_glitch(0.15, 0.4)
-
 	# Camera shake
 	if camera.has_method("add_trauma"):
 		camera.add_trauma(0.12)
@@ -311,22 +300,6 @@ func _show_discovery_notification(display_name: String, color: Color) -> void:
 func _on_source_discovered(source: Node2D) -> void:
 	var def = source.definition
 	_show_discovery_notification(def.source_name, def.color)
-
-
-func _trigger_glitch(intensity: float, duration: float) -> void:
-	if _crt_material == null:
-		return
-	if _glitch_tween:
-		_glitch_tween.kill()
-	_crt_material.set_shader_parameter("glitch_intensity", intensity)
-	_glitch_tween = create_tween()
-	_glitch_tween.tween_method(_update_glitch_time, 0.0, duration * 60.0, duration)
-	_glitch_tween.parallel().tween_property(_crt_material, "shader_parameter/glitch_intensity", 0.0, duration).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-
-
-func _update_glitch_time(value: float) -> void:
-	if _crt_material:
-		_crt_material.set_shader_parameter("glitch_time", value)
 
 
 func _toggle_dev_mode() -> void:
