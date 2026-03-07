@@ -122,10 +122,10 @@ Eski point-to-point kablo sistemi TAMAMEN degisiyor:
 - Ring border kodu (`grid_system.gd`'den kaldirildi)
 - Credits/Research/PatchData UI ve signal'leri kaldirildi
 
-### Mevcut .tres Dosyalari (9 bina, 8 kaynak)
-**Binalar:** uplink, storage, separator, decryptor, recoverer, quarantine, research_lab, splitter, merger
+### Mevcut .tres Dosyalari (10 bina, 8 kaynak)
+**Binalar:** uplink, storage, separator, decryptor, recoverer, quarantine, research_lab, splitter, merger, bridge
 **Kaynaklar:** isp_backbone, public_database, biotech_lab, corporate_server, government_archive, military_network, dark_web_node, blackwall_fragment
-**Component'ler:** generator, processor, storage, upgrade (4 adet)
+**Component'ler:** generator, processor, storage, upgrade, splitter, merger (6 adet)
 
 ---
 
@@ -138,11 +138,11 @@ Eski point-to-point kablo sistemi TAMAMEN degisiyor:
 - [x] Grid kablo routing sistemi (L-shaped pathfinding, grid hucre takibi)
 - [x] Kablo rendering (grid-based polyline + glow + akan veri partikulleri)
 - [x] Temel kablo gorseli (grid boyutunda kanal + veri akis animasyonu)
-- [ ] Bridge binasi (kablo kesisme noktasi)
-- [ ] Splitter binasi (mevcut .tres var, component ayristir)
-- [ ] Merger binasi (mevcut .tres var, component ayristir)
-- [ ] Mevcut binalari kontrol: Uplink, Storage, Separator (calisiyor)
-- [ ] Otomat kaynagi (ISP Backbone → Otomat olarak guncelle, Standard Clean only)
+- [x] Bridge binasi (kablo kesisme noktasi — 1x1, allows_cable_crossing flag, 2 kablo destegi)
+- [x] Splitter binasi (SplitterComponent ayristirildi, ProcessorComponent+rule kaldirildi)
+- [x] Merger binasi (MergerComponent ayristirildi, ProcessorComponent+rule kaldirildi)
+- [x] Mevcut binalari kontrol: Uplink, Storage, Separator (calisiyor)
+- [x] Otomat kaynagi (ISP Backbone → Otomat, sadece Standard Clean)
 
 ### Faz 2: Content Ayirma + Kolay Kaynaklar
 - [ ] Classifier binasi + ClassifierComponent (content tipine gore N cikis)

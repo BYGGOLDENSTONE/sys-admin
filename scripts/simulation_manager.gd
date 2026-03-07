@@ -158,7 +158,7 @@ func _update_storage_forward(buildings: Array[Node]) -> void:
 	for b in buildings:
 		if b.definition.storage == null or not b.is_active():
 			continue
-		if b.definition.processor != null:
+		if b.definition.processor != null or b.definition.splitter != null or b.definition.merger != null:
 			continue
 		if b.get_total_stored() <= 0:
 			continue
@@ -184,29 +184,30 @@ func _update_storage_forward(buildings: Array[Node]) -> void:
 # --- PROCESSING ---
 func _update_processing(buildings: Array[Node]) -> void:
 	for b in buildings:
-		if b.definition.processor == null or not b.is_active():
+		if not b.is_active() or b.get_total_stored() <= 0:
 			continue
-		if b.get_total_stored() <= 0:
-			continue
-		var proc: ProcessorComponent = b.definition.processor
-		var max_process: int = int(b.get_effective_value("processing_rate"))
 		var processed: int = 0
-		match proc.rule:
-			"separator":
-				processed = _process_separator(b, proc, max_process)
-			"decryptor":
-				processed = _process_decryptor(b, proc, max_process)
-			"recoverer":
-				processed = _process_recoverer(b, proc, max_process)
-			"quarantine":
-				processed = _process_quarantine(b, proc, max_process)
-			"splitter":
-				processed = _process_splitter(b, proc, max_process)
-			"merger":
-				processed = _process_merger(b, proc, max_process)
+		# Component-based dispatch: check dedicated components first
+		if b.definition.splitter != null:
+			processed = _process_splitter(b, int(b.definition.splitter.throughput_rate))
+		elif b.definition.merger != null:
+			processed = _process_merger(b, int(b.definition.merger.throughput_rate))
+		elif b.definition.processor != null:
+			var proc: ProcessorComponent = b.definition.processor
+			var max_process: int = int(b.get_effective_value("processing_rate"))
+			match proc.rule:
+				"separator":
+					processed = _process_separator(b, proc, max_process)
+				"decryptor":
+					processed = _process_decryptor(b, proc, max_process)
+				"recoverer":
+					processed = _process_recoverer(b, proc, max_process)
+				"quarantine":
+					processed = _process_quarantine(b, proc, max_process)
+		else:
+			continue
 		if processed > 0:
 			b.is_working = true
-		# Clear processor buffer
 		b.stored_data.clear()
 
 
@@ -305,7 +306,7 @@ func _process_quarantine(b: Node2D, proc: ProcessorComponent, max_process: int) 
 	return processed
 
 
-func _process_splitter(b: Node2D, _proc: ProcessorComponent, max_process: int) -> int:
+func _process_splitter(b: Node2D, max_process: int) -> int:
 	var processed: int = 0
 	var output_ports: Array[String] = b.definition.output_ports
 	if output_ports.is_empty():
@@ -331,7 +332,7 @@ func _process_splitter(b: Node2D, _proc: ProcessorComponent, max_process: int) -
 	return processed
 
 
-func _process_merger(b: Node2D, _proc: ProcessorComponent, max_process: int) -> int:
+func _process_merger(b: Node2D, max_process: int) -> int:
 	var processed: int = 0
 	var output_port: String = b.definition.output_ports[0] if b.definition.output_ports.size() > 0 else ""
 	if output_port == "":

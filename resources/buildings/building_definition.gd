@@ -8,6 +8,7 @@ extends Resource
 @export var category: String = ""
 @export var base_cost: int = 100
 @export var visual_type: String = "default"
+@export var allows_cable_crossing: bool = false
 @export var output_ports: Array[String] = []
 @export var input_ports: Array[String] = []
 
@@ -15,6 +16,8 @@ extends Resource
 @export var generator: GeneratorComponent
 @export var storage: StorageComponent
 @export var processor: ProcessorComponent
+@export var splitter: SplitterComponent
+@export var merger: MergerComponent
 @export var upgrade: UpgradeComponent
 
 

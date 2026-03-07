@@ -4,11 +4,11 @@
 
 [resource]
 script = ExtResource("1")
-source_name = "ISP Backbone"
-description = "Public internet backbone. Mostly clean standard traffic with occasional corrupted packets. A safe starting point for any netrunner."
+source_name = "Otomat"
+description = "Sokak otomatı. Sadece temiz standart veri üretir. Güvenli bir başlangıç noktası."
 color = Color(0.4, 0.8, 1.0, 1.0)
-content_weights = {0: 0.70, 1: 0.05, 2: 0.10, 3: 0.05, 4: 0.05, 5: 0.05}
-state_weights = {0: 0.70, 1: 0.10, 2: 0.15, 3: 0.05}
+content_weights = {0: 1.0}
+state_weights = {0: 1.0}
 bandwidth = 5.0
 cell_count_range = Vector2i(10, 14)
 ring_index = 0

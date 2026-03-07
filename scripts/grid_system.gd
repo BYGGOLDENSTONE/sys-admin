@@ -10,7 +10,7 @@ const MAP_CENTER := Vector2(256 * 64, 256 * 64)  ## Center in pixels (256,256 gr
 
 var _occupied_cells: Dictionary = {}
 var _source_cells: Dictionary = {}  ## cell → source Node2D ref
-var _cable_cells: Dictionary = {}   ## cell → true
+var _cable_cells: Dictionary = {}   ## cell → int (cable count, bridge allows up to 2)
 
 
 func world_to_grid(world_pos: Vector2) -> Vector2i:
@@ -66,19 +66,30 @@ func free_source_cells(cells: Array[Vector2i]) -> void:
 func can_place_cable(cell: Vector2i) -> bool:
 	if cell.x < 0 or cell.x >= GRID_WIDTH or cell.y < 0 or cell.y >= GRID_HEIGHT:
 		return false
-	return not _occupied_cells.has(cell) and not _source_cells.has(cell) and not _cable_cells.has(cell)
+	if _source_cells.has(cell):
+		return false
+	if _occupied_cells.has(cell):
+		var building: Node = _occupied_cells[cell]
+		if building and building.definition and building.definition.allows_cable_crossing:
+			return _cable_cells.get(cell, 0) < 2
+		return false
+	return not _cable_cells.has(cell)
 
 
 func occupy_cable(cell: Vector2i) -> void:
-	_cable_cells[cell] = true
+	_cable_cells[cell] = _cable_cells.get(cell, 0) + 1
 
 
 func free_cable(cell: Vector2i) -> void:
-	_cable_cells.erase(cell)
+	var count: int = _cable_cells.get(cell, 0) - 1
+	if count <= 0:
+		_cable_cells.erase(cell)
+	else:
+		_cable_cells[cell] = count
 
 
 func has_cable_at(cell: Vector2i) -> bool:
-	return _cable_cells.has(cell)
+	return _cable_cells.get(cell, 0) > 0
 
 
 func get_source_at(cell: Vector2i) -> Node:

@@ -255,6 +255,8 @@ func _draw_icon(center: Vector2, size: Vector2, accent: Color) -> void:
 			_draw_icon_splitter(icon_center, size, accent)
 		"merger":
 			_draw_icon_merger(icon_center, size, accent)
+		"bridge":
+			_draw_icon_bridge(icon_center, size, accent)
 		_:
 			_draw_icon_default(icon_center, size, accent)
 
@@ -532,6 +534,32 @@ func _draw_icon_merger(center: Vector2, size: Vector2, accent: Color) -> void:
 
 	# Center dot
 	draw_circle(center, 3.0, accent)
+
+
+# --- BRIDGE: Crossing cables symbol ---
+func _draw_icon_bridge(center: Vector2, size: Vector2, accent: Color) -> void:
+	var s: float = minf(size.x, size.y) * 0.3
+	var glow := Color(accent, ICON_GLOW_ALPHA)
+
+	# Horizontal line
+	var h_left := center + Vector2(-s * 0.6, 0)
+	var h_right := center + Vector2(s * 0.6, 0)
+	draw_line(h_left, h_right, glow, ICON_GLOW_WIDTH)
+	draw_line(h_left, h_right, accent, 2.0)
+
+	# Vertical line
+	var v_top := center + Vector2(0, -s * 0.6)
+	var v_bottom := center + Vector2(0, s * 0.6)
+	draw_line(v_top, v_bottom, glow, ICON_GLOW_WIDTH)
+	draw_line(v_top, v_bottom, accent, 2.0)
+
+	# Center dot (crossing point)
+	draw_circle(center, 3.0, Color(accent, 0.4))
+	draw_circle(center, 2.0, accent)
+
+	# Corner dots (endpoints)
+	for endpoint in [h_left, h_right, v_top, v_bottom]:
+		draw_circle(endpoint, 2.0, accent)
 
 
 # --- DEFAULT: Simple dot ---

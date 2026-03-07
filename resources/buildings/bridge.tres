@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="BuildingDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://resources/buildings/building_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+building_name = "Bridge"
+description = "Allows two cables to cross over each other. Place it first, then route cables through."
+grid_size = Vector2i(1, 1)
+color = Color(0.6, 0.6, 0.7, 1)
+category = "routing"
+base_cost = 40
+visual_type = "bridge"
+allows_cable_crossing = true
+output_ports = Array[String]([])
+input_ports = Array[String]([])
