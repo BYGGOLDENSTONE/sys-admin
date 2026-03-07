@@ -46,63 +46,165 @@ func get_center_world() -> Vector2:
 	return sum / float(cells.size())
 
 
+func _get_zoom_level() -> float:
+	var cam := get_viewport().get_camera_2d()
+	if cam:
+		return cam.zoom.x
+	return 1.0
+
+
 func _draw() -> void:
 	if definition == null or cells.is_empty():
 		return
 
-	# Hidden state — only show faint blip
+	var zoom: float = _get_zoom_level()
+
+	# Hidden state
 	if not discovered and not dev_mode:
-		_draw_hidden()
+		_draw_hidden(zoom)
 		return
 
 	var accent: Color = definition.color
 	var pulse: float = sin(_glow_time * GLOW_PULSE_SPEED) * GLOW_PULSE_AMOUNT
+
+	# === PCB MODE (zoom < 0.45) — soft glowing dots ===
+	if zoom < 0.45:
+		_draw_pcb_source(accent, pulse, zoom)
+		return
+
+	# === MEDIUM MODE (zoom 0.45-0.7) — simplified with glow ===
+	if zoom < 0.7:
+		_draw_medium_source(accent, pulse, zoom)
+		return
+
+	# === FULL DETAIL MODE ===
 	var base_alpha: float = 0.12 + pulse
 	var border_alpha: float = 0.5 + pulse * 2.0
 
-	# Territory tint (1-cell padding around source for zone feel)
+	# Territory tint
 	_draw_territory_tint(accent)
 
-	# Draw filled cells (organic blob)
+	# Draw filled cells
 	for cell in cells:
 		var local_pos := Vector2(
 			(cell.x - grid_cell.x) * TILE_SIZE,
 			(cell.y - grid_cell.y) * TILE_SIZE
 		)
 		var rect := Rect2(local_pos, Vector2(TILE_SIZE, TILE_SIZE))
-		# Filled cell
 		draw_rect(rect, Color(accent, base_alpha), true)
 
-	# Draw border edges (only edges adjacent to non-source cells)
-	_draw_organic_border(accent, border_alpha)
+	# Draw border edges
+	_draw_organic_border(accent, border_alpha, 2.0, 6.0)
 
-	# Signal rings (expanding circles from center)
+	# Signal rings
 	var center: Vector2 = get_center_world() - global_position
-	_draw_signal_rings(center, accent)
+	_draw_signal_rings(center, accent, 1.0)
 
-	# Zone badge (difficulty indicator above name)
+	# Zone badge
 	_draw_zone_badge(center)
 
-	# Dev mode: hidden indicator badge
+	# Dev mode badge
 	if dev_mode and not discovered:
 		_draw_hidden_badge(center)
 
-	# Source name at center
+	# Source name
 	_draw_source_name(center, accent)
 
-	# Content composition indicator (small colored bars)
+	# Content composition bars
 	_draw_composition_bars(center, accent)
 
-	# Reveal flash overlay
+	# Reveal flash
 	if _reveal_flash > 0:
 		_draw_reveal_flash()
 
 
-func _draw_hidden() -> void:
+## PCB mode: zoom-compensated glowing dots (no per-cell drawing to avoid pixel artifacts)
+func _draw_pcb_source(accent: Color, pulse: float, zoom: float) -> void:
+	var center: Vector2 = get_center_world() - global_position
+	var inv_zoom: float = clampf(1.0 / zoom, 2.0, 8.0)
+
+	# Soft glow halo — scales inversely with zoom for consistent screen presence
+	var glow_r: float = (30.0 + float(cells.size()) * 3.0) * inv_zoom
+	draw_circle(center, glow_r, Color(accent, 0.02 + pulse * 0.005))
+	draw_circle(center, glow_r * 0.5, Color(accent, 0.06 + pulse * 0.02))
+	draw_circle(center, glow_r * 0.25, Color(accent, 0.15 + pulse * 0.04))
+
+	# Bright core
+	draw_circle(center, maxf(6.0, glow_r * 0.08), Color(accent, 0.4 + pulse * 3.0))
+	draw_circle(center, maxf(2.5, glow_r * 0.03), Color(1.0, 1.0, 1.0, 0.5))
+
+	if _reveal_flash > 0:
+		_draw_reveal_flash()
+
+
+## Medium zoom: simplified with soft glow halo
+func _draw_medium_source(accent: Color, pulse: float, zoom: float) -> void:
+	var zoom_boost: float = clampf(1.0 / zoom, 1.0, 2.5)
+	var base_alpha: float = (0.15 + pulse) * zoom_boost
+	var border_alpha: float = (0.5 + pulse * 2.0) * zoom_boost
+	var center: Vector2 = get_center_world() - global_position
+
+	# Soft glow halo behind source
+	var glow_r: float = sqrt(float(cells.size())) * TILE_SIZE * 0.5
+	draw_circle(center, glow_r * 1.2, Color(accent, 0.02 * zoom_boost))
+	draw_circle(center, glow_r * 0.6, Color(accent, 0.05 * zoom_boost + pulse * 0.01))
+
+	# Territory tint (brighter)
+	_draw_territory_tint(accent, 0.06 * zoom_boost)
+
+	# Filled cells
+	for cell in cells:
+		var local_pos := Vector2(
+			(cell.x - grid_cell.x) * TILE_SIZE,
+			(cell.y - grid_cell.y) * TILE_SIZE
+		)
+		draw_rect(Rect2(local_pos, Vector2(TILE_SIZE, TILE_SIZE)), Color(accent, minf(base_alpha, 0.35)), true)
+
+	# Thicker brighter border
+	_draw_organic_border(accent, minf(border_alpha, 0.9), 3.0, 8.0)
+
+	# Signal rings (larger, fewer)
+	_draw_signal_rings(center, accent, zoom_boost)
+
+	# Source name only (no badge, no bars)
+	_draw_source_name(center, accent)
+
+	# Reveal flash
+	if _reveal_flash > 0:
+		_draw_reveal_flash()
+
+
+func _draw_hidden(zoom: float) -> void:
 	var accent: Color = definition.color
 	var pulse: float = sin(_glow_time * 0.8) * 0.1
 	var alpha: float = 0.15 + pulse
 
+	# PCB mode hidden: faint glow dot (zoom-compensated)
+	if zoom < 0.45:
+		var center: Vector2 = get_center_world() - global_position
+		var inv_zoom: float = clampf(1.0 / zoom, 2.0, 8.0)
+		var r: float = 20.0 * inv_zoom
+		draw_circle(center, r, Color(accent, 0.012 + pulse * 0.3))
+		draw_circle(center, r * 0.3, Color(accent, 0.025))
+		return
+
+	# Medium mode hidden: dim blob + question mark
+	if zoom < 0.7:
+		for cell in cells:
+			var local_pos := Vector2(
+				(cell.x - grid_cell.x) * TILE_SIZE,
+				(cell.y - grid_cell.y) * TILE_SIZE
+			)
+			draw_rect(Rect2(local_pos, Vector2(TILE_SIZE, TILE_SIZE)), Color(accent, 0.04), true)
+		_draw_organic_border(accent, alpha * 0.4, 2.0, 4.0)
+		var center: Vector2 = get_center_world() - global_position
+		var font := ThemeDB.fallback_font
+		var q_dims := font.get_string_size("?", HORIZONTAL_ALIGNMENT_CENTER, -1, 20)
+		var q_pos := Vector2(center.x - q_dims.x / 2.0, center.y + q_dims.y / 4.0)
+		draw_string(font, q_pos, "?", HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color(accent, alpha + 0.15))
+		return
+
+	# Full detail hidden
 	# Faint blob fill
 	for cell in cells:
 		var local_pos := Vector2(
@@ -112,7 +214,7 @@ func _draw_hidden() -> void:
 		draw_rect(Rect2(local_pos, Vector2(TILE_SIZE, TILE_SIZE)), Color(accent, 0.03), true)
 
 	# Dim border
-	_draw_organic_border(accent, alpha * 0.3)
+	_draw_organic_border(accent, alpha * 0.3, 2.0, 6.0)
 
 	# "?" icon at center
 	var center: Vector2 = get_center_world() - global_position
@@ -177,7 +279,7 @@ func _draw_reveal_flash() -> void:
 	draw_polyline(points, Color(accent, burst_alpha), 2.5, true)
 
 
-func _draw_organic_border(accent: Color, alpha: float) -> void:
+func _draw_organic_border(accent: Color, alpha: float, line_w: float = 2.0, glow_w: float = 6.0) -> void:
 	var cell_set: Dictionary = {}
 	for cell in cells:
 		cell_set[cell] = true
@@ -186,62 +288,36 @@ func _draw_organic_border(accent: Color, alpha: float) -> void:
 		var local_x: float = (cell.x - grid_cell.x) * TILE_SIZE
 		var local_y: float = (cell.y - grid_cell.y) * TILE_SIZE
 
-		# Check each edge — draw border if neighbor is not in shape
 		# Top edge
 		if not cell_set.has(Vector2i(cell.x, cell.y - 1)):
-			draw_line(
-				Vector2(local_x, local_y),
-				Vector2(local_x + TILE_SIZE, local_y),
-				Color(accent, alpha), 2.0
-			)
-			# Glow
-			draw_line(
-				Vector2(local_x, local_y),
-				Vector2(local_x + TILE_SIZE, local_y),
-				Color(accent, alpha * 0.3), 6.0
-			)
+			draw_line(Vector2(local_x, local_y), Vector2(local_x + TILE_SIZE, local_y),
+				Color(accent, alpha), line_w)
+			draw_line(Vector2(local_x, local_y), Vector2(local_x + TILE_SIZE, local_y),
+				Color(accent, alpha * 0.3), glow_w)
 		# Bottom edge
 		if not cell_set.has(Vector2i(cell.x, cell.y + 1)):
-			draw_line(
-				Vector2(local_x, local_y + TILE_SIZE),
-				Vector2(local_x + TILE_SIZE, local_y + TILE_SIZE),
-				Color(accent, alpha), 2.0
-			)
-			draw_line(
-				Vector2(local_x, local_y + TILE_SIZE),
-				Vector2(local_x + TILE_SIZE, local_y + TILE_SIZE),
-				Color(accent, alpha * 0.3), 6.0
-			)
+			draw_line(Vector2(local_x, local_y + TILE_SIZE), Vector2(local_x + TILE_SIZE, local_y + TILE_SIZE),
+				Color(accent, alpha), line_w)
+			draw_line(Vector2(local_x, local_y + TILE_SIZE), Vector2(local_x + TILE_SIZE, local_y + TILE_SIZE),
+				Color(accent, alpha * 0.3), glow_w)
 		# Left edge
 		if not cell_set.has(Vector2i(cell.x - 1, cell.y)):
-			draw_line(
-				Vector2(local_x, local_y),
-				Vector2(local_x, local_y + TILE_SIZE),
-				Color(accent, alpha), 2.0
-			)
-			draw_line(
-				Vector2(local_x, local_y),
-				Vector2(local_x, local_y + TILE_SIZE),
-				Color(accent, alpha * 0.3), 6.0
-			)
+			draw_line(Vector2(local_x, local_y), Vector2(local_x, local_y + TILE_SIZE),
+				Color(accent, alpha), line_w)
+			draw_line(Vector2(local_x, local_y), Vector2(local_x, local_y + TILE_SIZE),
+				Color(accent, alpha * 0.3), glow_w)
 		# Right edge
 		if not cell_set.has(Vector2i(cell.x + 1, cell.y)):
-			draw_line(
-				Vector2(local_x + TILE_SIZE, local_y),
-				Vector2(local_x + TILE_SIZE, local_y + TILE_SIZE),
-				Color(accent, alpha), 2.0
-			)
-			draw_line(
-				Vector2(local_x + TILE_SIZE, local_y),
-				Vector2(local_x + TILE_SIZE, local_y + TILE_SIZE),
-				Color(accent, alpha * 0.3), 6.0
-			)
+			draw_line(Vector2(local_x + TILE_SIZE, local_y), Vector2(local_x + TILE_SIZE, local_y + TILE_SIZE),
+				Color(accent, alpha), line_w)
+			draw_line(Vector2(local_x + TILE_SIZE, local_y), Vector2(local_x + TILE_SIZE, local_y + TILE_SIZE),
+				Color(accent, alpha * 0.3), glow_w)
 
 
-func _draw_signal_rings(center: Vector2, accent: Color) -> void:
+func _draw_signal_rings(center: Vector2, accent: Color, scale: float = 1.0) -> void:
 	for i in range(RING_COUNT):
 		var phase: float = fmod(_glow_time * RING_EXPAND_SPEED + float(i) / float(RING_COUNT), 1.0)
-		var radius: float = 20.0 + phase * 80.0
+		var radius: float = (20.0 + phase * 80.0) * scale
 		var ring_alpha: float = (1.0 - phase) * 0.25
 		if ring_alpha <= 0.01:
 			continue
@@ -250,7 +326,7 @@ func _draw_signal_rings(center: Vector2, accent: Color) -> void:
 		for j in range(point_count + 1):
 			var angle: float = float(j) / float(point_count) * TAU
 			points.append(center + Vector2(cos(angle), sin(angle)) * radius)
-		draw_polyline(points, Color(accent, ring_alpha), 1.5, true)
+		draw_polyline(points, Color(accent, ring_alpha), 1.5 * scale, true)
 
 
 func _draw_source_name(center: Vector2, accent: Color) -> void:
@@ -261,6 +337,8 @@ func _draw_source_name(center: Vector2, accent: Color) -> void:
 	var text_pos := Vector2(center.x - text_size.x / 2.0, center.y - 12)
 	# Shadow
 	draw_string(font, text_pos + Vector2(1, 1), text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(0, 0, 0, 0.7))
+	# Glow
+	draw_string(font, text_pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(accent, 0.3))
 	# Text
 	draw_string(font, text_pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(accent, 0.9))
 
@@ -288,13 +366,12 @@ func _draw_composition_bars(center: Vector2, _accent: Color) -> void:
 		offset += seg_width
 
 
-func _draw_territory_tint(accent: Color) -> void:
+func _draw_territory_tint(accent: Color, tint_alpha: float = 0.06) -> void:
 	var cell_set: Dictionary = {}
 	for cell in cells:
 		cell_set[cell] = true
 
-	# Draw a faint tint on neighboring cells (1-cell padding) that aren't part of source
-	var tint_color := Color(accent, 0.06)
+	var tint_color := Color(accent, tint_alpha)
 	for cell in cells:
 		for dx in range(-1, 2):
 			for dy in range(-1, 2):
@@ -305,8 +382,7 @@ func _draw_territory_tint(accent: Color) -> void:
 					(neighbor.x - grid_cell.x) * TILE_SIZE,
 					(neighbor.y - grid_cell.y) * TILE_SIZE
 				)
-				# Use cell_set to avoid drawing same neighbor multiple times
-				cell_set[neighbor] = false  # Mark as tinted (not a source cell)
+				cell_set[neighbor] = false
 				draw_rect(Rect2(local_pos, Vector2(TILE_SIZE, TILE_SIZE)), tint_color, true)
 
 
@@ -316,10 +392,10 @@ func _draw_zone_badge(center: Vector2) -> void:
 
 	var ring_labels: Array = ["KOLAY", "ORTA", "ZOR", "ENDGAME"]
 	var ring_colors: Array = [
-		Color(0.3, 1.0, 0.4),   # green
-		Color(1.0, 0.9, 0.3),   # yellow
-		Color(1.0, 0.6, 0.2),   # orange
-		Color(1.0, 0.3, 0.2),   # red
+		Color(0.3, 1.0, 0.4),
+		Color(1.0, 0.9, 0.3),
+		Color(1.0, 0.6, 0.2),
+		Color(1.0, 0.3, 0.2),
 	]
 
 	var idx: int = clampi(definition.ring_index, 0, 3)
@@ -331,10 +407,7 @@ func _draw_zone_badge(center: Vector2) -> void:
 	var text_size := font.get_string_size(label, HORIZONTAL_ALIGNMENT_CENTER, -1, font_size)
 	var badge_pos := Vector2(center.x - text_size.x / 2.0, center.y - 28)
 
-	# Badge background
 	var bg_rect := Rect2(badge_pos.x - 4, badge_pos.y - font_size + 1, text_size.x + 8, font_size + 4)
 	draw_rect(bg_rect, Color(0, 0, 0, 0.6), true)
 	draw_rect(bg_rect, Color(badge_color, 0.5), false, 1.0)
-
-	# Badge text
 	draw_string(font, badge_pos, label, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(badge_color, 0.9))

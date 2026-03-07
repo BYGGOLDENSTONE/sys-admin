@@ -7,7 +7,8 @@ extends Node2D
 const CHUNK_SIZE: int = 16  ## cells per chunk axis
 const TILE_SIZE: int = 64
 const CHUNK_PX: int = CHUNK_SIZE * TILE_SIZE  ## 1024 pixels per chunk
-const FOG_COLOR := Color(0.02, 0.03, 0.05, 0.88)
+const FOG_COLOR := Color(0.02, 0.03, 0.05, 0.92)
+const FOG_EDGE_COLOR := Color(0.02, 0.03, 0.05, 0.5)
 const GRID_CELLS: int = 512
 const CHUNKS_PER_AXIS: int = GRID_CELLS / CHUNK_SIZE  ## 32
 const MAP_CENTER_CELL := Vector2i(256, 256)
@@ -61,6 +62,20 @@ func is_cell_explored(cell: Vector2i) -> bool:
 	return _explored.has(Vector2i(cell.x / CHUNK_SIZE, cell.y / CHUNK_SIZE))
 
 
+func _is_edge_chunk(cx: int, cy: int) -> bool:
+	## Returns true if this fog chunk borders an explored chunk
+	for dx in range(-1, 2):
+		for dy in range(-1, 2):
+			if dx == 0 and dy == 0:
+				continue
+			var neighbor := Vector2i(cx + dx, cy + dy)
+			if neighbor.x >= 0 and neighbor.x < CHUNKS_PER_AXIS \
+					and neighbor.y >= 0 and neighbor.y < CHUNKS_PER_AXIS:
+				if _explored.has(neighbor):
+					return true
+	return false
+
+
 func _process(_delta: float) -> void:
 	queue_redraw()
 
@@ -81,4 +96,9 @@ func _draw() -> void:
 		for cy in range(start_cy, end_cy + 1):
 			if _explored.has(Vector2i(cx, cy)):
 				continue
-			draw_rect(Rect2(cx * CHUNK_PX, cy * CHUNK_PX, CHUNK_PX, CHUNK_PX), FOG_COLOR)
+			var rect := Rect2(cx * CHUNK_PX, cy * CHUNK_PX, CHUNK_PX, CHUNK_PX)
+			if _is_edge_chunk(cx, cy):
+				# Edge chunks: softer fog (semi-transparent) for smooth transition
+				draw_rect(rect, FOG_EDGE_COLOR)
+			else:
+				draw_rect(rect, FOG_COLOR)

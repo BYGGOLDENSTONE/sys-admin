@@ -7,6 +7,7 @@ const DIVIDER_COLOR := Color("#00ccff40")
 var _speed_label: Label
 var _seed_label: Label
 var _dev_label: Label
+var _speed_tween: Tween = null
 
 
 func _ready() -> void:
@@ -24,6 +25,8 @@ func _setup_style() -> void:
 	style.content_margin_right = 16
 	style.content_margin_top = 6
 	style.content_margin_bottom = 6
+	style.shadow_color = Color(0, 0.8, 1.0, 0.08)
+	style.shadow_size = 4
 	add_theme_stylebox_override("panel", style)
 
 
@@ -78,11 +81,27 @@ func _make_divider() -> ColorRect:
 func update_speed(multiplier: int, paused: bool) -> void:
 	if paused:
 		_speed_label.text = "|| DURAKLAT"
-		_speed_label.add_theme_color_override("font_color", Color(1, 0.4, 0.4))
+		_speed_label.add_theme_color_override("font_color", Color(1, 0.3, 0.3))
 	else:
 		_speed_label.text = "%s %dx" % [">".repeat(multiplier), multiplier]
-		_speed_label.add_theme_color_override("font_color", Color(0, 1, 0.53))
+		var speed_color: Color
+		match multiplier:
+			1: speed_color = Color(0, 1, 0.53)       # Green
+			2: speed_color = Color(1.0, 0.9, 0.2)    # Yellow
+			3: speed_color = Color(1.0, 0.6, 0.15)   # Orange
+			_: speed_color = Color(1.0, 0.4, 0.15)   # Red-orange
+		_speed_label.add_theme_color_override("font_color", speed_color)
+	# Pulse animation on change
+	_play_speed_pulse()
 
+
+func _play_speed_pulse() -> void:
+	if _speed_tween:
+		_speed_tween.kill()
+	_speed_label.scale = Vector2(1.15, 1.15)
+	_speed_label.pivot_offset = _speed_label.size / 2.0
+	_speed_tween = create_tween().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_speed_tween.tween_property(_speed_label, "scale", Vector2.ONE, 0.3)
 
 
 func update_seed(seed_value: int) -> void:

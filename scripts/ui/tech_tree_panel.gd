@@ -6,24 +6,19 @@ const BG_COLOR := Color("#0d1117")
 const BORDER_COLOR := Color("#aa88ff")
 
 ## Discovery-based unlock rules (GDD Section 11)
-## Each rule: building_name → {trigger_type, trigger_value}
-## trigger_type: "content_count", "content", "state"
-## content_count: unlocks when N distinct content types discovered
-## content: unlocks when specific ContentType discovered
-## state: unlocks when specific DataState discovered
 var _unlock_rules: Array[Dictionary] = [
 	{"name": "Recoverer", "trigger": "state", "value": DataEnums.DataState.CORRUPTED,
-	 "desc": "Bozuk veri keşfedildiğinde açılır"},
+	 "desc": "Bozuk veri kesfedildiginde acilir"},
 	{"name": "Classifier", "trigger": "content_count", "value": 2,
-	 "desc": "2. content türü keşfedildiğinde açılır"},
+	 "desc": "2. content turu kesfedildiginde acilir"},
 	{"name": "Research Lab", "trigger": "content", "value": DataEnums.ContentType.RESEARCH,
-	 "desc": "Research verisi keşfedildiğinde açılır"},
+	 "desc": "Research verisi kesfedildiginde acilir"},
 	{"name": "Decryptor", "trigger": "state", "value": DataEnums.DataState.ENCRYPTED,
-	 "desc": "Encrypted veri keşfedildiğinde açılır"},
+	 "desc": "Encrypted veri kesfedildiginde acilir"},
 	{"name": "Compiler", "trigger": "content_count", "value": 3,
-	 "desc": "3. content türü keşfedildiğinde açılır"},
+	 "desc": "3. content turu kesfedildiginde acilir"},
 	{"name": "Quarantine", "trigger": "state", "value": DataEnums.DataState.MALWARE,
-	 "desc": "Malware keşfedildiğinde açılır"},
+	 "desc": "Malware kesfedildiginde acilir"},
 ]
 
 var _unlocked: Dictionary = {}  ## "name" -> true
@@ -31,10 +26,12 @@ var _simulation_manager: Node = null
 var _building_panel: Node = null
 var _info_container: VBoxContainer = null
 var _title_label: Label = null
+var _show_tween: Tween = null
 
 
 func _ready() -> void:
 	visible = false
+	modulate = Color(1, 1, 1, 0)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	_setup_style()
 	_build_ui()
@@ -51,10 +48,31 @@ func setup(sim_manager: Node, build_panel: Node) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
 		if event.keycode == KEY_T:
-			visible = not visible
 			if visible:
+				_hide_animated()
+			else:
+				visible = true
+				_show_animated()
 				_refresh_info()
 			get_viewport().set_input_as_handled()
+
+
+func _show_animated() -> void:
+	if _show_tween:
+		_show_tween.kill()
+	_show_tween = create_tween().set_parallel(true).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
+	_show_tween.tween_property(self, "modulate:a", 1.0, 0.25)
+	_show_tween.tween_property(self, "offset_left", 10.0, 0.3)
+	offset_left = -30.0
+
+
+func _hide_animated() -> void:
+	if _show_tween:
+		_show_tween.kill()
+	_show_tween = create_tween().set_parallel(true).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_IN)
+	_show_tween.tween_property(self, "modulate:a", 0.0, 0.2)
+	_show_tween.tween_property(self, "offset_left", -30.0, 0.25)
+	_show_tween.chain().tween_callback(func(): visible = false)
 
 
 func _on_content_discovered(content: int) -> void:
@@ -87,7 +105,7 @@ func _check_unlocks() -> void:
 		if should_unlock:
 			_unlocked[rule.name] = true
 			building_unlocked.emit(rule.name)
-			print("[Keşif] %s açıldı!" % rule.name)
+			print("[Kesif] %s acildi!" % rule.name)
 			if _building_panel and _building_panel.has_method("refresh_buttons"):
 				_building_panel.refresh_buttons()
 	if visible:
@@ -117,7 +135,7 @@ func _build_ui() -> void:
 	margin.add_child(vbox)
 
 	_title_label = Label.new()
-	_title_label.text = "// KEŞİF DURUMU [T]"
+	_title_label.text = "// KESIF DURUMU [T]"
 	_title_label.add_theme_color_override("font_color", BORDER_COLOR)
 	_title_label.add_theme_font_size_override("font_size", 14)
 	vbox.add_child(_title_label)
@@ -135,6 +153,7 @@ func _refresh_info() -> void:
 	for child in _info_container.get_children():
 		child.queue_free()
 
+	var idx: int = 0
 	for rule in _unlock_rules:
 		var is_unlocked: bool = _unlocked.get(rule.name, false)
 		var label := RichTextLabel.new()
@@ -144,9 +163,16 @@ func _refresh_info() -> void:
 		label.custom_minimum_size.x = 250
 
 		if is_unlocked:
-			label.text = "[color=#44ff88]● %s[/color]  [color=#667788]AÇILDI[/color]" % rule.name
+			label.text = "[color=#44ff88]● %s[/color]  [color=#667788]ACILDI[/color]" % rule.name
 		else:
 			label.text = "[color=#ff8844]○ %s[/color]  [color=#667788]%s[/color]" % [rule.name, rule.desc]
+
+		# Staggered fade-in
+		label.modulate = Color(1, 1, 1, 0)
+		var tw := create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		tw.tween_property(label, "modulate:a", 1.0, 0.2).set_delay(idx * 0.04)
+		idx += 1
+
 		_info_container.add_child(label)
 
 
@@ -158,12 +184,14 @@ func _setup_style() -> void:
 	style.border_width_top = 2
 	style.border_width_right = 1
 	style.border_width_bottom = 1
-	style.corner_radius_top_left = 2
-	style.corner_radius_top_right = 2
-	style.corner_radius_bottom_left = 2
-	style.corner_radius_bottom_right = 2
+	style.corner_radius_top_left = 3
+	style.corner_radius_top_right = 3
+	style.corner_radius_bottom_left = 3
+	style.corner_radius_bottom_right = 3
 	style.content_margin_left = 4
 	style.content_margin_right = 4
 	style.content_margin_top = 4
 	style.content_margin_bottom = 4
+	style.shadow_color = Color(BORDER_COLOR, 0.08)
+	style.shadow_size = 4
 	add_theme_stylebox_override("panel", style)

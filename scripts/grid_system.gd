@@ -118,6 +118,9 @@ func _draw() -> void:
 	var sy: int = maxi(0, int(cp.y / TILE_SIZE) - 1)
 	var ey: int = mini(GRID_HEIGHT, int((cp.y + vp.y) / TILE_SIZE) + 2)
 
+	# Underglow intensity scales with zoom (brighter when zoomed out)
+	var ug_scale: float = clampf(1.0 / zoom_level, 1.0, 3.0) if zoom_level < 1.0 else 1.0
+
 	for cell in _occupied_cells:
 		if cell.x < sx or cell.x > ex or cell.y < sy or cell.y > ey:
 			continue
@@ -125,13 +128,15 @@ func _draw() -> void:
 		if building and building.definition:
 			var a: Color = building.definition.color
 			var r := Rect2(cell.x * TILE_SIZE, cell.y * TILE_SIZE, TILE_SIZE, TILE_SIZE)
-			draw_rect(r, Color(a, 0.04), true)
+			draw_rect(r, Color(a, minf(0.06 * ug_scale, 0.2)), true)
+			if zoom_level > 0.4:
+				draw_rect(r, Color(a, 0.03), false, 1.0)
 
 	for cell in _cable_cells:
 		if cell.x < sx or cell.x > ex or cell.y < sy or cell.y > ey:
 			continue
 		var r := Rect2(cell.x * TILE_SIZE, cell.y * TILE_SIZE, TILE_SIZE, TILE_SIZE)
-		draw_rect(r, Color(0.2, 0.5, 0.9, 0.02), true)
+		draw_rect(r, Color(0.0, 0.6, 0.9, minf(0.035 * ug_scale, 0.12)), true)
 
 	# Fade out grid lines when zoomed out to prevent flickering/moire
 	# Fully visible above 0.5, fully hidden below 0.2

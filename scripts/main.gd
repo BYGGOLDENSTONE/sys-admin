@@ -24,6 +24,8 @@ var _dev_mode: bool = false
 var _top_bar: PanelContainer = null
 var _minimap: Control = null
 var _shortcut_hints: Label = null
+var _crt_material: ShaderMaterial = null
+var _glitch_tween: Tween = null
 
 
 func _ready() -> void:
@@ -121,6 +123,11 @@ func _ready() -> void:
 	# Setup shortcut hints
 	_setup_shortcut_hints()
 
+	# Cache CRT shader material for glitch effects
+	var crt_rect: ColorRect = $CRTLayer/CRTRect
+	if crt_rect and crt_rect.material is ShaderMaterial:
+		_crt_material = crt_rect.material as ShaderMaterial
+
 	print("[Main] SYS_ADMIN initialized")
 
 
@@ -189,26 +196,29 @@ func _setup_minimap() -> void:
 	_minimap.source_manager = source_manager
 	_minimap.building_container = $BuildingContainer
 	_minimap.camera_ref = camera
+	_minimap.connection_manager = connection_manager
 	ui_layer.add_child(_minimap)
 
 
 func _setup_shortcut_hints() -> void:
 	_shortcut_hints = Label.new()
-	_shortcut_hints.text = "Space: Duraklat  |  1/2/3: Hiz  |  Ctrl+Z/Y: Geri Al  |  T: Teknoloji  |  H: Gizle"
-	_shortcut_hints.add_theme_font_size_override("font_size", 13)
-	_shortcut_hints.add_theme_color_override("font_color", Color(0.5, 0.7, 0.8, 0.7))
+	_shortcut_hints.text = "SPACE Duraklat  //  1/2/3 Hiz  //  Ctrl+Z Geri Al  //  T Teknoloji  //  H Gizle"
+	_shortcut_hints.add_theme_font_size_override("font_size", 12)
+	_shortcut_hints.add_theme_color_override("font_color", Color(0.4, 0.6, 0.7, 0.6))
 	_shortcut_hints.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_shortcut_hints.anchors_preset = Control.PRESET_BOTTOM_WIDE
-	_shortcut_hints.offset_bottom = -12.0
-	_shortcut_hints.offset_top = -32.0
+	_shortcut_hints.offset_bottom = -10.0
+	_shortcut_hints.offset_top = -30.0
 	_shortcut_hints.offset_left = 200.0
 	_shortcut_hints.offset_right = -230.0
 	_shortcut_hints.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	_shortcut_hints.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	ui_layer.add_child(_shortcut_hints)
-	# Auto-fade after 8 seconds
+	# Fade in then auto-fade after 6 seconds
+	_shortcut_hints.modulate = Color(1, 1, 1, 0)
 	var tween := create_tween()
-	tween.tween_property(_shortcut_hints, "modulate:a", 0.0, 1.5).set_delay(8.0)
+	tween.tween_property(_shortcut_hints, "modulate:a", 1.0, 0.5).set_delay(0.5)
+	tween.tween_property(_shortcut_hints, "modulate:a", 0.0, 1.5).set_delay(6.0)
 
 
 func _toggle_shortcut_hints() -> void:
@@ -228,6 +238,30 @@ func _on_speed_changed(multiplier: int, paused: bool) -> void:
 
 func _on_building_unlocked(building_name: String) -> void:
 	print("[Main] Yapi acildi: %s" % building_name)
+	_show_unlock_notification(building_name)
+
+
+func _show_unlock_notification(building_name: String) -> void:
+	var notif := Label.new()
+	notif.text = ">> %s ACILDI <<" % building_name.to_upper()
+	notif.add_theme_font_size_override("font_size", 18)
+	notif.add_theme_color_override("font_color", Color("#aa88ff"))
+	notif.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	notif.anchors_preset = Control.PRESET_CENTER_TOP
+	notif.position.y = 110
+	notif.modulate = Color(1, 1, 1, 0)
+	notif.scale = Vector2(0.7, 0.7)
+	notif.pivot_offset = Vector2(notif.size.x / 2.0, notif.size.y / 2.0)
+	ui_layer.add_child(notif)
+
+	var tween := create_tween().set_parallel(true)
+	tween.tween_property(notif, "modulate:a", 1.0, 0.2).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tween.tween_property(notif, "scale", Vector2.ONE, 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.tween_property(notif, "position:y", 95.0, 2.5).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tween.tween_property(notif, "modulate:a", 0.0, 0.8).set_delay(2.0)
+	tween.chain().tween_callback(notif.queue_free)
+
+	_trigger_glitch(0.1, 0.3)
 
 
 func _on_content_discovered(content: int) -> void:
@@ -245,21 +279,54 @@ func _on_state_discovered(state: int) -> void:
 func _show_discovery_notification(display_name: String, color: Color) -> void:
 	var notif := Label.new()
 	notif.text = "[ %s KESFEDILDI ]" % display_name
-	notif.add_theme_font_size_override("font_size", 20)
+	notif.add_theme_font_size_override("font_size", 22)
 	notif.add_theme_color_override("font_color", color)
 	notif.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	notif.anchors_preset = Control.PRESET_CENTER_TOP
 	notif.position.y = 80
+	notif.modulate = Color(1, 1, 1, 0)
+	notif.scale = Vector2(0.8, 0.8)
+	notif.pivot_offset = Vector2(notif.size.x / 2.0, notif.size.y / 2.0)
 	ui_layer.add_child(notif)
 
-	var tween := create_tween()
-	tween.tween_property(notif, "modulate:a", 0.0, 1.0).set_delay(2.0)
-	tween.tween_callback(notif.queue_free)
+	# Pop-in + glow + float-up + fade-out
+	var tween := create_tween().set_parallel(true)
+	# Pop in
+	tween.tween_property(notif, "modulate:a", 1.0, 0.2).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tween.tween_property(notif, "scale", Vector2.ONE, 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	# Float up
+	tween.tween_property(notif, "position:y", 60.0, 3.0).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	# Fade out
+	tween.tween_property(notif, "modulate:a", 0.0, 0.8).set_delay(2.2).set_trans(Tween.TRANS_QUAD)
+	tween.chain().tween_callback(notif.queue_free)
+
+	# Brief glitch on discovery
+	_trigger_glitch(0.15, 0.4)
+
+	# Camera shake
+	if camera.has_method("add_trauma"):
+		camera.add_trauma(0.12)
 
 
 func _on_source_discovered(source: Node2D) -> void:
 	var def = source.definition
 	_show_discovery_notification(def.source_name, def.color)
+
+
+func _trigger_glitch(intensity: float, duration: float) -> void:
+	if _crt_material == null:
+		return
+	if _glitch_tween:
+		_glitch_tween.kill()
+	_crt_material.set_shader_parameter("glitch_intensity", intensity)
+	_glitch_tween = create_tween()
+	_glitch_tween.tween_method(_update_glitch_time, 0.0, duration * 60.0, duration)
+	_glitch_tween.parallel().tween_property(_crt_material, "shader_parameter/glitch_intensity", 0.0, duration).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+
+
+func _update_glitch_time(value: float) -> void:
+	if _crt_material:
+		_crt_material.set_shader_parameter("glitch_time", value)
 
 
 func _toggle_dev_mode() -> void:

@@ -220,6 +220,11 @@ func _complete_connection(to_building: Node2D, to_port: String) -> void:
 	_connecting_from_port = ""
 	if connection_layer:
 		connection_layer.preview_active = false
+		connection_layer.play_connection_flash(to_building)
+	# Camera shake feedback on cable connection
+	var cam: Camera2D = get_viewport().get_camera_2d()
+	if cam and cam.has_method("add_trauma"):
+		cam.add_trauma(0.08)
 
 
 func _update_connection_preview() -> void:
@@ -371,12 +376,14 @@ func _select_building(building: Node2D) -> void:
 		return
 	_deselect_building()
 	_selected_building = building
+	building.is_selected = true
 	building_selected.emit(building)
 
 
 func _deselect_building() -> void:
 	if _selected_building == null:
 		return
+	_selected_building.is_selected = false
 	_selected_building = null
 	building_deselected.emit()
 

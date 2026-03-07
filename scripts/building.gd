@@ -23,6 +23,7 @@ var grid_cell: Vector2i = Vector2i.ZERO
 var fill_ratio: float = 0.0
 var _glow_time: float = 0.0
 var _is_ghost: bool = false
+var is_selected: bool = false
 
 # Runtime state (set by SimulationManager)
 var stored_data: Dictionary = {}  ## Key: "content_state" (e.g. "0_0"), Value: int MB
@@ -204,6 +205,13 @@ func get_port_at(local_pos: Vector2) -> Dictionary:
 	return {}
 
 
+func _get_zoom_level() -> float:
+	var cam := get_viewport().get_camera_2d()
+	if cam:
+		return cam.zoom.x
+	return 1.0
+
+
 func _draw() -> void:
 	if definition == null:
 		return
@@ -213,6 +221,7 @@ func _draw() -> void:
 	var center := size / 2.0
 	var active: bool = is_active()
 	var accent: Color = definition.color if active else Color(definition.color, 0.3)
+	var zoom: float = _get_zoom_level()
 
 	# State-based pulse
 	var pulse: float = 0.0
@@ -222,73 +231,165 @@ func _draw() -> void:
 		else:
 			pulse = sin(_glow_time * GLOW_PULSE_SPEED) * GLOW_PULSE_AMOUNT
 
-	# Wide outer glow (soft halo)
+	# === PCB MODE (zoom < 0.45) — bright chips on dark board ===
+	if zoom < 0.45:
+		_draw_pcb_mode(size, rect, accent, pulse)
+		return
+
+	# === MEDIUM MODE (zoom 0.35-0.7) — simplified ===
+	var is_medium := zoom < 0.7
+
+	# Wide outer glow (soft halo) — scaled up at lower zoom
+	var zoom_glow_scale: float = clampf(1.0 / zoom, 1.0, 2.5) if zoom < 1.0 else 1.0
+	var outer_w: float = OUTER_GLOW_WIDTH * zoom_glow_scale
 	var outer_rect := Rect2(
-		Vector2(-OUTER_GLOW_WIDTH, -OUTER_GLOW_WIDTH),
-		size + Vector2(OUTER_GLOW_WIDTH * 2, OUTER_GLOW_WIDTH * 2)
+		Vector2(-outer_w, -outer_w),
+		size + Vector2(outer_w * 2, outer_w * 2)
 	)
 	var outer_a := OUTER_GLOW_ALPHA + pulse
 	if is_working:
 		outer_a += 0.08
-	draw_rect(outer_rect, Color(accent, outer_a), false, OUTER_GLOW_WIDTH)
+	outer_a *= zoom_glow_scale  # brighter at low zoom
+	draw_rect(outer_rect, Color(accent, minf(outer_a, 0.5)), false, outer_w)
 
 	# Inner glow
+	var inner_w: float = GLOW_WIDTH * zoom_glow_scale
 	var glow_rect := Rect2(
-		Vector2(-GLOW_WIDTH, -GLOW_WIDTH),
-		size + Vector2(GLOW_WIDTH * 2, GLOW_WIDTH * 2)
+		Vector2(-inner_w, -inner_w),
+		size + Vector2(inner_w * 2, inner_w * 2)
 	)
-	draw_rect(glow_rect, Color(accent, GLOW_ALPHA + pulse), false, GLOW_WIDTH)
+	draw_rect(glow_rect, Color(accent, minf((GLOW_ALPHA + pulse) * zoom_glow_scale, 0.6)), false, inner_w)
 
-	# Body
-	draw_rect(rect, BODY_COLOR, true)
+	# Body — slightly brighter at medium zoom for visibility
+	var body_color: Color = BODY_COLOR if not is_medium else Color(
+		BODY_COLOR.r + accent.r * 0.05,
+		BODY_COLOR.g + accent.g * 0.05,
+		BODY_COLOR.b + accent.b * 0.05, 1.0)
+	draw_rect(rect, body_color, true)
 
-	# Neon border
-	draw_rect(rect, accent, false, BORDER_WIDTH)
+	# Neon border (thicker at lower zoom + when selected)
+	var border_w: float = BORDER_WIDTH * zoom_glow_scale
+	if is_selected:
+		border_w *= 2.0
+	draw_rect(rect, accent, false, border_w)
 
-	# Inner detail lines (subtle tech feel)
-	var line_color := Color(accent, 0.1)
-	draw_line(Vector2(0, size.y * 0.3), Vector2(size.x, size.y * 0.3), line_color, 1.0)
-	draw_line(Vector2(size.x * 0.3, 0), Vector2(size.x * 0.3, size.y * 0.3), line_color, 1.0)
+	# Selection highlight (only at close/medium zoom)
+	if is_selected:
+		var sel_pulse: float = (sin(_glow_time * 4.0) * 0.5 + 0.5)
+		var sel_rect := Rect2(
+			Vector2(-outer_w * 1.5, -outer_w * 1.5),
+			size + Vector2(outer_w * 3.0, outer_w * 3.0)
+		)
+		draw_rect(sel_rect, Color(accent, 0.15 + sel_pulse * 0.1), false, outer_w)
+		if not is_medium:
+			# Corner brackets only at close zoom
+			var cb: float = 10.0
+			var cw: float = 2.0
+			var cc := Color(1.0, 1.0, 1.0, 0.6 + sel_pulse * 0.3)
+			draw_line(Vector2(-4, -4), Vector2(-4 + cb, -4), cc, cw)
+			draw_line(Vector2(-4, -4), Vector2(-4, -4 + cb), cc, cw)
+			draw_line(Vector2(size.x + 4, -4), Vector2(size.x + 4 - cb, -4), cc, cw)
+			draw_line(Vector2(size.x + 4, -4), Vector2(size.x + 4, -4 + cb), cc, cw)
+			draw_line(Vector2(-4, size.y + 4), Vector2(-4 + cb, size.y + 4), cc, cw)
+			draw_line(Vector2(-4, size.y + 4), Vector2(-4, size.y + 4 - cb), cc, cw)
+			draw_line(Vector2(size.x + 4, size.y + 4), Vector2(size.x + 4 - cb, size.y + 4), cc, cw)
+			draw_line(Vector2(size.x + 4, size.y + 4), Vector2(size.x + 4, size.y + 4 - cb), cc, cw)
+			# Scan line
+			var scan_y: float = fmod(_glow_time * 20.0, size.y + 8.0) - 4.0
+			if scan_y >= -4.0 and scan_y <= size.y + 4.0:
+				draw_line(Vector2(-4, scan_y), Vector2(size.x + 4, scan_y), Color(accent, 0.2), 1.0)
 
-	# Icon
-	_draw_icon(center, size, accent)
+	# Inner detail lines (skip at medium zoom)
+	if not is_medium:
+		var line_color := Color(accent, 0.1)
+		draw_line(Vector2(0, size.y * 0.3), Vector2(size.x, size.y * 0.3), line_color, 1.0)
+		draw_line(Vector2(size.x * 0.3, 0), Vector2(size.x * 0.3, size.y * 0.3), line_color, 1.0)
 
-	# Building name (top area)
-	var font := ThemeDB.fallback_font
-	var font_size := 11
-	var text := definition.building_name
-	var text_size := font.get_string_size(text, HORIZONTAL_ALIGNMENT_CENTER, -1, font_size)
-	var text_pos := Vector2(
-		(size.x - text_size.x) / 2.0,
-		font_size + 4
-	)
-	draw_string(font, text_pos + Vector2(1, 1), text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(0, 0, 0, 0.5))
-	draw_string(font, text_pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color.WHITE)
+	# Icon (skip at medium zoom)
+	if not is_medium:
+		_draw_icon(center, size, accent)
 
-	# Ports
+	# Building name (skip at medium zoom)
+	if not is_medium:
+		var font := ThemeDB.fallback_font
+		var font_size := 11
+		var text := definition.building_name
+		var text_size := font.get_string_size(text, HORIZONTAL_ALIGNMENT_CENTER, -1, font_size)
+		var text_pos := Vector2(
+			(size.x - text_size.x) / 2.0,
+			font_size + 4
+		)
+		draw_string(font, text_pos + Vector2(1, 1), text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(0, 0, 0, 0.6))
+		draw_string(font, text_pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(accent, 0.25))
+		draw_string(font, text_pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(1, 1, 1, 0.9))
+
+	# Ports (always draw, but scale at medium zoom)
 	_draw_ports(size, accent)
 
-	# Status bars
-	_draw_status_bars(size, accent)
+	# Status bars (skip at medium zoom)
+	if not is_medium:
+		_draw_status_bars(size, accent)
 
-	# Malware overlay (purple-red flicker)
+	# Malware overlay
 	if not _is_ghost and _has_malware():
 		if definition.processor == null or (definition.processor != null and definition.processor.rule != "quarantine"):
 			var malware_alpha: float = 0.12 + sin(_glow_time * 6.0) * 0.06
 			draw_rect(rect, Color(0.8, 0.0, 0.3, malware_alpha), true)
 			draw_rect(rect, Color(0.8, 0.0, 0.3, 0.5), false, 2.0)
 
-	# Inactive generator overlay (no source linked)
+	# Inactive generator overlay
 	if not _is_ghost and not active and definition.generator != null:
-		var warn_color := Color(1.0, 0.4, 0.2)
-		draw_rect(rect, Color(warn_color, 0.06), true)
-		var warn_font := ThemeDB.fallback_font
-		var warn_text := "Kaynak Yok"
-		var warn_size := 10
-		var text_dims := warn_font.get_string_size(warn_text, HORIZONTAL_ALIGNMENT_CENTER, -1, warn_size)
-		var warn_pos := Vector2((size.x - text_dims.x) / 2.0, size.y - 8)
-		draw_string(warn_font, warn_pos + Vector2(1, 1), warn_text, HORIZONTAL_ALIGNMENT_LEFT, -1, warn_size, Color(0, 0, 0, 0.6))
-		draw_string(warn_font, warn_pos, warn_text, HORIZONTAL_ALIGNMENT_LEFT, -1, warn_size, Color(warn_color, 0.8))
+		if not is_medium:
+			var warn_color := Color(1.0, 0.4, 0.2)
+			draw_rect(rect, Color(warn_color, 0.06), true)
+			var warn_font := ThemeDB.fallback_font
+			var warn_text := "Kaynak Yok"
+			var warn_size := 10
+			var text_dims := warn_font.get_string_size(warn_text, HORIZONTAL_ALIGNMENT_CENTER, -1, warn_size)
+			var warn_pos := Vector2((size.x - text_dims.x) / 2.0, size.y - 8)
+			draw_string(warn_font, warn_pos + Vector2(1, 1), warn_text, HORIZONTAL_ALIGNMENT_LEFT, -1, warn_size, Color(0, 0, 0, 0.6))
+			draw_string(warn_font, warn_pos, warn_text, HORIZONTAL_ALIGNMENT_LEFT, -1, warn_size, Color(warn_color, 0.8))
+
+
+## PCB mode: glowing microchips with soft circular halo
+func _draw_pcb_mode(size: Vector2, rect: Rect2, accent: Color, pulse: float) -> void:
+	var center := size / 2.0
+	var zoom: float = _get_zoom_level()
+	var inv_zoom: float = clampf(1.0 / zoom, 2.0, 8.0)
+
+	# Soft circular glow halo (bloom substitute — zoom-compensated)
+	var glow_r: float = maxf(size.x, size.y) * 0.4 * inv_zoom
+	var glow_a: float = 0.025 + pulse * 0.01
+	if is_working:
+		glow_a += 0.015
+	draw_circle(center, glow_r, Color(accent, glow_a))
+	draw_circle(center, glow_r * 0.5, Color(accent, glow_a * 2.5))
+
+	# Body — tinted with accent color for chip look
+	var chip_body := Color(
+		BODY_COLOR.r + accent.r * 0.12,
+		BODY_COLOR.g + accent.g * 0.12,
+		BODY_COLOR.b + accent.b * 0.12, 1.0)
+	draw_rect(rect, chip_body, true)
+
+	# Thick bright border
+	var bw: float = 3.0
+	if is_selected:
+		bw = 5.0
+	draw_rect(rect, accent, false, bw)
+
+	# Center dot/pip (visible identifier)
+	draw_circle(center, 5.0, Color(accent, 0.5 + pulse * 2.0))
+	draw_circle(center, 2.5, accent)
+
+	# Working indicator: brighter fill
+	if is_working:
+		draw_rect(rect, Color(accent, 0.08), true)
+
+	# Malware overlay (still visible at distance)
+	if not _is_ghost and _has_malware():
+		if definition.processor == null or (definition.processor != null and definition.processor.rule != "quarantine"):
+			draw_rect(rect, Color(0.8, 0.0, 0.3, 0.15 + sin(_glow_time * 6.0) * 0.08), true)
 
 
 func _draw_icon(center: Vector2, size: Vector2, accent: Color) -> void:

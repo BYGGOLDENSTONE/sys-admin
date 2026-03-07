@@ -194,10 +194,20 @@ Eski point-to-point kablo sistemi TAMAMEN degisiyor:
 - [x] Kablo partikulleri: Glow halo + inner glow + beyaz karakter overlay
 - [x] Grid cell underglow: Bina/kablo hucreleri icin kamera-culled rendering
 - [x] Floating text: Scale pop + float up + fade out (Decryptor/Compiler/Quarantine)
-- [x] UI panel: Yari saydam + staggered button fade-in
+- [x] UI panel: Yari saydam + staggered button fade-in + slide-in animasyonu
 - [x] Tooltip animasyonu: Fade + slide (acilma/kapanma)
 - [x] Shader: Tilt-shift DoF + vignette + glitch sistemi (bloom_vignette + crt)
-- [ ] Gorsel polish devam (tam devre karti estetigi — zoom seviyeleri + daha fazla juice)
+- [x] Zoom-adaptive rendering: 3 katman (PCB <0.45, Medium 0.45-0.7, Full >0.7)
+- [x] Kaynak PCB modu: Zoom-compensated soft glow daireleri (piksel artifact yok)
+- [x] Bina PCB modu: Dairesel halo + chip gorunumu
+- [x] Kaynak medium modu: Hucre + glow halo + kalin border
+- [x] Bina secim highlight: Cyberpunk corner brackets + scan line
+- [x] Kablo baglanti flash efekti: Expanding ring + fade
+- [x] Minimap: Kablo cizimi + bina glow + cyberpunk cerceve
+- [x] Fog of war: Edge softening (kenar chunk'lar yari saydam)
+- [x] UI: Top bar speed pulse, upgrade panel fade, tech tree slide animasyonu
+- [x] CRT glitch entegrasyonu: Kesif/unlock olaylarinda tetikleme
+- [ ] Gorsel polish devam (daha fazla juice + ince ayar)
 - [ ] Ses sistemi (bina sesleri, kablo snap, ambient, bildirimler)
 - [ ] Demo milestone sistemi (GDD Bolum 17 — 7 milestone)
 - [ ] Tutorial akisi

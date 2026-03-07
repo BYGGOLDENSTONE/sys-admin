@@ -2,7 +2,7 @@ extends PanelContainer
 
 signal building_selected(definition: BuildingDefinition)
 
-const PANEL_BG_COLOR := Color(0.05, 0.07, 0.09, 0.8)
+const PANEL_BG_COLOR := Color(0.05, 0.07, 0.09, 0.85)
 const BORDER_COLOR := Color(0.0, 0.8, 1.0, 0.5)
 const BUTTON_NORMAL_COLOR := Color(0.1, 0.12, 0.18, 0.7)
 const BUTTON_HOVER_COLOR := Color(0.16, 0.22, 0.32, 0.85)
@@ -12,12 +12,27 @@ const TITLE_COLOR := Color("#00ccff")
 var _definitions: Array[BuildingDefinition] = []
 var _tech_tree: Node = null
 var _button_container_ref: VBoxContainer = null
+var _panel_tween: Tween = null
+var _is_panel_visible: bool = false
 
 
 func _ready() -> void:
 	_setup_panel_style()
 	_load_definitions()
 	_create_buttons()
+	# Slide-in animation on start
+	_play_slide_in()
+
+
+func _play_slide_in() -> void:
+	modulate = Color(1, 1, 1, 0)
+	var target_x: float = offset_left
+	offset_left = offset_left + 60.0
+	if _panel_tween:
+		_panel_tween.kill()
+	_panel_tween = create_tween().set_parallel(true).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
+	_panel_tween.tween_property(self, "modulate:a", 1.0, 0.4).set_delay(0.2)
+	_panel_tween.tween_property(self, "offset_left", target_x, 0.5).set_delay(0.2)
 
 
 func _load_definitions() -> void:
@@ -68,9 +83,11 @@ func _rebuild_buttons() -> void:
 
 		# Staggered fade-in animation
 		button.modulate = Color(1, 1, 1, 0)
-		var tw := create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-		tw.tween_interval(idx * 0.04)
-		tw.tween_property(button, "modulate:a", 1.0, 0.25)
+		button.position.x = 20.0
+		var tw := create_tween().set_parallel(true).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		tw.tween_interval(idx * 0.05)
+		tw.tween_property(button, "modulate:a", 1.0, 0.3).set_delay(idx * 0.05)
+		tw.tween_property(button, "position:x", 0.0, 0.3).set_delay(idx * 0.05)
 		idx += 1
 
 
@@ -97,10 +114,14 @@ func _setup_panel_style() -> void:
 	style.bg_color = PANEL_BG_COLOR
 	style.border_color = BORDER_COLOR
 	style.border_width_left = 2
+	style.corner_radius_top_left = 4
+	style.corner_radius_bottom_left = 4
 	style.content_margin_left = 4
 	style.content_margin_right = 4
 	style.content_margin_top = 4
 	style.content_margin_bottom = 4
+	style.shadow_color = Color(0, 0.6, 0.8, 0.06)
+	style.shadow_size = 6
 	add_theme_stylebox_override("panel", style)
 
 
@@ -109,20 +130,27 @@ func _style_button(button: Button, accent_color: Color) -> void:
 	style.bg_color = BUTTON_NORMAL_COLOR
 	style.border_color = accent_color
 	style.border_width_left = 3
-	style.corner_radius_top_left = 2
-	style.corner_radius_bottom_left = 2
-	style.content_margin_left = 12
+	style.corner_radius_top_left = 3
+	style.corner_radius_bottom_left = 3
+	style.corner_radius_top_right = 1
+	style.corner_radius_bottom_right = 1
+	style.content_margin_left = 14
 	style.content_margin_top = 8
 	style.content_margin_bottom = 8
 	button.add_theme_stylebox_override("normal", style)
 
 	var hover_style: StyleBoxFlat = style.duplicate()
 	hover_style.bg_color = BUTTON_HOVER_COLOR
+	hover_style.border_width_left = 5
+	hover_style.shadow_color = Color(accent_color, 0.15)
+	hover_style.shadow_size = 4
 	button.add_theme_stylebox_override("hover", hover_style)
 
 	var pressed_style: StyleBoxFlat = style.duplicate()
 	pressed_style.bg_color = BUTTON_PRESSED_COLOR
-	pressed_style.border_width_left = 4
+	pressed_style.border_width_left = 5
+	pressed_style.shadow_color = Color(accent_color, 0.2)
+	pressed_style.shadow_size = 6
 	button.add_theme_stylebox_override("pressed", pressed_style)
 
 	button.add_theme_color_override("font_color", Color.WHITE)

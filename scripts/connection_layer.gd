@@ -27,6 +27,12 @@ var preview_valid: bool = true
 var preview_from_pos: Vector2 = Vector2.ZERO
 var preview_to_pos: Vector2 = Vector2.ZERO
 
+# Connection flash effect
+var _flash_positions: Array[Vector2] = []
+var _flash_times: Array[float] = []
+var _flash_colors: Array[Color] = []
+const FLASH_DURATION: float = 0.6
+
 
 func _ready() -> void:
 	_camera = get_node_or_null("../GameCamera")
@@ -36,6 +42,15 @@ func _process(delta: float) -> void:
 	_particle_time += delta * PARTICLE_SPEED
 	if _particle_time > 1.0:
 		_particle_time -= 1.0
+	# Update flash timers
+	var i: int = _flash_times.size() - 1
+	while i >= 0:
+		_flash_times[i] -= delta
+		if _flash_times[i] <= 0:
+			_flash_times.remove_at(i)
+			_flash_positions.remove_at(i)
+			_flash_colors.remove_at(i)
+		i -= 1
 	queue_redraw()
 
 
@@ -43,17 +58,37 @@ func _draw() -> void:
 	if connection_manager == null:
 		return
 
+	var zoom: float = _get_zoom_level()
 	var conns: Array[Dictionary] = connection_manager.get_connections()
 	for i in range(conns.size()):
 		var conn: Dictionary = conns[i]
 		var active: bool = _is_connection_active(conn)
 		var hovered: bool = (i == hovered_cable_index)
 		_draw_connection(conn, active, hovered)
-		if active:
+		# Skip particles at very low zoom (performance + readability)
+		if active and zoom > 0.25:
 			_draw_particles(conn, i)
 
 	if preview_active and not preview_path.is_empty():
 		_draw_preview()
+
+	# Draw connection flash effects
+	for fi in range(_flash_positions.size()):
+		var t: float = _flash_times[fi] / FLASH_DURATION
+		var flash_pos: Vector2 = _flash_positions[fi]
+		var flash_col: Color = _flash_colors[fi]
+		# Expanding ring + fading
+		var ring_radius: float = (1.0 - t) * 80.0
+		var ring_alpha: float = t * 0.6
+		draw_circle(flash_pos, ring_radius, Color(flash_col, ring_alpha * 0.15))
+		draw_circle(flash_pos, ring_radius * 0.6, Color(flash_col, ring_alpha * 0.3))
+		draw_circle(flash_pos, 8.0 * t, Color(1.0, 1.0, 1.0, ring_alpha * 0.5))
+
+
+func _get_zoom_level() -> float:
+	if _camera:
+		return _camera.zoom.x
+	return 1.0
 
 
 func _draw_connection(conn: Dictionary, active: bool, hovered: bool) -> void:
@@ -65,22 +100,28 @@ func _draw_connection(conn: Dictionary, active: bool, hovered: bool) -> void:
 	if points.size() < 2:
 		return
 
+	var zoom: float = _get_zoom_level()
+	# Scale cable thickness at low zoom so cables stay visible
+	var zoom_scale: float = clampf(1.0 / zoom, 1.0, 3.5) if zoom < 1.0 else 1.0
+	var core_w: float = CABLE_WIDTH * zoom_scale
+	var glow_w: float = CABLE_GLOW_WIDTH * zoom_scale
+
 	if hovered:
-		draw_polyline(points, HOVER_COLOR, HOVER_WIDTH, true)
+		draw_polyline(points, HOVER_COLOR, HOVER_WIDTH * zoom_scale, true)
 
 	if active:
 		var pulse := sin(Time.get_ticks_msec() / 200.0) * 0.5 + 0.5
 		# Outer soft halo
-		draw_polyline(points, Color(accent, 0.06 + pulse * 0.04), CABLE_GLOW_WIDTH * 2.5, true)
+		draw_polyline(points, Color(accent, (0.06 + pulse * 0.04) * zoom_scale), glow_w * 2.5, true)
 		# Mid glow
-		draw_polyline(points, Color(accent, CABLE_GLOW_ALPHA + pulse * 0.1), CABLE_GLOW_WIDTH, true)
+		draw_polyline(points, Color(accent, minf((CABLE_GLOW_ALPHA + pulse * 0.1) * zoom_scale, 0.6)), glow_w, true)
 		# Core line
-		draw_polyline(points, accent, CABLE_WIDTH, true)
+		draw_polyline(points, accent, core_w, true)
 		# Bright center highlight
-		draw_polyline(points, Color(1.0, 1.0, 1.0, 0.15 + pulse * 0.05), 1.0, true)
+		draw_polyline(points, Color(1.0, 1.0, 1.0, 0.15 + pulse * 0.05), maxf(1.0, core_w * 0.4), true)
 	else:
-		draw_polyline(points, Color(accent, CABLE_INACTIVE_ALPHA * 0.5), CABLE_GLOW_WIDTH * 0.7, true)
-		draw_polyline(points, Color(accent, CABLE_INACTIVE_ALPHA), CABLE_WIDTH, true)
+		draw_polyline(points, Color(accent, minf(CABLE_INACTIVE_ALPHA * 0.5 * zoom_scale, 0.5)), glow_w * 0.7, true)
+		draw_polyline(points, Color(accent, minf(CABLE_INACTIVE_ALPHA * zoom_scale, 0.6)), core_w, true)
 
 
 func _build_polyline(conn: Dictionary) -> PackedVector2Array:
@@ -106,9 +147,17 @@ func _draw_preview() -> void:
 		points.append(_cell_center(cell))
 	points.append(preview_to_pos)
 	if points.size() >= 2:
-		draw_polyline(points, color, CABLE_WIDTH, true)
+		var pulse := sin(Time.get_ticks_msec() / 150.0) * 0.5 + 0.5
 		if preview_valid:
-			draw_polyline(points, Color(color, 0.15), CABLE_GLOW_WIDTH, true)
+			# Outer glow
+			draw_polyline(points, Color(color, 0.08 + pulse * 0.06), CABLE_GLOW_WIDTH * 2.0, true)
+			# Mid glow
+			draw_polyline(points, Color(color, 0.2 + pulse * 0.1), CABLE_GLOW_WIDTH, true)
+		# Core line
+		draw_polyline(points, Color(color, 0.7 + pulse * 0.3), CABLE_WIDTH + 1.0, true)
+		# Endpoint dots
+		draw_circle(points[0], 5.0, Color(color, 0.5 + pulse * 0.3))
+		draw_circle(points[points.size() - 1], 5.0, Color(color, 0.5 + pulse * 0.3))
 
 
 func _is_connection_active(conn: Dictionary) -> bool:
@@ -189,6 +238,15 @@ func _get_connection_flow(conn_index: int) -> Array:
 	return simulation_manager.connection_flow_data.get(conn_index, [])
 
 
+func play_connection_flash(building: Node2D) -> void:
+	if building == null or building.definition == null:
+		return
+	var pos: Vector2 = to_local(building.get_center_world())
+	_flash_positions.append(pos)
+	_flash_times.append(FLASH_DURATION)
+	_flash_colors.append(building.definition.color)
+
+
 func _build_particle_types(flow: Array, count: int) -> Array:
 	var result: Array = []
 	if flow.is_empty():
@@ -197,7 +255,7 @@ func _build_particle_types(flow: Array, count: int) -> Array:
 		return result
 	var total: int = 0
 	for entry in flow:
-		total += entry.amount
+		total += entry.amount if "amount" in entry else 0
 	if total <= 0:
 		for i in range(count):
 			result.append({"color": Color("#00ff88"), "char": "0" if randi() % 2 == 0 else "1"})
