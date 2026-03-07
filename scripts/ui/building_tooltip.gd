@@ -107,18 +107,13 @@ func _update_stats() -> void:
 
 	# Type-specific stats (component-based)
 	if def.generator:
-		lines.append(_stat("Akış", "%d MB/s" % int(def.generator.generation_rate)))
-		# Show source info if linked, otherwise show default weights
 		if b.linked_source != null:
 			var src_def = b.linked_source.definition
 			lines.append(_stat("Kaynak", "[color=%s]%s[/color]" % [src_def.color.to_html(), src_def.source_name]))
+			lines.append(_stat("Akış", "%d MB/s" % int(def.generator.generation_rate)))
 			lines.append(_stat("Content", _format_content_weights(b.runtime_content_weights)))
 			lines.append(_stat("State", _format_state_weights(b.runtime_state_weights)))
 		else:
-			if not def.generator.content_weights.is_empty():
-				lines.append(_stat("Content", _format_content_weights(def.generator.content_weights)))
-			if not def.generator.state_weights.is_empty():
-				lines.append(_stat("State", _format_state_weights(def.generator.state_weights)))
 			lines.append(_stat("Kaynak", "[color=#ff8844]Bağlı değil — kaynağın yanına yerleştir[/color]"))
 	if def.classifier:
 		lines.append(_stat("İşleme", "%d MB/s" % int(def.classifier.throughput_rate)))
@@ -130,7 +125,27 @@ func _update_stats() -> void:
 		lines.append(_stat("Giriş", "[color=#ff8844]Corrupted[/color]"))
 		lines.append(_stat("Sağ Port →", "[color=#44ff88]Clean[/color] (kurtarılan)"))
 		lines.append(_stat("Alt Port  →", "[color=#888844]Residue[/color] (dijital atık)"))
-	if def.storage and def.processor == null and def.classifier == null and def.probabilistic == null:
+	if def.producer:
+		lines.append(_stat("İşleme", "%d üretim/tick" % int(b.get_effective_value("processing_rate"))))
+		lines.append(_stat("Girdi", "[color=#aa88ff]%d MB Research(Clean)[/color] → 1 Key" % def.producer.consume_amount))
+		lines.append(_stat("Çıktı", "[color=#ffaa00]Decryption Key[/color]"))
+		# Show stored research and keys produced
+		var research_key: String = DataEnums.make_key(def.producer.input_content, def.producer.input_state)
+		var stored_research: int = b.stored_data.get(research_key, 0)
+		if stored_research > 0:
+			lines.append(_stat("Stok", "%d MB Research bekliyor" % stored_research))
+	if def.dual_input:
+		lines.append(_stat("İşleme", "%d MB/s" % int(b.get_effective_value("processing_rate"))))
+		lines.append(_stat("Sol Port ←", "[color=#44aaff]Encrypted[/color] veri"))
+		lines.append(_stat("Üst Port ←", "[color=#ffaa00]Key[/color] (Research Lab'dan)"))
+		lines.append(_stat("Çıkış →", "[color=#44ff88]Clean[/color] (content korunur)"))
+		lines.append(_stat("Key/paket", "%d" % def.dual_input.key_cost))
+		# Show stored keys
+		var key_key: String = DataEnums.make_key(def.dual_input.key_content, DataEnums.DataState.CLEAN)
+		var stored_keys: int = b.stored_data.get(key_key, 0)
+		var key_color: String = "#ff6644" if stored_keys <= 0 else "#ffaa00"
+		lines.append(_stat("Key Stok", "[color=%s]%d Key[/color]" % [key_color, stored_keys]))
+	if def.storage and def.processor == null and def.classifier == null and def.probabilistic == null and def.producer == null and def.dual_input == null:
 		var total: int = b.get_total_stored()
 		var cap: int = int(b.get_effective_value("capacity"))
 		var pct: int = int(float(total) / float(cap) * 100.0) if cap > 0 else 0
@@ -153,9 +168,6 @@ func _update_stats() -> void:
 			lines.append(_stat("Mod", mode_name))
 			lines.append(_stat("Sağ Port →", "[color=#44ff88]%s[/color]" % filter_name))
 			lines.append(_stat("Alt Port  →", "Diğer tüm veriler"))
-		elif def.processor.rule == "decryptor":
-			lines.append(_stat("Giriş", "[color=#44aaff]Encrypted[/color]"))
-			lines.append(_stat("Çıkış", "[color=#44ff88]Clean[/color] (content korunur)"))
 		elif def.processor.rule == "quarantine":
 			lines.append(_stat("Giriş", "[color=#ff4466]Malware[/color]"))
 			lines.append(_stat("Çıkış", "[color=#44ff88]Güvenli İmha[/color]"))

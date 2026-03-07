@@ -18,6 +18,7 @@ enum State { IDLE, PLACING, CONNECTING, MOVING }
 var connection_manager: Node = null
 var connection_layer: Node2D = null
 var undo_manager: Node = null
+var source_manager: Node = null
 
 var _building_scene: PackedScene = preload("res://scenes/building.tscn")
 var _state: State = State.IDLE
@@ -258,6 +259,9 @@ func _update_ghost_position() -> void:
 	ghost_preview.position = grid_system.grid_to_world(_ghost_cell)
 	ghost_preview.grid_cell = _ghost_cell
 	_can_place_here = grid_system.can_place(_ghost_cell, _current_definition.grid_size)
+	# Generators (Uplink) require an adjacent discovered source
+	if _can_place_here and _current_definition.generator != null:
+		_can_place_here = _has_adjacent_source(_ghost_cell, _current_definition.grid_size)
 	ghost_preview.modulate = VALID_COLOR if _can_place_here else INVALID_COLOR
 
 
@@ -317,6 +321,13 @@ func _place_building() -> void:
 		cancel_placement()
 
 
+func _has_adjacent_source(cell: Vector2i, building_size: Vector2i) -> bool:
+	if source_manager == null:
+		return true  # No source_manager = skip check
+	var source: Node2D = source_manager.get_source_near(cell, building_size)
+	return source != null and source.discovered
+
+
 func _remove_building(building: Node2D) -> void:
 	var cell: Vector2i = building.grid_cell
 	var def: BuildingDefinition = building.definition
@@ -363,9 +374,12 @@ func _deselect_building() -> void:
 
 ## Programmatic API (AutoPlayManager ve test sistemleri için)
 
-func place_building_at(def: BuildingDefinition, cell: Vector2i) -> Node2D:
+func place_building_at(def: BuildingDefinition, cell: Vector2i, skip_source_check: bool = false) -> Node2D:
 	if not grid_system.can_place(cell, def.grid_size):
 		push_warning("[BuildingManager] Cannot place %s at (%d,%d) — blocked" % [def.building_name, cell.x, cell.y])
+		return null
+	if not skip_source_check and def.generator != null and not _has_adjacent_source(cell, def.grid_size):
+		push_warning("[BuildingManager] Cannot place %s at (%d,%d) — no adjacent source" % [def.building_name, cell.x, cell.y])
 		return null
 	var building: Node2D = _building_scene.instantiate()
 	building.setup(def, cell)

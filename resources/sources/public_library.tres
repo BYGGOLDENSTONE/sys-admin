@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="DataSourceDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://resources/sources/data_source_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+source_name = "Halk Kütüphanesi"
+description = "Açık erişimli akademik veritabanları. Standard ve Research içerir, bazıları bozuk. Research Lab için ana yakıt kaynağı."
+color = Color(0.6, 0.7, 1.0, 1.0)
+content_weights = {0: 0.45, 4: 0.55}
+state_weights = {0: 0.70, 2: 0.30}
+bandwidth = 4.0
+cell_count_range = Vector2i(8, 12)
+ring_index = 1

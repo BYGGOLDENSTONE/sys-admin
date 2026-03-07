@@ -98,7 +98,7 @@ Eski point-to-point kablo sistemi TAMAMEN degisiyor:
 ### Calisan Sistemler
 - Grid sistemi (`grid_system.gd`) — 512x512, hucre yonetimi + kablo hucre takibi
 - Grid kablo sistemi (`connection_manager.gd` + `connection_layer.gd`) — L-shaped routing, grid-based rendering
-- Veri modeli (`data_enums.gd`) — 6 content + 5 state (Clean/Encrypted/Corrupted/Malware/Residue)
+- Veri modeli (`data_enums.gd`) — 7 content (+ KEY) + 5 state (Clean/Encrypted/Corrupted/Malware/Residue)
 - Bina yerlestirme (`building.gd` + `building_manager.gd`) — grid-based placement + kablo routing
 - Simulasyon (`simulation_manager.gd`) — veri akisi, uretim, isleme (credits/seller kaldirildi)
 - Fog of War (`fog_layer.gd`) — chunk-based
@@ -111,7 +111,7 @@ Eski point-to-point kablo sistemi TAMAMEN degisiyor:
 
 ### Degistirilmesi Gereken (Henuz Yapilmadi)
 - **Harita uretimi** — ring/halka sistemi → rastgele dagitim (Factorio modeli)
-- **Component mimarisi** — Separator, Decryptor, Quarantine hala ProcessorComponent+rule kullanıyor → ayri component'lere gecis devam edecek
+- **Component mimarisi** — Separator, Quarantine hala ProcessorComponent+rule kullanıyor → ayri component'lere gecis devam edecek
 - **Ekonomi** — upgrade maliyetleri henuz yok (v2.0 Veri=Malzeme sistemi bekliyor)
 
 ### Silinen Dosyalar (v2.0 Temizligi)
@@ -121,10 +121,10 @@ Eski point-to-point kablo sistemi TAMAMEN degisiyor:
 - Ring border kodu (`grid_system.gd`'den kaldirildi)
 - Credits/Research/PatchData UI ve signal'leri kaldirildi
 
-### Mevcut .tres Dosyalari (11 bina, 11 kaynak)
+### Mevcut .tres Dosyalari (11 bina, 14 kaynak)
 **Binalar:** uplink, storage, separator, classifier, decryptor, recoverer, quarantine, research_lab, splitter, merger, bridge
-**Kaynaklar:** isp_backbone (Otomat), atm, smart_lock, traffic_camera, public_database, biotech_lab, corporate_server, government_archive, military_network, dark_web_node, blackwall_fragment
-**Component'ler:** generator, processor, classifier, probabilistic, storage, upgrade, splitter, merger (8 adet)
+**Kaynaklar:** isp_backbone (Otomat), atm, smart_lock, traffic_camera, public_database, hospital_terminal, public_library, shop_server, biotech_lab, corporate_server, government_archive, military_network, dark_web_node, blackwall_fragment
+**Component'ler:** generator, processor, classifier, probabilistic, producer, dual_input, storage, upgrade, splitter, merger (10 adet)
 
 ---
 
@@ -154,11 +154,16 @@ Eski point-to-point kablo sistemi TAMAMEN degisiyor:
 - [x] Tooltip guncellendi (Classifier + Recoverer bilgileri)
 
 ### Faz 3: Sifreleme Pipeline'i + Orta Kaynaklar
-- [ ] Research Lab yeniden yapilandir (ResearchCollector → ProducerComponent, Key uretimi)
-- [ ] Decryptor yeniden yapilandir (ProcessorComponent → DualInputComponent, veri + key cift girdi)
-- [ ] Key uretim + dagitim sistemi (Research Lab → kablo → Decryptor)
-- [ ] Orta kaynaklar: Hastane Terminali, Halk Kutuphanesi, Magaza Sunucusu (.tres olustur)
-- [ ] Encrypted state isleme (T1-T2)
+- [x] ProducerComponent olusturuldu (Research(Clean) tuketir → Key uretir, 5 MB → 1 Key)
+- [x] DualInputComponent olusturuldu (cift girdi: veri + key, key yoksa durur)
+- [x] Research Lab yeniden yapilandirildi (StorageComponent + ProducerComponent)
+- [x] Decryptor yeniden yapilandirildi (ProcessorComponent → DualInputComponent, sol=veri, ust=key)
+- [x] ContentType.KEY eklendi (kabloda gorunur Key akisi, renk: #ffaa00, sembol: K)
+- [x] Key uretim + dagitim sistemi (Research Lab → kablo → Decryptor ust port)
+- [x] Orta kaynaklar: Hastane Terminali, Halk Kutuphanesi, Magaza Sunucusu (.tres)
+- [x] Map generator guncellendi (orta kaynaklar ring 1, corporate_server ring 2)
+- [x] Tooltip guncellendi (Producer + DualInput bilgileri, Key stok gosterimi)
+- [x] Encrypted state isleme (T1 — key_cost=1)
 
 ### Faz 4: Crafting + Uretim + Zor Kaynaklar
 - [ ] Compiler binasi + DualInputComponent (2 farkli Clean → 1 Refined)
@@ -189,7 +194,6 @@ Eski point-to-point kablo sistemi TAMAMEN degisiyor:
 ### Her Fazda Surekli
 - Bina bilgi paneli guncellemesi
 - Tooltip guncellemesi
-- AutoPlay test senaryolari
 - Component-based mimari kurallarina uygunluk (rule string → ayri component)
 - Gorsel polish iterasyonu
 
@@ -263,30 +267,9 @@ Eski point-to-point kablo sistemi TAMAMEN degisiyor:
 
 ---
 
-## AutoPlay Test Sistemi
-
-### Genel Bakis
-Oyun mekaniklerini otomatik test edip veri toplayan sistem. JSON senaryolarla calisir, headless modda test eder.
-
-### Dosyalar
-| Dosya | Aciklama |
-|-------|----------|
-| `scripts/testing/auto_play_manager.gd` | JSON senaryo okur, adim adim calistirir |
-| `scripts/testing/data_collector.gd` | Her tick'te snapshot, JSON'a yazar |
-| `resources/test_scenarios/*.json` | Test senaryolari |
-| `testing/analyzer.py` | Sonuclari analiz eder |
-
-### Kullanim
-```bash
-# Headless senaryo calistir
-"D:/godot/Godot_v4.6-stable_win64_console.exe" --path "D:/godotproject/sys-admin" --headless -- --scenario=res://resources/test_scenarios/test_name.json
-```
-
----
-
 ## Onemli Kurallar
 - Kullanici teknik degil — ne ve neden acikla, kod detayi degil
 - Her commit kullanici onayi ile yapilir
 - Commit ve push birlikte yapilir
 - MCP baglantisi yoksa klasik workflow: kod yaz → kullanici test et → hata paylas
-- Kod yazdiktan sonra once otomatik test prosesini uygula
+- Test: kullanici manuel test eder, Claude log kontrolu yapar

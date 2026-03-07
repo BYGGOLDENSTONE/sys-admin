@@ -1,17 +1,27 @@
-[gd_resource type="Resource" script_class="BuildingDefinition" load_steps=3 format=3]
+[gd_resource type="Resource" script_class="BuildingDefinition" load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://resources/buildings/building_definition.gd" id="1"]
 [ext_resource type="Script" path="res://resources/components/storage_component.gd" id="2"]
+[ext_resource type="Script" path="res://resources/components/producer_component.gd" id="3"]
 
 [sub_resource type="Resource" id="stor1"]
 script = ExtResource("2")
-capacity = 20
+capacity = 30
 forward_rate = 0.0
+
+[sub_resource type="Resource" id="prod1"]
+script = ExtResource("3")
+consume_amount = 5
+input_content = 4
+input_state = 0
+output_content = 6
+output_state = 0
+processing_rate = 2.0
 
 [resource]
 script = ExtResource("1")
 building_name = "Research Lab"
-description = "Research content'i (Clean) analiz ederek Key üretir. Decryptor için sürekli Key tedarik zinciri sağlar."
+description = "Research verisini (Clean) tüketerek Decryption Key üretir. Her 5 MB Research → 1 Key. Decryptor'a sürekli Key tedarik zinciri sağlar."
 grid_size = Vector2i(2, 2)
 color = Color(0.4, 0.6, 1, 1)
 category = "processing"
@@ -20,3 +30,4 @@ visual_type = "research"
 output_ports = Array[String](["right"])
 input_ports = Array[String](["left"])
 storage = SubResource("stor1")
+producer = SubResource("prod1")

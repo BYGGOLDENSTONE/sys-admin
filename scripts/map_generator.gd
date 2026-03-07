@@ -14,11 +14,11 @@ var _rings: Array = [
 	{ "r_min": 0, "r_max": 50, "count_min": 10, "count_max": 14,
 	  "sources": ["isp_backbone", "public_database", "atm", "smart_lock", "traffic_camera"] },
 	{ "r_min": 50, "r_max": 105, "count_min": 10, "count_max": 14,
-	  "sources": ["corporate_server", "biotech_lab"] },
+	  "sources": ["hospital_terminal", "public_library", "shop_server", "biotech_lab"] },
 	{ "r_min": 105, "r_max": 165, "count_min": 8, "count_max": 12,
-	  "sources": ["dark_web_node", "government_archive"] },
+	  "sources": ["corporate_server", "government_archive"] },
 	{ "r_min": 165, "r_max": 230, "count_min": 6, "count_max": 10,
-	  "sources": ["military_network", "blackwall_fragment"] },
+	  "sources": ["military_network", "dark_web_node", "blackwall_fragment"] },
 ]
 
 var _rng := RandomNumberGenerator.new()

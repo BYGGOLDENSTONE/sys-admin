@@ -1,6 +1,6 @@
 class_name DataEnums
 
-enum ContentType { STANDARD, FINANCIAL, BIOMETRIC, BLUEPRINT, RESEARCH, CLASSIFIED }
+enum ContentType { STANDARD, FINANCIAL, BIOMETRIC, BLUEPRINT, RESEARCH, CLASSIFIED, KEY }
 enum DataState { CLEAN, ENCRYPTED, CORRUPTED, MALWARE, RESIDUE }
 
 static func make_key(content: int, state: int) -> String:
@@ -18,6 +18,7 @@ static func content_name(c: int) -> String:
 		ContentType.BLUEPRINT: return "Blueprint"
 		ContentType.RESEARCH: return "Research"
 		ContentType.CLASSIFIED: return "Classified"
+		ContentType.KEY: return "Key"
 	return "Unknown"
 
 static func state_name(s: int) -> String:
@@ -46,6 +47,7 @@ static func content_char(c: int) -> String:
 		ContentType.BLUEPRINT: return "#"
 		ContentType.RESEARCH: return "?"
 		ContentType.CLASSIFIED: return "!"
+		ContentType.KEY: return "K"
 	return "0"
 
 
@@ -57,6 +59,7 @@ static func content_color(c: int) -> Color:
 		ContentType.BLUEPRINT: return Color("#88ffdd")
 		ContentType.RESEARCH: return Color("#aa88ff")
 		ContentType.CLASSIFIED: return Color("#ff6666")
+		ContentType.KEY: return Color("#ffaa00")
 	return Color("#aabbcc")
 
 static func state_color_hex(s: int) -> String:
@@ -86,4 +89,5 @@ static func content_color_hex(c: int) -> String:
 		ContentType.BLUEPRINT: return "#88ffdd"
 		ContentType.RESEARCH: return "#aa88ff"
 		ContentType.CLASSIFIED: return "#ff6666"
+		ContentType.KEY: return "#ffaa00"
 	return "#aabbcc"

@@ -120,7 +120,7 @@ func _push_data_from(source: Node2D, content: int, state: int, amount: int, from
 			break
 		if not target.accepts_data(content, state):
 			continue
-		if target.can_accept_data(to_send, state):
+		if target.can_accept_data(to_send, state, content):
 			target.stored_data[key] = target.stored_data.get(key, 0) + to_send
 			amount -= to_send
 			total_sent += to_send
@@ -158,7 +158,8 @@ func _update_storage_forward(buildings: Array[Node]) -> void:
 	for b in buildings:
 		if b.definition.storage == null or not b.is_active():
 			continue
-		if b.definition.processor != null or b.definition.splitter != null or b.definition.merger != null:
+		if b.definition.processor != null or b.definition.splitter != null or b.definition.merger != null \
+				or b.definition.producer != null or b.definition.dual_input != null:
 			continue
 		if b.get_total_stored() <= 0:
 			continue
@@ -188,7 +189,13 @@ func _update_processing(buildings: Array[Node]) -> void:
 			continue
 		var processed: int = 0
 		# Component-based dispatch: check dedicated components first
-		if b.definition.classifier != null:
+		if b.definition.dual_input != null:
+			var max_process: int = int(b.get_effective_value("processing_rate"))
+			processed = _process_dual_input(b, max_process)
+		elif b.definition.producer != null:
+			var max_process: int = int(b.get_effective_value("processing_rate"))
+			processed = _process_producer(b, max_process)
+		elif b.definition.classifier != null:
 			processed = _process_classifier(b, int(b.definition.classifier.throughput_rate))
 		elif b.definition.splitter != null:
 			processed = _process_splitter(b, int(b.definition.splitter.throughput_rate))
@@ -203,15 +210,24 @@ func _update_processing(buildings: Array[Node]) -> void:
 			match proc.rule:
 				"separator":
 					processed = _process_separator(b, proc, max_process)
-				"decryptor":
-					processed = _process_decryptor(b, proc, max_process)
 				"quarantine":
 					processed = _process_quarantine(b, proc, max_process)
 		else:
 			continue
 		if processed > 0:
 			b.is_working = true
-		b.stored_data.clear()
+		# Producer accumulates input — don't clear
+		# Dual_input: clear processed data but keep keys
+		if b.definition.producer != null:
+			pass  # Keep all stored data (accumulates input)
+		elif b.definition.dual_input != null:
+			var key_key: String = DataEnums.make_key(b.definition.dual_input.key_content, DataEnums.DataState.CLEAN)
+			var saved_keys: int = b.stored_data.get(key_key, 0)
+			b.stored_data.clear()
+			if saved_keys > 0:
+				b.stored_data[key_key] = saved_keys
+		else:
+			b.stored_data.clear()
 
 
 func _process_classifier(b: Node2D, max_process: int) -> int:
@@ -282,6 +298,72 @@ func _process_probabilistic(b: Node2D, max_process: int) -> int:
 		processed += to_process
 		if success_count > 0 or fail_count > 0:
 			print("[Recoverer] %d MB %s → %d Clean + %d Residue" % [to_process, DataEnums.content_name(parsed.content), success_count, fail_count])
+	return processed
+
+
+func _process_producer(b: Node2D, max_process: int) -> int:
+	var prod: ProducerComponent = b.definition.producer
+	var input_key: String = DataEnums.make_key(prod.input_content, prod.input_state)
+	var available: int = b.stored_data.get(input_key, 0)
+	if available <= 0:
+		return 0
+	var productions: int = mini(available / prod.consume_amount, max_process)
+	if productions <= 0:
+		return 0
+	var consumed: int = productions * prod.consume_amount
+	b.stored_data[input_key] -= consumed
+	var sent: int = 0
+	for i in range(productions):
+		sent += _push_data_from(b, prod.output_content, prod.output_state, 1)
+	if sent > 0:
+		print("[Producer] %s: %d MB %s consumed → %d Key produced" % [
+			b.definition.building_name, consumed,
+			DataEnums.content_name(prod.input_content), sent])
+	return consumed
+
+
+func _process_dual_input(b: Node2D, max_process: int) -> int:
+	var dual: DualInputComponent = b.definition.dual_input
+	# Count available keys
+	var key_key: String = DataEnums.make_key(dual.key_content, DataEnums.DataState.CLEAN)
+	var keys_available: int = b.stored_data.get(key_key, 0)
+	if keys_available <= 0:
+		return 0
+	var processed: int = 0
+	var keys_used: int = 0
+	for key in b.stored_data.keys():
+		if processed >= max_process:
+			break
+		var available: int = b.stored_data[key]
+		if available <= 0:
+			continue
+		var parsed: Dictionary = DataEnums.parse_key(key)
+		# Skip key data — it's fuel, not processed
+		if parsed.content == dual.key_content:
+			continue
+		# Only process matching input states
+		if not dual.primary_input_states.is_empty() and parsed.state not in dual.primary_input_states:
+			continue
+		var to_process: int = mini(available, max_process - processed)
+		# Limit by available keys
+		var keys_needed: int = to_process * dual.key_cost
+		if keys_needed > keys_available - keys_used:
+			to_process = (keys_available - keys_used) / dual.key_cost
+		if to_process <= 0:
+			break
+		var sent: int = _push_data_from(b, parsed.content, dual.output_state, to_process)
+		if sent > 0:
+			processed += sent
+			keys_used += sent * dual.key_cost
+			print("[DualInput] %s: %d MB %s(%s) → %s (-%d Key)" % [
+				b.definition.building_name, sent,
+				DataEnums.content_name(parsed.content),
+				DataEnums.state_name(parsed.state),
+				DataEnums.state_name(dual.output_state),
+				sent * dual.key_cost])
+	# Consume used keys
+	if keys_used > 0:
+		b.stored_data[key_key] -= keys_used
 	return processed
 
 

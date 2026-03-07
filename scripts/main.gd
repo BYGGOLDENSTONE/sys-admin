@@ -96,6 +96,7 @@ func _ready() -> void:
 	# Wire up source manager
 	source_manager.grid_system = grid_system
 	source_manager.source_container = source_container
+	building_manager.source_manager = source_manager
 	building_manager.building_placed.connect(source_manager.on_building_placed)
 	building_manager.building_removed.connect(source_manager.on_building_removed)
 	source_manager.source_discovered.connect(_on_source_discovered)
@@ -119,9 +120,6 @@ func _ready() -> void:
 
 	# Setup shortcut hints
 	_setup_shortcut_hints()
-
-	# Wire up testing systems (optional — skip if nodes not present)
-	_setup_testing_systems()
 
 	print("[Main] SYS_ADMIN initialized")
 
@@ -221,54 +219,6 @@ func _toggle_shortcut_hints() -> void:
 	else:
 		_shortcut_hints.modulate.a = 0.0
 
-
-func _setup_testing_systems() -> void:
-	var data_collector: Node = get_node_or_null("DataCollector")
-	if data_collector:
-		data_collector.simulation_manager = simulation_manager
-		data_collector.building_container = $BuildingContainer
-		data_collector.connection_manager = connection_manager
-		simulation_manager.tick_completed.connect(data_collector._on_tick_completed)
-
-	var auto_play: Node = get_node_or_null("AutoPlayManager")
-	if auto_play:
-		auto_play.building_manager = building_manager
-		auto_play.connection_manager = connection_manager
-		auto_play.simulation_manager = simulation_manager
-		auto_play.data_collector = data_collector
-		auto_play.source_manager = source_manager
-		simulation_manager.tick_completed.connect(auto_play._on_tick_completed)
-		auto_play.scenario_finished.connect(_on_scenario_finished)
-
-	# Headless CLI: --scenario=res://path/to/scenario.json
-	_check_autoplay_args(auto_play, data_collector)
-
-
-func _check_autoplay_args(auto_play: Node, data_collector: Node) -> void:
-	if auto_play == null:
-		return
-	var args := OS.get_cmdline_user_args()
-	for arg in args:
-		if arg.begins_with("--scenario="):
-			var path: String = arg.substr(11)
-			print("[Main] Headless scenario: %s" % path)
-			if data_collector:
-				data_collector.start_collecting(1)
-			auto_play.run_scenario_from_file(path)
-			return
-
-
-func _on_scenario_finished(scenario_name: String, success: bool) -> void:
-	var data_collector: Node = get_node_or_null("DataCollector")
-	if data_collector and data_collector._is_collecting:
-		data_collector.stop_collecting()
-		data_collector.save_to_file(scenario_name)
-	# Quit only if running headless
-	if DisplayServer.get_name() == "headless":
-		print("[Main] Headless done — %s: %s" % [scenario_name, "PASSED" if success else "FAILED"])
-		get_tree().quit(0 if success else 1)
-	else:
-		print("[Main] Scenario done — %s: %s (oyun devam ediyor)" % [scenario_name, "PASSED" if success else "FAILED"])
 
 
 

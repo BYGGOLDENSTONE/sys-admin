@@ -84,12 +84,15 @@ func get_total_stored_raw() -> int:
 	return total
 
 
-func can_accept_data(amount: int = 1, state: int = DataEnums.DataState.CLEAN) -> bool:
+func can_accept_data(amount: int = 1, state: int = DataEnums.DataState.CLEAN, content: int = -1) -> bool:
 	if state == DataEnums.DataState.MALWARE:
 		# Malware can only enter buildings with quarantine processor
 		if definition.processor != null and definition.processor.rule == "quarantine":
 			return true
 		return false
+	# Keys always accepted by dual_input buildings (bypass capacity)
+	if definition.dual_input and content == definition.dual_input.key_content:
+		return true
 	var cap: int = int(get_effective_value("capacity")) if definition.storage else 0
 	if cap <= 0:
 		return true
@@ -102,6 +105,9 @@ func accepts_data(content: int, state: int) -> bool:
 
 
 func is_active() -> bool:
+	# Generators (Uplink) require a linked source to function
+	if definition != null and definition.generator != null:
+		return linked_source != null
 	return true
 
 
@@ -121,6 +127,10 @@ func _get_base_value(stat: String) -> float:
 		"efficiency":
 			return definition.processor.efficiency if definition.processor else 1.0
 		"processing_rate":
+			if definition.dual_input:
+				return definition.dual_input.processing_rate
+			if definition.producer:
+				return definition.producer.processing_rate
 			if definition.processor:
 				return definition.processor.processing_rate
 			if definition.probabilistic:
@@ -190,10 +200,11 @@ func _draw() -> void:
 	var size := Vector2(definition.grid_size.x * TILE_SIZE, definition.grid_size.y * TILE_SIZE)
 	var rect := Rect2(Vector2.ZERO, size)
 	var center := size / 2.0
-	var accent: Color = definition.color
+	var active: bool = is_active()
+	var accent: Color = definition.color if active else Color(definition.color, 0.3)
 
 	# Pulse value for glow animation
-	var pulse: float = sin(_glow_time * GLOW_PULSE_SPEED) * GLOW_PULSE_AMOUNT
+	var pulse: float = sin(_glow_time * GLOW_PULSE_SPEED) * GLOW_PULSE_AMOUNT if active else 0.0
 
 	# Wide outer glow (soft halo)
 	var outer_rect := Rect2(
@@ -247,6 +258,18 @@ func _draw() -> void:
 			var malware_alpha: float = 0.12 + sin(_glow_time * 6.0) * 0.06
 			draw_rect(rect, Color(0.8, 0.0, 0.3, malware_alpha), true)
 			draw_rect(rect, Color(0.8, 0.0, 0.3, 0.5), false, 2.0)
+
+	# Inactive generator overlay (no source linked)
+	if not _is_ghost and not active and definition.generator != null:
+		var warn_color := Color(1.0, 0.4, 0.2)
+		draw_rect(rect, Color(warn_color, 0.06), true)
+		var warn_font := ThemeDB.fallback_font
+		var warn_text := "Kaynak Yok"
+		var warn_size := 10
+		var text_dims := warn_font.get_string_size(warn_text, HORIZONTAL_ALIGNMENT_CENTER, -1, warn_size)
+		var warn_pos := Vector2((size.x - text_dims.x) / 2.0, size.y - 8)
+		draw_string(warn_font, warn_pos + Vector2(1, 1), warn_text, HORIZONTAL_ALIGNMENT_LEFT, -1, warn_size, Color(0, 0, 0, 0.6))
+		draw_string(warn_font, warn_pos, warn_text, HORIZONTAL_ALIGNMENT_LEFT, -1, warn_size, Color(warn_color, 0.8))
 
 
 func _draw_icon(center: Vector2, size: Vector2, accent: Color) -> void:
@@ -644,7 +667,8 @@ func _draw_ports(size: Vector2, accent: Color) -> void:
 
 # --- STATUS BARS ---
 func _draw_status_bars(size: Vector2, accent: Color) -> void:
-	if definition.get_storage_capacity() <= 0 or definition.processor != null:
+	if definition.get_storage_capacity() <= 0 or definition.processor != null \
+			or definition.producer != null or definition.dual_input != null:
 		return
 	var bar_y: float = size.y - BAR_MARGIN - BAR_HEIGHT
 	var bar_x: float = BAR_MARGIN

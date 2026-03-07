@@ -18,6 +18,8 @@ extends Resource
 @export var processor: ProcessorComponent
 @export var classifier: ClassifierComponent
 @export var probabilistic: ProbabilisticComponent
+@export var producer: ProducerComponent
+@export var dual_input: DualInputComponent
 @export var splitter: SplitterComponent
 @export var merger: MergerComponent
 @export var upgrade: UpgradeComponent
@@ -31,6 +33,15 @@ func get_storage_capacity() -> int:
 
 func accepts_data(content: int, state: int) -> bool:
 	## Check if this building can accept data with given content+state
+	if dual_input:
+		# Dual input accepts: primary data (matching states) OR keys
+		if content == dual_input.key_content:
+			return true
+		if not dual_input.primary_input_states.is_empty():
+			return state in dual_input.primary_input_states
+		return true
+	if producer:
+		return content == producer.input_content and state == producer.input_state
 	if processor and not processor.input_states.is_empty():
 		return state in processor.input_states
 	if probabilistic and not probabilistic.input_states.is_empty():

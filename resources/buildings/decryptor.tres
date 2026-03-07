@@ -1,17 +1,17 @@
-[gd_resource type="Resource" script_class="BuildingDefinition" load_steps=7 format=3]
+[gd_resource type="Resource" script_class="BuildingDefinition" load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://resources/buildings/building_definition.gd" id="1"]
-[ext_resource type="Script" path="res://resources/components/processor_component.gd" id="2"]
+[ext_resource type="Script" path="res://resources/components/dual_input_component.gd" id="2"]
 [ext_resource type="Script" path="res://resources/components/storage_component.gd" id="3"]
 [ext_resource type="Script" path="res://resources/components/upgrade_component.gd" id="4"]
 
-[sub_resource type="Resource" id="proc1"]
+[sub_resource type="Resource" id="dual1"]
 script = ExtResource("2")
 processing_rate = 4.0
-input_states = Array[int]([1])
+primary_input_states = Array[int]([1])
+key_content = 6
+key_cost = 1
 output_state = 0
-rule = "decryptor"
-efficiency = 0.7
 
 [sub_resource type="Resource" id="stor1"]
 script = ExtResource("3")
@@ -29,14 +29,14 @@ level_values = Array[float]([5.0, 6.0, 8.0])
 [resource]
 script = ExtResource("1")
 building_name = "Decryptor"
-description = "Encrypted veriyi çözerek Clean state'e dönüştürür. Content korunur (Financial kalır Financial)."
+description = "Şifreyi kırar. İki girişli: sol porttan Encrypted veri, üst porttan Key alır. Key yoksa durur. Research Lab'dan sürekli Key tedarik zinciri gerektirir."
 grid_size = Vector2i(2, 2)
 color = Color(0.7, 0.3, 0.9, 1)
 category = "processing"
 base_cost = 200
 visual_type = "decryptor"
 output_ports = Array[String](["right"])
-input_ports = Array[String](["left"])
-processor = SubResource("proc1")
+input_ports = Array[String](["left", "top"])
+dual_input = SubResource("dual1")
 storage = SubResource("stor1")
 upgrade = SubResource("upg1")
