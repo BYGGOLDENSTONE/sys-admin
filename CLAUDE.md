@@ -60,18 +60,38 @@ Yapilar ozel siniflar degil, **component Resource'larinin birlesiimi.** Her comp
 | **Bridge** | (ozel) | Kablo kesisme noktasi |
 | **Gig Board** | `gig_board` | Sozlesme terminali |
 
-### Grid Kablo Sistemi (YENI — v2.0)
-Eski point-to-point kablo sistemi TAMAMEN degisiyor:
-- Kablolar grid karelerinde tile-by-tile dosenilir
-- Her kablo segmenti bir grid hucresi kaplar
-- Iki kablo ayni hucreyi paylasamaz
+### Grid Kablo Sistemi (v2.0 — Manuel Edge Routing)
+Kablolar vertex-based (grid kesisim noktasi) edge sistemi kullanir:
+- Oyuncu fareyi surukleyerek kabloyu elle cizer (otomatik pathfinding YOK)
+- Kablolar grid kenarlarinda (vertex-to-vertex) ilerler, hucre merkezlerinden degil
+- Her edge (kenar) iki vertex arasindaki baglanti — h_edges ve v_edges olarak takip edilir
+- Iki kablo ayni edge'i paylasamaz (Bridge ile 2'ye kadar izin verilir)
 - Kesisme icin Bridge binasi gerekli
 - Veri kablo boyunca gorulebilir sekilde akar
 
+**Yapisal Kurallar (ONEMLI):**
+- Kablolar binalara/kaynaklara 1 hucre mesafeden fazla YAKLASAMAZ
+- Proximity sistemi: vertex check (4 komsu hucre) + proximity edge bloklama
+- Exit vertex'ler bina sinirinden 1 hucre disarida, port merkezine hizali
+- Cift boyut (2x2 gibi): tek exit vertex (port ortasina tam hizali)
+- Tek boyut (1x1 gibi): iki exit vertex (port iki yaninda)
+- Kablo porta DİK girer — proximity bloklama sayesinde exit vertex'ten sadece dik yonde cikilabilir
+- Target stub: kablo once bina yuzeyine yatay gider, sonra kisa dikey donus ile porta girer
+
 **Veri Yapilari:**
-- `CableSegment`: pozisyon (grid cell), yon, gorsel state
-- `CablePath`: iki port arasi siralı segment listesi
-- `CableGrid`: 2D array — hangi hucreler kablo iceriyor
+- `_cable_h_edges` / `_cable_v_edges`: kablo edge takibi (Vector2i → count)
+- `_proximity_h_edges` / `_proximity_v_edges`: bina etrafindaki engelli edge'ler
+- `_occupied_cells` / `_source_cells`: hucre doluluk takibi
+- Cable path: `Array[Vector2i]` vertex listesi (port-to-port)
+
+**Bilinen Sorun (DEVAM EDIYOR):**
+- Binalara yapisik kablo sorunu tam cozulmedi — proximity edge bloklama mevcut ama
+  bazi durumlarda (ozellikle kose hucreleri ve capraz yaklasim) kablolar hala bina
+  sinirinin hemen yaninda geciyor. Koselerdeki edge bloklama genisletilmeli.
+- Sorun dosyalari: `grid_system.gd` (_modify_proximity_edges, _vertex_near_occupied),
+  `connection_manager.gd` (get_port_exit_vertices), `building_manager.gd` (_update_manual_routing)
+- Hedef: Kablolar binalardan en az 1 tam hucre mesafede olmali, sadece port giris/cikis
+  noktalarinda bina kenarinin 1 hucre yakinina gelebilmeli
 
 ### Data-Driven Tasarim
 - Yapi degerleri → component sub-resource olarak .tres dosyasinda
@@ -96,10 +116,10 @@ Eski point-to-point kablo sistemi TAMAMEN degisiyor:
 ## Mevcut Kod Durumu
 
 ### Calisan Sistemler
-- Grid sistemi (`grid_system.gd`) — 512x512, hucre yonetimi + kablo hucre takibi
-- Grid kablo sistemi (`connection_manager.gd` + `connection_layer.gd`) — L-shaped routing, grid-based rendering
+- Grid sistemi (`grid_system.gd`) — 512x512, hucre yonetimi + edge-based kablo takibi + proximity edge bloklama
+- Grid kablo sistemi (`connection_manager.gd` + `connection_layer.gd`) — Manuel vertex routing, edge-based rendering, port stub'lar
 - Veri modeli (`data_enums.gd`) — 7 content (+ KEY) + 5 state + 5 RefinedType + Tier sistemi (T1-T4)
-- Bina yerlestirme (`building.gd` + `building_manager.gd`) — grid-based placement + kablo routing + malzeme maliyet sistemi
+- Bina yerlestirme (`building.gd` + `building_manager.gd`) — grid-based placement + manuel kablo cizimi + malzeme maliyet sistemi
 - Simulasyon (`simulation_manager.gd`) — veri akisi, uretim, isleme, compiler crafting, tier-aware processing
 - Fog of War (`fog_layer.gd`) — chunk-based
 - Kamera (`camera.gd`) — zoom + pan
@@ -135,9 +155,9 @@ Eski point-to-point kablo sistemi TAMAMEN degisiyor:
 
 ### Faz 1: Grid Temeli + Eski Sistem Temizligi
 - [x] Eski sistem temizligi (Data Broker, Compressor, ring kodu, seller component kaldirildi)
-- [x] Grid kablo routing sistemi (L-shaped pathfinding, grid hucre takibi)
-- [x] Kablo rendering (grid-based polyline + glow + akan veri partikulleri)
-- [x] Temel kablo gorseli (grid boyutunda kanal + veri akis animasyonu)
+- [x] Grid kablo routing sistemi (manuel vertex routing, edge-based takip, proximity bloklama)
+- [x] Kablo rendering (vertex-based polyline + glow + akan veri partikulleri + port stub'lar)
+- [x] Temel kablo gorseli (grid kenarlari boyunca kanal + veri akis animasyonu)
 - [x] Bridge binasi (kablo kesisme noktasi — 1x1, allows_cable_crossing flag, 2 kablo destegi)
 - [x] Splitter binasi (SplitterComponent ayristirildi, ProcessorComponent+rule kaldirildi)
 - [x] Merger binasi (MergerComponent ayristirildi, ProcessorComponent+rule kaldirildi)
@@ -208,8 +228,8 @@ Eski point-to-point kablo sistemi TAMAMEN degisiyor:
 - [x] Fog of war: Edge softening (kenar chunk'lar yari saydam)
 - [x] UI: Top bar speed pulse, upgrade panel fade, tech tree slide animasyonu
 - [x] CRT glitch entegrasyonu: Kesif/unlock olaylarinda tetikleme
-- [ ] Gorsel polish devam (daha fazla juice + ince ayar)
-- [ ] Ses sistemi (bina sesleri, kablo snap, ambient, bildirimler)
+- [x] Gorsel polish: Bina breathing + processing flash + smooth fill bar + silme animasyonlari + kablo silme flash + chromatic aberration
+- [x] Ses sistemi: Prosedürel ses (sine/square/saw sentezi), bina/kablo/kesif/isleme sesleri, ambient drone, SoundManager
 - [ ] Demo milestone sistemi (GDD Bolum 17 — 7 milestone)
 - [ ] Tutorial akisi
 - [ ] Dengeleme testleri

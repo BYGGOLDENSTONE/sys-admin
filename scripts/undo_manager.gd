@@ -75,7 +75,7 @@ func _restore_building(cmd: Dictionary) -> void:
 	if building == null:
 		return
 	building.upgrade_level = cmd.get("upgrade_level", 0)
-	# Restore connections
+	# Restore connections (path is stored as vertex array)
 	for conn_data in cmd.get("connections", []):
 		_add_connection_by_cells(conn_data.from_cell, conn_data.from_port, conn_data.to_cell, conn_data.to_port, conn_data.get("path", []))
 
@@ -84,11 +84,11 @@ func _add_connection_by_cells(from_cell: Vector2i, from_port: String, to_cell: V
 	var from_building: Node2D = grid_system.get_building_at(from_cell)
 	var to_building: Node2D = grid_system.get_building_at(to_cell)
 	if from_building and to_building:
-		if path.is_empty():
-			var start: Vector2i = connection_manager.get_port_exit_cell(from_building, from_port)
-			var end: Vector2i = connection_manager.get_port_exit_cell(to_building, to_port)
-			path = connection_manager.calculate_path(start, end)
-		connection_manager.add_connection(from_building, from_port, to_building, to_port, path)
+		# Use stored path directly — no recalculation needed
+		if not path.is_empty():
+			connection_manager.add_connection(from_building, from_port, to_building, to_port, path)
+		else:
+			push_warning("[Undo] No path stored for connection %s.%s → %s.%s" % [from_cell, from_port, to_cell, to_port])
 
 
 func _remove_connection_by_cells(from_cell: Vector2i, from_port: String, to_cell: Vector2i, to_port: String) -> void:

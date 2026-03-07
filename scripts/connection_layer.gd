@@ -1,7 +1,6 @@
 extends Node2D
 
 const TILE_SIZE: int = 64
-const HALF_TILE: float = 32.0
 const CABLE_WIDTH: float = 3.0
 const CABLE_GLOW_WIDTH: float = 8.0
 const CABLE_GLOW_ALPHA: float = 0.2
@@ -26,6 +25,7 @@ var preview_active: bool = false
 var preview_valid: bool = true
 var preview_from_pos: Vector2 = Vector2.ZERO
 var preview_to_pos: Vector2 = Vector2.ZERO
+var preview_from_port: String = ""
 
 # Connection flash effect
 var _flash_positions: Array[Vector2] = []
@@ -118,7 +118,7 @@ func _get_zoom_level() -> float:
 
 func _draw_connection(conn: Dictionary, active: bool, hovered: bool) -> void:
 	var path: Array = conn.path
-	if path.is_empty():
+	if path.size() < 2:
 		return
 	var accent: Color = conn.from_building.definition.color
 	var points: PackedVector2Array = _build_polyline(conn)
@@ -151,25 +151,87 @@ func _draw_connection(conn: Dictionary, active: bool, hovered: bool) -> void:
 
 func _build_polyline(conn: Dictionary) -> PackedVector2Array:
 	var points := PackedVector2Array()
+	var path: Array = conn.path
+	if path.is_empty():
+		return points
+
+	# Start from port position
 	var from_pos: Vector2 = to_local(conn.from_building.get_port_world_position(conn.from_port))
+	var first_v: Vector2 = _vertex_pos(path[0])
 	points.append(from_pos)
-	for cell in conn.path:
-		points.append(_cell_center(cell))
+	# Add stub for clean exit angle from source port
+	var from_stub := _port_stub(from_pos, first_v, conn.from_port)
+	if from_stub != from_pos and from_stub != first_v:
+		points.append(from_stub)
+	# Add vertex positions (grid intersection points)
+	for vertex in path:
+		points.append(_vertex_pos(vertex))
+	# Add stub for clean entry angle into target port
+	# Target stub: go straight to building face first, then short turn into port
 	var to_pos: Vector2 = to_local(conn.to_building.get_port_world_position(conn.to_port))
+	var last_v: Vector2 = _vertex_pos(path[path.size() - 1])
+	var to_stub := _port_stub_entry(to_pos, last_v, conn.to_port)
+	if to_stub != last_v and to_stub != to_pos:
+		points.append(to_stub)
 	points.append(to_pos)
 	return points
 
 
-func _cell_center(cell: Vector2i) -> Vector2:
-	return Vector2(cell.x * TILE_SIZE + HALF_TILE, cell.y * TILE_SIZE + HALF_TILE)
+func _port_stub(port_pos: Vector2, vertex_pos: Vector2, port_side: String) -> Vector2:
+	## Returns an intermediate point that ensures the cable enters/exits the port
+	## at a right angle (perpendicular to the building face).
+	# If already aligned on the approach axis, no stub needed
+	match port_side:
+		"left", "right":
+			# Horizontal port — cable should approach horizontally
+			if absf(port_pos.y - vertex_pos.y) < 1.0:
+				return port_pos  # already aligned
+			return Vector2(vertex_pos.x, port_pos.y)
+		"top", "bottom":
+			# Vertical port — cable should approach vertically
+			if absf(port_pos.x - vertex_pos.x) < 1.0:
+				return port_pos  # already aligned
+			return Vector2(port_pos.x, vertex_pos.y)
+	return port_pos
+
+
+func _port_stub_entry(port_pos: Vector2, vertex_pos: Vector2, port_side: String) -> Vector2:
+	## Target port stub: cable goes straight to building face, then short turn into port.
+	## This avoids the visible backtrack of the source-side stub.
+	match port_side:
+		"left", "right":
+			# Horizontal port — go horizontal to port's x, then short vertical to port
+			if absf(port_pos.y - vertex_pos.y) < 1.0:
+				return port_pos  # already aligned
+			return Vector2(port_pos.x, vertex_pos.y)
+		"top", "bottom":
+			# Vertical port — go vertical to port's y, then short horizontal to port
+			if absf(port_pos.x - vertex_pos.x) < 1.0:
+				return port_pos  # already aligned
+			return Vector2(vertex_pos.x, port_pos.y)
+	return port_pos
+
+
+func _vertex_pos(v: Vector2i) -> Vector2:
+	## Grid vertex position (intersection of grid lines)
+	return Vector2(v.x * TILE_SIZE, v.y * TILE_SIZE)
 
 
 func _draw_preview() -> void:
 	var color: Color = PREVIEW_VALID_COLOR if preview_valid else PREVIEW_INVALID_COLOR
 	var points := PackedVector2Array()
+	# Start from port position
 	points.append(preview_from_pos)
-	for cell in preview_path:
-		points.append(_cell_center(cell))
+	# Add stub for clean exit from source port
+	if not preview_path.is_empty():
+		var first_v: Vector2 = _vertex_pos(preview_path[0])
+		var from_stub := _port_stub(preview_from_pos, first_v, _get_preview_from_port())
+		if from_stub != preview_from_pos and from_stub != first_v:
+			points.append(from_stub)
+	# Vertex positions
+	for vertex in preview_path:
+		points.append(_vertex_pos(vertex))
+	# End at mouse position (no stub for mouse — it's not a port)
 	points.append(preview_to_pos)
 	if points.size() >= 2:
 		var pulse := sin(Time.get_ticks_msec() / 150.0) * 0.5 + 0.5
@@ -183,6 +245,13 @@ func _draw_preview() -> void:
 		# Endpoint dots
 		draw_circle(points[0], 5.0, Color(color, 0.5 + pulse * 0.3))
 		draw_circle(points[points.size() - 1], 5.0, Color(color, 0.5 + pulse * 0.3))
+		# Vertex dots along the path
+		for i in range(1, points.size() - 1):
+			draw_circle(points[i], 3.0, Color(color, 0.3 + pulse * 0.2))
+
+
+func _get_preview_from_port() -> String:
+	return preview_from_port if preview_from_port != "" else "right"
 
 
 func _is_connection_active(conn: Dictionary) -> bool:

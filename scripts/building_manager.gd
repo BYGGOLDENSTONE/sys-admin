@@ -32,7 +32,9 @@ var _selected_building: Node2D = null
 # Connecting state
 var _connecting_from_building: Node2D = null
 var _connecting_from_port: String = ""
-var _routing_start_cell: Vector2i = Vector2i.ZERO
+var _cable_path: Array[Vector2i] = []  ## Vertex-based path built manually
+var _start_vertices: Array[Vector2i] = []  ## Two possible starting vertices near port
+var _start_initialized: bool = false
 
 # Moving state
 var _moving_building: Node2D = null
@@ -40,6 +42,7 @@ var _moving_original_cell: Vector2i = Vector2i.ZERO
 
 const VALID_COLOR := Color(0, 1, 0.5, 0.4)
 const INVALID_COLOR := Color(1, 0.2, 0.2, 0.4)
+const TILE_SIZE: int = 64
 
 
 func start_placement(def: BuildingDefinition) -> void:
@@ -73,6 +76,9 @@ func _cancel_connecting() -> void:
 	_state = State.IDLE
 	_connecting_from_building = null
 	_connecting_from_port = ""
+	_cable_path.clear()
+	_start_vertices.clear()
+	_start_initialized = false
 	if connection_layer:
 		connection_layer.preview_active = false
 	print("[BuildingManager] Connection cancelled")
@@ -97,7 +103,7 @@ func _process(_delta: float) -> void:
 		_update_hover()
 		_update_cable_hover()
 	elif _state == State.CONNECTING:
-		_update_connection_preview()
+		_update_manual_routing()
 	elif _state == State.MOVING:
 		_update_move_preview()
 
@@ -174,12 +180,12 @@ func _handle_placing_input(event: InputEvent) -> void:
 func _handle_connecting_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed:
 		if event.button_index == MOUSE_BUTTON_LEFT:
+			# Only complete connection if clicking on an input port
 			var world_pos := _get_world_mouse_position()
 			var port_info := _find_port_at(world_pos, false)
 			if not port_info.is_empty():
 				_complete_connection(port_info.building, port_info.side)
-			else:
-				_cancel_connecting()
+			# Don't cancel on empty left click — cable follows mouse movement
 		elif event.button_index == MOUSE_BUTTON_RIGHT:
 			_cancel_connecting()
 	elif event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
@@ -189,7 +195,10 @@ func _handle_connecting_input(event: InputEvent) -> void:
 func _start_connecting(building: Node2D, port_side: String) -> void:
 	_connecting_from_building = building
 	_connecting_from_port = port_side
-	_routing_start_cell = connection_manager.get_port_exit_cell(building, port_side)
+	_cable_path.clear()
+	_start_initialized = false
+	# Get the two possible starting vertices near the port
+	_start_vertices = connection_manager.get_port_exit_vertices(building, port_side)
 	_state = State.CONNECTING
 	# Clear hover
 	if _hovered_building != null:
@@ -199,17 +208,29 @@ func _start_connecting(building: Node2D, port_side: String) -> void:
 
 
 func _complete_connection(to_building: Node2D, to_port: String) -> void:
-	if connection_manager == null:
+	if connection_manager == null or _cable_path.size() < 2:
 		_cancel_connecting()
 		return
-	var end_cell: Vector2i = connection_manager.get_port_exit_cell(to_building, to_port)
-	var path: Array[Vector2i] = connection_manager.calculate_path(_routing_start_cell, end_cell)
-	if path.is_empty():
-		print("[BuildingManager] Cannot route cable — path blocked")
+	# Auto-extend path to target exit vertex for clean perpendicular entry
+	var target_verts: Array[Vector2i] = connection_manager.get_port_exit_vertices(to_building, to_port)
+	if not target_verts.is_empty():
+		var last_v: Vector2i = _cable_path[_cable_path.size() - 1]
+		var best: Vector2i = target_verts[0]
+		var best_dist: int = absi(last_v.x - best.x) + absi(last_v.y - best.y)
+		for tv in target_verts:
+			var d: int = absi(last_v.x - tv.x) + absi(last_v.y - tv.y)
+			if d < best_dist:
+				best_dist = d
+				best = tv
+		if last_v != best:
+			_try_extend_path(best)
+	# Validate the path
+	if _cable_path.size() < 2 or not connection_manager.is_path_valid(_cable_path):
+		print("[BuildingManager] Cannot route cable — path invalid")
 		_cancel_connecting()
 		return
 	var added: bool = connection_manager.add_connection(
-		_connecting_from_building, _connecting_from_port, to_building, to_port, path
+		_connecting_from_building, _connecting_from_port, to_building, to_port, _cable_path
 	)
 	if added and undo_manager and not undo_manager.is_undoing:
 		undo_manager.push_command({
@@ -218,11 +239,14 @@ func _complete_connection(to_building: Node2D, to_port: String) -> void:
 			from_port = _connecting_from_port,
 			to_cell = to_building.grid_cell,
 			to_port = to_port,
-			path = path.duplicate(),
+			path = _cable_path.duplicate(),
 		})
 	_state = State.IDLE
 	_connecting_from_building = null
 	_connecting_from_port = ""
+	_cable_path.clear()
+	_start_vertices.clear()
+	_start_initialized = false
 	if connection_layer:
 		connection_layer.preview_active = false
 		connection_layer.play_connection_flash(to_building)
@@ -232,19 +256,121 @@ func _complete_connection(to_building: Node2D, to_port: String) -> void:
 		cam.add_trauma(0.08)
 
 
-func _update_connection_preview() -> void:
+func _update_manual_routing() -> void:
 	if connection_layer == null or _connecting_from_building == null or connection_manager == null:
 		return
 	var mouse_pos := _get_world_mouse_position()
-	var mouse_cell: Vector2i = grid_system.world_to_grid(mouse_pos)
+	var mouse_vertex: Vector2i = grid_system.world_to_vertex(mouse_pos)
 	var from_pos: Vector2 = _connecting_from_building.get_port_world_position(_connecting_from_port)
-	var preview: Array[Vector2i] = connection_manager.calculate_preview_path(_routing_start_cell, mouse_cell)
-	var valid: bool = connection_manager._is_path_valid(preview) if not preview.is_empty() else false
-	connection_layer.preview_path = preview
+
+	# Initialize starting vertex based on which is closer to mouse
+	if not _start_initialized:
+		_cable_path.clear()
+		if _start_vertices.size() >= 2:
+			var d0: float = mouse_pos.distance_to(grid_system.vertex_to_world(_start_vertices[0]))
+			var d1: float = mouse_pos.distance_to(grid_system.vertex_to_world(_start_vertices[1]))
+			var chosen: Vector2i = _start_vertices[0] if d0 <= d1 else _start_vertices[1]
+			_cable_path.append(chosen)
+		elif _start_vertices.size() == 1:
+			_cable_path.append(_start_vertices[0])
+		_start_initialized = true
+
+	if _cable_path.is_empty():
+		return
+
+	var last_v: Vector2i = _cable_path[_cable_path.size() - 1]
+	var path_before: int = _cable_path.size()
+
+	# Backtrack: if mouse vertex is earlier in the path, truncate
+	if _cable_path.size() >= 2:
+		var back_idx: int = _cable_path.find(mouse_vertex)
+		if back_idx >= 0 and back_idx < _cable_path.size() - 1:
+			_cable_path.resize(back_idx + 1)
+			last_v = _cable_path[_cable_path.size() - 1]
+
+	# Extend: try to reach mouse_vertex from last_v
+	if mouse_vertex != last_v:
+		_try_extend_path(mouse_vertex)
+
+	# Update preview visual
+	var valid: bool = _cable_path.size() >= 2 and connection_manager.is_path_valid(_cable_path)
+	connection_layer.preview_path = _cable_path
 	connection_layer.preview_valid = valid
 	connection_layer.preview_from_pos = from_pos
+	connection_layer.preview_from_port = _connecting_from_port
 	connection_layer.preview_to_pos = mouse_pos
 	connection_layer.preview_active = true
+
+
+func _try_extend_path(target: Vector2i) -> void:
+	## Try to extend the cable path toward the target vertex.
+	## Only extends in straight lines (no diagonal).
+	if _cable_path.is_empty():
+		return
+	var last_v: Vector2i = _cable_path[_cable_path.size() - 1]
+	var diff: Vector2i = target - last_v
+
+	# Adjacent vertex — simple single step
+	if absi(diff.x) + absi(diff.y) == 1:
+		if _can_extend_to(last_v, target):
+			_cable_path.append(target)
+		return
+
+	# Same row or column — fill straight line
+	if diff.x == 0 or diff.y == 0:
+		var dx: int = signi(diff.x)
+		var dy: int = signi(diff.y)
+		var current: Vector2i = last_v
+		while current != target:
+			var next: Vector2i = current + Vector2i(dx, dy)
+			if not _can_extend_to(current, next):
+				break
+			_cable_path.append(next)
+			current = next
+		return
+
+	# Not in line — try L-shape: first move along the longer axis
+	# This helps when mouse jumps ahead
+	var ax: int = absi(diff.x)
+	var ay: int = absi(diff.y)
+	var dx: int = signi(diff.x)
+	var dy: int = signi(diff.y)
+	var current: Vector2i = last_v
+
+	if ax >= ay:
+		# Move horizontally first
+		while current.x != target.x:
+			var next := current + Vector2i(dx, 0)
+			if not _can_extend_to(current, next):
+				break
+			_cable_path.append(next)
+			current = next
+		while current.y != target.y:
+			var next := current + Vector2i(0, dy)
+			if not _can_extend_to(current, next):
+				break
+			_cable_path.append(next)
+			current = next
+	else:
+		# Move vertically first
+		while current.y != target.y:
+			var next := current + Vector2i(0, dy)
+			if not _can_extend_to(current, next):
+				break
+			_cable_path.append(next)
+			current = next
+		while current.x != target.x:
+			var next := current + Vector2i(dx, 0)
+			if not _can_extend_to(current, next):
+				break
+			_cable_path.append(next)
+			current = next
+
+
+func _can_extend_to(from_v: Vector2i, to_v: Vector2i) -> bool:
+	if to_v in _cable_path:
+		return false  # prevent loops
+	return grid_system.can_place_cable_edge(from_v, to_v)
 
 
 func _find_port_at(world_pos: Vector2, output_only: bool) -> Dictionary:
@@ -397,7 +523,7 @@ func _deselect_building() -> void:
 	building_deselected.emit()
 
 
-## Programmatic API (AutoPlayManager ve test sistemleri için)
+## Programmatic API (AutoPlayManager ve test sistemleri icin)
 
 func place_building_at(def: BuildingDefinition, cell: Vector2i, skip_source_check: bool = false) -> Node2D:
 	if not grid_system.can_place(cell, def.grid_size):
