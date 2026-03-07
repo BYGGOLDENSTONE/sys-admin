@@ -120,7 +120,7 @@ func _push_data_from(source: Node2D, content: int, state: int, amount: int, from
 			break
 		if not target.accepts_data(content, state):
 			continue
-		if target.can_accept_data(to_send):
+		if target.can_accept_data(to_send, state):
 			target.stored_data[key] = target.stored_data.get(key, 0) + to_send
 			amount -= to_send
 			total_sent += to_send
@@ -188,10 +188,15 @@ func _update_processing(buildings: Array[Node]) -> void:
 			continue
 		var processed: int = 0
 		# Component-based dispatch: check dedicated components first
-		if b.definition.splitter != null:
+		if b.definition.classifier != null:
+			processed = _process_classifier(b, int(b.definition.classifier.throughput_rate))
+		elif b.definition.splitter != null:
 			processed = _process_splitter(b, int(b.definition.splitter.throughput_rate))
 		elif b.definition.merger != null:
 			processed = _process_merger(b, int(b.definition.merger.throughput_rate))
+		elif b.definition.probabilistic != null:
+			var max_process: int = int(b.get_effective_value("processing_rate"))
+			processed = _process_probabilistic(b, max_process)
 		elif b.definition.processor != null:
 			var proc: ProcessorComponent = b.definition.processor
 			var max_process: int = int(b.get_effective_value("processing_rate"))
@@ -200,8 +205,6 @@ func _update_processing(buildings: Array[Node]) -> void:
 					processed = _process_separator(b, proc, max_process)
 				"decryptor":
 					processed = _process_decryptor(b, proc, max_process)
-				"recoverer":
-					processed = _process_recoverer(b, proc, max_process)
 				"quarantine":
 					processed = _process_quarantine(b, proc, max_process)
 		else:
@@ -209,6 +212,77 @@ func _update_processing(buildings: Array[Node]) -> void:
 		if processed > 0:
 			b.is_working = true
 		b.stored_data.clear()
+
+
+func _process_classifier(b: Node2D, max_process: int) -> int:
+	var processed: int = 0
+	var output_ports: Array[String] = b.definition.output_ports
+	if output_ports.is_empty():
+		return 0
+	# Group stored data by content type
+	var content_groups: Dictionary = {}  # content_id → [{key, amount}]
+	for key in b.stored_data:
+		var available: int = b.stored_data[key]
+		if available <= 0:
+			continue
+		var parsed: Dictionary = DataEnums.parse_key(key)
+		var cid: int = parsed.content
+		if not content_groups.has(cid):
+			content_groups[cid] = []
+		content_groups[cid].append({"key": key, "content": cid, "state": parsed.state, "amount": available})
+	# Assign each content type to a port (round-robin by content id)
+	var content_ids: Array = content_groups.keys()
+	content_ids.sort()
+	for i in range(content_ids.size()):
+		if processed >= max_process:
+			break
+		var cid: int = content_ids[i]
+		var port: String = output_ports[i % output_ports.size()]
+		for entry in content_groups[cid]:
+			if processed >= max_process:
+				break
+			var to_process: int = mini(entry.amount, max_process - processed)
+			var sent: int = _push_data_from(b, entry.content, entry.state, to_process, port)
+			if sent > 0:
+				processed += sent
+	return processed
+
+
+func _process_probabilistic(b: Node2D, max_process: int) -> int:
+	var prob: ProbabilisticComponent = b.definition.probabilistic
+	var success_rate: float = b.get_effective_value("success_rate")
+	var output_ports: Array[String] = b.definition.output_ports
+	var clean_port: String = output_ports[0] if output_ports.size() > 0 else ""
+	var residue_port: String = prob.residue_port if prob.residue_port != "" else ""
+	var processed: int = 0
+	for key in b.stored_data:
+		if processed >= max_process:
+			break
+		var available: int = b.stored_data[key]
+		if available <= 0:
+			continue
+		var parsed: Dictionary = DataEnums.parse_key(key)
+		if not prob.input_states.is_empty() and parsed.state not in prob.input_states:
+			continue
+		var to_process: int = mini(available, max_process - processed)
+		# Process each unit individually for probability
+		var success_count: int = 0
+		var fail_count: int = 0
+		for _i in range(to_process):
+			if randf() <= success_rate:
+				success_count += 1
+			else:
+				fail_count += 1
+		# Push successful recoveries
+		if success_count > 0 and clean_port != "":
+			_push_data_from(b, parsed.content, prob.output_state, success_count, clean_port)
+		# Push residue (failed recoveries)
+		if fail_count > 0 and residue_port != "":
+			_push_data_from(b, parsed.content, DataEnums.DataState.RESIDUE, fail_count, residue_port)
+		processed += to_process
+		if success_count > 0 or fail_count > 0:
+			print("[Recoverer] %d MB %s → %d Clean + %d Residue" % [to_process, DataEnums.content_name(parsed.content), success_count, fail_count])
+	return processed
 
 
 func _process_separator(b: Node2D, proc: ProcessorComponent, max_process: int) -> int:
@@ -264,28 +338,6 @@ func _process_decryptor(b: Node2D, proc: ProcessorComponent, max_process: int) -
 			processed += to_process
 	return processed
 
-
-func _process_recoverer(b: Node2D, proc: ProcessorComponent, max_process: int) -> int:
-	var eff: float = b.get_effective_value("efficiency")
-	var processed: int = 0
-	for key in b.stored_data:
-		if processed >= max_process:
-			break
-		var available: int = b.stored_data[key]
-		if available <= 0:
-			continue
-		var parsed: Dictionary = DataEnums.parse_key(key)
-		# Only process matching input states (CORRUPTED)
-		if not proc.input_states.is_empty() and parsed.state not in proc.input_states:
-			continue
-		var to_process: int = mini(available, max_process - processed)
-		var output_amount: int = maxi(1, roundi(to_process * eff))
-		# Corrupted → Clean (content preserved), push to output port
-		var sent: int = _push_data_from(b, parsed.content, DataEnums.DataState.CLEAN, output_amount)
-		if sent > 0:
-			processed += to_process
-			print("[Recoverer] %d MB %s(Corrupted) → %d MB %s(Clean)" % [to_process, DataEnums.content_name(parsed.content), output_amount, DataEnums.content_name(parsed.content)])
-	return processed
 
 
 func _process_quarantine(b: Node2D, proc: ProcessorComponent, max_process: int) -> int:

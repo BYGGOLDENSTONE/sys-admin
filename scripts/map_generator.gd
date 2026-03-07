@@ -12,7 +12,7 @@ const MAX_PLACEMENT_ATTEMPTS := 40
 ## Ring definitions: [min_radius, max_radius, min_count, max_count, source_pool]
 var _rings: Array = [
 	{ "r_min": 0, "r_max": 50, "count_min": 10, "count_max": 14,
-	  "sources": ["isp_backbone", "public_database"] },
+	  "sources": ["isp_backbone", "public_database", "atm", "smart_lock", "traffic_camera"] },
 	{ "r_min": 50, "r_max": 105, "count_min": 10, "count_max": 14,
 	  "sources": ["corporate_server", "biotech_lab"] },
 	{ "r_min": 105, "r_max": 165, "count_min": 8, "count_max": 12,

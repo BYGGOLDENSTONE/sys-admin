@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="DataSourceDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://resources/sources/data_source_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+source_name = "Akıllı Kilit"
+description = "Akıllı kapı kilidi. Sadece biyometrik veri üretir. Çoğu temiz, azı bozuk."
+color = Color(1.0, 0.55, 0.8, 1.0)
+content_weights = {2: 1.0}
+state_weights = {0: 0.8, 2: 0.2}
+bandwidth = 3.0
+cell_count_range = Vector2i(5, 8)
+ring_index = 0

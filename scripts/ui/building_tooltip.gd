@@ -120,7 +120,17 @@ func _update_stats() -> void:
 			if not def.generator.state_weights.is_empty():
 				lines.append(_stat("State", _format_state_weights(def.generator.state_weights)))
 			lines.append(_stat("Kaynak", "[color=#ff8844]Bağlı değil — kaynağın yanına yerleştir[/color]"))
-	if def.storage and def.processor == null:
+	if def.classifier:
+		lines.append(_stat("İşleme", "%d MB/s" % int(def.classifier.throughput_rate)))
+		lines.append(_stat("Mod", "Content türüne göre ayırma"))
+		lines.append(_stat("Çıkışlar", "Her content türü → ayrı port"))
+	if def.probabilistic:
+		lines.append(_stat("İşleme", "%d MB/s" % int(b.get_effective_value("processing_rate"))))
+		lines.append(_stat("Başarı", "%%%d" % int(b.get_effective_value("success_rate") * 100)))
+		lines.append(_stat("Giriş", "[color=#ff8844]Corrupted[/color]"))
+		lines.append(_stat("Sağ Port →", "[color=#44ff88]Clean[/color] (kurtarılan)"))
+		lines.append(_stat("Alt Port  →", "[color=#888844]Residue[/color] (dijital atık)"))
+	if def.storage and def.processor == null and def.classifier == null and def.probabilistic == null:
 		var total: int = b.get_total_stored()
 		var cap: int = int(b.get_effective_value("capacity"))
 		var pct: int = int(float(total) / float(cap) * 100.0) if cap > 0 else 0
@@ -145,9 +155,6 @@ func _update_stats() -> void:
 			lines.append(_stat("Alt Port  →", "Diğer tüm veriler"))
 		elif def.processor.rule == "decryptor":
 			lines.append(_stat("Giriş", "[color=#44aaff]Encrypted[/color]"))
-			lines.append(_stat("Çıkış", "[color=#44ff88]Clean[/color] (content korunur)"))
-		elif def.processor.rule == "recoverer":
-			lines.append(_stat("Giriş", "[color=#ff8844]Corrupted[/color]"))
 			lines.append(_stat("Çıkış", "[color=#44ff88]Clean[/color] (content korunur)"))
 		elif def.processor.rule == "quarantine":
 			lines.append(_stat("Giriş", "[color=#ff4466]Malware[/color]"))

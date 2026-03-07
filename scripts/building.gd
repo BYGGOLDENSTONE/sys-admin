@@ -70,16 +70,31 @@ func get_port_world_position(port_side: String) -> Vector2:
 
 func get_total_stored() -> int:
 	var total: int = 0
+	for key in stored_data:
+		var parsed: Dictionary = DataEnums.parse_key(key)
+		var cost: int = DataEnums.state_storage_cost(parsed.state)
+		total += stored_data[key] * cost
+	return total
+
+
+func get_total_stored_raw() -> int:
+	var total: int = 0
 	for amount in stored_data.values():
 		total += amount
 	return total
 
 
-func can_accept_data(amount: int = 1) -> bool:
+func can_accept_data(amount: int = 1, state: int = DataEnums.DataState.CLEAN) -> bool:
+	if state == DataEnums.DataState.MALWARE:
+		# Malware can only enter buildings with quarantine processor
+		if definition.processor != null and definition.processor.rule == "quarantine":
+			return true
+		return false
 	var cap: int = int(get_effective_value("capacity")) if definition.storage else 0
 	if cap <= 0:
 		return true
-	return get_total_stored() + amount <= cap
+	var cost: int = DataEnums.state_storage_cost(state)
+	return get_total_stored() + (amount * cost) <= cap
 
 
 func accepts_data(content: int, state: int) -> bool:
@@ -106,7 +121,13 @@ func _get_base_value(stat: String) -> float:
 		"efficiency":
 			return definition.processor.efficiency if definition.processor else 1.0
 		"processing_rate":
-			return definition.processor.processing_rate if definition.processor else 0.0
+			if definition.processor:
+				return definition.processor.processing_rate
+			if definition.probabilistic:
+				return definition.probabilistic.processing_rate
+			return 0.0
+		"success_rate":
+			return definition.probabilistic.success_rate if definition.probabilistic else 0.7
 		"capacity":
 			return float(definition.storage.capacity) if definition.storage else 0.0
 	return 0.0
@@ -222,7 +243,7 @@ func _draw() -> void:
 
 	# Malware overlay (purple-red flicker)
 	if not _is_ghost and _has_malware():
-		if definition.processor == null or definition.processor.rule != "quarantine":
+		if definition.processor == null or (definition.processor != null and definition.processor.rule != "quarantine"):
 			var malware_alpha: float = 0.12 + sin(_glow_time * 6.0) * 0.06
 			draw_rect(rect, Color(0.8, 0.0, 0.3, malware_alpha), true)
 			draw_rect(rect, Color(0.8, 0.0, 0.3, 0.5), false, 2.0)
@@ -239,6 +260,8 @@ func _draw_icon(center: Vector2, size: Vector2, accent: Color) -> void:
 			_draw_icon_storage(icon_center, size, accent)
 		"broker":
 			_draw_icon_broker(icon_center, size, accent)
+		"classifier":
+			_draw_icon_classifier(icon_center, size, accent)
 		"separator":
 			_draw_icon_separator(icon_center, size, accent)
 		"compressor":
@@ -345,6 +368,40 @@ func _draw_icon_broker(center: Vector2, size: Vector2, accent: Color) -> void:
 	# Arrow head
 	draw_line(arrow_top, arrow_top + Vector2(-4, 6), accent, 2.0)
 	draw_line(arrow_top, arrow_top + Vector2(4, 6), accent, 2.0)
+
+
+# --- CLASSIFIER: Filter/funnel with content symbols ---
+func _draw_icon_classifier(center: Vector2, size: Vector2, accent: Color) -> void:
+	var s: float = minf(size.x, size.y) * 0.3
+	var glow := Color(accent, ICON_GLOW_ALPHA)
+
+	# Input line (left)
+	var in_start := center + Vector2(-s * 0.8, 0)
+	var in_end := center + Vector2(-s * 0.2, 0)
+	draw_line(in_start, in_end, glow, ICON_GLOW_WIDTH)
+	draw_line(in_start, in_end, accent, 2.0)
+
+	# Center diamond (classifier node)
+	var d: float = s * 0.25
+	var diamond := PackedVector2Array([
+		center + Vector2(0, -d),
+		center + Vector2(d, 0),
+		center + Vector2(0, d),
+		center + Vector2(-d, 0),
+		center + Vector2(0, -d),
+	])
+	draw_polyline(diamond, glow, ICON_GLOW_WIDTH)
+	draw_polyline(diamond, accent, 2.0)
+
+	# Three output lines with content symbols
+	var symbols: Array[String] = ["$", "@", "#"]
+	var font := ThemeDB.fallback_font
+	for i in range(3):
+		var y_off: float = (i - 1) * s * 0.5
+		var out_end := center + Vector2(s * 0.8, y_off)
+		draw_line(center + Vector2(d, y_off * 0.3), out_end, glow, ICON_GLOW_WIDTH)
+		draw_line(center + Vector2(d, y_off * 0.3), out_end, accent, 1.5)
+		draw_string(font, out_end + Vector2(-4, 4), symbols[i], HORIZONTAL_ALIGNMENT_LEFT, -1, 10, accent)
 
 
 # --- SEPARATOR: Fork/split symbol ---

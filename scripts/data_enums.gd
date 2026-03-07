@@ -1,7 +1,7 @@
 class_name DataEnums
 
 enum ContentType { STANDARD, FINANCIAL, BIOMETRIC, BLUEPRINT, RESEARCH, CLASSIFIED }
-enum DataState { CLEAN, ENCRYPTED, CORRUPTED, MALWARE }
+enum DataState { CLEAN, ENCRYPTED, CORRUPTED, MALWARE, RESIDUE }
 
 static func make_key(content: int, state: int) -> String:
 	return "%d_%d" % [content, state]
@@ -26,6 +26,7 @@ static func state_name(s: int) -> String:
 		DataState.ENCRYPTED: return "Encrypted"
 		DataState.CORRUPTED: return "Corrupted"
 		DataState.MALWARE: return "Malware"
+		DataState.RESIDUE: return "Residue"
 	return "Unknown"
 
 static func state_color(s: int) -> Color:
@@ -34,6 +35,7 @@ static func state_color(s: int) -> Color:
 		DataState.ENCRYPTED: return Color("#44aaff")
 		DataState.CORRUPTED: return Color("#ff8844")
 		DataState.MALWARE: return Color("#ff4466")
+		DataState.RESIDUE: return Color("#888844")
 	return Color("#aabbcc")
 
 static func content_char(c: int) -> String:
@@ -63,7 +65,18 @@ static func state_color_hex(s: int) -> String:
 		DataState.ENCRYPTED: return "#44aaff"
 		DataState.CORRUPTED: return "#ff8844"
 		DataState.MALWARE: return "#ff4466"
+		DataState.RESIDUE: return "#888844"
 	return "#aabbcc"
+
+static func state_storage_cost(s: int) -> int:
+	match s:
+		DataState.CLEAN: return 1
+		DataState.ENCRYPTED: return 2
+		DataState.CORRUPTED: return 3
+		DataState.MALWARE: return 0  # Cannot be stored
+		DataState.RESIDUE: return 1
+	return 1
+
 
 static func content_color_hex(c: int) -> String:
 	match c:

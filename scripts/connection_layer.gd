@@ -112,7 +112,7 @@ func _is_connection_active(conn: Dictionary) -> bool:
 		return false
 	if to_b.has_method("is_active") and not to_b.is_active():
 		return false
-	if to_b.has_method("can_accept_data") and not to_b.can_accept_data():
+	if to_b.has_method("can_accept_data") and not to_b.can_accept_data(1):
 		return false
 	return true
 

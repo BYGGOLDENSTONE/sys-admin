@@ -98,7 +98,7 @@ Eski point-to-point kablo sistemi TAMAMEN degisiyor:
 ### Calisan Sistemler
 - Grid sistemi (`grid_system.gd`) — 512x512, hucre yonetimi + kablo hucre takibi
 - Grid kablo sistemi (`connection_manager.gd` + `connection_layer.gd`) — L-shaped routing, grid-based rendering
-- Veri modeli (`data_enums.gd`) — 6 content + 4 state tam
+- Veri modeli (`data_enums.gd`) — 6 content + 5 state (Clean/Encrypted/Corrupted/Malware/Residue)
 - Bina yerlestirme (`building.gd` + `building_manager.gd`) — grid-based placement + kablo routing
 - Simulasyon (`simulation_manager.gd`) — veri akisi, uretim, isleme (credits/seller kaldirildi)
 - Fog of War (`fog_layer.gd`) — chunk-based
@@ -111,8 +111,7 @@ Eski point-to-point kablo sistemi TAMAMEN degisiyor:
 
 ### Degistirilmesi Gereken (Henuz Yapilmadi)
 - **Harita uretimi** — ring/halka sistemi → rastgele dagitim (Factorio modeli)
-- **Kaynak isimleri** — ISP Backbone, Public Database → Otomat, ATM, Akilli Kilit vb.
-- **Component mimarisi** — tek ProcessorComponent + rule string → her mekanik ayri component
+- **Component mimarisi** — Separator, Decryptor, Quarantine hala ProcessorComponent+rule kullanıyor → ayri component'lere gecis devam edecek
 - **Ekonomi** — upgrade maliyetleri henuz yok (v2.0 Veri=Malzeme sistemi bekliyor)
 
 ### Silinen Dosyalar (v2.0 Temizligi)
@@ -122,10 +121,10 @@ Eski point-to-point kablo sistemi TAMAMEN degisiyor:
 - Ring border kodu (`grid_system.gd`'den kaldirildi)
 - Credits/Research/PatchData UI ve signal'leri kaldirildi
 
-### Mevcut .tres Dosyalari (10 bina, 8 kaynak)
-**Binalar:** uplink, storage, separator, decryptor, recoverer, quarantine, research_lab, splitter, merger, bridge
-**Kaynaklar:** isp_backbone, public_database, biotech_lab, corporate_server, government_archive, military_network, dark_web_node, blackwall_fragment
-**Component'ler:** generator, processor, storage, upgrade, splitter, merger (6 adet)
+### Mevcut .tres Dosyalari (11 bina, 11 kaynak)
+**Binalar:** uplink, storage, separator, classifier, decryptor, recoverer, quarantine, research_lab, splitter, merger, bridge
+**Kaynaklar:** isp_backbone (Otomat), atm, smart_lock, traffic_camera, public_database, biotech_lab, corporate_server, government_archive, military_network, dark_web_node, blackwall_fragment
+**Component'ler:** generator, processor, classifier, probabilistic, storage, upgrade, splitter, merger (8 adet)
 
 ---
 
@@ -145,12 +144,14 @@ Eski point-to-point kablo sistemi TAMAMEN degisiyor:
 - [x] Otomat kaynagi (ISP Backbone → Otomat, sadece Standard Clean)
 
 ### Faz 2: Content Ayirma + Kolay Kaynaklar
-- [ ] Classifier binasi + ClassifierComponent (content tipine gore N cikis)
-- [ ] Kaynaklarda birden fazla content tipi
-- [ ] Kolay kaynaklar: Otomat, ATM, Akilli Kilit, Trafik Kamerasi (.tres guncelle/olustur)
-- [ ] State depolama maliyet farklari (Clean=1, Encrypted=2, Corrupted=3)
-- [ ] Recoverer component ayristir (ProcessorComponent → ProbabilisticComponent, %70 basari + residue)
-- [ ] Residue mekanigi (yan urun akisi)
+- [x] Classifier binasi + ClassifierComponent (content tipine gore N cikis, 3 output port)
+- [x] Kaynaklarda birden fazla content tipi (Trafik Kamerasi: Standard + Biometric)
+- [x] Kolay kaynaklar: ATM, Akilli Kilit, Trafik Kamerasi (.tres olusturuldu)
+- [x] State depolama maliyet farklari (Clean=1, Encrypted=2, Corrupted=3, Malware=depolanamaz)
+- [x] Recoverer component ayristirildi (ProcessorComponent → ProbabilisticComponent, %70 basari + residue)
+- [x] Residue mekanigi (DataState.RESIDUE eklendi, Recoverer alt porttan Residue cikisi)
+- [x] Classifier prosedürel ikonu eklendi
+- [x] Tooltip guncellendi (Classifier + Recoverer bilgileri)
 
 ### Faz 3: Sifreleme Pipeline'i + Orta Kaynaklar
 - [ ] Research Lab yeniden yapilandir (ResearchCollector → ProducerComponent, Key uretimi)

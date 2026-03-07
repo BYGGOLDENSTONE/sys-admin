@@ -16,6 +16,8 @@ extends Resource
 @export var generator: GeneratorComponent
 @export var storage: StorageComponent
 @export var processor: ProcessorComponent
+@export var classifier: ClassifierComponent
+@export var probabilistic: ProbabilisticComponent
 @export var splitter: SplitterComponent
 @export var merger: MergerComponent
 @export var upgrade: UpgradeComponent
@@ -31,4 +33,6 @@ func accepts_data(content: int, state: int) -> bool:
 	## Check if this building can accept data with given content+state
 	if processor and not processor.input_states.is_empty():
 		return state in processor.input_states
+	if probabilistic and not probabilistic.input_states.is_empty():
+		return state in probabilistic.input_states
 	return true
