@@ -13,6 +13,7 @@ var _is_dragging: bool = false
 var _trauma: float = 0.0
 var _noise: FastNoiseLite = null
 var _noise_y: float = 0.0
+var _post_material: ShaderMaterial = null
 const TRAUMA_DECAY: float = 1.8
 const MAX_SHAKE_OFFSET: float = 12.0
 
@@ -27,6 +28,10 @@ func _ready() -> void:
 
 func add_trauma(amount: float) -> void:
 	_trauma = minf(_trauma + amount, 1.0)
+
+
+func set_post_material(mat: ShaderMaterial) -> void:
+	_post_material = mat
 
 
 func _process(delta: float) -> void:
@@ -44,6 +49,10 @@ func _process(delta: float) -> void:
 		offset = offset.lerp(Vector2.ZERO, delta * 12.0)
 		if offset.length() < 0.1:
 			offset = Vector2.ZERO
+
+	# Drive chromatic aberration from trauma
+	if _post_material:
+		_post_material.set_shader_parameter("chromatic_aberration", _trauma * _trauma * 5.0)
 
 
 func _unhandled_input(event: InputEvent) -> void:

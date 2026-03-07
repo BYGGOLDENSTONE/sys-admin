@@ -14,6 +14,10 @@ uniform float vignette_focus : hint_range(0.1, 2.0) = 1.0;
 uniform float vignette_intensity : hint_range(0.0, 1.0) = 0.5;
 uniform vec3 vignette_color : source_color = vec3(0.02, 0.05, 0.1);
 
+// Chromatic Aberration (camera shake feedback)
+group_uniforms chromatic;
+uniform float chromatic_aberration : hint_range(0.0, 10.0) = 0.0;
+
 // Tilt-shift / Depth of Field settings (Macro Photography)
 group_uniforms tilt_shift;
 uniform float tilt_shift_focus_y : hint_range(0.0, 1.0) = 0.5;
@@ -24,7 +28,19 @@ void fragment() {
 	vec2 uv = SCREEN_UV;
 	vec2 ps = SCREEN_PIXEL_SIZE;
 
-	vec4 original = texture(screen_texture, uv);
+	// Chromatic aberration — offset R and B channels during camera shake
+	vec4 original;
+	if (chromatic_aberration > 0.0) {
+		vec2 ca = vec2(chromatic_aberration * ps.x * 2.0, 0.0);
+		original = vec4(
+			texture(screen_texture, uv + ca).r,
+			texture(screen_texture, uv).g,
+			texture(screen_texture, uv - ca).b,
+			1.0
+		);
+	} else {
+		original = texture(screen_texture, uv);
+	}
 
 	// Tilt-shift (Depth of Field) calculation based on Y position
 	// How far are we from the focus area?

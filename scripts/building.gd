@@ -24,6 +24,9 @@ var fill_ratio: float = 0.0
 var _glow_time: float = 0.0
 var _is_ghost: bool = false
 var is_selected: bool = false
+var _prev_working: bool = false
+var _process_flash: float = 0.0
+var _display_fill: float = 0.0
 
 # Runtime state (set by SimulationManager)
 var stored_data: Dictionary = {}  ## Key: "content_state_tier" (e.g. "0_0_0"), Value: int MB
@@ -43,6 +46,14 @@ func _process(delta: float) -> void:
 	if _is_ghost or definition == null:
 		return
 	_glow_time += delta
+	# Processing flash on working state transition
+	if is_working and not _prev_working:
+		_process_flash = 1.0
+	_prev_working = is_working
+	if _process_flash > 0.0:
+		_process_flash = maxf(_process_flash - delta * 4.0, 0.0)
+	# Smooth fill bar
+	_display_fill = lerpf(_display_fill, fill_ratio, delta * 8.0)
 	queue_redraw()
 
 
@@ -58,6 +69,14 @@ func play_place_animation() -> void:
 	var tw := create_tween().set_parallel(true)
 	tw.tween_property(self, "scale", Vector2.ONE, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tw.tween_property(self, "modulate", Color.WHITE, 0.4).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+
+
+func play_remove_animation() -> void:
+	set_process(false)
+	var tw := create_tween().set_parallel(true)
+	tw.tween_property(self, "scale", Vector2(0.3, 0.3), 0.2).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+	tw.tween_property(self, "modulate:a", 0.0, 0.2).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tw.chain().tween_callback(queue_free)
 
 
 func get_port_local_position(port_side: String) -> Vector2:
@@ -265,7 +284,12 @@ func _draw() -> void:
 		BODY_COLOR.r + accent.r * 0.05,
 		BODY_COLOR.g + accent.g * 0.05,
 		BODY_COLOR.b + accent.b * 0.05, 1.0)
-	draw_rect(rect, body_color, true)
+	# Breathing effect — working buildings gently pulse size
+	var body_rect := rect
+	if is_working and active:
+		var breathe: float = sin(_glow_time * 3.0) * 1.5
+		body_rect = Rect2(Vector2(-breathe, -breathe), size + Vector2(breathe * 2, breathe * 2))
+	draw_rect(body_rect, body_color, true)
 
 	# Neon border (thicker at lower zoom + when selected)
 	var border_w: float = BORDER_WIDTH * zoom_glow_scale
@@ -329,6 +353,10 @@ func _draw() -> void:
 	# Status bars (skip at medium zoom)
 	if not is_medium:
 		_draw_status_bars(size, accent)
+
+	# Processing flash overlay
+	if _process_flash > 0.0 and not is_medium:
+		draw_rect(rect, Color(accent.r, accent.g, accent.b, _process_flash * 0.2), true)
 
 	# Malware overlay
 	if not _is_ghost and _has_malware():
@@ -849,8 +877,8 @@ func _draw_status_bars(size: Vector2, accent: Color) -> void:
 	var fill_bg := Rect2(Vector2(bar_x, bar_y), Vector2(bar_w, BAR_HEIGHT))
 	draw_rect(fill_bg, Color(0.1, 0.2, 0.1, 0.5), true)
 	draw_rect(fill_bg, Color(accent, 0.3), false, 1.0)
-	if fill_ratio > 0.0:
-		var fill_fill := Rect2(Vector2(bar_x, bar_y), Vector2(bar_w * fill_ratio, BAR_HEIGHT))
+	if _display_fill > 0.001:
+		var fill_fill := Rect2(Vector2(bar_x, bar_y), Vector2(bar_w * _display_fill, BAR_HEIGHT))
 		draw_rect(fill_fill, Color(accent, 0.8), true)
 
 

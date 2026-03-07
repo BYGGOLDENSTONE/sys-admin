@@ -138,6 +138,11 @@ func _handle_idle_input(event: InputEvent) -> void:
 			var conns: Array[Dictionary] = connection_manager.get_connections()
 			if idx >= 0 and idx < conns.size():
 				var conn: Dictionary = conns[idx]
+				# Cable removal flash
+				if connection_layer:
+					connection_layer.play_removal_flash(
+						connection_layer._build_polyline(conn),
+						Color(1.0, 0.3, 0.3))
 				if undo_manager and not undo_manager.is_undoing:
 					undo_manager.push_command({
 						type = "remove_connection",
@@ -366,7 +371,11 @@ func _remove_building(building: Node2D) -> void:
 	print("[BuildingManager] Building removed — %s at (%d,%d)" % [
 		def.building_name, cell.x, cell.y
 	])
-	building.queue_free()
+	# Animated removal
+	if building.has_method("play_remove_animation"):
+		building.play_remove_animation()
+	else:
+		building.queue_free()
 
 
 ## --- SELECTION ---

@@ -24,6 +24,7 @@ var _dev_mode: bool = false
 var _top_bar: PanelContainer = null
 var _minimap: Control = null
 var _shortcut_hints: Label = null
+var _sound_manager: Node = null
 
 
 func _ready() -> void:
@@ -120,6 +121,13 @@ func _ready() -> void:
 
 	# Setup shortcut hints
 	_setup_shortcut_hints()
+
+	# Setup sound manager
+	_setup_sound_manager()
+
+	# Pass post-process material to camera for chromatic aberration
+	var post_rect: ColorRect = $PostProcessLayer/PostProcessRect
+	camera.set_post_material(post_rect.material as ShaderMaterial)
 
 	print("[Main] SYS_ADMIN initialized")
 
@@ -232,6 +240,8 @@ func _on_speed_changed(multiplier: int, paused: bool) -> void:
 func _on_building_unlocked(building_name: String) -> void:
 	print("[Main] Yapi acildi: %s" % building_name)
 	_show_unlock_notification(building_name)
+	if _sound_manager:
+		_sound_manager.play_unlock()
 
 
 func _show_unlock_notification(building_name: String) -> void:
@@ -292,14 +302,48 @@ func _show_discovery_notification(display_name: String, color: Color) -> void:
 	tween.tween_property(notif, "modulate:a", 0.0, 0.8).set_delay(2.2).set_trans(Tween.TRANS_QUAD)
 	tween.chain().tween_callback(notif.queue_free)
 
-	# Camera shake
+	# Camera shake + discovery sound
 	if camera.has_method("add_trauma"):
 		camera.add_trauma(0.12)
+	if _sound_manager:
+		_sound_manager.play_discovery()
 
 
 func _on_source_discovered(source: Node2D) -> void:
 	var def = source.definition
 	_show_discovery_notification(def.source_name, def.color)
+
+
+func _setup_sound_manager() -> void:
+	var SoundManagerScript = preload("res://scripts/sound_manager.gd")
+	_sound_manager = Node.new()
+	_sound_manager.set_script(SoundManagerScript)
+	_sound_manager.name = "SoundManager"
+	add_child(_sound_manager)
+	# Wire simulation sound
+	simulation_manager.sound_manager = _sound_manager
+	# Wire building events
+	building_manager.building_placed.connect(_on_building_placed_sound)
+	building_manager.building_removed.connect(_on_building_removed_sound)
+	# Wire cable events
+	connection_manager.connection_added.connect(_on_cable_connected_sound)
+	connection_manager.connection_removed.connect(_on_cable_removed_sound)
+
+
+func _on_building_placed_sound(_building: Node2D, _cell: Vector2i) -> void:
+	_sound_manager.play_building_place()
+
+
+func _on_building_removed_sound(_building: Node2D, _cell: Vector2i) -> void:
+	_sound_manager.play_building_remove()
+
+
+func _on_cable_connected_sound(_conn: Dictionary) -> void:
+	_sound_manager.play_cable_connect()
+
+
+func _on_cable_removed_sound(_conn: Dictionary) -> void:
+	_sound_manager.play_cable_remove()
 
 
 func _toggle_dev_mode() -> void:

@@ -13,6 +13,7 @@ var discovered_content: Dictionary = {0: true, 1: false, 2: false, 3: false, 4: 
 var discovered_states: Dictionary = {0: true, 1: false, 2: false, 3: false}
 var connection_manager: Node = null
 var building_container: Node2D = null
+var sound_manager: Node = null
 var connection_flow_data: Dictionary = {}  # conn_index → [{content, state, amount}]
 
 @onready var _sim_timer: Timer = $SimTimer
@@ -394,6 +395,8 @@ func _process_dual_input(b: Node2D, max_process: int) -> int:
 			keys_used += sent * actual_key_cost
 			var tier_label: String = " T%d" % tier if tier > 0 else ""
 			_spawn_floating_text(b, "+%d Clean" % sent, Color("#44ff88"))
+			if sound_manager:
+				sound_manager.play_process_event("decryptor")
 			print("[DualInput] %s: %d MB %s(%s%s) → %s (-%d Key)" % [
 				b.definition.building_name, sent,
 				DataEnums.content_name(parsed.content),
@@ -448,6 +451,8 @@ func _process_compiler(b: Node2D, max_process: int) -> int:
 		_add_refined_to_storage(recipe.output_refined, to_craft)
 		crafted += to_craft
 		_spawn_floating_text(b, "+%d %s" % [to_craft, DataEnums.refined_name(recipe.output_refined)], Color("#44ff88"))
+		if sound_manager:
+			sound_manager.play_process_event("compiler")
 		print("[Compiler] %d x %s crafted (%d %s + %d %s consumed)" % [
 			to_craft, DataEnums.refined_name(recipe.output_refined),
 			consumed_a, DataEnums.content_name(recipe.input_a_content),
@@ -540,6 +545,8 @@ func _process_quarantine(b: Node2D, proc: ProcessorComponent, max_process: int) 
 	if processed > 0:
 		_spawn_floating_text(b, "-%d Malware" % processed, Color(1.0, 0.3, 0.4))
 		_add_camera_trauma(0.08 + processed * 0.02)
+		if sound_manager:
+			sound_manager.play_process_event("quarantine")
 	return processed
 
 

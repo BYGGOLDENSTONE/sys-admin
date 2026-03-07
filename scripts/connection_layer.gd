@@ -33,6 +33,12 @@ var _flash_times: Array[float] = []
 var _flash_colors: Array[Color] = []
 const FLASH_DURATION: float = 0.6
 
+# Cable removal flash effect
+var _removal_flash_paths: Array = []
+var _removal_flash_times: Array[float] = []
+var _removal_flash_colors: Array[Color] = []
+const REMOVAL_FLASH_DURATION: float = 0.4
+
 
 func _ready() -> void:
 	_camera = get_node_or_null("../GameCamera")
@@ -51,6 +57,15 @@ func _process(delta: float) -> void:
 			_flash_positions.remove_at(i)
 			_flash_colors.remove_at(i)
 		i -= 1
+	# Update removal flash timers
+	var ri: int = _removal_flash_times.size() - 1
+	while ri >= 0:
+		_removal_flash_times[ri] -= delta
+		if _removal_flash_times[ri] <= 0:
+			_removal_flash_times.remove_at(ri)
+			_removal_flash_paths.remove_at(ri)
+			_removal_flash_colors.remove_at(ri)
+		ri -= 1
 	queue_redraw()
 
 
@@ -83,6 +98,16 @@ func _draw() -> void:
 		draw_circle(flash_pos, ring_radius, Color(flash_col, ring_alpha * 0.15))
 		draw_circle(flash_pos, ring_radius * 0.6, Color(flash_col, ring_alpha * 0.3))
 		draw_circle(flash_pos, 8.0 * t, Color(1.0, 1.0, 1.0, ring_alpha * 0.5))
+
+	# Draw cable removal flash effects (red shrink)
+	for ri in range(_removal_flash_paths.size()):
+		var rt: float = _removal_flash_times[ri] / REMOVAL_FLASH_DURATION
+		var rpoints: PackedVector2Array = _removal_flash_paths[ri]
+		var rcol: Color = _removal_flash_colors[ri]
+		if rpoints.size() >= 2:
+			var rw: float = CABLE_WIDTH * 3.0 * rt
+			draw_polyline(rpoints, Color(rcol, rt * 0.6), maxf(1.0, rw), true)
+			draw_polyline(rpoints, Color(1.0, 1.0, 1.0, rt * 0.3), maxf(1.0, rw * 0.4), true)
 
 
 func _get_zoom_level() -> float:
@@ -245,6 +270,14 @@ func play_connection_flash(building: Node2D) -> void:
 	_flash_positions.append(pos)
 	_flash_times.append(FLASH_DURATION)
 	_flash_colors.append(building.definition.color)
+
+
+func play_removal_flash(points: PackedVector2Array, color: Color) -> void:
+	if points.size() < 2:
+		return
+	_removal_flash_paths.append(points)
+	_removal_flash_times.append(REMOVAL_FLASH_DURATION)
+	_removal_flash_colors.append(color)
 
 
 func _build_particle_types(flow: Array, count: int) -> Array:
