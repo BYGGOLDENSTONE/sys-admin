@@ -21,6 +21,9 @@ var _cable_v_edges: Dictionary = {}  ## Vector2i → int (cable count)
 var _proximity_h_edges: Dictionary = {}  ## Vector2i → int (blocking count)
 var _proximity_v_edges: Dictionary = {}  ## Vector2i → int (blocking count)
 
+## Port exit vertices: edges touching these are exempt from proximity blocking
+var _port_exit_vertices: Dictionary = {}  ## Vector2i → String (port_side)
+
 
 func world_to_grid(world_pos: Vector2) -> Vector2i:
 	return Vector2i(floori(world_pos.x / TILE_SIZE), floori(world_pos.y / TILE_SIZE))
@@ -71,13 +74,18 @@ func occupy(grid_pos: Vector2i, building_size: Vector2i, building_ref: Node) -> 
 		for y in range(building_size.y):
 			_occupied_cells[Vector2i(grid_pos.x + x, grid_pos.y + y)] = building_ref
 	_add_proximity_edges(grid_pos, building_size)
+	if building_ref and building_ref.definition:
+		_register_port_exits(grid_pos, building_size, building_ref.definition)
 
 
 func free_cells(grid_pos: Vector2i, building_size: Vector2i) -> void:
+	var building_ref = _occupied_cells.get(grid_pos, null)
 	for x in range(building_size.x):
 		for y in range(building_size.y):
 			_occupied_cells.erase(Vector2i(grid_pos.x + x, grid_pos.y + y))
 	_remove_proximity_edges(grid_pos, building_size)
+	if building_ref and building_ref.definition:
+		_unregister_port_exits(grid_pos, building_size, building_ref.definition)
 
 
 func get_building_at(cell: Vector2i) -> Node:
@@ -109,30 +117,75 @@ func _modify_source_proximity(cells: Array[Vector2i], delta: int) -> void:
 	for cell in cells:
 		var cx := cell.x
 		var cy := cell.y
+		var right_ext := not cell_set.has(Vector2i(cx + 1, cy))
+		var left_ext := not cell_set.has(Vector2i(cx - 1, cy))
+		var top_ext := not cell_set.has(Vector2i(cx, cy - 1))
+		var bottom_ext := not cell_set.has(Vector2i(cx, cy + 1))
 		# Right edge external? (cell to right not in source)
-		if not cell_set.has(Vector2i(cx + 1, cy)):
+		if right_ext:
 			var key := Vector2i(cx + 2, cy)
 			_proximity_v_edges[key] = _proximity_v_edges.get(key, 0) + delta
 			if _proximity_v_edges[key] <= 0:
 				_proximity_v_edges.erase(key)
 		# Left edge external?
-		if not cell_set.has(Vector2i(cx - 1, cy)):
+		if left_ext:
 			var key := Vector2i(cx - 1, cy)
 			_proximity_v_edges[key] = _proximity_v_edges.get(key, 0) + delta
 			if _proximity_v_edges[key] <= 0:
 				_proximity_v_edges.erase(key)
 		# Bottom edge external?
-		if not cell_set.has(Vector2i(cx, cy + 1)):
+		if bottom_ext:
 			var key := Vector2i(cx, cy + 2)
 			_proximity_h_edges[key] = _proximity_h_edges.get(key, 0) + delta
 			if _proximity_h_edges[key] <= 0:
 				_proximity_h_edges.erase(key)
 		# Top edge external?
-		if not cell_set.has(Vector2i(cx, cy - 1)):
+		if top_ext:
 			var key := Vector2i(cx, cy - 1)
 			_proximity_h_edges[key] = _proximity_h_edges.get(key, 0) + delta
 			if _proximity_h_edges[key] <= 0:
 				_proximity_h_edges.erase(key)
+		# Diagonal corners — block outer edges of buffer corner cells
+		# Upper-right
+		if right_ext and top_ext and not cell_set.has(Vector2i(cx + 1, cy - 1)):
+			var hk := Vector2i(cx + 1, cy - 1)
+			_proximity_h_edges[hk] = _proximity_h_edges.get(hk, 0) + delta
+			if _proximity_h_edges[hk] <= 0:
+				_proximity_h_edges.erase(hk)
+			var vk := Vector2i(cx + 2, cy - 1)
+			_proximity_v_edges[vk] = _proximity_v_edges.get(vk, 0) + delta
+			if _proximity_v_edges[vk] <= 0:
+				_proximity_v_edges.erase(vk)
+		# Upper-left
+		if left_ext and top_ext and not cell_set.has(Vector2i(cx - 1, cy - 1)):
+			var hk := Vector2i(cx - 1, cy - 1)
+			_proximity_h_edges[hk] = _proximity_h_edges.get(hk, 0) + delta
+			if _proximity_h_edges[hk] <= 0:
+				_proximity_h_edges.erase(hk)
+			var vk := Vector2i(cx - 1, cy - 1)
+			_proximity_v_edges[vk] = _proximity_v_edges.get(vk, 0) + delta
+			if _proximity_v_edges[vk] <= 0:
+				_proximity_v_edges.erase(vk)
+		# Lower-right
+		if right_ext and bottom_ext and not cell_set.has(Vector2i(cx + 1, cy + 1)):
+			var hk := Vector2i(cx + 1, cy + 2)
+			_proximity_h_edges[hk] = _proximity_h_edges.get(hk, 0) + delta
+			if _proximity_h_edges[hk] <= 0:
+				_proximity_h_edges.erase(hk)
+			var vk := Vector2i(cx + 2, cy + 1)
+			_proximity_v_edges[vk] = _proximity_v_edges.get(vk, 0) + delta
+			if _proximity_v_edges[vk] <= 0:
+				_proximity_v_edges.erase(vk)
+		# Lower-left
+		if left_ext and bottom_ext and not cell_set.has(Vector2i(cx - 1, cy + 1)):
+			var hk := Vector2i(cx - 1, cy + 2)
+			_proximity_h_edges[hk] = _proximity_h_edges.get(hk, 0) + delta
+			if _proximity_h_edges[hk] <= 0:
+				_proximity_h_edges.erase(hk)
+			var vk := Vector2i(cx - 1, cy + 1)
+			_proximity_v_edges[vk] = _proximity_v_edges.get(vk, 0) + delta
+			if _proximity_v_edges[vk] <= 0:
+				_proximity_v_edges.erase(vk)
 
 
 # --- EDGE-BASED CABLE FUNCTIONS ---
@@ -174,11 +227,13 @@ func can_place_cable_edge(v1: Vector2i, v2: Vector2i) -> bool:
 	if v1.y == v2.y:  # horizontal edge
 		var hkey := Vector2i(mini(v1.x, v2.x), v1.y)
 		if _proximity_h_edges.has(hkey):
-			return false
+			if not _is_port_exit_edge(v1, v2):
+				return false
 	else:  # vertical edge
 		var vkey := Vector2i(v1.x, mini(v1.y, v2.y))
 		if _proximity_v_edges.has(vkey):
-			return false
+			if not _is_port_exit_edge(v1, v2):
+				return false
 	return true
 
 
@@ -193,26 +248,26 @@ func _modify_proximity_edges(grid_pos: Vector2i, building_size: Vector2i, delta:
 	var by := grid_pos.y
 	var sw := building_size.x
 	var sh := building_size.y
-	# Right boundary → block v-edges 1 column right (extended range for corners)
-	for y in range(by - 1, by + sh):
+	# Right boundary → block v-edges 1 column right (range covers corner cells)
+	for y in range(by - 1, by + sh + 1):
 		var key := Vector2i(bx + sw + 1, y)
 		_proximity_v_edges[key] = _proximity_v_edges.get(key, 0) + delta
 		if _proximity_v_edges[key] <= 0:
 			_proximity_v_edges.erase(key)
 	# Left boundary → block v-edges 1 column left
-	for y in range(by - 1, by + sh):
+	for y in range(by - 1, by + sh + 1):
 		var key := Vector2i(bx - 1, y)
 		_proximity_v_edges[key] = _proximity_v_edges.get(key, 0) + delta
 		if _proximity_v_edges[key] <= 0:
 			_proximity_v_edges.erase(key)
 	# Top boundary → block h-edges 1 row above
-	for x in range(bx - 1, bx + sw):
+	for x in range(bx - 1, bx + sw + 1):
 		var key := Vector2i(x, by - 1)
 		_proximity_h_edges[key] = _proximity_h_edges.get(key, 0) + delta
 		if _proximity_h_edges[key] <= 0:
 			_proximity_h_edges.erase(key)
 	# Bottom boundary → block h-edges 1 row below
-	for x in range(bx - 1, bx + sw):
+	for x in range(bx - 1, bx + sw + 1):
 		var key := Vector2i(x, by + sh + 1)
 		_proximity_h_edges[key] = _proximity_h_edges.get(key, 0) + delta
 		if _proximity_h_edges[key] <= 0:
@@ -245,6 +300,82 @@ func _edge_has_bridge(v1: Vector2i, v2: Vector2i) -> bool:
 			if building and building.definition and building.definition.allows_cable_crossing:
 				return true
 	return false
+
+
+func _is_port_exit_edge(v1: Vector2i, v2: Vector2i) -> bool:
+	## Check if this edge touches a port exit vertex — exempt from proximity blocking
+	for v in [v1, v2]:
+		if _port_exit_vertices.has(v):
+			var port_side: String = _port_exit_vertices[v]
+			match port_side:
+				"left", "right":
+					# Horizontal port — allow vertical edges at exit vertex
+					if v1.x == v2.x:
+						return true
+				"top", "bottom":
+					# Vertical port — allow horizontal edges at exit vertex
+					if v1.y == v2.y:
+						return true
+	return false
+
+
+func _calc_port_exit_vertices(bx: int, by: int, sw: int, sh: int, port_side: String) -> Array[Vector2i]:
+	match port_side:
+		"right":
+			var vx: int = bx + sw + 1
+			var vy_mid: int = by + sh / 2
+			if sh % 2 == 0:
+				return [Vector2i(vx, vy_mid)]
+			else:
+				return [Vector2i(vx, vy_mid), Vector2i(vx, vy_mid + 1)]
+		"left":
+			var vx: int = bx - 1
+			var vy_mid: int = by + sh / 2
+			if sh % 2 == 0:
+				return [Vector2i(vx, vy_mid)]
+			else:
+				return [Vector2i(vx, vy_mid), Vector2i(vx, vy_mid + 1)]
+		"top":
+			var vy: int = by - 1
+			var vx_mid: int = bx + sw / 2
+			if sw % 2 == 0:
+				return [Vector2i(vx_mid, vy)]
+			else:
+				return [Vector2i(vx_mid, vy), Vector2i(vx_mid + 1, vy)]
+		"bottom":
+			var vy: int = by + sh + 1
+			var vx_mid: int = bx + sw / 2
+			if sw % 2 == 0:
+				return [Vector2i(vx_mid, vy)]
+			else:
+				return [Vector2i(vx_mid, vy), Vector2i(vx_mid + 1, vy)]
+	return []
+
+
+func _register_port_exits(grid_pos: Vector2i, building_size: Vector2i, def) -> void:
+	var bx := grid_pos.x
+	var by := grid_pos.y
+	var sw := building_size.x
+	var sh := building_size.y
+	for port_side in def.output_ports:
+		for v in _calc_port_exit_vertices(bx, by, sw, sh, port_side):
+			_port_exit_vertices[v] = port_side
+	for port_side in def.input_ports:
+		for v in _calc_port_exit_vertices(bx, by, sw, sh, port_side):
+			_port_exit_vertices[v] = port_side
+
+
+func _unregister_port_exits(grid_pos: Vector2i, building_size: Vector2i, def) -> void:
+	var bx := grid_pos.x
+	var by := grid_pos.y
+	var sw := building_size.x
+	var sh := building_size.y
+	for port_side in def.output_ports:
+		for v in _calc_port_exit_vertices(bx, by, sw, sh, port_side):
+			_port_exit_vertices.erase(v)
+	for port_side in def.input_ports:
+		for v in _calc_port_exit_vertices(bx, by, sw, sh, port_side):
+			_port_exit_vertices.erase(v)
 
 
 func occupy_cable_edge(v1: Vector2i, v2: Vector2i) -> void:

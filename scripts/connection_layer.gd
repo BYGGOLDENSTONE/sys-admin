@@ -196,19 +196,22 @@ func _port_stub(port_pos: Vector2, vertex_pos: Vector2, port_side: String) -> Ve
 
 
 func _port_stub_entry(port_pos: Vector2, vertex_pos: Vector2, port_side: String) -> Vector2:
-	## Target port stub: cable goes straight to building face, then short turn into port.
-	## This avoids the visible backtrack of the source-side stub.
+	## Target port stub: first align to port's level at vertex position, then go straight into port.
+	## This ensures perpendicular entry into the port.
+	# Safety cap: don't add long stubs if cable is far from port
+	if port_pos.distance_to(vertex_pos) > TILE_SIZE * 2.0:
+		return port_pos
 	match port_side:
 		"left", "right":
-			# Horizontal port — go horizontal to port's x, then short vertical to port
+			# Horizontal port — first move vertically to port's y, then horizontal into port
 			if absf(port_pos.y - vertex_pos.y) < 1.0:
 				return port_pos  # already aligned
-			return Vector2(port_pos.x, vertex_pos.y)
+			return Vector2(vertex_pos.x, port_pos.y)
 		"top", "bottom":
-			# Vertical port — go vertical to port's y, then short horizontal to port
+			# Vertical port — first move horizontally to port's x, then vertical into port
 			if absf(port_pos.x - vertex_pos.x) < 1.0:
 				return port_pos  # already aligned
-			return Vector2(vertex_pos.x, port_pos.y)
+			return Vector2(port_pos.x, vertex_pos.y)
 	return port_pos
 
 

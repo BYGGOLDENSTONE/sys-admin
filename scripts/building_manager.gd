@@ -211,19 +211,37 @@ func _complete_connection(to_building: Node2D, to_port: String) -> void:
 	if connection_manager == null or _cable_path.size() < 2:
 		_cancel_connecting()
 		return
-	# Auto-extend path to target exit vertex for clean perpendicular entry
+	# Find closest exit vertex
 	var target_verts: Array[Vector2i] = connection_manager.get_port_exit_vertices(to_building, to_port)
-	if not target_verts.is_empty():
-		var last_v: Vector2i = _cable_path[_cable_path.size() - 1]
-		var best: Vector2i = target_verts[0]
-		var best_dist: int = absi(last_v.x - best.x) + absi(last_v.y - best.y)
+	if target_verts.is_empty():
+		_cancel_connecting()
+		return
+	var last_v: Vector2i = _cable_path[_cable_path.size() - 1]
+	var best: Vector2i = target_verts[0]
+	var best_dist: int = absi(last_v.x - best.x) + absi(last_v.y - best.y)
+	for tv in target_verts:
+		var d: int = absi(last_v.x - tv.x) + absi(last_v.y - tv.y)
+		if d < best_dist:
+			best_dist = d
+			best = tv
+	# Snap: only extend 1 step to reach exit vertex (player must route manually)
+	if last_v != best and best_dist <= 1:
+		if _can_extend_to(last_v, best):
+			_cable_path.append(best)
+	# Verify cable reached an exit vertex
+	last_v = _cable_path[_cable_path.size() - 1]
+	if not (last_v in target_verts):
+		# Try the other exit vertex (1 step snap)
 		for tv in target_verts:
-			var d: int = absi(last_v.x - tv.x) + absi(last_v.y - tv.y)
-			if d < best_dist:
-				best_dist = d
-				best = tv
-		if last_v != best:
-			_try_extend_path(best)
+			if tv != best and absi(last_v.x - tv.x) + absi(last_v.y - tv.y) <= 1:
+				if _can_extend_to(last_v, tv):
+					_cable_path.append(tv)
+					break
+	last_v = _cable_path[_cable_path.size() - 1]
+	if not (last_v in target_verts):
+		print("[BuildingManager] Cable must reach port — route closer to the port")
+		_cancel_connecting()
+		return
 	# Validate the path
 	if _cable_path.size() < 2 or not connection_manager.is_path_valid(_cable_path):
 		print("[BuildingManager] Cannot route cable — path invalid")
@@ -371,6 +389,17 @@ func _can_extend_to(from_v: Vector2i, to_v: Vector2i) -> bool:
 	if to_v in _cable_path:
 		return false  # prevent loops
 	return grid_system.can_place_cable_edge(from_v, to_v)
+
+
+func _get_approach_vertex(exit_v: Vector2i, port_side: String) -> Vector2i:
+	## Returns vertex one step away from exit vertex, from the perpendicular direction.
+	## Cable routes here first, then takes final perpendicular step into exit vertex.
+	match port_side:
+		"left":  return exit_v + Vector2i(-1, 0)
+		"right": return exit_v + Vector2i(1, 0)
+		"top":   return exit_v + Vector2i(0, -1)
+		"bottom": return exit_v + Vector2i(0, 1)
+	return exit_v
 
 
 func _find_port_at(world_pos: Vector2, output_only: bool) -> Dictionary:

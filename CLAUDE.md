@@ -84,14 +84,18 @@ Kablolar vertex-based (grid kesisim noktasi) edge sistemi kullanir:
 - `_occupied_cells` / `_source_cells`: hucre doluluk takibi
 - Cable path: `Array[Vector2i]` vertex listesi (port-to-port)
 
-**Bilinen Sorun (DEVAM EDIYOR):**
-- Binalara yapisik kablo sorunu tam cozulmedi — proximity edge bloklama mevcut ama
-  bazi durumlarda (ozellikle kose hucreleri ve capraz yaklasim) kablolar hala bina
-  sinirinin hemen yaninda geciyor. Koselerdeki edge bloklama genisletilmeli.
-- Sorun dosyalari: `grid_system.gd` (_modify_proximity_edges, _vertex_near_occupied),
-  `connection_manager.gd` (get_port_exit_vertices), `building_manager.gd` (_update_manual_routing)
-- Hedef: Kablolar binalardan en az 1 tam hucre mesafede olmali, sadece port giris/cikis
-  noktalarinda bina kenarinin 1 hucre yakinina gelebilmeli
+**Kablo Proximity Sistemi (v2.0.1 — Buyuk Iyilestirme):**
+- Kose hucre proximity sorunu cozuldu — `_modify_proximity_edges` range'leri +1 uzatildi,
+  `_modify_source_proximity` icin capraz kose edge bloklama eklendi.
+- Port exit vertex exemption: `_port_exit_vertices` dictionary ile port cikis noktalari takip edilir,
+  proximity bloklama bu noktalarda dik yondeki edge'ler icin muaf tutulur.
+- Port stub rendering duzeltildi: `_port_stub_entry` koordinat hatasi giderildi, porta dik giris saglandi.
+- Otomatik routing kaldirildi: `_complete_connection` sadece 1-adim snap yapar, oyuncu kabloyu elle cizer.
+- Kablolar binalardan/kaynaklardan en az 1 tam hucre mesafede, sadece port giris/cikis noktalarinda yaklasabilir.
+
+**Kalan Kablo Eksiklikleri (DEVAM EDIYOR):**
+- Bazi ozel durumlarda (kose yaklasim, capraz kablo cizimleri) hala iyilestirme gerekebilir
+- Kullanici testlerinde tespit edilen ek sorunlar sonraki session'da ele alinacak
 
 ### Data-Driven Tasarim
 - Yapi degerleri → component sub-resource olarak .tres dosyasinda
