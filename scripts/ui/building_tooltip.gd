@@ -140,7 +140,12 @@ func _update_stats() -> void:
 		lines.append(_stat("Çıkışlar", "Her content türü → ayrı port"))
 	if def.probabilistic:
 		lines.append(_stat("İşleme", "%d MB/s" % int(b.get_effective_value("processing_rate"))))
-		lines.append(_stat("Başarı", "%%%d" % int(b.get_effective_value("success_rate") * 100)))
+		var prob_comp: ProbabilisticComponent = def.probabilistic
+		var tier_rates: Array[float] = prob_comp.tier_success_rates
+		if tier_rates.size() >= 2:
+			lines.append(_stat("Başarı", "T1=%%%d, T2=%%%d" % [int(tier_rates[0] * 100), int(tier_rates[1] * 100)]))
+		else:
+			lines.append(_stat("Başarı", "%%%d" % int(b.get_effective_value("success_rate") * 100)))
 		lines.append(_stat("Giriş", "[color=#ff8844]Corrupted[/color]"))
 		lines.append(_stat("Sağ Port →", "[color=#44ff88]Clean[/color] (kurtarılan)"))
 		lines.append(_stat("Alt Port  →", "[color=#888844]Residue[/color] (dijital atık)"))
@@ -158,7 +163,11 @@ func _update_stats() -> void:
 		lines.append(_stat("Sol Port ←", "[color=#44aaff]Encrypted[/color] veri"))
 		lines.append(_stat("Üst Port ←", "[color=#ffaa00]Key[/color] (Research Lab'dan)"))
 		lines.append(_stat("Çıkış →", "[color=#44ff88]Clean[/color] (content korunur)"))
-		lines.append(_stat("Key/paket", "%d" % def.dual_input.key_cost))
+		var tier_costs: Array[int] = def.dual_input.tier_key_costs
+		if tier_costs.size() >= 2:
+			lines.append(_stat("Key/paket", "T1=%d, T2=%d" % [tier_costs[0], tier_costs[1]]))
+		else:
+			lines.append(_stat("Key/paket", "%d" % def.dual_input.key_cost))
 		# Show stored keys
 		var key_key: String = DataEnums.make_key(def.dual_input.key_content, DataEnums.DataState.CLEAN)
 		var stored_keys: int = b.stored_data.get(key_key, 0)
@@ -289,10 +298,11 @@ func _format_stored_data(data: Dictionary) -> String:
 		var parsed: Dictionary = DataEnums.parse_key(key)
 		var c_color: String = DataEnums.content_color_hex(parsed.content)
 		var s_color: String = DataEnums.state_color_hex(parsed.state)
-		parts.append("[color=%s]%d[/color] [color=%s]%s[/color]([color=%s]%s[/color])" % [
+		var tier_str: String = " T%d" % parsed.tier if parsed.tier > 0 else ""
+		parts.append("[color=%s]%d[/color] [color=%s]%s[/color]([color=%s]%s%s[/color])" % [
 			s_color, data[key],
 			c_color, DataEnums.content_name(parsed.content),
-			s_color, DataEnums.state_name(parsed.state)
+			s_color, DataEnums.state_name(parsed.state), tier_str
 		])
 	if parts.is_empty():
 		return "Boş"
@@ -308,17 +318,22 @@ func _update_source_stats() -> void:
 		return
 	var def = _target_source.definition
 	var lines: PackedStringArray = []
-	# Zone/ring info
-	if def.ring_index >= 0:
-		var ring_labels: Array = ["KOLAY", "ORTA", "ZOR", "ENDGAME"]
-		var ring_colors: Array = ["#44ff66", "#ffee44", "#ff9933", "#ff4444"]
-		var idx: int = clampi(def.ring_index, 0, 3)
-		lines.append(_stat("Bölge", "[color=%s]Ring %d — %s[/color]" % [ring_colors[idx], idx, ring_labels[idx]]))
+	# Difficulty info
+	var diff_labels: Dictionary = {"easy": "KOLAY", "medium": "ORTA", "hard": "ZOR", "endgame": "ENDGAME"}
+	var diff_colors: Dictionary = {"easy": "#44ff66", "medium": "#ffee44", "hard": "#ff9933", "endgame": "#ff4444"}
+	var diff_label: String = diff_labels.get(def.difficulty, "???")
+	var diff_color: String = diff_colors.get(def.difficulty, "#aabbcc")
+	lines.append(_stat("Zorluk", "[color=%s]%s[/color]" % [diff_color, diff_label]))
 	lines.append(_stat("Bant Genişliği", "%d MB/s" % int(def.bandwidth)))
 	if not def.content_weights.is_empty():
 		lines.append(_stat("Content", _format_content_weights(def.content_weights)))
 	if not def.state_weights.is_empty():
 		lines.append(_stat("State", _format_state_weights(def.state_weights)))
+	# Show tier info for encrypted/corrupted
+	if def.encrypted_max_tier > 0 and def.state_weights.has(DataEnums.DataState.ENCRYPTED):
+		lines.append(_stat("Encrypted Tier", "[color=#44aaff]T1%s[/color]" % ("-T%d" % def.encrypted_max_tier if def.encrypted_max_tier > 1 else "")))
+	if def.corrupted_max_tier > 0 and def.state_weights.has(DataEnums.DataState.CORRUPTED):
+		lines.append(_stat("Corrupted Tier", "[color=#ff8844]T1%s[/color]" % ("-T%d" % def.corrupted_max_tier if def.corrupted_max_tier > 1 else "")))
 	var linked: int = _target_source._linked_uplinks
 	if linked > 0:
 		lines.append(_stat("Bağlı Uplink", "[color=#44ff88]%d[/color]" % linked))

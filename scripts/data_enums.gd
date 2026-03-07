@@ -4,12 +4,18 @@ enum ContentType { STANDARD, FINANCIAL, BIOMETRIC, BLUEPRINT, RESEARCH, CLASSIFI
 enum DataState { CLEAN, ENCRYPTED, CORRUPTED, MALWARE, RESIDUE }
 enum RefinedType { CALIBRATED_DATA, RECOVERY_MATRIX, SECURITY_CORE, TRADE_LICENSE, NEURAL_INDEX }
 
-static func make_key(content: int, state: int) -> String:
-	return "%d_%d" % [content, state]
+static func make_key(content: int, state: int, tier: int = 0) -> String:
+	return "%d_%d_%d" % [content, state, tier]
 
 static func parse_key(key: String) -> Dictionary:
 	var parts = key.split("_")
-	return { "content": int(parts[0]), "state": int(parts[1]) }
+	var tier: int = int(parts[2]) if parts.size() > 2 else 0
+	return { "content": int(parts[0]), "state": int(parts[1]), "tier": tier }
+
+static func tier_name(t: int) -> String:
+	if t <= 0:
+		return ""
+	return "T%d" % t
 
 static func content_name(c: int) -> String:
 	match c:

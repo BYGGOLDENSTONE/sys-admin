@@ -11,4 +11,6 @@ content_weights = {0: 0.35, 1: 0.40, 2: 0.25}
 state_weights = {0: 0.65, 2: 0.35}
 bandwidth = 6.0
 cell_count_range = Vector2i(10, 15)
-ring_index = 1
+difficulty = "medium"
+encrypted_max_tier = 0
+corrupted_max_tier = 1

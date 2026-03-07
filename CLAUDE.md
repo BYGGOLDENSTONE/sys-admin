@@ -98,9 +98,9 @@ Eski point-to-point kablo sistemi TAMAMEN degisiyor:
 ### Calisan Sistemler
 - Grid sistemi (`grid_system.gd`) — 512x512, hucre yonetimi + kablo hucre takibi
 - Grid kablo sistemi (`connection_manager.gd` + `connection_layer.gd`) — L-shaped routing, grid-based rendering
-- Veri modeli (`data_enums.gd`) — 7 content (+ KEY) + 5 state + 5 RefinedType
+- Veri modeli (`data_enums.gd`) — 7 content (+ KEY) + 5 state + 5 RefinedType + Tier sistemi (T1-T4)
 - Bina yerlestirme (`building.gd` + `building_manager.gd`) — grid-based placement + kablo routing + malzeme maliyet sistemi
-- Simulasyon (`simulation_manager.gd`) — veri akisi, uretim, isleme, compiler crafting, replicator kopyalama
+- Simulasyon (`simulation_manager.gd`) — veri akisi, uretim, isleme, compiler crafting, tier-aware processing
 - Fog of War (`fog_layer.gd`) — chunk-based
 - Kamera (`camera.gd`) — zoom + pan
 - Undo sistemi (`undo_manager.gd`) — kablo path destegi eklendi
@@ -108,9 +108,10 @@ Eski point-to-point kablo sistemi TAMAMEN degisiyor:
 - UI (top_bar, building_panel, tooltip, minimap)
 - Test sistemi (auto_play_manager, data_collector)
 - Prosedürel bina ikonlari (building.gd icinde)
+- Harita uretimi (`map_generator.gd`) — rastgele dagitim, difficulty-based, spawn garantileri
+- Kaynak yonetimi (`source_manager.gd`) — difficulty-based kesfetme, uplink linking
 
 ### Degistirilmesi Gereken (Henuz Yapilmadi)
-- **Harita uretimi** — ring/halka sistemi → rastgele dagitim (Factorio modeli)
 - **Component mimarisi** — Separator, Quarantine hala ProcessorComponent+rule kullanıyor → ayri component'lere gecis devam edecek
 - **Yapi maliyetleri** — material_costs/refined_costs alani eklendi ama .tres'lerde henuz degerler set edilmedi (dengeleme bekliyor)
 
@@ -178,15 +179,15 @@ Eski point-to-point kablo sistemi TAMAMEN degisiyor:
 - [x] Building panel'de maliyet tooltip'i eklendi
 
 ### Faz 5: Harita + Prosedürel Dagitim (Demo Kapsaminda)
-- [ ] Harita uretimini ring → rastgele dagitima cevir
-- [ ] Spawn garanti kurallari (en az 2 kolay yakin, her content tipinden en az 1)
-- [ ] Demo icin 12-15 kaynak/harita (kolay + orta + birkac zor gorunur)
-- [ ] Kolay/orta/zor dagitim oranlari (cok zor demo'da YOK — Malware yok)
+- [x] Harita uretimini ring → rastgele dagitima cevir (Factorio modeli)
+- [x] Spawn garanti kurallari (en az 2 kolay yakin + 1 orta yakin)
+- [x] 25-35 kaynak/harita (kolay %40 + orta %30 + zor %20 + endgame %10)
+- [x] Difficulty sistemi (easy/medium/hard/endgame — ring_index kaldirildi)
+- [x] Kaynak isimleri Turkcelestirildi (Otomat, ATM, Hastane, Devlet Arsivi vb.)
 - [ ] Fog of war (mevcut, test et ve dogrula)
-- [ ] Kaynak isimleri GDD ile esle (somut isimler: Otomat, ATM, Hastane vb.)
 
 ### Faz 6: Polish + Demo Build (AKTIF — Gorsel Polish)
-- [ ] Tier sistemi (T1-T2 demo icin)
+- [x] Tier sistemi (T1-T4 destegi, demo icin T1-T2 aktif)
 - [x] Kamera shake: Trauma-based + FastNoiseLite (Squirrel Eiserloh tekniği)
 - [x] Bina yerlestirme animasyonu: Scale pop + flash (play_place_animation)
 - [x] Bina glow: Working state farki (daha parlak pulse + port glow)

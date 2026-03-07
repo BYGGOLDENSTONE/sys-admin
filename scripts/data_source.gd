@@ -387,20 +387,18 @@ func _draw_territory_tint(accent: Color, tint_alpha: float = 0.06) -> void:
 
 
 func _draw_zone_badge(center: Vector2) -> void:
-	if definition.ring_index < 0:
+	var diff_labels: Dictionary = {"easy": "KOLAY", "medium": "ORTA", "hard": "ZOR", "endgame": "ENDGAME"}
+	var diff_colors: Dictionary = {
+		"easy": Color(0.3, 1.0, 0.4),
+		"medium": Color(1.0, 0.9, 0.3),
+		"hard": Color(1.0, 0.6, 0.2),
+		"endgame": Color(1.0, 0.3, 0.2),
+	}
+
+	var label: String = diff_labels.get(definition.difficulty, "")
+	if label == "":
 		return
-
-	var ring_labels: Array = ["KOLAY", "ORTA", "ZOR", "ENDGAME"]
-	var ring_colors: Array = [
-		Color(0.3, 1.0, 0.4),
-		Color(1.0, 0.9, 0.3),
-		Color(1.0, 0.6, 0.2),
-		Color(1.0, 0.3, 0.2),
-	]
-
-	var idx: int = clampi(definition.ring_index, 0, 3)
-	var label: String = ring_labels[idx]
-	var badge_color: Color = ring_colors[idx]
+	var badge_color: Color = diff_colors.get(definition.difficulty, Color.WHITE)
 
 	var font := ThemeDB.fallback_font
 	var font_size := 10

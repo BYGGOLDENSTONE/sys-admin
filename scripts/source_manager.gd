@@ -26,8 +26,8 @@ func place_source(def: DataSourceDefinition, origin: Vector2i, rng_seed: int = -
 	source.setup(def, origin, shape)
 	source.position = grid_system.grid_to_world(origin)
 
-	# Ring 0 sources auto-discovered, others start hidden
-	source.discovered = (def.ring_index == 0)
+	# Easy sources auto-discovered, others start hidden
+	source.discovered = (def.difficulty == "easy")
 	source.dev_mode = dev_mode
 
 	source_container.add_child(source)

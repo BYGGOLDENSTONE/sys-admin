@@ -26,7 +26,7 @@ var _is_ghost: bool = false
 var is_selected: bool = false
 
 # Runtime state (set by SimulationManager)
-var stored_data: Dictionary = {}  ## Key: "content_state" (e.g. "0_0"), Value: int MB
+var stored_data: Dictionary = {}  ## Key: "content_state_tier" (e.g. "0_0_0"), Value: int MB
 var stored_refined: Dictionary = {}  ## Key: RefinedType int, Value: int amount (Compiler output)
 var is_working: bool = false  ## True when building did actual work this tick
 var separator_mode: String = "state"  ## For separator: "state" or "content"

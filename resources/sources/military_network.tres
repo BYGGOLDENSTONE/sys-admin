@@ -4,11 +4,13 @@
 
 [resource]
 script = ExtResource("1")
-source_name = "Military Network"
-description = "Active military communications grid. Extremely valuable blueprints and classified data, but riddled with encryption and hostile malware countermeasures. Quarantine recommended."
+source_name = "Askeri Ağ"
+description = "Aktif askeri iletişim ağı. Değerli Blueprint ve Classified verisi, ama T3 şifreleme + ağır Malware. Quarantine şart."
 color = Color(1.0, 0.4, 0.2, 1.0)
 content_weights = {0: 0.05, 1: 0.05, 2: 0.05, 3: 0.30, 4: 0.20, 5: 0.35}
 state_weights = {0: 0.05, 1: 0.40, 2: 0.20, 3: 0.35}
 bandwidth = 12.0
 cell_count_range = Vector2i(5, 9)
-ring_index = 3
+difficulty = "endgame"
+encrypted_max_tier = 3
+corrupted_max_tier = 2

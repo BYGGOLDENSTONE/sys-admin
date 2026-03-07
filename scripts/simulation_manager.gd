@@ -85,6 +85,17 @@ func _roll_state(weights: Dictionary) -> int:
 	return DataEnums.DataState.CLEAN
 
 
+func _roll_tier(state: int, enc_max: int, cor_max: int) -> int:
+	match state:
+		DataEnums.DataState.ENCRYPTED:
+			return randi_range(1, maxi(1, enc_max)) if enc_max > 0 else 1
+		DataEnums.DataState.CORRUPTED:
+			return randi_range(1, maxi(1, cor_max)) if cor_max > 0 else 1
+		DataEnums.DataState.MALWARE:
+			return 1
+	return 0
+
+
 # --- DISCOVERY ---
 func _check_discovery(content: int, state: int) -> void:
 	if not discovered_content.get(content, false):
@@ -98,7 +109,7 @@ func _check_discovery(content: int, state: int) -> void:
 
 
 # --- DATA PUSH ---
-func _push_data_from(source: Node2D, content: int, state: int, amount: int, from_port: String = "") -> int:
+func _push_data_from(source: Node2D, content: int, state: int, amount: int, from_port: String = "", tier: int = 0) -> int:
 	var conns: Array[Dictionary] = connection_manager.get_connections()
 	var targets: Array[Dictionary] = []
 	for conn in conns:
@@ -107,7 +118,7 @@ func _push_data_from(source: Node2D, content: int, state: int, amount: int, from
 				targets.append(conn)
 	if targets.is_empty():
 		return 0
-	var key: String = DataEnums.make_key(content, state)
+	var key: String = DataEnums.make_key(content, state, tier)
 	var per_target: int = maxi(1, amount / targets.size())
 	var total_sent: int = 0
 	var all_conns: Array[Dictionary] = conns
@@ -143,12 +154,17 @@ func _update_generation(buildings: Array[Node]) -> void:
 		# Use runtime weights from linked source if available, otherwise definition weights
 		var c_weights: Dictionary = b.runtime_content_weights if not b.runtime_content_weights.is_empty() else gen.content_weights
 		var s_weights: Dictionary = b.runtime_state_weights if not b.runtime_state_weights.is_empty() else gen.state_weights
+		# Get tier limits from linked source
+		var src_def = b.linked_source.definition if b.linked_source else null
+		var enc_max: int = src_def.encrypted_max_tier if src_def else 1
+		var cor_max: int = src_def.corrupted_max_tier if src_def else 1
 		var total_pushed: int = 0
 		for i in range(amount):
 			var content: int = _roll_content(c_weights)
 			var state: int = _roll_state(s_weights)
+			var tier: int = _roll_tier(state, enc_max, cor_max)
 			_check_discovery(content, state)
-			total_pushed += _push_data_from(b, content, state, 1)
+			total_pushed += _push_data_from(b, content, state, 1, "", tier)
 		if total_pushed > 0:
 			b.is_working = true
 
@@ -175,7 +191,7 @@ func _update_storage_forward(buildings: Array[Node]) -> void:
 			if available <= 0:
 				continue
 			var parsed: Dictionary = DataEnums.parse_key(key)
-			var pushed: int = _push_data_from(b, parsed.content, parsed.state, mini(available, max_forward - sent))
+			var pushed: int = _push_data_from(b, parsed.content, parsed.state, mini(available, max_forward - sent), "", parsed.tier)
 			if pushed > 0:
 				b.stored_data[key] -= pushed
 				sent += pushed
@@ -253,7 +269,7 @@ func _process_classifier(b: Node2D, max_process: int) -> int:
 		var cid: int = parsed.content
 		if not content_groups.has(cid):
 			content_groups[cid] = []
-		content_groups[cid].append({"key": key, "content": cid, "state": parsed.state, "amount": available})
+		content_groups[cid].append({"key": key, "content": cid, "state": parsed.state, "tier": parsed.tier, "amount": available})
 	# Assign each content type to a port (round-robin by content id)
 	var content_ids: Array = content_groups.keys()
 	content_ids.sort()
@@ -266,7 +282,7 @@ func _process_classifier(b: Node2D, max_process: int) -> int:
 			if processed >= max_process:
 				break
 			var to_process: int = mini(entry.amount, max_process - processed)
-			var sent: int = _push_data_from(b, entry.content, entry.state, to_process, port)
+			var sent: int = _push_data_from(b, entry.content, entry.state, to_process, port, entry.tier)
 			if sent > 0:
 				processed += sent
 	return processed
@@ -274,7 +290,7 @@ func _process_classifier(b: Node2D, max_process: int) -> int:
 
 func _process_probabilistic(b: Node2D, max_process: int) -> int:
 	var prob: ProbabilisticComponent = b.definition.probabilistic
-	var success_rate: float = b.get_effective_value("success_rate")
+	var base_success: float = b.get_effective_value("success_rate")
 	var output_ports: Array[String] = b.definition.output_ports
 	var clean_port: String = output_ports[0] if output_ports.size() > 0 else ""
 	var residue_port: String = prob.residue_port if prob.residue_port != "" else ""
@@ -288,16 +304,21 @@ func _process_probabilistic(b: Node2D, max_process: int) -> int:
 		var parsed: Dictionary = DataEnums.parse_key(key)
 		if not prob.input_states.is_empty() and parsed.state not in prob.input_states:
 			continue
+		# Tier-based success rate
+		var tier: int = parsed.tier
+		var actual_success: float = base_success
+		if tier > 0 and tier <= prob.tier_success_rates.size():
+			actual_success = prob.tier_success_rates[tier - 1]
 		var to_process: int = mini(available, max_process - processed)
 		# Process each unit individually for probability
 		var success_count: int = 0
 		var fail_count: int = 0
 		for _i in range(to_process):
-			if randf() <= success_rate:
+			if randf() <= actual_success:
 				success_count += 1
 			else:
 				fail_count += 1
-		# Push successful recoveries
+		# Push successful recoveries (output is Clean, tier=0)
 		if success_count > 0 and clean_port != "":
 			_push_data_from(b, parsed.content, prob.output_state, success_count, clean_port)
 		# Push residue (failed recoveries)
@@ -305,7 +326,10 @@ func _process_probabilistic(b: Node2D, max_process: int) -> int:
 			_push_data_from(b, parsed.content, DataEnums.DataState.RESIDUE, fail_count, residue_port)
 		processed += to_process
 		if success_count > 0 or fail_count > 0:
-			print("[Recoverer] %d MB %s → %d Clean + %d Residue" % [to_process, DataEnums.content_name(parsed.content), success_count, fail_count])
+			var tier_label: String = " T%d" % tier if tier > 0 else ""
+			print("[Recoverer] %d MB %s%s → %d Clean + %d Residue (%%%d)" % [
+				to_process, DataEnums.content_name(parsed.content), tier_label,
+				success_count, fail_count, int(actual_success * 100)])
 	return processed
 
 
@@ -352,24 +376,30 @@ func _process_dual_input(b: Node2D, max_process: int) -> int:
 		# Only process matching input states
 		if not dual.primary_input_states.is_empty() and parsed.state not in dual.primary_input_states:
 			continue
+		# Tier-based key cost
+		var tier: int = parsed.tier
+		var actual_key_cost: int = dual.key_cost
+		if tier > 0 and tier <= dual.tier_key_costs.size():
+			actual_key_cost = dual.tier_key_costs[tier - 1]
 		var to_process: int = mini(available, max_process - processed)
 		# Limit by available keys
-		var keys_needed: int = to_process * dual.key_cost
+		var keys_needed: int = to_process * actual_key_cost
 		if keys_needed > keys_available - keys_used:
-			to_process = (keys_available - keys_used) / dual.key_cost
+			to_process = (keys_available - keys_used) / actual_key_cost
 		if to_process <= 0:
 			break
 		var sent: int = _push_data_from(b, parsed.content, dual.output_state, to_process)
 		if sent > 0:
 			processed += sent
-			keys_used += sent * dual.key_cost
+			keys_used += sent * actual_key_cost
+			var tier_label: String = " T%d" % tier if tier > 0 else ""
 			_spawn_floating_text(b, "+%d Clean" % sent, Color("#44ff88"))
-			print("[DualInput] %s: %d MB %s(%s) → %s (-%d Key)" % [
+			print("[DualInput] %s: %d MB %s(%s%s) → %s (-%d Key)" % [
 				b.definition.building_name, sent,
 				DataEnums.content_name(parsed.content),
-				DataEnums.state_name(parsed.state),
+				DataEnums.state_name(parsed.state), tier_label,
 				DataEnums.state_name(dual.output_state),
-				sent * dual.key_cost])
+				sent * actual_key_cost])
 	# Consume used keys
 	if keys_used > 0:
 		b.stored_data[key_key] -= keys_used
@@ -461,7 +491,7 @@ func _process_separator(b: Node2D, proc: ProcessorComponent, max_process: int) -
 		var target_port: String = primary_port if matches else secondary_port
 		if target_port == "":
 			continue
-		var sent: int = _push_data_from(b, parsed.content, parsed.state, output_amount, target_port)
+		var sent: int = _push_data_from(b, parsed.content, parsed.state, output_amount, target_port, parsed.tier)
 		if sent > 0:
 			_check_discovery(parsed.content, parsed.state)
 			processed += to_process
@@ -532,7 +562,7 @@ func _process_splitter(b: Node2D, max_process: int) -> int:
 			var to_send: int = mini(per_port, to_process - sent_total)
 			if to_send <= 0:
 				break
-			var sent: int = _push_data_from(b, parsed.content, parsed.state, to_send, port)
+			var sent: int = _push_data_from(b, parsed.content, parsed.state, to_send, port, parsed.tier)
 			sent_total += sent
 		if sent_total > 0:
 			processed += to_process
@@ -552,7 +582,7 @@ func _process_merger(b: Node2D, max_process: int) -> int:
 			continue
 		var parsed: Dictionary = DataEnums.parse_key(key)
 		var to_process: int = mini(available, max_process - processed)
-		var sent: int = _push_data_from(b, parsed.content, parsed.state, to_process, output_port)
+		var sent: int = _push_data_from(b, parsed.content, parsed.state, to_process, output_port, parsed.tier)
 		if sent > 0:
 			processed += to_process
 	return processed

@@ -4,11 +4,13 @@
 
 [resource]
 script = ExtResource("1")
-source_name = "Public Database"
-description = "Open-access government and academic databases. Mostly clean standard and biometric records, with some corrupted entries. Low risk, steady returns."
+source_name = "Açık Veritabanı"
+description = "Kamusal erişimli akademik ve devlet veritabanları. Çoğunlukla temiz standart ve biyometrik kayıtlar, bazıları bozuk veya şifreli."
 color = Color(0.5, 0.9, 0.5, 1.0)
 content_weights = {0: 0.45, 1: 0.05, 2: 0.30, 3: 0.05, 4: 0.10, 5: 0.05}
 state_weights = {0: 0.55, 1: 0.10, 2: 0.30, 3: 0.05}
 bandwidth = 6.0
 cell_count_range = Vector2i(9, 13)
-ring_index = 0
+difficulty = "easy"
+encrypted_max_tier = 1
+corrupted_max_tier = 1
