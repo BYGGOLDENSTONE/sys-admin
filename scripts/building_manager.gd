@@ -262,6 +262,9 @@ func _update_ghost_position() -> void:
 	# Generators (Uplink) require an adjacent discovered source
 	if _can_place_here and _current_definition.generator != null:
 		_can_place_here = _has_adjacent_source(_ghost_cell, _current_definition.grid_size)
+	# Check material costs
+	if _can_place_here and not _can_afford(_current_definition):
+		_can_place_here = false
 	ghost_preview.modulate = VALID_COLOR if _can_place_here else INVALID_COLOR
 
 
@@ -305,6 +308,12 @@ func _clear_cable_hover() -> void:
 
 
 func _place_building() -> void:
+	# Check material costs before placing
+	if not _can_afford(_current_definition):
+		print("[BuildingManager] Yetersiz malzeme — %s yerleştirilemedi" % _current_definition.building_name)
+		return
+	# Deduct materials
+	_spend_materials(_current_definition)
 	var building: Node2D = _building_scene.instantiate()
 	building.setup(_current_definition, _ghost_cell)
 	building.position = grid_system.grid_to_world(_ghost_cell)
@@ -473,6 +482,98 @@ func _cancel_moving() -> void:
 	_moving_building = null
 	_state = State.IDLE
 	print("[BuildingManager] Move cancelled")
+
+
+## --- MATERIAL COSTS ---
+
+func _get_global_materials() -> Dictionary:
+	## Returns {ContentType: total_clean_amount} across all Storage buildings
+	var materials: Dictionary = {}
+	for child in building_container.get_children():
+		if not child.has_method("is_active"):
+			continue
+		if child.definition == null or child.definition.storage == null:
+			continue
+		# Pure storage buildings only (not processors with storage)
+		if child.definition.processor != null or child.definition.classifier != null \
+				or child.definition.probabilistic != null or child.definition.producer != null \
+				or child.definition.dual_input != null or child.definition.compiler != null:
+			continue
+		for key in child.stored_data:
+			var amount: int = child.stored_data[key]
+			if amount <= 0:
+				continue
+			var parsed: Dictionary = DataEnums.parse_key(key)
+			if parsed.state != DataEnums.DataState.CLEAN:
+				continue
+			materials[parsed.content] = materials.get(parsed.content, 0) + amount
+	return materials
+
+
+func _get_global_refined() -> Dictionary:
+	## Returns {RefinedType: total_amount} across all Storage buildings
+	var refined: Dictionary = {}
+	for child in building_container.get_children():
+		if not child.has_method("is_active"):
+			continue
+		if child.definition == null or child.definition.storage == null:
+			continue
+		for rtype in child.stored_refined:
+			refined[rtype] = refined.get(rtype, 0) + child.stored_refined[rtype]
+	return refined
+
+
+func _can_afford(def: BuildingDefinition) -> bool:
+	if def.material_costs.is_empty() and def.refined_costs.is_empty():
+		return true
+	var materials: Dictionary = _get_global_materials()
+	for content_type in def.material_costs:
+		var needed: int = def.material_costs[content_type]
+		if materials.get(int(content_type), 0) < needed:
+			return false
+	var refined: Dictionary = _get_global_refined()
+	for refined_type in def.refined_costs:
+		var needed: int = def.refined_costs[refined_type]
+		if refined.get(int(refined_type), 0) < needed:
+			return false
+	return true
+
+
+func _spend_materials(def: BuildingDefinition) -> void:
+	if def.material_costs.is_empty() and def.refined_costs.is_empty():
+		return
+	# Deduct Clean data from Storage buildings
+	for content_type in def.material_costs:
+		var remaining: int = def.material_costs[content_type]
+		var key: String = DataEnums.make_key(int(content_type), DataEnums.DataState.CLEAN)
+		for child in building_container.get_children():
+			if remaining <= 0:
+				break
+			if not child.has_method("is_active") or child.definition == null or child.definition.storage == null:
+				continue
+			if child.definition.processor != null or child.definition.classifier != null:
+				continue
+			var available: int = child.stored_data.get(key, 0)
+			if available <= 0:
+				continue
+			var take: int = mini(available, remaining)
+			child.stored_data[key] -= take
+			remaining -= take
+	# Deduct Refined materials from Storage buildings
+	for refined_type in def.refined_costs:
+		var remaining: int = def.refined_costs[refined_type]
+		var rtype: int = int(refined_type)
+		for child in building_container.get_children():
+			if remaining <= 0:
+				break
+			if not child.has_method("is_active") or child.definition == null or child.definition.storage == null:
+				continue
+			var available: int = child.stored_refined.get(rtype, 0)
+			if available <= 0:
+				continue
+			var take: int = mini(available, remaining)
+			child.stored_refined[rtype] -= take
+			remaining -= take
 
 
 func _get_world_mouse_position() -> Vector2:

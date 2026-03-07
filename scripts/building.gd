@@ -26,6 +26,7 @@ var _is_ghost: bool = false
 
 # Runtime state (set by SimulationManager)
 var stored_data: Dictionary = {}  ## Key: "content_state" (e.g. "0_0"), Value: int MB
+var stored_refined: Dictionary = {}  ## Key: RefinedType int, Value: int amount (Compiler output)
 var is_working: bool = false  ## True when building did actual work this tick
 var separator_mode: String = "state"  ## For separator: "state" or "content"
 var separator_filter_value: int = 0  ## Filter value for separator (state or content int)
@@ -127,6 +128,8 @@ func _get_base_value(stat: String) -> float:
 		"efficiency":
 			return definition.processor.efficiency if definition.processor else 1.0
 		"processing_rate":
+			if definition.compiler:
+				return definition.compiler.processing_rate
 			if definition.dual_input:
 				return definition.dual_input.processing_rate
 			if definition.producer:
@@ -303,6 +306,8 @@ func _draw_icon(center: Vector2, size: Vector2, accent: Color) -> void:
 			_draw_icon_merger(icon_center, size, accent)
 		"bridge":
 			_draw_icon_bridge(icon_center, size, accent)
+		"compiler":
+			_draw_icon_compiler(icon_center, size, accent)
 		_:
 			_draw_icon_default(icon_center, size, accent)
 
@@ -642,6 +647,47 @@ func _draw_icon_bridge(center: Vector2, size: Vector2, accent: Color) -> void:
 		draw_circle(endpoint, 2.0, accent)
 
 
+# --- COMPILER: Two inputs merging into one (crafting) ---
+func _draw_icon_compiler(center: Vector2, size: Vector2, accent: Color) -> void:
+	var s: float = minf(size.x, size.y) * 0.3
+	var glow := Color(accent, ICON_GLOW_ALPHA)
+
+	# Two input arrows converging
+	var in_a := center + Vector2(-s * 0.7, -s * 0.3)
+	var in_b := center + Vector2(-s * 0.7, s * 0.3)
+	var mid := center + Vector2(-s * 0.1, 0)
+	draw_line(in_a, mid, glow, ICON_GLOW_WIDTH)
+	draw_line(in_b, mid, glow, ICON_GLOW_WIDTH)
+	draw_line(in_a, mid, accent, 1.5)
+	draw_line(in_b, mid, accent, 1.5)
+
+	# Center gear/diamond (crafting node)
+	var d: float = s * 0.25
+	var diamond := PackedVector2Array([
+		center + Vector2(0, -d),
+		center + Vector2(d, 0),
+		center + Vector2(0, d),
+		center + Vector2(-d, 0),
+		center + Vector2(0, -d),
+	])
+	draw_polygon(PackedVector2Array([
+		center + Vector2(0, -d),
+		center + Vector2(d, 0),
+		center + Vector2(0, d),
+		center + Vector2(-d, 0),
+	]), [Color(accent, 0.2)])
+	draw_polyline(diamond, glow, ICON_GLOW_WIDTH)
+	draw_polyline(diamond, accent, 2.0)
+
+	# Output arrow (refined)
+	var out_pos := center + Vector2(s * 0.7, 0)
+	draw_line(center + Vector2(d, 0), out_pos, glow, ICON_GLOW_WIDTH)
+	draw_line(center + Vector2(d, 0), out_pos, accent, 2.0)
+	# Star at output (refined symbol)
+	draw_circle(out_pos, 3.0, accent)
+	draw_circle(out_pos, 1.5, Color.WHITE)
+
+
 # --- DEFAULT: Simple dot ---
 func _draw_icon_default(center: Vector2, _size: Vector2, accent: Color) -> void:
 	draw_circle(center, 4.0, Color(accent, 0.5))
@@ -668,7 +714,8 @@ func _draw_ports(size: Vector2, accent: Color) -> void:
 # --- STATUS BARS ---
 func _draw_status_bars(size: Vector2, accent: Color) -> void:
 	if definition.get_storage_capacity() <= 0 or definition.processor != null \
-			or definition.producer != null or definition.dual_input != null:
+			or definition.producer != null or definition.dual_input != null \
+			or definition.compiler != null:
 		return
 	var bar_y: float = size.y - BAR_MARGIN - BAR_HEIGHT
 	var bar_x: float = BAR_MARGIN

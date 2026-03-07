@@ -159,7 +159,8 @@ func _update_storage_forward(buildings: Array[Node]) -> void:
 		if b.definition.storage == null or not b.is_active():
 			continue
 		if b.definition.processor != null or b.definition.splitter != null or b.definition.merger != null \
-				or b.definition.producer != null or b.definition.dual_input != null:
+				or b.definition.producer != null or b.definition.dual_input != null \
+				or b.definition.compiler != null:
 			continue
 		if b.get_total_stored() <= 0:
 			continue
@@ -189,7 +190,10 @@ func _update_processing(buildings: Array[Node]) -> void:
 			continue
 		var processed: int = 0
 		# Component-based dispatch: check dedicated components first
-		if b.definition.dual_input != null:
+		if b.definition.compiler != null:
+			var max_process: int = int(b.get_effective_value("processing_rate"))
+			processed = _process_compiler(b, max_process)
+		elif b.definition.dual_input != null:
 			var max_process: int = int(b.get_effective_value("processing_rate"))
 			processed = _process_dual_input(b, max_process)
 		elif b.definition.producer != null:
@@ -218,8 +222,12 @@ func _update_processing(buildings: Array[Node]) -> void:
 			b.is_working = true
 		# Producer accumulates input — don't clear
 		# Dual_input: clear processed data but keep keys
+		# Compiler: keep unprocessed data (accumulates both inputs)
+		# Replicator: clear processed data
 		if b.definition.producer != null:
 			pass  # Keep all stored data (accumulates input)
+		elif b.definition.compiler != null:
+			pass  # Keep stored data (needs both inputs to accumulate)
 		elif b.definition.dual_input != null:
 			var key_key: String = DataEnums.make_key(b.definition.dual_input.key_content, DataEnums.DataState.CLEAN)
 			var saved_keys: int = b.stored_data.get(key_key, 0)
@@ -365,6 +373,66 @@ func _process_dual_input(b: Node2D, max_process: int) -> int:
 	if keys_used > 0:
 		b.stored_data[key_key] -= keys_used
 	return processed
+
+
+func _process_compiler(b: Node2D, max_process: int) -> int:
+	var comp: CompilerComponent = b.definition.compiler
+	if comp.recipes.is_empty():
+		return 0
+	# Collect available Clean data by content type
+	var available_by_content: Dictionary = {}  # content_id → amount
+	for key in b.stored_data:
+		var amount: int = b.stored_data[key]
+		if amount <= 0:
+			continue
+		var parsed: Dictionary = DataEnums.parse_key(key)
+		if parsed.state != DataEnums.DataState.CLEAN:
+			continue
+		available_by_content[parsed.content] = available_by_content.get(parsed.content, 0) + amount
+	# Try each recipe and find one that matches
+	var crafted: int = 0
+	for recipe in comp.recipes:
+		if crafted >= max_process:
+			break
+		var has_a: int = available_by_content.get(recipe.input_a_content, 0)
+		var has_b: int = available_by_content.get(recipe.input_b_content, 0)
+		if has_a < recipe.input_a_cost or has_b < recipe.input_b_cost:
+			continue
+		# How many can we craft?
+		var max_from_a: int = has_a / recipe.input_a_cost
+		var max_from_b: int = has_b / recipe.input_b_cost
+		var to_craft: int = mini(mini(max_from_a, max_from_b), max_process - crafted)
+		if to_craft <= 0:
+			continue
+		# Consume inputs
+		var consumed_a: int = to_craft * recipe.input_a_cost
+		var consumed_b: int = to_craft * recipe.input_b_cost
+		var key_a: String = DataEnums.make_key(recipe.input_a_content, DataEnums.DataState.CLEAN)
+		var key_b: String = DataEnums.make_key(recipe.input_b_content, DataEnums.DataState.CLEAN)
+		b.stored_data[key_a] = b.stored_data.get(key_a, 0) - consumed_a
+		b.stored_data[key_b] = b.stored_data.get(key_b, 0) - consumed_b
+		available_by_content[recipe.input_a_content] -= consumed_a
+		available_by_content[recipe.input_b_content] -= consumed_b
+		# Produce refined output — store in global refined storage
+		_add_refined_to_storage(recipe.output_refined, to_craft)
+		crafted += to_craft
+		print("[Compiler] %d x %s crafted (%d %s + %d %s consumed)" % [
+			to_craft, DataEnums.refined_name(recipe.output_refined),
+			consumed_a, DataEnums.content_name(recipe.input_a_content),
+			consumed_b, DataEnums.content_name(recipe.input_b_content)])
+	return crafted
+
+
+func _add_refined_to_storage(refined_type: int, amount: int) -> void:
+	# Add refined materials to all connected Storage buildings (or global pool)
+	for child in building_container.get_children():
+		if not child.has_method("is_active"):
+			continue
+		if child.definition != null and child.definition.storage != null:
+			child.stored_refined[refined_type] = child.stored_refined.get(refined_type, 0) + amount
+			return
+	# Fallback: no storage found, log warning
+	push_warning("[Compiler] No Storage building found for refined output!")
 
 
 func _process_separator(b: Node2D, proc: ProcessorComponent, max_process: int) -> int:

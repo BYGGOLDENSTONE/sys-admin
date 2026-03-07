@@ -7,6 +7,8 @@ extends Resource
 @export var color: Color = Color.CYAN
 @export var category: String = ""
 @export var base_cost: int = 100
+@export var material_costs: Dictionary = {}  ## {ContentType int: amount} e.g. {0: 50} = 50 Standard(Clean)
+@export var refined_costs: Dictionary = {}   ## {RefinedType int: amount} e.g. {2: 1} = 1 Security Core
 @export var visual_type: String = "default"
 @export var allows_cable_crossing: bool = false
 @export var output_ports: Array[String] = []
@@ -22,6 +24,7 @@ extends Resource
 @export var dual_input: DualInputComponent
 @export var splitter: SplitterComponent
 @export var merger: MergerComponent
+@export var compiler: CompilerComponent
 @export var upgrade: UpgradeComponent
 
 
@@ -33,6 +36,9 @@ func get_storage_capacity() -> int:
 
 func accepts_data(content: int, state: int) -> bool:
 	## Check if this building can accept data with given content+state
+	if compiler:
+		# Compiler only accepts Clean data (matching recipe inputs)
+		return state == DataEnums.DataState.CLEAN
 	if dual_input:
 		# Dual input accepts: primary data (matching states) OR keys
 		if content == dual_input.key_content:

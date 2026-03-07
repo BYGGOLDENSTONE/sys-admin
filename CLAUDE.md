@@ -98,9 +98,9 @@ Eski point-to-point kablo sistemi TAMAMEN degisiyor:
 ### Calisan Sistemler
 - Grid sistemi (`grid_system.gd`) — 512x512, hucre yonetimi + kablo hucre takibi
 - Grid kablo sistemi (`connection_manager.gd` + `connection_layer.gd`) — L-shaped routing, grid-based rendering
-- Veri modeli (`data_enums.gd`) — 7 content (+ KEY) + 5 state (Clean/Encrypted/Corrupted/Malware/Residue)
-- Bina yerlestirme (`building.gd` + `building_manager.gd`) — grid-based placement + kablo routing
-- Simulasyon (`simulation_manager.gd`) — veri akisi, uretim, isleme (credits/seller kaldirildi)
+- Veri modeli (`data_enums.gd`) — 7 content (+ KEY) + 5 state + 5 RefinedType
+- Bina yerlestirme (`building.gd` + `building_manager.gd`) — grid-based placement + kablo routing + malzeme maliyet sistemi
+- Simulasyon (`simulation_manager.gd`) — veri akisi, uretim, isleme, compiler crafting, replicator kopyalama
 - Fog of War (`fog_layer.gd`) — chunk-based
 - Kamera (`camera.gd`) — zoom + pan
 - Undo sistemi (`undo_manager.gd`) — kablo path destegi eklendi
@@ -112,7 +112,7 @@ Eski point-to-point kablo sistemi TAMAMEN degisiyor:
 ### Degistirilmesi Gereken (Henuz Yapilmadi)
 - **Harita uretimi** — ring/halka sistemi → rastgele dagitim (Factorio modeli)
 - **Component mimarisi** — Separator, Quarantine hala ProcessorComponent+rule kullanıyor → ayri component'lere gecis devam edecek
-- **Ekonomi** — upgrade maliyetleri henuz yok (v2.0 Veri=Malzeme sistemi bekliyor)
+- **Yapi maliyetleri** — material_costs/refined_costs alani eklendi ama .tres'lerde henuz degerler set edilmedi (dengeleme bekliyor)
 
 ### Silinen Dosyalar (v2.0 Temizligi)
 - `data_broker.tres` + `seller_component.gd` — SILINDI (para birimi yok)
@@ -121,10 +121,10 @@ Eski point-to-point kablo sistemi TAMAMEN degisiyor:
 - Ring border kodu (`grid_system.gd`'den kaldirildi)
 - Credits/Research/PatchData UI ve signal'leri kaldirildi
 
-### Mevcut .tres Dosyalari (11 bina, 14 kaynak)
-**Binalar:** uplink, storage, separator, classifier, decryptor, recoverer, quarantine, research_lab, splitter, merger, bridge
+### Mevcut .tres Dosyalari (12 bina, 14 kaynak)
+**Binalar:** uplink, storage, separator, classifier, decryptor, recoverer, quarantine, research_lab, splitter, merger, bridge, compiler
 **Kaynaklar:** isp_backbone (Otomat), atm, smart_lock, traffic_camera, public_database, hospital_terminal, public_library, shop_server, biotech_lab, corporate_server, government_archive, military_network, dark_web_node, blackwall_fragment
-**Component'ler:** generator, processor, classifier, probabilistic, producer, dual_input, storage, upgrade, splitter, merger (10 adet)
+**Component'ler:** generator, processor, classifier, probabilistic, producer, dual_input, storage, upgrade, splitter, merger, compiler, compiler_recipe (12 adet)
 
 ---
 
@@ -166,13 +166,16 @@ Eski point-to-point kablo sistemi TAMAMEN degisiyor:
 - [x] Encrypted state isleme (T1 — key_cost=1)
 
 ### Faz 4: Crafting + Uretim + Zor Kaynaklar
-- [ ] Compiler binasi + DualInputComponent (2 farkli Clean → 1 Refined)
-- [ ] Refined malzeme sistemi
-- [ ] Malzeme ile yapi uretme (ekonomi: credits → Veri = Malzeme)
-- [ ] Kesif = Kilit Acma sistemi
-- [ ] 4-5 Compiler tarifi (.tres)
-- [ ] Zor kaynaklar: Corporate Server, Biyotek Labi (.tres guncelle)
-- [ ] Replicator binasi + ReplicatorComponent (1 → 2 kopya, yavas)
+- [x] Compiler binasi + CompilerComponent (2 farkli Clean → 1 Refined, tarif tabanli)
+- [x] Refined malzeme sistemi (RefinedType enum: 5 tip, renk + isim)
+- [x] Malzeme ile yapi uretme (material_costs + refined_costs alanlari, Storage'dan kontrol/dusme)
+- [x] Kesif = Kilit Acma sistemi (tech_tree_panel → discovery-based otomatik acilma)
+- [x] 5 Compiler tarifi (Calibrated Data, Recovery Matrix, Security Core, Trade License, Neural Index)
+- [x] Zor kaynaklar: Corporate Server, Biyotek Labi (.tres GDD'ye uygun guncellendi)
+- [x] Replicator KALDIRILDI (gereksiz — Splitter zaten 1→2 yapiyor, kaynaklar tukenmez)
+- [x] Compiler prosedürel ikonu eklendi
+- [x] Tooltip guncellendi (Compiler tarif esleme, Storage refined gosterimi)
+- [x] Building panel'de maliyet tooltip'i eklendi
 
 ### Faz 5: Harita + Prosedürel Dagitim (Demo Kapsaminda)
 - [ ] Harita uretimini ring → rastgele dagitima cevir

@@ -145,7 +145,20 @@ func _update_stats() -> void:
 		var stored_keys: int = b.stored_data.get(key_key, 0)
 		var key_color: String = "#ff6644" if stored_keys <= 0 else "#ffaa00"
 		lines.append(_stat("Key Stok", "[color=%s]%d Key[/color]" % [key_color, stored_keys]))
-	if def.storage and def.processor == null and def.classifier == null and def.probabilistic == null and def.producer == null and def.dual_input == null:
+	if def.compiler:
+		lines.append(_stat("İşleme", "%d craft/tick" % int(b.get_effective_value("processing_rate"))))
+		lines.append(_stat("Sol Port ←", "Clean veri (Tür A)"))
+		lines.append(_stat("Üst Port ←", "Clean veri (Tür B)"))
+		lines.append(_stat("Çıkış →", "[color=#66ffcc]Refined Malzeme[/color]"))
+		# Show matched recipe if inputs present
+		var matched_recipe: String = _get_matched_recipe(b)
+		if matched_recipe != "":
+			lines.append(_stat("Tarif", matched_recipe))
+		# Show stored data
+		var total: int = b.get_total_stored_raw()
+		if total > 0:
+			lines.append(_stat("Stok", _format_stored_data(b.stored_data)))
+	if def.storage and def.processor == null and def.classifier == null and def.probabilistic == null and def.producer == null and def.dual_input == null and def.compiler == null:
 		var total: int = b.get_total_stored()
 		var cap: int = int(b.get_effective_value("capacity"))
 		var pct: int = int(float(total) / float(cap) * 100.0) if cap > 0 else 0
@@ -155,6 +168,17 @@ func _update_stats() -> void:
 			lines.append(_stat("İçerik", _format_stored_data(b.stored_data)))
 		if def.storage.forward_rate > 0:
 			lines.append(_stat("İletim", "%d MB/s" % int(def.storage.forward_rate)))
+		# Show refined materials in storage
+		if not b.stored_refined.is_empty():
+			var refined_parts: PackedStringArray = []
+			for rtype in b.stored_refined:
+				if b.stored_refined[rtype] <= 0:
+					continue
+				var color: String = DataEnums.refined_color_hex(int(rtype))
+				refined_parts.append("[color=%s]%d %s[/color]" % [
+					color, b.stored_refined[rtype], DataEnums.refined_name(int(rtype))])
+			if not refined_parts.is_empty():
+				lines.append(_stat("Refined", ", ".join(refined_parts)))
 	if def.processor:
 		lines.append(_stat("İşleme", "%d MB/s" % int(b.get_effective_value("processing_rate"))))
 		lines.append(_stat("Verimlilik", "%d%%" % int(b.get_effective_value("efficiency") * 100)))
@@ -216,6 +240,26 @@ func _format_state_weights(weights: Dictionary) -> String:
 		var color: String = DataEnums.state_color_hex(s)
 		parts.append("[color=%s]%d%% %s[/color]" % [color, pct, DataEnums.state_name(s)])
 	return ", ".join(parts)
+
+
+func _get_matched_recipe(b: Node2D) -> String:
+	if b.definition.compiler == null:
+		return ""
+	var available_contents: Dictionary = {}
+	for key in b.stored_data:
+		if b.stored_data[key] <= 0:
+			continue
+		var parsed: Dictionary = DataEnums.parse_key(key)
+		if parsed.state == DataEnums.DataState.CLEAN:
+			available_contents[parsed.content] = true
+	for recipe in b.definition.compiler.recipes:
+		if available_contents.has(recipe.input_a_content) and available_contents.has(recipe.input_b_content):
+			var color: String = DataEnums.refined_color_hex(recipe.output_refined)
+			return "[color=%s]%s[/color] (%s + %s)" % [
+				color, DataEnums.refined_name(recipe.output_refined),
+				DataEnums.content_name(recipe.input_a_content),
+				DataEnums.content_name(recipe.input_b_content)]
+	return "[color=#667788]Eşleşen tarif yok[/color]"
 
 
 func _format_stored_data(data: Dictionary) -> String:

@@ -58,11 +58,24 @@ func _rebuild_buttons() -> void:
 			continue
 		var button := Button.new()
 		button.text = def.building_name
-		button.tooltip_text = def.description
+		button.tooltip_text = _build_cost_tooltip(def)
 		button.custom_minimum_size = Vector2(180, 48)
 		_style_button(button, def.color)
 		button.pressed.connect(_on_building_button_pressed.bind(def))
 		_button_container_ref.add_child(button)
+
+
+func _build_cost_tooltip(def: BuildingDefinition) -> String:
+	var parts: PackedStringArray = [def.description]
+	if not def.material_costs.is_empty() or not def.refined_costs.is_empty():
+		parts.append("\nMaliyet:")
+		for content_type in def.material_costs:
+			parts.append("  %d %s(Clean)" % [def.material_costs[content_type], DataEnums.content_name(int(content_type))])
+		for refined_type in def.refined_costs:
+			parts.append("  %d %s" % [def.refined_costs[refined_type], DataEnums.refined_name(int(refined_type))])
+	else:
+		parts.append("\nBedava")
+	return "\n".join(parts)
 
 
 func _on_building_button_pressed(def: BuildingDefinition) -> void:

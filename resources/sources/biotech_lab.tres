@@ -4,11 +4,11 @@
 
 [resource]
 script = ExtResource("1")
-source_name = "Biotech Lab"
-description = "Private biotech research network. Rich in biometric scans and research data, but heavily encrypted and partially corrupted. Decryptors and recoverers needed."
+source_name = "Biyotek Labi"
+description = "Özel biyoteknoloji araştırma ağı. Biometric, Research ve Blueprint verisi barındırır. Hem şifreli hem bozuk — Decryptor ve Recoverer gerekir."
 color = Color(1.0, 0.5, 0.7, 1.0)
-content_weights = {0: 0.10, 1: 0.05, 2: 0.35, 3: 0.10, 4: 0.30, 5: 0.10}
-state_weights = {0: 0.15, 1: 0.40, 2: 0.35, 3: 0.10}
-bandwidth = 8.0
+content_weights = {2: 0.35, 4: 0.35, 3: 0.20, 0: 0.10}
+state_weights = {2: 0.40, 1: 0.35, 0: 0.15, 3: 0.10}
+bandwidth = 5.0
 cell_count_range = Vector2i(7, 11)
 ring_index = 1

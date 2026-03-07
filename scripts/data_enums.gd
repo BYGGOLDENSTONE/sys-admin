@@ -2,6 +2,7 @@ class_name DataEnums
 
 enum ContentType { STANDARD, FINANCIAL, BIOMETRIC, BLUEPRINT, RESEARCH, CLASSIFIED, KEY }
 enum DataState { CLEAN, ENCRYPTED, CORRUPTED, MALWARE, RESIDUE }
+enum RefinedType { CALIBRATED_DATA, RECOVERY_MATRIX, SECURITY_CORE, TRADE_LICENSE, NEURAL_INDEX }
 
 static func make_key(content: int, state: int) -> String:
 	return "%d_%d" % [content, state]
@@ -91,3 +92,33 @@ static func content_color_hex(c: int) -> String:
 		ContentType.CLASSIFIED: return "#ff6666"
 		ContentType.KEY: return "#ffaa00"
 	return "#aabbcc"
+
+
+static func refined_name(r: int) -> String:
+	match r:
+		RefinedType.CALIBRATED_DATA: return "Calibrated Data"
+		RefinedType.RECOVERY_MATRIX: return "Recovery Matrix"
+		RefinedType.SECURITY_CORE: return "Security Core"
+		RefinedType.TRADE_LICENSE: return "Trade License"
+		RefinedType.NEURAL_INDEX: return "Neural Index"
+	return "Unknown"
+
+
+static func refined_color(r: int) -> Color:
+	match r:
+		RefinedType.CALIBRATED_DATA: return Color("#66ffcc")
+		RefinedType.RECOVERY_MATRIX: return Color("#88ddff")
+		RefinedType.SECURITY_CORE: return Color("#ff88ff")
+		RefinedType.TRADE_LICENSE: return Color("#ffcc66")
+		RefinedType.NEURAL_INDEX: return Color("#cc88ff")
+	return Color("#ffffff")
+
+
+static func refined_color_hex(r: int) -> String:
+	match r:
+		RefinedType.CALIBRATED_DATA: return "#66ffcc"
+		RefinedType.RECOVERY_MATRIX: return "#88ddff"
+		RefinedType.SECURITY_CORE: return "#ff88ff"
+		RefinedType.TRADE_LICENSE: return "#ffcc66"
+		RefinedType.NEURAL_INDEX: return "#cc88ff"
+	return "#ffffff"
