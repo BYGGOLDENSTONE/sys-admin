@@ -185,9 +185,19 @@ Eski point-to-point kablo sistemi TAMAMEN degisiyor:
 - [ ] Fog of war (mevcut, test et ve dogrula)
 - [ ] Kaynak isimleri GDD ile esle (somut isimler: Otomat, ATM, Hastane vb.)
 
-### Faz 6: Polish + Demo Build
+### Faz 6: Polish + Demo Build (AKTIF — Gorsel Polish)
 - [ ] Tier sistemi (T1-T2 demo icin)
-- [ ] Gorsel polish (tam devre karti estetigi — kablo + bina + zoom seviyeleri)
+- [x] Kamera shake: Trauma-based + FastNoiseLite (Squirrel Eiserloh tekniği)
+- [x] Bina yerlestirme animasyonu: Scale pop + flash (play_place_animation)
+- [x] Bina glow: Working state farki (daha parlak pulse + port glow)
+- [x] Kablo glow: 4 katmanli rendering (outer halo + mid glow + core + highlight)
+- [x] Kablo partikulleri: Glow halo + inner glow + beyaz karakter overlay
+- [x] Grid cell underglow: Bina/kablo hucreleri icin kamera-culled rendering
+- [x] Floating text: Scale pop + float up + fade out (Decryptor/Compiler/Quarantine)
+- [x] UI panel: Yari saydam + staggered button fade-in
+- [x] Tooltip animasyonu: Fade + slide (acilma/kapanma)
+- [x] Shader: Tilt-shift DoF + vignette + glitch sistemi (bloom_vignette + crt)
+- [ ] Gorsel polish devam (tam devre karti estetigi — zoom seviyeleri + daha fazla juice)
 - [ ] Ses sistemi (bina sesleri, kablo snap, ambient, bildirimler)
 - [ ] Demo milestone sistemi (GDD Bolum 17 — 7 milestone)
 - [ ] Tutorial akisi

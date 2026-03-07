@@ -110,6 +110,29 @@ func _draw() -> void:
 		return
 	var zoom_level: float = cam.zoom.x
 
+	# Cell underglow (only visible cells for performance)
+	var vp := get_viewport_rect().size / cam.zoom
+	var cp := cam.global_position - vp / 2.0
+	var sx: int = maxi(0, int(cp.x / TILE_SIZE) - 1)
+	var ex: int = mini(GRID_WIDTH, int((cp.x + vp.x) / TILE_SIZE) + 2)
+	var sy: int = maxi(0, int(cp.y / TILE_SIZE) - 1)
+	var ey: int = mini(GRID_HEIGHT, int((cp.y + vp.y) / TILE_SIZE) + 2)
+
+	for cell in _occupied_cells:
+		if cell.x < sx or cell.x > ex or cell.y < sy or cell.y > ey:
+			continue
+		var building = _occupied_cells[cell]
+		if building and building.definition:
+			var a: Color = building.definition.color
+			var r := Rect2(cell.x * TILE_SIZE, cell.y * TILE_SIZE, TILE_SIZE, TILE_SIZE)
+			draw_rect(r, Color(a, 0.04), true)
+
+	for cell in _cable_cells:
+		if cell.x < sx or cell.x > ex or cell.y < sy or cell.y > ey:
+			continue
+		var r := Rect2(cell.x * TILE_SIZE, cell.y * TILE_SIZE, TILE_SIZE, TILE_SIZE)
+		draw_rect(r, Color(0.2, 0.5, 0.9, 0.02), true)
+
 	# Fade out grid lines when zoomed out to prevent flickering/moire
 	# Fully visible above 0.5, fully hidden below 0.2
 	if zoom_level < 0.2:

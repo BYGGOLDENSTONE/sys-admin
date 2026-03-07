@@ -363,6 +363,7 @@ func _process_dual_input(b: Node2D, max_process: int) -> int:
 		if sent > 0:
 			processed += sent
 			keys_used += sent * dual.key_cost
+			_spawn_floating_text(b, "+%d Clean" % sent, Color("#44ff88"))
 			print("[DualInput] %s: %d MB %s(%s) → %s (-%d Key)" % [
 				b.definition.building_name, sent,
 				DataEnums.content_name(parsed.content),
@@ -416,6 +417,7 @@ func _process_compiler(b: Node2D, max_process: int) -> int:
 		# Produce refined output — store in global refined storage
 		_add_refined_to_storage(recipe.output_refined, to_craft)
 		crafted += to_craft
+		_spawn_floating_text(b, "+%d %s" % [to_craft, DataEnums.refined_name(recipe.output_refined)], Color("#44ff88"))
 		print("[Compiler] %d x %s crafted (%d %s + %d %s consumed)" % [
 			to_craft, DataEnums.refined_name(recipe.output_refined),
 			consumed_a, DataEnums.content_name(recipe.input_a_content),
@@ -505,6 +507,9 @@ func _process_quarantine(b: Node2D, proc: ProcessorComponent, max_process: int) 
 		var to_process: int = mini(available, max_process - processed)
 		processed += to_process
 		print("[Quarantine] Neutralized %d MB malware" % to_process)
+	if processed > 0:
+		_spawn_floating_text(b, "-%d Malware" % processed, Color(1.0, 0.3, 0.4))
+		_add_camera_trauma(0.08 + processed * 0.02)
 	return processed
 
 
@@ -579,10 +584,41 @@ func get_upgrade_cost(building: Node2D) -> int:
 	return upg.costs[building.upgrade_level] if building.upgrade_level < upg.costs.size() else 0
 
 
+# --- EVENT FEEDBACK ---
+func _spawn_floating_text(building: Node2D, text: String, color: Color) -> void:
+	var lbl := Label.new()
+	lbl.text = text
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.add_theme_color_override("font_color", color)
+	lbl.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
+	lbl.add_theme_constant_override("outline_size", 5)
+	lbl.add_theme_font_size_override("font_size", 13)
+
+	var cx: float = building.definition.grid_size.x * TILE_SIZE / 2.0
+	lbl.position = Vector2(cx - 28, -6.0)
+	lbl.pivot_offset = Vector2(28, 6)
+	lbl.scale = Vector2(0.4, 0.4)
+	building.add_child(lbl)
+
+	var tw := building.create_tween().set_parallel(true)
+	tw.tween_property(lbl, "scale", Vector2.ONE, 0.2).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(lbl, "position:y", lbl.position.y - 32.0, 1.0).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.tween_property(lbl, "modulate:a", 0.0, 0.5).set_delay(0.5)
+	tw.chain().tween_callback(lbl.queue_free)
+
+
+func _add_camera_trauma(amount: float) -> void:
+	var cam := get_viewport().get_camera_2d()
+	if cam and cam.has_method("add_trauma"):
+		cam.add_trauma(amount)
+
+
 # --- BUILDING EVENTS ---
-func _on_building_placed(_building: Node2D, _cell: Vector2i) -> void:
-	pass
+func _on_building_placed(building: Node2D, _cell: Vector2i) -> void:
+	if building.has_method("play_place_animation"):
+		building.play_place_animation()
+	_add_camera_trauma(0.15)
 
 
 func _on_building_removed(_building: Node2D, _cell: Vector2i) -> void:
-	pass
+	_add_camera_trauma(0.1)

@@ -9,14 +9,41 @@ const SMOOTH_FACTOR: float = 8.0
 var _target_zoom: float = 1.0
 var _is_dragging: bool = false
 
+# Trauma-based screen shake (Squirrel Eiserloh GDC technique)
+var _trauma: float = 0.0
+var _noise: FastNoiseLite = null
+var _noise_y: float = 0.0
+const TRAUMA_DECAY: float = 1.8
+const MAX_SHAKE_OFFSET: float = 12.0
+
 
 func _ready() -> void:
 	zoom = Vector2(_target_zoom, _target_zoom)
+	_noise = FastNoiseLite.new()
+	_noise.seed = randi()
+	_noise.frequency = 3.0
+	_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+
+
+func add_trauma(amount: float) -> void:
+	_trauma = minf(_trauma + amount, 1.0)
 
 
 func _process(delta: float) -> void:
 	_handle_keyboard_pan(delta)
 	_smooth_zoom(delta)
+
+	if _trauma > 0.0:
+		_noise_y += delta * 60.0
+		var shake := _trauma * _trauma
+		var zoom_comp := 1.0 / zoom.x
+		offset.x = MAX_SHAKE_OFFSET * shake * _noise.get_noise_2d(_noise_y, 0.0) * zoom_comp
+		offset.y = MAX_SHAKE_OFFSET * shake * _noise.get_noise_2d(0.0, _noise_y) * zoom_comp
+		_trauma = maxf(_trauma - TRAUMA_DECAY * delta, 0.0)
+	elif offset != Vector2.ZERO:
+		offset = offset.lerp(Vector2.ZERO, delta * 12.0)
+		if offset.length() < 0.1:
+			offset = Vector2.ZERO
 
 
 func _unhandled_input(event: InputEvent) -> void:

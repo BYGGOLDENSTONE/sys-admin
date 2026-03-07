@@ -51,6 +51,14 @@ func setup(def: BuildingDefinition, cell: Vector2i) -> void:
 	queue_redraw()
 
 
+func play_place_animation() -> void:
+	scale = Vector2(0.6, 0.6)
+	modulate = Color(1.2, 1.4, 1.6, 0.8)
+	var tw := create_tween().set_parallel(true)
+	tw.tween_property(self, "scale", Vector2.ONE, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(self, "modulate", Color.WHITE, 0.4).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+
+
 func get_port_local_position(port_side: String) -> Vector2:
 	var size := Vector2(definition.grid_size.x * TILE_SIZE, definition.grid_size.y * TILE_SIZE)
 	match port_side:
@@ -206,22 +214,30 @@ func _draw() -> void:
 	var active: bool = is_active()
 	var accent: Color = definition.color if active else Color(definition.color, 0.3)
 
-	# Pulse value for glow animation
-	var pulse: float = sin(_glow_time * GLOW_PULSE_SPEED) * GLOW_PULSE_AMOUNT if active else 0.0
+	# State-based pulse
+	var pulse: float = 0.0
+	if active:
+		if is_working:
+			pulse = (sin(_glow_time * 7.0) * 0.5 + 0.5) * GLOW_PULSE_AMOUNT * 3.0
+		else:
+			pulse = sin(_glow_time * GLOW_PULSE_SPEED) * GLOW_PULSE_AMOUNT
 
 	# Wide outer glow (soft halo)
 	var outer_rect := Rect2(
 		Vector2(-OUTER_GLOW_WIDTH, -OUTER_GLOW_WIDTH),
 		size + Vector2(OUTER_GLOW_WIDTH * 2, OUTER_GLOW_WIDTH * 2)
 	)
-	draw_rect(outer_rect, Color(accent, OUTER_GLOW_ALPHA + pulse), false, OUTER_GLOW_WIDTH)
+	var outer_a := OUTER_GLOW_ALPHA + pulse
+	if is_working:
+		outer_a += 0.08
+	draw_rect(outer_rect, Color(accent, outer_a), false, OUTER_GLOW_WIDTH)
 
 	# Inner glow
 	var glow_rect := Rect2(
 		Vector2(-GLOW_WIDTH, -GLOW_WIDTH),
 		size + Vector2(GLOW_WIDTH * 2, GLOW_WIDTH * 2)
 	)
-	draw_rect(glow_rect, Color(accent, GLOW_ALPHA + pulse * 0.5), false, GLOW_WIDTH)
+	draw_rect(glow_rect, Color(accent, GLOW_ALPHA + pulse), false, GLOW_WIDTH)
 
 	# Body
 	draw_rect(rect, BODY_COLOR, true)
@@ -697,16 +713,23 @@ func _draw_icon_default(center: Vector2, _size: Vector2, accent: Color) -> void:
 func _draw_ports(size: Vector2, accent: Color) -> void:
 	if definition == null:
 		return
+
+	var port_pulse: float = 0.0
+	if is_active() and is_working:
+		port_pulse = sin(_glow_time * 5.0) * 0.5 + 0.5
+
 	# Output ports (accent color)
 	for port_side in definition.output_ports:
 		var pos := get_port_local_position(port_side)
-		draw_circle(pos, PORT_GLOW_RADIUS, Color(accent, 0.15))
+		var gr := PORT_GLOW_RADIUS + port_pulse * 4.0
+		draw_circle(pos, gr, Color(accent, 0.12 + port_pulse * 0.15))
 		draw_circle(pos, PORT_RADIUS, Color(accent, 0.8))
 		draw_circle(pos, PORT_RADIUS * 0.4, Color.WHITE)
 	# Input ports (white/dim)
 	for port_side in definition.input_ports:
 		var pos := get_port_local_position(port_side)
-		draw_circle(pos, PORT_GLOW_RADIUS, Color(1, 1, 1, 0.1))
+		var gr := PORT_GLOW_RADIUS + port_pulse * 2.0
+		draw_circle(pos, gr, Color(1, 1, 1, 0.08 + port_pulse * 0.08))
 		draw_circle(pos, PORT_RADIUS, Color(0.6, 0.65, 0.7, 0.8))
 		draw_circle(pos, PORT_RADIUS * 0.4, Color.WHITE)
 

@@ -69,9 +69,17 @@ func _draw_connection(conn: Dictionary, active: bool, hovered: bool) -> void:
 		draw_polyline(points, HOVER_COLOR, HOVER_WIDTH, true)
 
 	if active:
-		draw_polyline(points, Color(accent, CABLE_GLOW_ALPHA), CABLE_GLOW_WIDTH, true)
+		var pulse := sin(Time.get_ticks_msec() / 200.0) * 0.5 + 0.5
+		# Outer soft halo
+		draw_polyline(points, Color(accent, 0.06 + pulse * 0.04), CABLE_GLOW_WIDTH * 2.5, true)
+		# Mid glow
+		draw_polyline(points, Color(accent, CABLE_GLOW_ALPHA + pulse * 0.1), CABLE_GLOW_WIDTH, true)
+		# Core line
 		draw_polyline(points, accent, CABLE_WIDTH, true)
+		# Bright center highlight
+		draw_polyline(points, Color(1.0, 1.0, 1.0, 0.15 + pulse * 0.05), 1.0, true)
 	else:
+		draw_polyline(points, Color(accent, CABLE_INACTIVE_ALPHA * 0.5), CABLE_GLOW_WIDTH * 0.7, true)
 		draw_polyline(points, Color(accent, CABLE_INACTIVE_ALPHA), CABLE_WIDTH, true)
 
 
@@ -140,13 +148,21 @@ func _draw_particles(conn: Dictionary, conn_index: int) -> void:
 	var ptypes: Array = _build_particle_types(flow, count)
 
 	for i in range(count):
-		var offset: float = float(i) / float(count)
-		var t: float = fmod(_particle_time + offset, 1.0)
+		var p_offset: float = float(i) / float(count)
+		var t: float = fmod(_particle_time + p_offset, 1.0)
 		var pos: Vector2 = _get_point_along_path(points, seg_lengths, total_length, t)
 		var ptype: Dictionary = ptypes[i] if i < ptypes.size() else {"color": Color("#00ff88"), "char": "0"}
 		var draw_pos := pos + Vector2(-half_size, half_size)
-		draw_string(font, draw_pos, ptype.char, HORIZONTAL_ALIGNMENT_LEFT, -1, PARTICLE_FONT_SIZE, Color(ptype.color, 0.4))
-		draw_string(font, draw_pos, ptype.char, HORIZONTAL_ALIGNMENT_LEFT, -1, PARTICLE_FONT_SIZE, ptype.color)
+		var base_color: Color = ptype.color
+		var glow_pulse: float = sin(Time.get_ticks_msec() / 120.0 + float(i) * 1.7) * 0.5 + 0.5
+
+		# Glow halo
+		draw_circle(pos, 6.0 + glow_pulse * 3.0, Color(base_color, 0.1 + glow_pulse * 0.08))
+		# Inner glow
+		draw_circle(pos, 3.0, Color(base_color, 0.35))
+		# Character
+		draw_string(font, draw_pos, ptype.char, HORIZONTAL_ALIGNMENT_LEFT, -1, PARTICLE_FONT_SIZE, Color(base_color, 0.5))
+		draw_string(font, draw_pos, ptype.char, HORIZONTAL_ALIGNMENT_LEFT, -1, PARTICLE_FONT_SIZE, Color.WHITE)
 
 
 func _get_point_along_path(points: PackedVector2Array, seg_lengths: Array[float], total: float, t: float) -> Vector2:

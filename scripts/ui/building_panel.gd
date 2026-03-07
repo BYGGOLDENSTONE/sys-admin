@@ -2,10 +2,11 @@ extends PanelContainer
 
 signal building_selected(definition: BuildingDefinition)
 
-const PANEL_BG_COLOR := Color("#0d1117")
-const BORDER_COLOR := Color("#00ccff")
-const BUTTON_NORMAL_COLOR := Color("#1a1e2e")
-const BUTTON_HOVER_COLOR := Color("#2a2e3e")
+const PANEL_BG_COLOR := Color(0.05, 0.07, 0.09, 0.8)
+const BORDER_COLOR := Color(0.0, 0.8, 1.0, 0.5)
+const BUTTON_NORMAL_COLOR := Color(0.1, 0.12, 0.18, 0.7)
+const BUTTON_HOVER_COLOR := Color(0.16, 0.22, 0.32, 0.85)
+const BUTTON_PRESSED_COLOR := Color(0.2, 0.28, 0.42, 0.9)
 const TITLE_COLOR := Color("#00ccff")
 
 var _definitions: Array[BuildingDefinition] = []
@@ -52,7 +53,8 @@ func _rebuild_buttons() -> void:
 	# Clear old buttons
 	for child in _button_container_ref.get_children():
 		child.queue_free()
-	# Re-create visible buttons
+	# Re-create visible buttons with staggered fade-in
+	var idx := 0
 	for def in _definitions:
 		if _tech_tree and not _tech_tree.is_building_unlocked(def.building_name):
 			continue
@@ -63,6 +65,13 @@ func _rebuild_buttons() -> void:
 		_style_button(button, def.color)
 		button.pressed.connect(_on_building_button_pressed.bind(def))
 		_button_container_ref.add_child(button)
+
+		# Staggered fade-in animation
+		button.modulate = Color(1, 1, 1, 0)
+		var tw := create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		tw.tween_interval(idx * 0.04)
+		tw.tween_property(button, "modulate:a", 1.0, 0.25)
+		idx += 1
 
 
 func _build_cost_tooltip(def: BuildingDefinition) -> String:
@@ -112,7 +121,8 @@ func _style_button(button: Button, accent_color: Color) -> void:
 	button.add_theme_stylebox_override("hover", hover_style)
 
 	var pressed_style: StyleBoxFlat = style.duplicate()
-	pressed_style.bg_color = Color("#3a3e4e")
+	pressed_style.bg_color = BUTTON_PRESSED_COLOR
+	pressed_style.border_width_left = 4
 	button.add_theme_stylebox_override("pressed", pressed_style)
 
 	button.add_theme_color_override("font_color", Color.WHITE)

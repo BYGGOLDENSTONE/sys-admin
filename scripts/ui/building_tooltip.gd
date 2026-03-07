@@ -1,7 +1,7 @@
 extends PanelContainer
 
-const BG_COLOR := Color("#0d1117")
-const BORDER_COLOR := Color("#00ccff")
+const BG_COLOR := Color(0.05, 0.07, 0.09, 0.85)
+const BORDER_COLOR := Color(0.0, 0.8, 1.0, 0.6)
 const OFFSET := Vector2(16, 16)
 
 @onready var name_label: Label = $MarginContainer/VBoxContainer/NameLabel
@@ -12,11 +12,26 @@ const OFFSET := Vector2(16, 16)
 var _target_building: Node2D = null
 var _target_source: Node2D = null
 
+var _slide_offset := Vector2.ZERO
+var _anim_tween: Tween = null
+
 
 func _ready() -> void:
 	visible = false
+	modulate = Color(1, 1, 1, 0)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_setup_style()
+
+
+func _show_animated() -> void:
+	if visible and modulate.a > 0.9: return
+	visible = true
+	if _anim_tween: _anim_tween.kill()
+	if modulate.a == 0.0:
+		_slide_offset = Vector2(0, 15)
+	_anim_tween = create_tween().set_parallel(true).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
+	_anim_tween.tween_property(self, "modulate", Color.WHITE, 0.2)
+	_anim_tween.tween_property(self, "_slide_offset", Vector2.ZERO, 0.2)
 
 
 func show_for_building(building: Node2D) -> void:
@@ -32,7 +47,7 @@ func show_for_building(building: Node2D) -> void:
 	desc_label.text = def.description
 	info_label.text = "%s | %d CR" % [def.category.to_upper(), def.base_cost]
 	_update_stats()
-	visible = true
+	_show_animated()
 
 
 func show_for_source(source: Node2D) -> void:
@@ -50,7 +65,7 @@ func show_for_source(source: Node2D) -> void:
 		desc_label.text = "Yaklaşarak keşfet"
 		info_label.text = "??? | ??? MB/s"
 		stats_label.text = ""
-		visible = true
+		_show_animated()
 		return
 
 	name_label.text = def.source_name
@@ -58,13 +73,17 @@ func show_for_source(source: Node2D) -> void:
 	desc_label.text = def.description
 	info_label.text = "VERİ KAYNAĞI | %d MB/s" % int(def.bandwidth)
 	_update_source_stats()
-	visible = true
+	_show_animated()
 
 
 func hide_tooltip() -> void:
 	_target_building = null
 	_target_source = null
-	visible = false
+	if not visible: return
+	if _anim_tween: _anim_tween.kill()
+	_anim_tween = create_tween().set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_IN)
+	_anim_tween.tween_property(self, "modulate", Color(1, 1, 1, 0), 0.15)
+	_anim_tween.tween_callback(func(): visible = false)
 
 
 func _process(_delta: float) -> void:
@@ -87,7 +106,7 @@ func _process(_delta: float) -> void:
 	if pos.y + tip_size.y > viewport_size.y:
 		pos.y = mouse_pos.y - tip_size.y - 8
 
-	global_position = pos
+	global_position = pos + _slide_offset
 
 
 func _update_stats() -> void:
