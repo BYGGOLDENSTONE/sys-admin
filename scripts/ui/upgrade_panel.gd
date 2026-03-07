@@ -104,12 +104,9 @@ func _update_display() -> void:
 		var next_val: float = upg.level_values[level] if level < upg.level_values.size() else current_val
 		_stat_label.text = "[color=#aaaaaa]%s:[/color] [color=#ffffff]%s[/color] → [color=#44ff88]%s[/color]" % [
 			upg.stat_label, _format_stat(upg.stat_target, current_val), _format_stat(upg.stat_target, next_val)]
-		var cost: int = _simulation_manager.get_upgrade_cost(_building)
-		var can_afford: bool = _simulation_manager.total_patch_data >= cost
-		_cost_label.text = "Maliyet: %d Patch Data" % cost
-		_cost_label.add_theme_color_override("font_color", Color(0.6, 1.0, 0.6) if can_afford else Color(1.0, 0.4, 0.4))
+		_cost_label.text = ""
 		_upgrade_button.visible = true
-		_upgrade_button.disabled = not can_afford
+		_upgrade_button.disabled = false
 
 
 func _format_stat(stat_target: String, value: float) -> String:

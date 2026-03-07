@@ -51,7 +51,7 @@ func _execute_reverse(cmd: Dictionary) -> void:
 		"add_connection":
 			_remove_connection_by_cells(cmd.from_cell, cmd.from_port, cmd.to_cell, cmd.to_port)
 		"remove_connection":
-			_add_connection_by_cells(cmd.from_cell, cmd.from_port, cmd.to_cell, cmd.to_port)
+			_add_connection_by_cells(cmd.from_cell, cmd.from_port, cmd.to_cell, cmd.to_port, cmd.get("path", []))
 		"move":
 			_move_building(cmd.new_cell, cmd.old_cell, cmd.definition)
 
@@ -63,7 +63,7 @@ func _execute_forward(cmd: Dictionary) -> void:
 		"remove":
 			building_manager.remove_building_at(cmd.cell)
 		"add_connection":
-			_add_connection_by_cells(cmd.from_cell, cmd.from_port, cmd.to_cell, cmd.to_port)
+			_add_connection_by_cells(cmd.from_cell, cmd.from_port, cmd.to_cell, cmd.to_port, cmd.get("path", []))
 		"remove_connection":
 			_remove_connection_by_cells(cmd.from_cell, cmd.from_port, cmd.to_cell, cmd.to_port)
 		"move":
@@ -77,14 +77,18 @@ func _restore_building(cmd: Dictionary) -> void:
 	building.upgrade_level = cmd.get("upgrade_level", 0)
 	# Restore connections
 	for conn_data in cmd.get("connections", []):
-		_add_connection_by_cells(conn_data.from_cell, conn_data.from_port, conn_data.to_cell, conn_data.to_port)
+		_add_connection_by_cells(conn_data.from_cell, conn_data.from_port, conn_data.to_cell, conn_data.to_port, conn_data.get("path", []))
 
 
-func _add_connection_by_cells(from_cell: Vector2i, from_port: String, to_cell: Vector2i, to_port: String) -> void:
+func _add_connection_by_cells(from_cell: Vector2i, from_port: String, to_cell: Vector2i, to_port: String, path: Array[Vector2i] = []) -> void:
 	var from_building: Node2D = grid_system.get_building_at(from_cell)
 	var to_building: Node2D = grid_system.get_building_at(to_cell)
 	if from_building and to_building:
-		connection_manager.add_connection(from_building, from_port, to_building, to_port)
+		if path.is_empty():
+			var start: Vector2i = connection_manager.get_port_exit_cell(from_building, from_port)
+			var end: Vector2i = connection_manager.get_port_exit_cell(to_building, to_port)
+			path = connection_manager.calculate_path(start, end)
+		connection_manager.add_connection(from_building, from_port, to_building, to_port, path)
 
 
 func _remove_connection_by_cells(from_cell: Vector2i, from_port: String, to_cell: Vector2i, to_port: String) -> void:
@@ -123,5 +127,6 @@ func get_connections_for_building(building: Node2D) -> Array[Dictionary]:
 				"from_port": conn.from_port,
 				"to_cell": conn.to_building.grid_cell,
 				"to_port": conn.to_port,
+				"path": conn.path.duplicate(),
 			})
 	return result

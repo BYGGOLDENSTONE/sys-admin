@@ -1,19 +1,11 @@
 extends Node
 
-signal credits_changed(new_total: float)
-signal research_changed(new_total: float)
-signal patch_data_changed(new_total: float)
 signal tick_completed(tick_count: int)
 signal content_discovered(content: int)
 signal state_discovered(state: int)
 signal speed_changed(multiplier: int, paused: bool)
 
 const TILE_SIZE: int = 64
-
-var total_credits: float = 0.0
-var total_research: float = 0.0
-var total_patch_data: float = 0.0
-var total_neutralized: int = 0
 var _tick_count: int = 0
 var speed_multiplier: int = 1
 var is_paused: bool = false
@@ -64,8 +56,6 @@ func _on_sim_tick() -> void:
 	_update_generation(buildings)
 	_update_storage_forward(buildings)
 	_update_processing(buildings)
-	_update_research(buildings)
-	_update_selling(buildings)
 	_update_displays(buildings)
 	tick_completed.emit(_tick_count)
 
@@ -204,8 +194,6 @@ func _update_processing(buildings: Array[Node]) -> void:
 		match proc.rule:
 			"separator":
 				processed = _process_separator(b, proc, max_process)
-			"compressor":
-				processed = _process_compressor(b, proc, max_process)
 			"decryptor":
 				processed = _process_decryptor(b, proc, max_process)
 			"recoverer":
@@ -252,23 +240,6 @@ func _process_separator(b: Node2D, proc: ProcessorComponent, max_process: int) -
 			processed += to_process
 	return processed
 
-
-func _process_compressor(b: Node2D, _proc: ProcessorComponent, max_process: int) -> int:
-	var eff: float = b.get_effective_value("efficiency")
-	var processed: int = 0
-	for key in b.stored_data:
-		if processed >= max_process:
-			break
-		var available: int = b.stored_data[key]
-		if available <= 0:
-			continue
-		var parsed: Dictionary = DataEnums.parse_key(key)
-		var to_process: int = mini(available, max_process - processed)
-		var output_amount: int = maxi(1, roundi(to_process * eff))
-		var sent: int = _push_data_from(b, parsed.content, parsed.state, output_amount)
-		if sent > 0:
-			processed += to_process
-	return processed
 
 
 func _process_decryptor(b: Node2D, proc: ProcessorComponent, max_process: int) -> int:
@@ -330,8 +301,7 @@ func _process_quarantine(b: Node2D, proc: ProcessorComponent, max_process: int) 
 			continue
 		var to_process: int = mini(available, max_process - processed)
 		processed += to_process
-		total_neutralized += to_process
-		print("[Quarantine] Neutralized %d MB malware (total: %d)" % [to_process, total_neutralized])
+		print("[Quarantine] Neutralized %d MB malware" % to_process)
 	return processed
 
 
@@ -380,70 +350,6 @@ func _process_merger(b: Node2D, _proc: ProcessorComponent, max_process: int) -> 
 	return processed
 
 
-# --- RESEARCH COLLECTION (Research Lab) ---
-func _update_research(buildings: Array[Node]) -> void:
-	for b in buildings:
-		if b.definition.research_collector == null or not b.is_active():
-			continue
-		var rc: ResearchCollectorComponent = b.definition.research_collector
-		var to_collect: int = int(rc.collection_rate)
-		var collected: int = 0
-		for key in b.stored_data:
-			if collected >= to_collect:
-				break
-			var available: int = b.stored_data.get(key, 0)
-			if available <= 0:
-				continue
-			var parsed: Dictionary = DataEnums.parse_key(key)
-			# Check content + state acceptance
-			if not rc.accepted_content.is_empty() and parsed.content not in rc.accepted_content:
-				continue
-			if not rc.accepted_states.is_empty() and parsed.state not in rc.accepted_states:
-				continue
-			var collect_amount: int = mini(available, to_collect - collected)
-			b.stored_data[key] -= collect_amount
-			collected += collect_amount
-		if collected > 0:
-			b.is_working = true
-			var earned: float = collected * rc.research_per_mb
-			total_research += earned
-			research_changed.emit(total_research)
-
-
-# --- SELLING (Data Broker) ---
-func _update_selling(buildings: Array[Node]) -> void:
-	for b in buildings:
-		if b.definition.seller == null or not b.is_active():
-			continue
-		var sell: SellerComponent = b.definition.seller
-		var to_sell: int = int(sell.sell_rate)
-		var sold: int = 0
-		for key in b.stored_data:
-			if sold >= to_sell:
-				break
-			var available: int = b.stored_data.get(key, 0)
-			if available <= 0:
-				continue
-			var parsed: Dictionary = DataEnums.parse_key(key)
-			# Check state acceptance
-			if not sell.accepted_states.is_empty() and parsed.state not in sell.accepted_states:
-				continue
-			var sell_amount: int = mini(available, to_sell - sold)
-			b.stored_data[key] -= sell_amount
-			sold += sell_amount
-			# Blueprint content → Patch Data instead of Credits
-			if parsed.content == DataEnums.ContentType.BLUEPRINT:
-				total_patch_data += sell_amount
-				patch_data_changed.emit(total_patch_data)
-				print("[DataBroker] Blueprint(Clean) → %d Patch Data" % sell_amount)
-			else:
-				var multiplier: float = sell.content_price_multipliers.get(parsed.content, 1.0)
-				var earned: float = sell_amount * sell.credits_per_mb * multiplier
-				total_credits += earned
-				credits_changed.emit(total_credits)
-		if sold > 0:
-			b.is_working = true
-
 
 # --- UPDATE DISPLAYS ---
 func _update_displays(buildings: Array[Node]) -> void:
@@ -458,11 +364,6 @@ func upgrade_building(building: Node2D) -> bool:
 		return false
 	if building.upgrade_level >= upg.max_level:
 		return false
-	var cost: int = upg.costs[building.upgrade_level] if building.upgrade_level < upg.costs.size() else 0
-	if total_patch_data < cost:
-		return false
-	total_patch_data -= cost
-	patch_data_changed.emit(total_patch_data)
 	building.upgrade_level += 1
 	print("[Upgrade] %s upgraded to level %d" % [building.definition.building_name, building.upgrade_level])
 	return true

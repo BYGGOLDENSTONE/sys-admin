@@ -31,6 +31,7 @@ var _selected_building: Node2D = null
 # Connecting state
 var _connecting_from_building: Node2D = null
 var _connecting_from_port: String = ""
+var _routing_start_cell: Vector2i = Vector2i.ZERO
 
 # Moving state
 var _moving_building: Node2D = null
@@ -143,6 +144,7 @@ func _handle_idle_input(event: InputEvent) -> void:
 						from_port = conn.from_port,
 						to_cell = conn.to_building.grid_cell,
 						to_port = conn.to_port,
+						path = conn.path.duplicate(),
 					})
 			connection_manager.remove_connection(idx)
 			return
@@ -181,6 +183,7 @@ func _handle_connecting_input(event: InputEvent) -> void:
 func _start_connecting(building: Node2D, port_side: String) -> void:
 	_connecting_from_building = building
 	_connecting_from_port = port_side
+	_routing_start_cell = connection_manager.get_port_exit_cell(building, port_side)
 	_state = State.CONNECTING
 	# Clear hover
 	if _hovered_building != null:
@@ -190,16 +193,27 @@ func _start_connecting(building: Node2D, port_side: String) -> void:
 
 
 func _complete_connection(to_building: Node2D, to_port: String) -> void:
-	if connection_manager:
-		var added: bool = connection_manager.add_connection(_connecting_from_building, _connecting_from_port, to_building, to_port)
-		if added and undo_manager and not undo_manager.is_undoing:
-			undo_manager.push_command({
-				type = "add_connection",
-				from_cell = _connecting_from_building.grid_cell,
-				from_port = _connecting_from_port,
-				to_cell = to_building.grid_cell,
-				to_port = to_port,
-			})
+	if connection_manager == null:
+		_cancel_connecting()
+		return
+	var end_cell: Vector2i = connection_manager.get_port_exit_cell(to_building, to_port)
+	var path: Array[Vector2i] = connection_manager.calculate_path(_routing_start_cell, end_cell)
+	if path.is_empty():
+		print("[BuildingManager] Cannot route cable — path blocked")
+		_cancel_connecting()
+		return
+	var added: bool = connection_manager.add_connection(
+		_connecting_from_building, _connecting_from_port, to_building, to_port, path
+	)
+	if added and undo_manager and not undo_manager.is_undoing:
+		undo_manager.push_command({
+			type = "add_connection",
+			from_cell = _connecting_from_building.grid_cell,
+			from_port = _connecting_from_port,
+			to_cell = to_building.grid_cell,
+			to_port = to_port,
+			path = path.duplicate(),
+		})
 	_state = State.IDLE
 	_connecting_from_building = null
 	_connecting_from_port = ""
@@ -208,14 +222,18 @@ func _complete_connection(to_building: Node2D, to_port: String) -> void:
 
 
 func _update_connection_preview() -> void:
-	if connection_layer == null or _connecting_from_building == null:
+	if connection_layer == null or _connecting_from_building == null or connection_manager == null:
 		return
+	var mouse_pos := _get_world_mouse_position()
+	var mouse_cell: Vector2i = grid_system.world_to_grid(mouse_pos)
 	var from_pos: Vector2 = _connecting_from_building.get_port_world_position(_connecting_from_port)
-	var to_pos := _get_world_mouse_position()
-	connection_layer.preview_from = from_pos
-	connection_layer.preview_to = to_pos
+	var preview: Array[Vector2i] = connection_manager.calculate_preview_path(_routing_start_cell, mouse_cell)
+	var valid: bool = connection_manager._is_path_valid(preview) if not preview.is_empty() else false
+	connection_layer.preview_path = preview
+	connection_layer.preview_valid = valid
+	connection_layer.preview_from_pos = from_pos
+	connection_layer.preview_to_pos = mouse_pos
 	connection_layer.preview_active = true
-	connection_layer.preview_color = Color(_connecting_from_building.definition.color, 0.5)
 
 
 func _find_port_at(world_pos: Vector2, output_only: bool) -> Dictionary:

@@ -38,6 +38,7 @@ func _ready() -> void:
 	building_manager.source_unhovered.connect(_tooltip.hide_tooltip)
 
 	# Wire up connection system
+	connection_manager.grid_system = grid_system
 	building_manager.connection_manager = connection_manager
 	building_manager.connection_layer = connection_layer
 	connection_layer.connection_manager = connection_manager
@@ -51,9 +52,6 @@ func _ready() -> void:
 	simulation_manager.building_container = $BuildingContainer
 	building_manager.building_placed.connect(simulation_manager._on_building_placed)
 	building_manager.building_removed.connect(simulation_manager._on_building_removed)
-	simulation_manager.credits_changed.connect(_on_credits_changed)
-	simulation_manager.research_changed.connect(_on_research_changed)
-	simulation_manager.patch_data_changed.connect(_on_patch_data_changed)
 	simulation_manager.content_discovered.connect(_on_content_discovered)
 	simulation_manager.state_discovered.connect(_on_state_discovered)
 
@@ -272,17 +270,6 @@ func _on_scenario_finished(scenario_name: String, success: bool) -> void:
 	else:
 		print("[Main] Scenario done — %s: %s (oyun devam ediyor)" % [scenario_name, "PASSED" if success else "FAILED"])
 
-
-func _on_credits_changed(new_total: float) -> void:
-	_top_bar.update_credits(new_total)
-
-
-func _on_research_changed(new_total: float) -> void:
-	_top_bar.update_research(new_total)
-
-
-func _on_patch_data_changed(new_total: float) -> void:
-	_top_bar.update_patch_data(new_total)
 
 
 func _on_speed_changed(multiplier: int, paused: bool) -> void:

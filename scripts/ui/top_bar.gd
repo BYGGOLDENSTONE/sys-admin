@@ -5,9 +5,6 @@ const BORDER_COLOR := Color("#00ccff")
 const DIVIDER_COLOR := Color("#00ccff40")
 
 var _speed_label: Label
-var _credits_label: Label
-var _research_label: Label
-var _patch_label: Label
 var _seed_label: Label
 var _dev_label: Label
 
@@ -40,24 +37,6 @@ func _build_ui() -> void:
 	_speed_label = _make_label("> 1x", Color(0, 1, 0.53), 18)
 	_speed_label.custom_minimum_size.x = 130
 	hbox.add_child(_speed_label)
-
-	hbox.add_child(_make_divider())
-
-	# Credits
-	_credits_label = _make_label("CREDITS: 0", Color(0, 1, 0.53), 16)
-	hbox.add_child(_credits_label)
-
-	hbox.add_child(_make_divider())
-
-	# Research
-	_research_label = _make_label("RESEARCH: 0", Color(0.4, 0.8, 1), 16)
-	hbox.add_child(_research_label)
-
-	hbox.add_child(_make_divider())
-
-	# Patch Data
-	_patch_label = _make_label("PATCH: 0", Color(0.9, 0.6, 0.2), 16)
-	hbox.add_child(_patch_label)
 
 	# Spacer
 	var spacer := Control.new()
@@ -104,17 +83,6 @@ func update_speed(multiplier: int, paused: bool) -> void:
 		_speed_label.text = "%s %dx" % [">".repeat(multiplier), multiplier]
 		_speed_label.add_theme_color_override("font_color", Color(0, 1, 0.53))
 
-
-func update_credits(value: float) -> void:
-	_credits_label.text = "CREDITS: %d" % int(value)
-
-
-func update_research(value: float) -> void:
-	_research_label.text = "RESEARCH: %d" % int(value)
-
-
-func update_patch_data(value: float) -> void:
-	_patch_label.text = "PATCH: %d" % int(value)
 
 
 func update_seed(seed_value: int) -> void:

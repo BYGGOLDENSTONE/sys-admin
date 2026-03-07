@@ -130,11 +130,6 @@ func _update_stats() -> void:
 			lines.append(_stat("İçerik", _format_stored_data(b.stored_data)))
 		if def.storage.forward_rate > 0:
 			lines.append(_stat("İletim", "%d MB/s" % int(def.storage.forward_rate)))
-	if def.seller:
-		lines.append(_stat("Satış", "%d MB/s (Clean)" % int(def.seller.sell_rate)))
-		lines.append(_stat("Baz Fiyat", "%.1f CR/MB" % def.seller.credits_per_mb))
-		if not def.seller.content_price_multipliers.is_empty():
-			lines.append(_stat("Fiyatlar", _format_price_multipliers(def.seller)))
 	if def.processor:
 		lines.append(_stat("İşleme", "%d MB/s" % int(b.get_effective_value("processing_rate"))))
 		lines.append(_stat("Verimlilik", "%d%%" % int(b.get_effective_value("efficiency") * 100)))
@@ -148,8 +143,6 @@ func _update_stats() -> void:
 			lines.append(_stat("Mod", mode_name))
 			lines.append(_stat("Sağ Port →", "[color=#44ff88]%s[/color]" % filter_name))
 			lines.append(_stat("Alt Port  →", "Diğer tüm veriler"))
-		elif def.processor.rule == "compressor":
-			lines.append(_stat("Sıkıştırma", "%d%% çıktı" % int(b.get_effective_value("efficiency") * 100)))
 		elif def.processor.rule == "decryptor":
 			lines.append(_stat("Giriş", "[color=#44aaff]Encrypted[/color]"))
 			lines.append(_stat("Çıkış", "[color=#44ff88]Clean[/color] (content korunur)"))
@@ -165,12 +158,6 @@ func _update_stats() -> void:
 		elif def.processor.rule == "merger":
 			lines.append(_stat("Birleştirme", "← Left + ↑ Top"))
 			lines.append(_stat("Çıkış", "→ Right"))
-	if def.research_collector:
-		var rc: ResearchCollectorComponent = def.research_collector
-		lines.append(_stat("Toplama", "%d MB/s" % int(rc.collection_rate)))
-		lines.append(_stat("Kazanım", "%.1f RP/MB" % rc.research_per_mb))
-		lines.append(_stat("Kabul", "Research(Clean)"))
-
 	# Upgrade info
 	if def.upgrade:
 		var upg: UpgradeComponent = def.upgrade
@@ -227,19 +214,6 @@ func _format_stored_data(data: Dictionary) -> String:
 		])
 	if parts.is_empty():
 		return "Boş"
-	return ", ".join(parts)
-
-
-func _format_price_multipliers(sell: SellerComponent) -> String:
-	var parts: PackedStringArray = []
-	# Sort by multiplier descending for readability
-	var sorted_keys: Array = sell.content_price_multipliers.keys()
-	sorted_keys.sort_custom(func(a, b): return sell.content_price_multipliers[a] > sell.content_price_multipliers[b])
-	for content_id in sorted_keys:
-		var mult: float = sell.content_price_multipliers[content_id]
-		var c: int = int(content_id)
-		var color: String = DataEnums.content_color_hex(c)
-		parts.append("[color=%s]%s(%.0fx)[/color]" % [color, DataEnums.content_name(c), mult])
 	return ", ".join(parts)
 
 

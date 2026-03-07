@@ -86,16 +86,12 @@ func _refresh_buttons() -> void:
 	for child in _button_container.get_children():
 		child.queue_free()
 
-	# Update research display
-	var current_rp: float = 0.0
-	if _simulation_manager:
-		current_rp = _simulation_manager.total_research
-	_research_info.text = "Research: %d RP" % int(current_rp)
+	_research_info.text = ""
 
 	# Create entry for each tech
 	for entry in _tech_entries:
 		var is_unlocked: bool = _unlocked.get(entry.name, false)
-		var can_afford: bool = current_rp >= entry.cost
+		var can_afford: bool = true
 
 		var hbox := HBoxContainer.new()
 		hbox.add_theme_constant_override("separation", 8)
@@ -134,15 +130,6 @@ func _refresh_buttons() -> void:
 
 
 func _on_unlock_pressed(entry: Dictionary) -> void:
-	if _simulation_manager == null:
-		return
-	if _simulation_manager.total_research < entry.cost:
-		return
-
-	# Spend research points
-	_simulation_manager.total_research -= entry.cost
-	_simulation_manager.research_changed.emit(_simulation_manager.total_research)
-
 	# Mark as unlocked
 	_unlocked[entry.name] = true
 	building_unlocked.emit(entry.name)

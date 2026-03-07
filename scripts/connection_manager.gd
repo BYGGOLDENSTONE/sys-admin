@@ -4,19 +4,19 @@ signal connection_added(connection: Dictionary)
 signal connection_removed(connection: Dictionary)
 
 var connections: Array[Dictionary] = []
+var grid_system: Node2D = null
+
+const TILE_SIZE: int = 64
 
 
-func add_connection(from_building: Node2D, from_port: String, to_building: Node2D, to_port: String) -> bool:
-	if has_connection(from_building, from_port, to_building, to_port):
-		return false
-	# Don't allow connecting a building to itself
+func add_connection(from_building: Node2D, from_port: String, to_building: Node2D, to_port: String, path: Array[Vector2i]) -> bool:
 	if from_building == to_building:
 		return false
-	# Don't allow duplicate connections to the same input port
+	if path.is_empty():
+		return false
 	for conn in connections:
 		if conn.to_building == to_building and conn.to_port == to_port:
 			return false
-	# Don't allow duplicate connections from the same output port
 	for conn in connections:
 		if conn.from_building == from_building and conn.from_port == from_port:
 			return false
@@ -25,12 +25,16 @@ func add_connection(from_building: Node2D, from_port: String, to_building: Node2
 		"from_port": from_port,
 		"to_building": to_building,
 		"to_port": to_port,
+		"path": path.duplicate(),
 	}
 	connections.append(conn)
+	for cell in path:
+		grid_system.occupy_cable(cell)
 	connection_added.emit(conn)
-	print("[Connection] Added — %s.%s → %s.%s" % [
+	print("[Connection] Added — %s.%s → %s.%s (%d segments)" % [
 		from_building.definition.building_name, from_port,
-		to_building.definition.building_name, to_port
+		to_building.definition.building_name, to_port,
+		path.size()
 	])
 	return true
 
@@ -39,6 +43,8 @@ func remove_connection(index: int) -> void:
 	if index < 0 or index >= connections.size():
 		return
 	var conn: Dictionary = connections[index]
+	for cell in conn.path:
+		grid_system.free_cable(cell)
 	connections.remove_at(index)
 	connection_removed.emit(conn)
 	print("[Connection] Removed — %s.%s → %s.%s" % [
@@ -52,6 +58,8 @@ func remove_connections_for(building: Node2D, _cell: Vector2i) -> void:
 	while i >= 0:
 		var conn: Dictionary = connections[i]
 		if conn.from_building == building or conn.to_building == building:
+			for cell in conn.path:
+				grid_system.free_cable(cell)
 			var removed := conn.duplicate()
 			connections.remove_at(i)
 			connection_removed.emit(removed)
@@ -70,35 +78,95 @@ func has_connection(from_building: Node2D, from_port: String, to_building: Node2
 	return false
 
 
-func get_connection_at_point(world_pos: Vector2, threshold: float = 10.0) -> int:
-	var closest_index: int = -1
-	var closest_dist: float = threshold
+func get_connection_at_point(world_pos: Vector2) -> int:
+	if grid_system == null:
+		return -1
+	var cell: Vector2i = grid_system.world_to_grid(world_pos)
+	if not grid_system.has_cable_at(cell):
+		return -1
 	for i in range(connections.size()):
-		var conn: Dictionary = connections[i]
-		var from_pos: Vector2 = conn.from_building.get_port_world_position(conn.from_port)
-		var to_pos: Vector2 = conn.to_building.get_port_world_position(conn.to_port)
-		var dist := _point_to_bezier_distance(world_pos, from_pos, to_pos)
-		if dist < closest_dist:
-			closest_dist = dist
-			closest_index = i
-	return closest_index
+		if cell in connections[i].path:
+			return i
+	return -1
 
 
-func _point_to_bezier_distance(point: Vector2, from_pos: Vector2, to_pos: Vector2) -> float:
-	var min_dist: float = INF
-	var dx: float = absf(to_pos.x - from_pos.x) * 0.4
-	var cp1 := from_pos + Vector2(dx, 0)
-	var cp2 := to_pos - Vector2(dx, 0)
-	var steps: int = 20
-	for i in range(steps + 1):
-		var t: float = float(i) / float(steps)
-		var bezier_point := _cubic_bezier(from_pos, cp1, cp2, to_pos, t)
-		var dist := point.distance_to(bezier_point)
-		if dist < min_dist:
-			min_dist = dist
-	return min_dist
+# --- PORT EXIT CELL ---
+
+func get_port_exit_cell(building: Node2D, port_side: String) -> Vector2i:
+	var bx: int = building.grid_cell.x
+	var by: int = building.grid_cell.y
+	var sw: int = building.definition.grid_size.x
+	var sh: int = building.definition.grid_size.y
+	match port_side:
+		"right":
+			return Vector2i(bx + sw, by + sh / 2)
+		"left":
+			return Vector2i(bx - 1, by + sh / 2)
+		"top":
+			return Vector2i(bx + sw / 2, by - 1)
+		"bottom":
+			return Vector2i(bx + sw / 2, by + sh)
+	return Vector2i(bx + sw, by)
 
 
-func _cubic_bezier(p0: Vector2, p1: Vector2, p2: Vector2, p3: Vector2, t: float) -> Vector2:
-	var u: float = 1.0 - t
-	return u * u * u * p0 + 3.0 * u * u * t * p1 + 3.0 * u * t * t * p2 + t * t * t * p3
+# --- PATHFINDING (L-SHAPED) ---
+
+func calculate_path(from: Vector2i, to: Vector2i) -> Array[Vector2i]:
+	if from == to:
+		return [from] if grid_system.can_place_cable(from) else []
+	var h_path: Array[Vector2i] = _l_path_horizontal_first(from, to)
+	if _is_path_valid(h_path):
+		return h_path
+	var v_path: Array[Vector2i] = _l_path_vertical_first(from, to)
+	if _is_path_valid(v_path):
+		return v_path
+	return []
+
+
+func calculate_preview_path(from: Vector2i, to: Vector2i) -> Array[Vector2i]:
+	if from == to:
+		return [from]
+	var h_path: Array[Vector2i] = _l_path_horizontal_first(from, to)
+	if _is_path_valid(h_path):
+		return h_path
+	var v_path: Array[Vector2i] = _l_path_vertical_first(from, to)
+	if _is_path_valid(v_path):
+		return v_path
+	return h_path
+
+
+func _l_path_horizontal_first(from: Vector2i, to: Vector2i) -> Array[Vector2i]:
+	var path: Array[Vector2i] = [from]
+	var cx: int = from.x
+	var cy: int = from.y
+	var x_dir: int = 1 if to.x > from.x else -1 if to.x < from.x else 0
+	var y_dir: int = 1 if to.y > from.y else -1 if to.y < from.y else 0
+	while cx != to.x:
+		cx += x_dir
+		path.append(Vector2i(cx, cy))
+	while cy != to.y:
+		cy += y_dir
+		path.append(Vector2i(cx, cy))
+	return path
+
+
+func _l_path_vertical_first(from: Vector2i, to: Vector2i) -> Array[Vector2i]:
+	var path: Array[Vector2i] = [from]
+	var cx: int = from.x
+	var cy: int = from.y
+	var x_dir: int = 1 if to.x > from.x else -1 if to.x < from.x else 0
+	var y_dir: int = 1 if to.y > from.y else -1 if to.y < from.y else 0
+	while cy != to.y:
+		cy += y_dir
+		path.append(Vector2i(cx, cy))
+	while cx != to.x:
+		cx += x_dir
+		path.append(Vector2i(cx, cy))
+	return path
+
+
+func _is_path_valid(path: Array[Vector2i]) -> bool:
+	for cell in path:
+		if not grid_system.can_place_cable(cell):
+			return false
+	return true
