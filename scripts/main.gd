@@ -248,7 +248,7 @@ func _show_unlock_notification(building_name: String) -> void:
 	var notif := Label.new()
 	notif.text = ">> %s UNLOCKED <<" % building_name.to_upper()
 	notif.add_theme_font_size_override("font_size", 18)
-	notif.add_theme_color_override("font_color", Color("#aa88ff"))
+	notif.add_theme_color_override("font_color", Color("#aa77ff"))
 	notif.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	notif.anchors_preset = Control.PRESET_CENTER_TOP
 	notif.position.y = 110

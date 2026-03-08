@@ -6,7 +6,7 @@
 script = ExtResource("1")
 source_name = "Vending Machine"
 description = "Street vending machine. Only produces clean standard data. A safe starting point."
-color = Color(0.4, 0.8, 1.0, 1.0)
+color = Color(0.4, 0.67, 0.87, 1.0)
 content_weights = {0: 1.0}
 state_weights = {0: 1.0}
 bandwidth = 5.0

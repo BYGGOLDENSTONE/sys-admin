@@ -39,12 +39,12 @@ static func state_name(s: int) -> String:
 
 static func state_color(s: int) -> Color:
 	match s:
-		DataState.CLEAN: return Color("#44ff88")
-		DataState.ENCRYPTED: return Color("#44aaff")
-		DataState.CORRUPTED: return Color("#ff8844")
-		DataState.MALWARE: return Color("#ff4466")
-		DataState.RESIDUE: return Color("#888844")
-	return Color("#aabbcc")
+		DataState.CLEAN: return Color("#00ffaa")
+		DataState.ENCRYPTED: return Color("#2288ff")
+		DataState.CORRUPTED: return Color("#ffaa00")
+		DataState.MALWARE: return Color("#ff1133")
+		DataState.RESIDUE: return Color("#bbbb44")
+	return Color("#778899")
 
 static func content_char(c: int) -> String:
 	match c:
@@ -60,23 +60,23 @@ static func content_char(c: int) -> String:
 
 static func content_color(c: int) -> Color:
 	match c:
-		ContentType.STANDARD: return Color("#aabbcc")
-		ContentType.FINANCIAL: return Color("#ffdd44")
-		ContentType.BIOMETRIC: return Color("#ff88cc")
-		ContentType.BLUEPRINT: return Color("#88ffdd")
-		ContentType.RESEARCH: return Color("#aa88ff")
-		ContentType.CLASSIFIED: return Color("#ff6666")
+		ContentType.STANDARD: return Color("#7788aa")
+		ContentType.FINANCIAL: return Color("#ffcc00")
+		ContentType.BIOMETRIC: return Color("#ff33aa")
+		ContentType.BLUEPRINT: return Color("#00ffcc")
+		ContentType.RESEARCH: return Color("#9955ff")
+		ContentType.CLASSIFIED: return Color("#ff3388")
 		ContentType.KEY: return Color("#ffaa00")
-	return Color("#aabbcc")
+	return Color("#7788aa")
 
 static func state_color_hex(s: int) -> String:
 	match s:
-		DataState.CLEAN: return "#44ff88"
-		DataState.ENCRYPTED: return "#44aaff"
-		DataState.CORRUPTED: return "#ff8844"
-		DataState.MALWARE: return "#ff4466"
-		DataState.RESIDUE: return "#888844"
-	return "#aabbcc"
+		DataState.CLEAN: return "#00ffaa"
+		DataState.ENCRYPTED: return "#2288ff"
+		DataState.CORRUPTED: return "#ffaa00"
+		DataState.MALWARE: return "#ff1133"
+		DataState.RESIDUE: return "#bbbb44"
+	return "#778899"
 
 static func state_storage_cost(s: int) -> int:
 	match s:
@@ -90,14 +90,14 @@ static func state_storage_cost(s: int) -> int:
 
 static func content_color_hex(c: int) -> String:
 	match c:
-		ContentType.STANDARD: return "#aabbcc"
-		ContentType.FINANCIAL: return "#ffdd44"
-		ContentType.BIOMETRIC: return "#ff88cc"
-		ContentType.BLUEPRINT: return "#88ffdd"
-		ContentType.RESEARCH: return "#aa88ff"
-		ContentType.CLASSIFIED: return "#ff6666"
+		ContentType.STANDARD: return "#7788aa"
+		ContentType.FINANCIAL: return "#ffcc00"
+		ContentType.BIOMETRIC: return "#ff33aa"
+		ContentType.BLUEPRINT: return "#00ffcc"
+		ContentType.RESEARCH: return "#9955ff"
+		ContentType.CLASSIFIED: return "#ff3388"
 		ContentType.KEY: return "#ffaa00"
-	return "#aabbcc"
+	return "#7788aa"
 
 
 static func refined_name(r: int) -> String:
@@ -112,19 +112,19 @@ static func refined_name(r: int) -> String:
 
 static func refined_color(r: int) -> Color:
 	match r:
-		RefinedType.CALIBRATED_DATA: return Color("#66ffcc")
-		RefinedType.RECOVERY_MATRIX: return Color("#88ddff")
-		RefinedType.SECURITY_CORE: return Color("#ff88ff")
-		RefinedType.TRADE_LICENSE: return Color("#ffcc66")
-		RefinedType.NEURAL_INDEX: return Color("#cc88ff")
+		RefinedType.CALIBRATED_DATA: return Color("#22ffbb")
+		RefinedType.RECOVERY_MATRIX: return Color("#55bbff")
+		RefinedType.SECURITY_CORE: return Color("#cc55ff")
+		RefinedType.TRADE_LICENSE: return Color("#ffbb44")
+		RefinedType.NEURAL_INDEX: return Color("#bb44ff")
 	return Color("#ffffff")
 
 
 static func refined_color_hex(r: int) -> String:
 	match r:
-		RefinedType.CALIBRATED_DATA: return "#66ffcc"
-		RefinedType.RECOVERY_MATRIX: return "#88ddff"
-		RefinedType.SECURITY_CORE: return "#ff88ff"
-		RefinedType.TRADE_LICENSE: return "#ffcc66"
-		RefinedType.NEURAL_INDEX: return "#cc88ff"
+		RefinedType.CALIBRATED_DATA: return "#22ffbb"
+		RefinedType.RECOVERY_MATRIX: return "#55bbff"
+		RefinedType.SECURITY_CORE: return "#cc55ff"
+		RefinedType.TRADE_LICENSE: return "#ffbb44"
+		RefinedType.NEURAL_INDEX: return "#bb44ff"
 	return "#ffffff"

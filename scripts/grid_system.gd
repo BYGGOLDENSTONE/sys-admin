@@ -4,8 +4,8 @@ const TILE_SIZE: int = 64
 const GRID_WIDTH: int = 512
 const GRID_HEIGHT: int = 512
 
-const BG_COLOR := Color("#0a0e14")
-const GRID_LINE_COLOR := Color("#2a2e3e")
+const BG_COLOR := Color("#060a10")
+const GRID_LINE_COLOR := Color("#0f1520")
 const MAP_CENTER := Vector2(256 * 64, 256 * 64)  ## Center in pixels (256,256 grid * 64px)
 
 var _occupied_cells: Dictionary = {}
@@ -99,7 +99,7 @@ func _get_edge_data(v1: Vector2i, v2: Vector2i) -> Array:
 		return [_cable_v_edges, Vector2i(v1.x, mini(v1.y, v2.y))]
 
 
-func can_place_cable_edge(v1: Vector2i, v2: Vector2i) -> bool:
+func can_place_cable_edge(v1: Vector2i, v2: Vector2i, exempt_cells: Dictionary = {}) -> bool:
 	# Bounds check (vertices can be 0..GRID_WIDTH, 0..GRID_HEIGHT)
 	if v1.x < 0 or v1.x > GRID_WIDTH or v1.y < 0 or v1.y > GRID_HEIGHT:
 		return false
@@ -121,14 +121,15 @@ func can_place_cable_edge(v1: Vector2i, v2: Vector2i) -> bool:
 			return dict[key] < 2
 		return false
 	# Block if edge touches any occupied cell (building or source)
-	if _edge_touches_occupied(v1, v2):
+	if _edge_touches_occupied(v1, v2, exempt_cells):
 		return false
 	return true
 
 
-func _edge_touches_occupied(v1: Vector2i, v2: Vector2i) -> bool:
+func _edge_touches_occupied(v1: Vector2i, v2: Vector2i, exempt_cells: Dictionary = {}) -> bool:
 	## Returns true if ANY cell adjacent to this edge is occupied.
 	## Cables cannot be on building/source boundary edges — only 1 cell away.
+	## exempt_cells: cells to skip (port exit areas of source/target buildings).
 	var cell_a: Vector2i
 	var cell_b: Vector2i
 	if v1.y == v2.y:  # horizontal edge
@@ -139,14 +140,14 @@ func _edge_touches_occupied(v1: Vector2i, v2: Vector2i) -> bool:
 		var y := mini(v1.y, v2.y)
 		cell_a = Vector2i(v1.x - 1, y)  # cell left
 		cell_b = Vector2i(v1.x, y)      # cell right
-	if _occupied_cells.has(cell_a) or _source_cells.has(cell_a):
+	if (_occupied_cells.has(cell_a) or _source_cells.has(cell_a)) and not exempt_cells.has(cell_a):
 		return true
-	if _occupied_cells.has(cell_b) or _source_cells.has(cell_b):
+	if (_occupied_cells.has(cell_b) or _source_cells.has(cell_b)) and not exempt_cells.has(cell_b):
 		return true
 	return false
 
 
-func is_turn_corner_occupied(v: Vector2i, prev_v: Vector2i, next_v: Vector2i) -> bool:
+func is_turn_corner_occupied(v: Vector2i, prev_v: Vector2i, next_v: Vector2i, exempt_cells: Dictionary = {}) -> bool:
 	## When a cable turns at vertex V, check if the diagonal corner cell is occupied.
 	## Prevents cables from "cutting corners" of buildings/sources.
 	var d_in: Vector2i = v - prev_v
@@ -163,7 +164,7 @@ func is_turn_corner_occupied(v: Vector2i, prev_v: Vector2i, next_v: Vector2i) ->
 		dx = 0 if d_out.x < 0 else -1
 		dy = 0 if d_in.y > 0 else -1
 	var cell := Vector2i(v.x + dx, v.y + dy)
-	return _occupied_cells.has(cell) or _source_cells.has(cell)
+	return (_occupied_cells.has(cell) or _source_cells.has(cell)) and not exempt_cells.has(cell)
 
 
 func _edge_has_bridge(v1: Vector2i, v2: Vector2i) -> bool:
@@ -289,7 +290,7 @@ func _draw() -> void:
 				draw_rect(r, Color(a, 0.03), false, 1.0)
 
 	# Cable edge underglow
-	var cable_ug := Color(0.0, 0.6, 0.9, minf(0.06 * ug_scale, 0.15))
+	var cable_ug := Color(0.13, 0.53, 0.73, minf(0.06 * ug_scale, 0.15))
 	var cable_w: float = maxf(2.0, 4.0 * ug_scale)
 	for edge_key in _cable_h_edges:
 		if edge_key.x < sx - 1 or edge_key.x > ex + 1 or edge_key.y < sy - 1 or edge_key.y > ey + 1:

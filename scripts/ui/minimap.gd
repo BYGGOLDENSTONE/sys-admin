@@ -1,12 +1,12 @@
 extends Control
 
 const MINIMAP_SIZE: int = 180
-const BG_COLOR := Color(0.04, 0.06, 0.08, 0.9)
-const BORDER_COLOR := Color(0, 0.8, 1.0, 0.5)
-const BORDER_GLOW_COLOR := Color(0, 0.8, 1.0, 0.15)
+const BG_COLOR := Color(0.03, 0.05, 0.07, 0.9)
+const BORDER_COLOR := Color(0.13, 0.67, 0.87, 0.5)
+const BORDER_GLOW_COLOR := Color(0.13, 0.67, 0.87, 0.15)
 const CAMERA_COLOR := Color(1, 1, 1, 0.6)
-const BUILDING_COLOR := Color(0, 1, 0.53)
-const CABLE_COLOR := Color(0.2, 0.6, 1.0, 0.25)
+const BUILDING_COLOR := Color(0.2, 1.0, 0.67)
+const CABLE_COLOR := Color(0.13, 0.6, 0.87, 0.25)
 const TILE_PX: int = 64
 const WORLD_SIZE: float = 512.0 * 64.0
 
@@ -41,7 +41,7 @@ func _draw() -> void:
 	draw_rect(Rect2(Vector2.ZERO, Vector2(s, s)), BORDER_COLOR, false, 1.0)
 	# Corner accents
 	var cl: float = 12.0
-	var cc := Color(0, 0.9, 1.0, 0.7)
+	var cc := Color(0.13, 0.67, 0.87, 0.7)
 	draw_line(Vector2(0, 0), Vector2(cl, 0), cc, 2.0)
 	draw_line(Vector2(0, 0), Vector2(0, cl), cc, 2.0)
 	draw_line(Vector2(s, 0), Vector2(s - cl, 0), cc, 2.0)

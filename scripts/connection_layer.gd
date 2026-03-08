@@ -10,8 +10,8 @@ const PARTICLES_PER_CABLE: int = 6
 const PARTICLE_FONT_SIZE: int = 20
 const HOVER_COLOR := Color(1.0, 0.3, 0.3, 0.6)
 const HOVER_WIDTH: float = 10.0
-const PREVIEW_VALID_COLOR := Color(0, 1, 0.5, 0.5)
-const PREVIEW_INVALID_COLOR := Color(1, 0.2, 0.2, 0.5)
+const PREVIEW_VALID_COLOR := Color(0.2, 1, 0.67, 0.5)
+const PREVIEW_INVALID_COLOR := Color(1, 0.13, 0.27, 0.5)
 
 var connection_manager: Node = null
 var simulation_manager: Node = null

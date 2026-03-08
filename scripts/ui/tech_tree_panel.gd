@@ -2,8 +2,8 @@ extends PanelContainer
 
 signal building_unlocked(building_name: String)
 
-const BG_COLOR := Color("#0d1117")
-const BORDER_COLOR := Color("#aa88ff")
+const BG_COLOR := Color("#0a0f16")
+const BORDER_COLOR := Color("#aa77ff")
 
 ## Discovery-based unlock rules (GDD Section 11)
 var _unlock_rules: Array[Dictionary] = [

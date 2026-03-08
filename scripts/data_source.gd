@@ -389,10 +389,10 @@ func _draw_territory_tint(accent: Color, tint_alpha: float = 0.06) -> void:
 func _draw_zone_badge(center: Vector2) -> void:
 	var diff_labels: Dictionary = {"easy": "EASY", "medium": "MEDIUM", "hard": "HARD", "endgame": "ENDGAME"}
 	var diff_colors: Dictionary = {
-		"easy": Color(0.3, 1.0, 0.4),
-		"medium": Color(1.0, 0.9, 0.3),
-		"hard": Color(1.0, 0.6, 0.2),
-		"endgame": Color(1.0, 0.3, 0.2),
+		"easy": Color(0.2, 1.0, 0.67),
+		"medium": Color(1.0, 0.8, 0.2),
+		"hard": Color(1.0, 0.4, 0.2),
+		"endgame": Color(1.0, 0.13, 0.27),
 	}
 
 	var label: String = diff_labels.get(definition.difficulty, "")

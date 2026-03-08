@@ -2,12 +2,12 @@ extends PanelContainer
 
 signal building_selected(definition: BuildingDefinition)
 
-const PANEL_BG_COLOR := Color(0.05, 0.07, 0.09, 0.85)
-const BORDER_COLOR := Color(0.0, 0.8, 1.0, 0.5)
-const BUTTON_NORMAL_COLOR := Color(0.1, 0.12, 0.18, 0.7)
-const BUTTON_HOVER_COLOR := Color(0.16, 0.22, 0.32, 0.85)
-const BUTTON_PRESSED_COLOR := Color(0.2, 0.28, 0.42, 0.9)
-const TITLE_COLOR := Color("#00ccff")
+const PANEL_BG_COLOR := Color(0.04, 0.06, 0.09, 0.93)
+const BORDER_COLOR := Color(0.13, 0.67, 0.87, 0.38)
+const BUTTON_NORMAL_COLOR := Color(0.08, 0.1, 0.14, 0.7)
+const BUTTON_HOVER_COLOR := Color(0.12, 0.18, 0.26, 0.85)
+const BUTTON_PRESSED_COLOR := Color(0.16, 0.24, 0.36, 0.9)
+const TITLE_COLOR := Color("#00bbee")
 
 var _definitions: Array[BuildingDefinition] = []
 var _tech_tree: Node = null
@@ -120,7 +120,7 @@ func _setup_panel_style() -> void:
 	style.content_margin_right = 4
 	style.content_margin_top = 4
 	style.content_margin_bottom = 4
-	style.shadow_color = Color(0, 0.6, 0.8, 0.06)
+	style.shadow_color = Color(0.13, 0.53, 0.73, 0.06)
 	style.shadow_size = 6
 	add_theme_stylebox_override("panel", style)
 

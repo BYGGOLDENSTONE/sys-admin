@@ -149,14 +149,14 @@ func get_port_world_pos(building: Node2D, port_side: String) -> Vector2:
 
 # --- PATH VALIDATION ---
 
-func is_path_valid(path: Array[Vector2i]) -> bool:
+func is_path_valid(path: Array[Vector2i], exempt_cells: Dictionary = {}) -> bool:
 	if path.size() < 2:
 		return false
 	for i in range(path.size() - 1):
-		if not grid_system.can_place_cable_edge(path[i], path[i + 1]):
+		if not grid_system.can_place_cable_edge(path[i], path[i + 1], exempt_cells):
 			return false
 	# Check diagonal corners at every turn vertex
 	for i in range(1, path.size() - 1):
-		if grid_system.is_turn_corner_occupied(path[i], path[i - 1], path[i + 1]):
+		if grid_system.is_turn_corner_occupied(path[i], path[i - 1], path[i + 1], exempt_cells):
 			return false
 	return true

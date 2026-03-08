@@ -76,11 +76,14 @@ Kablolar vertex-based (grid kesisim noktasi) edge sistemi kullanir:
 - Backtrack: mouse mevcut path uzerinde geri giderse kablo otomatik kesilir
 - Gorsel geri bildirim: gecerli path YESIL, engellenenmis kisim KIRMIZI
 
-**Kablo Engelleme Kurali (v2.0.2 — Basitlestirildi):**
-- Eski proximity sistemi TAMAMEN KALDIRILDI (proximity_h/v_edges, port_exit_vertices, vertex_near_occupied)
-- Tek kural: `_edge_touches_occupied(v1, v2)` — edge'in HERHANGI bir yanindaki hucre doluysa engelle
+**Kablo Engelleme Kurali (v2.0.3 — Exempt Cells):**
+- Temel kural: `_edge_touches_occupied(v1, v2, exempt_cells)` — edge'in yanindaki hucre doluysa engelle
 - Capraz kose kontrolu: `is_turn_corner_occupied()` — kablo donuste capraz hucreye dokunmaz
-- Sonuc: kablolar yapi/kaynaktan 1 hucre uzakta gecer, koselere dokunmaz
+- **Port Exit Exemption:** Kaynak/hedef binanin port exit vertex'leri etrafindaki 4 hucre muaf tutulur
+- `_compute_port_exempt_cells()` → exit vertex etrafindaki hucreleri hesaplar
+- Kablo cizimi baslarken FROM building exempt, baglanti tamamlanirken TO building de eklenir
+- **Snap + Truncate:** Kablo exit vertex'ten gecip binaya uzanirsa, path otomatik kesilir (truncate)
+- BFS tabanli `_find_snap_path()` → 3 adima kadar akilli yol bulma ile port'a snap
 - Exit vertex'ler bina sinirinden 1 hucre disarida, port merkezine hizali
 
 **Veri Yapilari:**
@@ -111,8 +114,8 @@ Kablolar vertex-based (grid kesisim noktasi) edge sistemi kullanir:
 ## Mevcut Kod Durumu
 
 ### Calisan Sistemler
-- Grid sistemi (`grid_system.gd`) — 512x512, hucre yonetimi + edge-based kablo takibi + proximity edge bloklama
-- Grid kablo sistemi (`connection_manager.gd` + `connection_layer.gd`) — Manuel vertex routing, edge-based rendering, port stub'lar
+- Grid sistemi (`grid_system.gd`) — 512x512, hucre yonetimi + edge-based kablo takibi + exempt cell destegi
+- Grid kablo sistemi (`connection_manager.gd` + `connection_layer.gd`) — Manuel vertex routing, edge-based rendering, port stub'lar, BFS snap
 - Veri modeli (`data_enums.gd`) — 7 content (+ KEY) + 5 state + 5 RefinedType + Tier sistemi (T1-T4)
 - Bina yerlestirme (`building.gd` + `building_manager.gd`) — grid-based placement + manuel kablo cizimi + malzeme maliyet sistemi
 - Simulasyon (`simulation_manager.gd`) — veri akisi, uretim, isleme, compiler crafting, tier-aware processing
@@ -136,6 +139,15 @@ Kablolar vertex-based (grid kesisim noktasi) edge sistemi kullanir:
 - `research_collector_component.gd` — SILINDI (ProducerComponent olacak)
 - Ring border kodu (`grid_system.gd`'den kaldirildi)
 - Credits/Research/PatchData UI ve signal'leri kaldirildi
+
+### Renk Paleti (v2.0.3 — "Dark PCB" Palette C)
+
+**State Renkleri:** Clean `#00ffaa`, Encrypted `#2288ff`, Corrupted `#ffaa00`, Malware `#ff1133`, Residue `#bbbb44`
+**Content Renkleri:** Standard `#7788aa`, Financial `#ffcc00`, Biometric `#ff33aa`, Blueprint `#00ffcc`, Research `#9955ff`, Classified `#ff3388`, Key `#ffaa00`
+**Refined Renkleri:** Calibrated `#22ffbb`, Recovery `#55bbff`, Security `#cc55ff`, Trade `#ffbb44`, Neural `#bb44ff`
+**UI Accent:** `#00bbee` (teal-cyan)
+**Arka Plan:** `#060a10` (koyu siyah), Grid: `#0f1520`, Bina gövde: `#0a0d14`
+**Bina Renkleri (fonksiyon gruplari):** Routing=gri, Ayirma=teal, Isleme=amber, Uretim=mor, Depolama=yesil, Baslangic=cyan, Tehlike=kirmizi
 
 ### Mevcut .tres Dosyalari (12 bina, 14 kaynak)
 **Binalar:** uplink, storage, separator, classifier, decryptor, recoverer, quarantine, research_lab, splitter, merger, bridge, compiler
@@ -225,6 +237,8 @@ Kablolar vertex-based (grid kesisim noktasi) edge sistemi kullanir:
 - [x] CRT glitch entegrasyonu: Kesif/unlock olaylarinda tetikleme
 - [x] Gorsel polish: Bina breathing + processing flash + smooth fill bar + silme animasyonlari + kablo silme flash + chromatic aberration
 - [x] Ses sistemi: Prosedürel ses (sine/square/saw sentezi), bina/kablo/kesif/isleme sesleri, ambient drone, SoundManager
+- [x] Renk paleti yeniden tasarim: "Dark PCB" Palette C — color theory tabanli, readability-first, fonksiyon grubu bina renkleri
+- [x] Kablo baglanti fix: Port exit exempt cells + path truncation + BFS snap (v2.0.3)
 - [ ] Demo milestone sistemi (GDD Bolum 17 — 7 milestone)
 - [ ] Tutorial akisi
 - [ ] Dengeleme testleri

@@ -1,7 +1,7 @@
 extends Node2D
 
 const TILE_SIZE: int = 64
-const BODY_COLOR := Color("#1a1e2e")
+const BODY_COLOR := Color("#0a0d14")
 const BORDER_WIDTH: float = 2.0
 const GLOW_WIDTH: float = 4.0
 const GLOW_ALPHA: float = 0.3

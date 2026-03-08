@@ -1,7 +1,7 @@
 extends PanelContainer
 
-const BG_COLOR := Color(0.05, 0.07, 0.09, 0.85)
-const BORDER_COLOR := Color(0.0, 0.8, 1.0, 0.6)
+const BG_COLOR := Color(0.04, 0.06, 0.09, 0.93)
+const BORDER_COLOR := Color(0.13, 0.67, 0.87, 0.5)
 const OFFSET := Vector2(16, 16)
 
 @onready var name_label: Label = $MarginContainer/VBoxContainer/NameLabel
@@ -151,7 +151,7 @@ func _update_stats() -> void:
 		lines.append(_stat("Bottom Port →", "[color=#888844]Residue[/color] (digital waste)"))
 	if def.producer:
 		lines.append(_stat("Processing", "%d production/tick" % int(b.get_effective_value("processing_rate"))))
-		lines.append(_stat("Input", "[color=#aa88ff]%d MB Research(Clean)[/color] → 1 Key" % def.producer.consume_amount))
+		lines.append(_stat("Input", "[color=#aa77ff]%d MB Research(Clean)[/color] → 1 Key" % def.producer.consume_amount))
 		lines.append(_stat("Output", "[color=#ffaa00]Decryption Key[/color]"))
 		# Show stored research and keys produced
 		var research_key: String = DataEnums.make_key(def.producer.input_content, def.producer.input_state)

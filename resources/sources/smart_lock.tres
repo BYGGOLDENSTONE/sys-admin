@@ -6,7 +6,7 @@
 script = ExtResource("1")
 source_name = "Smart Lock"
 description = "Smart door lock. Only produces biometric data. Mostly clean, some corrupted."
-color = Color(1.0, 0.55, 0.8, 1.0)
+color = Color(1.0, 0.4, 0.73, 1.0)
 content_weights = {2: 1.0}
 state_weights = {0: 0.8, 2: 0.2}
 bandwidth = 3.0

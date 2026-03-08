@@ -6,7 +6,7 @@
 script = ExtResource("1")
 source_name = "ATM"
 description = "Bank ATM. Only produces financial data. Mostly clean, some corrupted."
-color = Color(1.0, 0.85, 0.3, 1.0)
+color = Color(1.0, 0.8, 0.2, 1.0)
 content_weights = {1: 1.0}
 state_weights = {0: 0.7, 2: 0.3}
 bandwidth = 4.0

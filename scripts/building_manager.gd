@@ -41,6 +41,9 @@ var _last_mouse_vertex: Vector2i = Vector2i(-9999, -9999)  ## Track mouse grid p
 var _moving_building: Node2D = null
 var _moving_original_cell: Vector2i = Vector2i.ZERO
 
+# Exempt cells for cable routing (cells near port exit vertices)
+var _cable_exempt_cells: Dictionary = {}
+
 const VALID_COLOR := Color(0, 1, 0.5, 0.4)
 const INVALID_COLOR := Color(1, 0.2, 0.2, 0.4)
 const TILE_SIZE: int = 64
@@ -81,6 +84,7 @@ func _cancel_connecting() -> void:
 	_start_vertices.clear()
 	_start_initialized = false
 	_last_mouse_vertex = Vector2i(-9999, -9999)
+	_cable_exempt_cells.clear()
 	if connection_layer:
 		connection_layer.preview_active = false
 		connection_layer.preview_blocked = false
@@ -202,6 +206,8 @@ func _start_connecting(building: Node2D, port_side: String) -> void:
 	_start_initialized = false
 	# Get the two possible starting vertices near the port
 	_start_vertices = connection_manager.get_port_exit_vertices(building, port_side)
+	# Compute exempt cells around exit vertices (so cable can leave port area)
+	_cable_exempt_cells = _compute_port_exempt_cells(building, port_side)
 	_state = State.CONNECTING
 	# Clear hover
 	if _hovered_building != null:
@@ -219,34 +225,54 @@ func _complete_connection(to_building: Node2D, to_port: String) -> void:
 	if target_verts.is_empty():
 		_cancel_connecting()
 		return
-	var last_v: Vector2i = _cable_path[_cable_path.size() - 1]
-	var best: Vector2i = target_verts[0]
-	var best_dist: int = absi(last_v.x - best.x) + absi(last_v.y - best.y)
+	# Combine exempt cells: FROM building + TO building port areas
+	var combined_exempt: Dictionary = _cable_exempt_cells.duplicate()
+	var to_exempt: Dictionary = _compute_port_exempt_cells(to_building, to_port)
+	for cell in to_exempt:
+		combined_exempt[cell] = true
+	# TRUNCATE: if cable already passed through a target exit vertex, cut back to it
 	for tv in target_verts:
-		var d: int = absi(last_v.x - tv.x) + absi(last_v.y - tv.y)
-		if d < best_dist:
-			best_dist = d
-			best = tv
-	# Snap: only extend 1 step to reach exit vertex (player must route manually)
-	if last_v != best and best_dist <= 1:
-		if _can_extend_to(last_v, best):
-			_cable_path.append(best)
-	# Verify cable reached an exit vertex
-	last_v = _cable_path[_cable_path.size() - 1]
+		var idx: int = _cable_path.find(tv)
+		if idx >= 1:  # skip index 0 (that's the FROM building's exit)
+			_cable_path.resize(idx + 1)
+			break
+	var last_v: Vector2i = _cable_path[_cable_path.size() - 1]
+	# Check if we already reached a target vertex after truncation
 	if not (last_v in target_verts):
-		# Try the other exit vertex (1 step snap)
+		var best: Vector2i = target_verts[0]
+		var best_dist: int = absi(last_v.x - best.x) + absi(last_v.y - best.y)
 		for tv in target_verts:
-			if tv != best and absi(last_v.x - tv.x) + absi(last_v.y - tv.y) <= 1:
-				if _can_extend_to(last_v, tv):
-					_cable_path.append(tv)
-					break
+			var d: int = absi(last_v.x - tv.x) + absi(last_v.y - tv.y)
+			if d < best_dist:
+				best_dist = d
+				best = tv
+		# Snap: extend up to 3 steps to reach exit vertex with exempt cells
+		if best_dist <= 3:
+			var snap_path: Array[Vector2i] = _find_snap_path(last_v, best, combined_exempt, 3)
+			if not snap_path.is_empty():
+				for sv in snap_path:
+					_cable_path.append(sv)
+		# Verify cable reached an exit vertex
+		last_v = _cable_path[_cable_path.size() - 1]
+		if not (last_v in target_verts):
+			# Try other exit vertices too
+			for tv in target_verts:
+				if tv == last_v:
+					continue
+				var td: int = absi(last_v.x - tv.x) + absi(last_v.y - tv.y)
+				if td <= 3:
+					var snap_path2: Array[Vector2i] = _find_snap_path(last_v, tv, combined_exempt, 3)
+					if not snap_path2.is_empty():
+						for sv in snap_path2:
+							_cable_path.append(sv)
+						break
 	last_v = _cable_path[_cable_path.size() - 1]
 	if not (last_v in target_verts):
-		print("[BuildingManager] Cable must reach port — route closer to the port")
+		print("[BuildingManager] Cable must reach port — path end %s, targets %s" % [last_v, target_verts])
 		_cancel_connecting()
 		return
-	# Validate the path
-	if _cable_path.size() < 2 or not connection_manager.is_path_valid(_cable_path):
+	# Validate the path with combined exempt cells
+	if _cable_path.size() < 2 or not connection_manager.is_path_valid(_cable_path, combined_exempt):
 		print("[BuildingManager] Cannot route cable — path invalid")
 		_cancel_connecting()
 		return
@@ -269,6 +295,7 @@ func _complete_connection(to_building: Node2D, to_port: String) -> void:
 	_start_vertices.clear()
 	_start_initialized = false
 	_last_mouse_vertex = Vector2i(-9999, -9999)
+	_cable_exempt_cells.clear()
 	if connection_layer:
 		connection_layer.preview_active = false
 		connection_layer.play_connection_flash(to_building)
@@ -308,7 +335,7 @@ func _update_manual_routing() -> void:
 		_process_vertex_movement(old_vertex, mouse_vertex)
 
 	# Always update preview (smooth cursor tracking for render)
-	var valid: bool = _cable_path.size() >= 2 and connection_manager.is_path_valid(_cable_path)
+	var valid: bool = _cable_path.size() >= 2 and connection_manager.is_path_valid(_cable_path, _cable_exempt_cells)
 	# Check if cable is stuck (can't reach mouse vertex)
 	var last_v: Vector2i = _cable_path[_cable_path.size() - 1] if not _cable_path.is_empty() else mouse_vertex
 	var is_blocked: bool = mouse_vertex != last_v
@@ -373,17 +400,67 @@ func _interpolate_vertices(from_v: Vector2i, to_v: Vector2i) -> Array[Vector2i]:
 	return result
 
 
-func _can_extend_to(from_v: Vector2i, to_v: Vector2i) -> bool:
+func _can_extend_to(from_v: Vector2i, to_v: Vector2i, exempt_override: Dictionary = {}) -> bool:
 	if to_v in _cable_path:
 		return false  # prevent loops
-	if not grid_system.can_place_cable_edge(from_v, to_v):
+	var exempt: Dictionary = exempt_override if not exempt_override.is_empty() else _cable_exempt_cells
+	if not grid_system.can_place_cable_edge(from_v, to_v, exempt):
 		return false
 	# Check diagonal corner if this creates a turn
 	if _cable_path.size() >= 2:
 		var prev_v: Vector2i = _cable_path[_cable_path.size() - 2]
-		if grid_system.is_turn_corner_occupied(from_v, prev_v, to_v):
+		if grid_system.is_turn_corner_occupied(from_v, prev_v, to_v, exempt):
 			return false
 	return true
+
+
+func _find_snap_path(from_v: Vector2i, to_v: Vector2i, exempt: Dictionary, max_steps: int) -> Array[Vector2i]:
+	## BFS to find a short path from from_v to to_v (up to max_steps).
+	## Returns the path vertices (excluding from_v), or empty if no path found.
+	if from_v == to_v:
+		return []
+	var dist: int = absi(to_v.x - from_v.x) + absi(to_v.y - from_v.y)
+	if dist > max_steps:
+		return []
+	# Simple BFS
+	var queue: Array[Array] = [[from_v, [] as Array[Vector2i]]]
+	var visited: Dictionary = {from_v: true}
+	var directions: Array[Vector2i] = [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)]
+	while not queue.is_empty():
+		var current: Array = queue.pop_front()
+		var pos: Vector2i = current[0]
+		var path: Array[Vector2i] = current[1]
+		if path.size() >= max_steps:
+			continue
+		for dir in directions:
+			var next: Vector2i = pos + dir
+			if visited.has(next):
+				continue
+			if next in _cable_path and next != to_v:
+				continue  # don't cross existing path (except target)
+			if not grid_system.can_place_cable_edge(pos, next, exempt):
+				continue
+			var new_path: Array[Vector2i] = path.duplicate()
+			new_path.append(next)
+			if next == to_v:
+				return new_path
+			visited[next] = true
+			queue.append([next, new_path])
+	return []
+
+
+func _compute_port_exempt_cells(building: Node2D, port_side: String) -> Dictionary:
+	## Returns cells around exit vertices that should be exempt from blocking.
+	## This allows cables to leave/reach port areas even when adjacent to sources/buildings.
+	var exempt: Dictionary = {}
+	var verts: Array[Vector2i] = connection_manager.get_port_exit_vertices(building, port_side)
+	for v in verts:
+		# The 4 cells sharing this vertex
+		exempt[Vector2i(v.x - 1, v.y - 1)] = true
+		exempt[Vector2i(v.x, v.y - 1)] = true
+		exempt[Vector2i(v.x - 1, v.y)] = true
+		exempt[Vector2i(v.x, v.y)] = true
+	return exempt
 
 
 

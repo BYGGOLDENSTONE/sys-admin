@@ -12,7 +12,7 @@ uniform float bloom_spread : hint_range(1.0, 10.0) = 4.0;
 group_uniforms vignette;
 uniform float vignette_focus : hint_range(0.1, 2.0) = 1.0;
 uniform float vignette_intensity : hint_range(0.0, 1.0) = 0.5;
-uniform vec3 vignette_color : source_color = vec3(0.02, 0.05, 0.1);
+uniform vec3 vignette_color : source_color = vec3(0.02, 0.04, 0.07);
 
 // Chromatic Aberration (camera shake feedback)
 group_uniforms chromatic;
