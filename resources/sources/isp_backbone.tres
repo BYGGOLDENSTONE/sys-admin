@@ -4,8 +4,8 @@
 
 [resource]
 script = ExtResource("1")
-source_name = "Otomat"
-description = "Sokak otomatı. Sadece temiz standart veri üretir. Güvenli bir başlangıç noktası."
+source_name = "Vending Machine"
+description = "Street vending machine. Only produces clean standard data. A safe starting point."
 color = Color(0.4, 0.8, 1.0, 1.0)
 content_weights = {0: 1.0}
 state_weights = {0: 1.0}

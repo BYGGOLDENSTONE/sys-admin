@@ -60,9 +60,9 @@ func show_for_source(source: Node2D) -> void:
 
 	# Hidden source — limited info
 	if not source.discovered and not source.dev_mode:
-		name_label.text = "Bilinmeyen Sinyal"
+		name_label.text = "Unknown Signal"
 		name_label.add_theme_color_override("font_color", Color(def.color, 0.6))
-		desc_label.text = "Yaklaşarak keşfet"
+		desc_label.text = "Approach to discover"
 		info_label.text = "??? | ??? MB/s"
 		stats_label.text = ""
 		_show_animated()
@@ -71,7 +71,7 @@ func show_for_source(source: Node2D) -> void:
 	name_label.text = def.source_name
 	name_label.add_theme_color_override("font_color", def.color)
 	desc_label.text = def.description
-	info_label.text = "VERİ KAYNAĞI | %d MB/s" % int(def.bandwidth)
+	info_label.text = "DATA SOURCE | %d MB/s" % int(def.bandwidth)
 	_update_source_stats()
 	_show_animated()
 
@@ -120,82 +120,82 @@ func _update_stats() -> void:
 
 	# Work status
 	if b.is_working:
-		lines.append(_stat("Durum", "[color=#44ff88]● Çalışıyor[/color]"))
+		lines.append(_stat("Status", "[color=#44ff88]● Working[/color]"))
 	else:
-		lines.append(_stat("Durum", "[color=#ffcc44]● Boşta[/color]"))
+		lines.append(_stat("Status", "[color=#ffcc44]● Idle[/color]"))
 
 	# Type-specific stats (component-based)
 	if def.generator:
 		if b.linked_source != null:
 			var src_def = b.linked_source.definition
-			lines.append(_stat("Kaynak", "[color=%s]%s[/color]" % [src_def.color.to_html(), src_def.source_name]))
-			lines.append(_stat("Akış", "%d MB/s" % int(def.generator.generation_rate)))
+			lines.append(_stat("Source", "[color=%s]%s[/color]" % [src_def.color.to_html(), src_def.source_name]))
+			lines.append(_stat("Flow", "%d MB/s" % int(def.generator.generation_rate)))
 			lines.append(_stat("Content", _format_content_weights(b.runtime_content_weights)))
 			lines.append(_stat("State", _format_state_weights(b.runtime_state_weights)))
 		else:
-			lines.append(_stat("Kaynak", "[color=#ff8844]Bağlı değil — kaynağın yanına yerleştir[/color]"))
+			lines.append(_stat("Source", "[color=#ff8844]Not linked — place near a source[/color]"))
 	if def.classifier:
-		lines.append(_stat("İşleme", "%d MB/s" % int(def.classifier.throughput_rate)))
-		lines.append(_stat("Mod", "Content türüne göre ayırma"))
-		lines.append(_stat("Çıkışlar", "Her content türü → ayrı port"))
+		lines.append(_stat("Throughput", "%d MB/s" % int(def.classifier.throughput_rate)))
+		lines.append(_stat("Mode", "Route by content type"))
+		lines.append(_stat("Outputs", "Each content type → separate port"))
 	if def.probabilistic:
-		lines.append(_stat("İşleme", "%d MB/s" % int(b.get_effective_value("processing_rate"))))
+		lines.append(_stat("Throughput", "%d MB/s" % int(b.get_effective_value("processing_rate"))))
 		var prob_comp: ProbabilisticComponent = def.probabilistic
 		var tier_rates: Array[float] = prob_comp.tier_success_rates
 		if tier_rates.size() >= 2:
-			lines.append(_stat("Başarı", "T1=%%%d, T2=%%%d" % [int(tier_rates[0] * 100), int(tier_rates[1] * 100)]))
+			lines.append(_stat("Success", "T1=%d%%, T2=%d%%" % [int(tier_rates[0] * 100), int(tier_rates[1] * 100)]))
 		else:
-			lines.append(_stat("Başarı", "%%%d" % int(b.get_effective_value("success_rate") * 100)))
-		lines.append(_stat("Giriş", "[color=#ff8844]Corrupted[/color]"))
-		lines.append(_stat("Sağ Port →", "[color=#44ff88]Clean[/color] (kurtarılan)"))
-		lines.append(_stat("Alt Port  →", "[color=#888844]Residue[/color] (dijital atık)"))
+			lines.append(_stat("Success", "%d%%" % int(b.get_effective_value("success_rate") * 100)))
+		lines.append(_stat("Input", "[color=#ff8844]Corrupted[/color]"))
+		lines.append(_stat("Right Port →", "[color=#44ff88]Clean[/color] (recovered)"))
+		lines.append(_stat("Bottom Port →", "[color=#888844]Residue[/color] (digital waste)"))
 	if def.producer:
-		lines.append(_stat("İşleme", "%d üretim/tick" % int(b.get_effective_value("processing_rate"))))
-		lines.append(_stat("Girdi", "[color=#aa88ff]%d MB Research(Clean)[/color] → 1 Key" % def.producer.consume_amount))
-		lines.append(_stat("Çıktı", "[color=#ffaa00]Decryption Key[/color]"))
+		lines.append(_stat("Processing", "%d production/tick" % int(b.get_effective_value("processing_rate"))))
+		lines.append(_stat("Input", "[color=#aa88ff]%d MB Research(Clean)[/color] → 1 Key" % def.producer.consume_amount))
+		lines.append(_stat("Output", "[color=#ffaa00]Decryption Key[/color]"))
 		# Show stored research and keys produced
 		var research_key: String = DataEnums.make_key(def.producer.input_content, def.producer.input_state)
 		var stored_research: int = b.stored_data.get(research_key, 0)
 		if stored_research > 0:
-			lines.append(_stat("Stok", "%d MB Research bekliyor" % stored_research))
+			lines.append(_stat("Stock", "%d MB Research waiting" % stored_research))
 	if def.dual_input:
-		lines.append(_stat("İşleme", "%d MB/s" % int(b.get_effective_value("processing_rate"))))
-		lines.append(_stat("Sol Port ←", "[color=#44aaff]Encrypted[/color] veri"))
-		lines.append(_stat("Üst Port ←", "[color=#ffaa00]Key[/color] (Research Lab'dan)"))
-		lines.append(_stat("Çıkış →", "[color=#44ff88]Clean[/color] (content korunur)"))
+		lines.append(_stat("Throughput", "%d MB/s" % int(b.get_effective_value("processing_rate"))))
+		lines.append(_stat("Left Port ←", "[color=#44aaff]Encrypted[/color] data"))
+		lines.append(_stat("Top Port ←", "[color=#ffaa00]Key[/color] (from Research Lab)"))
+		lines.append(_stat("Output →", "[color=#44ff88]Clean[/color] (content preserved)"))
 		var tier_costs: Array[int] = def.dual_input.tier_key_costs
 		if tier_costs.size() >= 2:
-			lines.append(_stat("Key/paket", "T1=%d, T2=%d" % [tier_costs[0], tier_costs[1]]))
+			lines.append(_stat("Key/packet", "T1=%d, T2=%d" % [tier_costs[0], tier_costs[1]]))
 		else:
-			lines.append(_stat("Key/paket", "%d" % def.dual_input.key_cost))
+			lines.append(_stat("Key/packet", "%d" % def.dual_input.key_cost))
 		# Show stored keys
 		var key_key: String = DataEnums.make_key(def.dual_input.key_content, DataEnums.DataState.CLEAN)
 		var stored_keys: int = b.stored_data.get(key_key, 0)
 		var key_color: String = "#ff6644" if stored_keys <= 0 else "#ffaa00"
-		lines.append(_stat("Key Stok", "[color=%s]%d Key[/color]" % [key_color, stored_keys]))
+		lines.append(_stat("Key Stock", "[color=%s]%d Key[/color]" % [key_color, stored_keys]))
 	if def.compiler:
-		lines.append(_stat("İşleme", "%d craft/tick" % int(b.get_effective_value("processing_rate"))))
-		lines.append(_stat("Sol Port ←", "Clean veri (Tür A)"))
-		lines.append(_stat("Üst Port ←", "Clean veri (Tür B)"))
-		lines.append(_stat("Çıkış →", "[color=#66ffcc]Refined Malzeme[/color]"))
+		lines.append(_stat("Processing", "%d craft/tick" % int(b.get_effective_value("processing_rate"))))
+		lines.append(_stat("Left Port ←", "Clean data (Type A)"))
+		lines.append(_stat("Top Port ←", "Clean data (Type B)"))
+		lines.append(_stat("Output →", "[color=#66ffcc]Refined Material[/color]"))
 		# Show matched recipe if inputs present
 		var matched_recipe: String = _get_matched_recipe(b)
 		if matched_recipe != "":
-			lines.append(_stat("Tarif", matched_recipe))
+			lines.append(_stat("Recipe", matched_recipe))
 		# Show stored data
 		var total: int = b.get_total_stored_raw()
 		if total > 0:
-			lines.append(_stat("Stok", _format_stored_data(b.stored_data)))
+			lines.append(_stat("Stock", _format_stored_data(b.stored_data)))
 	if def.storage and def.processor == null and def.classifier == null and def.probabilistic == null and def.producer == null and def.dual_input == null and def.compiler == null:
 		var total: int = b.get_total_stored()
 		var cap: int = int(b.get_effective_value("capacity"))
 		var pct: int = int(float(total) / float(cap) * 100.0) if cap > 0 else 0
 		var fill_color: String = "#ff6644" if pct >= 90 else "#ffcc44" if pct >= 70 else "#44ff88"
-		lines.append(_stat("Doluluk", "[color=%s]%d / %d MB (%d%%)[/color]" % [fill_color, total, cap, pct]))
+		lines.append(_stat("Capacity", "[color=%s]%d / %d MB (%d%%)[/color]" % [fill_color, total, cap, pct]))
 		if total > 0:
-			lines.append(_stat("İçerik", _format_stored_data(b.stored_data)))
+			lines.append(_stat("Contents", _format_stored_data(b.stored_data)))
 		if def.storage.forward_rate > 0:
-			lines.append(_stat("İletim", "%d MB/s" % int(def.storage.forward_rate)))
+			lines.append(_stat("Transfer", "%d MB/s" % int(def.storage.forward_rate)))
 		# Show refined materials in storage
 		if not b.stored_refined.is_empty():
 			var refined_parts: PackedStringArray = []
@@ -208,8 +208,8 @@ func _update_stats() -> void:
 			if not refined_parts.is_empty():
 				lines.append(_stat("Refined", ", ".join(refined_parts)))
 	if def.processor:
-		lines.append(_stat("İşleme", "%d MB/s" % int(b.get_effective_value("processing_rate"))))
-		lines.append(_stat("Verimlilik", "%d%%" % int(b.get_effective_value("efficiency") * 100)))
+		lines.append(_stat("Throughput", "%d MB/s" % int(b.get_effective_value("processing_rate"))))
+		lines.append(_stat("Efficiency", "%d%%" % int(b.get_effective_value("efficiency") * 100)))
 		if def.processor.rule == "separator":
 			var mode_name: String = "State" if def.processor.separator_mode == "state" else "Content"
 			var filter_name: String
@@ -217,31 +217,31 @@ func _update_stats() -> void:
 				filter_name = DataEnums.content_name(b.separator_filter_value)
 			else:
 				filter_name = DataEnums.state_name(b.separator_filter_value)
-			lines.append(_stat("Mod", mode_name))
-			lines.append(_stat("Sağ Port →", "[color=#44ff88]%s[/color]" % filter_name))
-			lines.append(_stat("Alt Port  →", "Diğer tüm veriler"))
+			lines.append(_stat("Mode", mode_name))
+			lines.append(_stat("Right Port →", "[color=#44ff88]%s[/color]" % filter_name))
+			lines.append(_stat("Bottom Port →", "All other data"))
 		elif def.processor.rule == "quarantine":
-			lines.append(_stat("Giriş", "[color=#ff4466]Malware[/color]"))
-			lines.append(_stat("Çıkış", "[color=#44ff88]Güvenli İmha[/color]"))
+			lines.append(_stat("Input", "[color=#ff4466]Malware[/color]"))
+			lines.append(_stat("Output", "[color=#44ff88]Safe Destruction[/color]"))
 		elif def.processor.rule == "splitter":
-			lines.append(_stat("Dağılım", "Eşit (%50/%50)"))
-			lines.append(_stat("Portlar", "→ Right, ↓ Bottom"))
+			lines.append(_stat("Distribution", "Equal (50/50)"))
+			lines.append(_stat("Ports", "→ Right, ↓ Bottom"))
 		elif def.processor.rule == "merger":
-			lines.append(_stat("Birleştirme", "← Left + ↑ Top"))
-			lines.append(_stat("Çıkış", "→ Right"))
+			lines.append(_stat("Merging", "← Left + ↑ Top"))
+			lines.append(_stat("Output", "→ Right"))
 	# Upgrade info
 	if def.upgrade:
 		var upg: UpgradeComponent = def.upgrade
 		var lvl: int = b.upgrade_level
 		if lvl >= upg.max_level:
-			lines.append(_stat("Seviye", "[color=#44ff88]%d/%d (MAX)[/color]" % [lvl, upg.max_level]))
+			lines.append(_stat("Level", "[color=#44ff88]%d/%d (MAX)[/color]" % [lvl, upg.max_level]))
 		else:
-			lines.append(_stat("Seviye", "%d/%d" % [lvl, upg.max_level]))
+			lines.append(_stat("Level", "%d/%d" % [lvl, upg.max_level]))
 
 	# Malware warning (non-quarantine buildings holding malware)
 	var malware_amount: int = b.get_malware_amount()
 	if malware_amount > 0 and not (def.processor and def.processor.rule == "quarantine"):
-		lines.append(_stat("Malware", "[color=#ff4466]%d MB — Quarantine'e yönlendir![/color]" % malware_amount))
+		lines.append(_stat("Malware", "[color=#ff4466]%d MB — Route to Quarantine![/color]" % malware_amount))
 
 	stats_label.text = "\n".join(lines)
 
@@ -287,7 +287,7 @@ func _get_matched_recipe(b: Node2D) -> String:
 				color, DataEnums.refined_name(recipe.output_refined),
 				DataEnums.content_name(recipe.input_a_content),
 				DataEnums.content_name(recipe.input_b_content)]
-	return "[color=#667788]Eşleşen tarif yok[/color]"
+	return "[color=#667788]No matching recipe[/color]"
 
 
 func _format_stored_data(data: Dictionary) -> String:
@@ -305,7 +305,7 @@ func _format_stored_data(data: Dictionary) -> String:
 			s_color, DataEnums.state_name(parsed.state), tier_str
 		])
 	if parts.is_empty():
-		return "Boş"
+		return "Empty"
 	return ", ".join(parts)
 
 
@@ -319,12 +319,12 @@ func _update_source_stats() -> void:
 	var def = _target_source.definition
 	var lines: PackedStringArray = []
 	# Difficulty info
-	var diff_labels: Dictionary = {"easy": "KOLAY", "medium": "ORTA", "hard": "ZOR", "endgame": "ENDGAME"}
+	var diff_labels: Dictionary = {"easy": "EASY", "medium": "MEDIUM", "hard": "HARD", "endgame": "ENDGAME"}
 	var diff_colors: Dictionary = {"easy": "#44ff66", "medium": "#ffee44", "hard": "#ff9933", "endgame": "#ff4444"}
 	var diff_label: String = diff_labels.get(def.difficulty, "???")
 	var diff_color: String = diff_colors.get(def.difficulty, "#aabbcc")
-	lines.append(_stat("Zorluk", "[color=%s]%s[/color]" % [diff_color, diff_label]))
-	lines.append(_stat("Bant Genişliği", "%d MB/s" % int(def.bandwidth)))
+	lines.append(_stat("Difficulty", "[color=%s]%s[/color]" % [diff_color, diff_label]))
+	lines.append(_stat("Bandwidth", "%d MB/s" % int(def.bandwidth)))
 	if not def.content_weights.is_empty():
 		lines.append(_stat("Content", _format_content_weights(def.content_weights)))
 	if not def.state_weights.is_empty():
@@ -336,9 +336,9 @@ func _update_source_stats() -> void:
 		lines.append(_stat("Corrupted Tier", "[color=#ff8844]T1%s[/color]" % ("-T%d" % def.corrupted_max_tier if def.corrupted_max_tier > 1 else "")))
 	var linked: int = _target_source._linked_uplinks
 	if linked > 0:
-		lines.append(_stat("Bağlı Uplink", "[color=#44ff88]%d[/color]" % linked))
+		lines.append(_stat("Linked Uplinks", "[color=#44ff88]%d[/color]" % linked))
 	else:
-		lines.append(_stat("Bağlı Uplink", "[color=#ff8844]0 — Uplink yerleştir[/color]"))
+		lines.append(_stat("Linked Uplinks", "[color=#ff8844]0 — Place an Uplink[/color]"))
 	stats_label.text = "\n".join(lines)
 
 

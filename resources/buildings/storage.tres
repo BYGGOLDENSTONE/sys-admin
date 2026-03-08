@@ -13,7 +13,7 @@ forward_rate = 0.0
 script = ExtResource("3")
 max_level = 3
 costs = Array[int]([10, 25, 50])
-stat_label = "Kapasite"
+stat_label = "Capacity"
 stat_target = "capacity"
 level_values = Array[float]([150.0, 200.0, 300.0])
 

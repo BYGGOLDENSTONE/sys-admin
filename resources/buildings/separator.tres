@@ -23,7 +23,7 @@ forward_rate = 0.0
 script = ExtResource("4")
 max_level = 3
 costs = Array[int]([10, 25, 50])
-stat_label = "Verimlilik"
+stat_label = "Efficiency"
 stat_target = "efficiency"
 level_values = Array[float]([0.7, 0.8, 0.9])
 

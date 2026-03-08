@@ -343,9 +343,11 @@ func _draw() -> void:
 			(size.x - text_size.x) / 2.0,
 			font_size + 4
 		)
-		draw_string(font, text_pos + Vector2(1, 1), text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(0, 0, 0, 0.6))
-		draw_string(font, text_pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(accent, 0.25))
-		draw_string(font, text_pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(1, 1, 1, 0.9))
+		# Stronger shadow + outline for readability
+		draw_string(font, text_pos + Vector2(1, 1), text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(0, 0, 0, 0.85))
+		draw_string(font, text_pos + Vector2(-1, -1), text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(0, 0, 0, 0.4))
+		draw_string(font, text_pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(accent, 0.35))
+		draw_string(font, text_pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(1, 1, 1, 0.95))
 
 	# Ports (always draw, but scale at medium zoom)
 	_draw_ports(size, accent)
@@ -371,7 +373,7 @@ func _draw() -> void:
 			var warn_color := Color(1.0, 0.4, 0.2)
 			draw_rect(rect, Color(warn_color, 0.06), true)
 			var warn_font := ThemeDB.fallback_font
-			var warn_text := "Kaynak Yok"
+			var warn_text := "No Source"
 			var warn_size := 10
 			var text_dims := warn_font.get_string_size(warn_text, HORIZONTAL_ALIGNMENT_CENTER, -1, warn_size)
 			var warn_pos := Vector2((size.x - text_dims.x) / 2.0, size.y - 8)
@@ -869,17 +871,36 @@ func _draw_status_bars(size: Vector2, accent: Color) -> void:
 			or definition.producer != null or definition.dual_input != null \
 			or definition.compiler != null:
 		return
-	var bar_y: float = size.y - BAR_MARGIN - BAR_HEIGHT
+	var bar_h: float = 6.0
+	var bar_y: float = size.y - BAR_MARGIN - bar_h
 	var bar_x: float = BAR_MARGIN
 	var bar_w: float = size.x - BAR_MARGIN * 2
 
 	# Fill bar (for buildings with storage capacity, but not processors)
-	var fill_bg := Rect2(Vector2(bar_x, bar_y), Vector2(bar_w, BAR_HEIGHT))
-	draw_rect(fill_bg, Color(0.1, 0.2, 0.1, 0.5), true)
-	draw_rect(fill_bg, Color(accent, 0.3), false, 1.0)
+	var fill_bg := Rect2(Vector2(bar_x, bar_y), Vector2(bar_w, bar_h))
+	draw_rect(fill_bg, Color(0.08, 0.12, 0.08, 0.6), true)
+	draw_rect(fill_bg, Color(accent, 0.4), false, 1.0)
 	if _display_fill > 0.001:
-		var fill_fill := Rect2(Vector2(bar_x, bar_y), Vector2(bar_w * _display_fill, BAR_HEIGHT))
-		draw_rect(fill_fill, Color(accent, 0.8), true)
+		# Color shifts to warning at 80%+, critical at 95%+
+		var fill_color: Color = accent
+		if _display_fill >= 0.95:
+			fill_color = Color(1.0, 0.2, 0.2)
+		elif _display_fill >= 0.80:
+			fill_color = Color(1.0, 0.6, 0.2)
+		var fill_fill := Rect2(Vector2(bar_x, bar_y), Vector2(bar_w * _display_fill, bar_h))
+		draw_rect(fill_fill, Color(fill_color, 0.9), true)
+		# Bright edge on fill front
+		if _display_fill < 0.99:
+			var edge_x: float = bar_x + bar_w * _display_fill
+			draw_line(Vector2(edge_x, bar_y), Vector2(edge_x, bar_y + bar_h), Color(1, 1, 1, 0.5), 1.0)
+	# Percentage text for nearly full storage
+	if _display_fill >= 0.5:
+		var pct_text := "%d%%" % int(_display_fill * 100)
+		var pct_font := ThemeDB.fallback_font
+		var pct_size := 9
+		var pct_dims := pct_font.get_string_size(pct_text, HORIZONTAL_ALIGNMENT_CENTER, -1, pct_size)
+		var pct_pos := Vector2(bar_x + (bar_w - pct_dims.x) / 2.0, bar_y + bar_h - 1)
+		draw_string(pct_font, pct_pos, pct_text, HORIZONTAL_ALIGNMENT_LEFT, -1, pct_size, Color(1, 1, 1, 0.8))
 
 
 # --- UTILITY: Draw arc segment ---

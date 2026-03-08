@@ -16,7 +16,7 @@ forward_rate = 0.0
 [resource]
 script = ExtResource("1")
 building_name = "Classifier"
-description = "Veriyi içerik türüne göre yönlendirir — Financial bir yöne, Biometric başka yöne."
+description = "Routes data by content type — Financial one way, Biometric another. Each output port handles a different content category."
 grid_size = Vector2i(2, 2)
 color = Color(0.3, 0.7, 1.0, 1)
 category = "processing"

@@ -203,7 +203,7 @@ func _setup_minimap() -> void:
 
 func _setup_shortcut_hints() -> void:
 	_shortcut_hints = Label.new()
-	_shortcut_hints.text = "SPACE Duraklat  //  1/2/3 Hiz  //  Ctrl+Z Geri Al  //  T Teknoloji  //  H Gizle"
+	_shortcut_hints.text = "SPACE Pause  //  1/2/3 Speed  //  Ctrl+Z Undo  //  T Tech Tree  //  H Hide"
 	_shortcut_hints.add_theme_font_size_override("font_size", 12)
 	_shortcut_hints.add_theme_color_override("font_color", Color(0.4, 0.6, 0.7, 0.6))
 	_shortcut_hints.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -238,7 +238,7 @@ func _on_speed_changed(multiplier: int, paused: bool) -> void:
 
 
 func _on_building_unlocked(building_name: String) -> void:
-	print("[Main] Yapi acildi: %s" % building_name)
+	print("[Main] Building unlocked: %s" % building_name)
 	_show_unlock_notification(building_name)
 	if _sound_manager:
 		_sound_manager.play_unlock()
@@ -246,7 +246,7 @@ func _on_building_unlocked(building_name: String) -> void:
 
 func _show_unlock_notification(building_name: String) -> void:
 	var notif := Label.new()
-	notif.text = ">> %s ACILDI <<" % building_name.to_upper()
+	notif.text = ">> %s UNLOCKED <<" % building_name.to_upper()
 	notif.add_theme_font_size_override("font_size", 18)
 	notif.add_theme_color_override("font_color", Color("#aa88ff"))
 	notif.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -280,7 +280,7 @@ func _on_state_discovered(state: int) -> void:
 
 func _show_discovery_notification(display_name: String, color: Color) -> void:
 	var notif := Label.new()
-	notif.text = "[ %s KESFEDILDI ]" % display_name
+	notif.text = "[ %s DISCOVERED ]" % display_name
 	notif.add_theme_font_size_override("font_size", 22)
 	notif.add_theme_color_override("font_color", color)
 	notif.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER

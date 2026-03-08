@@ -80,7 +80,7 @@ func _make_divider() -> ColorRect:
 
 func update_speed(multiplier: int, paused: bool) -> void:
 	if paused:
-		_speed_label.text = "|| DURAKLAT"
+		_speed_label.text = "|| PAUSED"
 		_speed_label.add_theme_color_override("font_color", Color(1, 0.3, 0.3))
 	else:
 		_speed_label.text = "%s %dx" % [">".repeat(multiplier), multiplier]

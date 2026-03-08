@@ -4,8 +4,8 @@
 
 [resource]
 script = ExtResource("1")
-source_name = "Blackwall Parçası"
-description = "Eski Blackwall güvenlik duvarının kalıntısı. Classified ve Research verisi dolu, ama neredeyse hepsi T4 şifreli veya ağır Malware bulaşık. Nihai optimizasyon."
+source_name = "Blackwall Fragment"
+description = "Remnant of the old Blackwall firewall. Packed with Classified and Research data, but nearly all T4 encrypted or heavily Malware-infected. Ultimate optimization."
 color = Color(0.5, 0.1, 0.6, 1.0)
 content_weights = {0: 0.05, 1: 0.05, 2: 0.05, 3: 0.20, 4: 0.30, 5: 0.35}
 state_weights = {0: 0.05, 1: 0.35, 2: 0.15, 3: 0.45}

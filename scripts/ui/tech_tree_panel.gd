@@ -8,17 +8,17 @@ const BORDER_COLOR := Color("#aa88ff")
 ## Discovery-based unlock rules (GDD Section 11)
 var _unlock_rules: Array[Dictionary] = [
 	{"name": "Recoverer", "trigger": "state", "value": DataEnums.DataState.CORRUPTED,
-	 "desc": "Bozuk veri kesfedildiginde acilir"},
+	 "desc": "Unlocks when corrupted data is discovered"},
 	{"name": "Classifier", "trigger": "content_count", "value": 2,
-	 "desc": "2. content turu kesfedildiginde acilir"},
+	 "desc": "Unlocks when 2nd content type is discovered"},
 	{"name": "Research Lab", "trigger": "content", "value": DataEnums.ContentType.RESEARCH,
-	 "desc": "Research verisi kesfedildiginde acilir"},
+	 "desc": "Unlocks when Research data is discovered"},
 	{"name": "Decryptor", "trigger": "state", "value": DataEnums.DataState.ENCRYPTED,
-	 "desc": "Encrypted veri kesfedildiginde acilir"},
+	 "desc": "Unlocks when Encrypted data is discovered"},
 	{"name": "Compiler", "trigger": "content_count", "value": 3,
-	 "desc": "3. content turu kesfedildiginde acilir"},
+	 "desc": "Unlocks when 3rd content type is discovered"},
 	{"name": "Quarantine", "trigger": "state", "value": DataEnums.DataState.MALWARE,
-	 "desc": "Malware kesfedildiginde acilir"},
+	 "desc": "Unlocks when Malware is discovered"},
 ]
 
 var _unlocked: Dictionary = {}  ## "name" -> true
@@ -105,7 +105,7 @@ func _check_unlocks() -> void:
 		if should_unlock:
 			_unlocked[rule.name] = true
 			building_unlocked.emit(rule.name)
-			print("[Kesif] %s acildi!" % rule.name)
+			print("[Discovery] %s unlocked!" % rule.name)
 			if _building_panel and _building_panel.has_method("refresh_buttons"):
 				_building_panel.refresh_buttons()
 	if visible:
@@ -135,7 +135,7 @@ func _build_ui() -> void:
 	margin.add_child(vbox)
 
 	_title_label = Label.new()
-	_title_label.text = "// KESIF DURUMU [T]"
+	_title_label.text = "// DISCOVERY STATUS [T]"
 	_title_label.add_theme_color_override("font_color", BORDER_COLOR)
 	_title_label.add_theme_font_size_override("font_size", 14)
 	vbox.add_child(_title_label)
@@ -163,7 +163,7 @@ func _refresh_info() -> void:
 		label.custom_minimum_size.x = 250
 
 		if is_unlocked:
-			label.text = "[color=#44ff88]● %s[/color]  [color=#667788]ACILDI[/color]" % rule.name
+			label.text = "[color=#44ff88]● %s[/color]  [color=#667788]UNLOCKED[/color]" % rule.name
 		else:
 			label.text = "[color=#ff8844]○ %s[/color]  [color=#667788]%s[/color]" % [rule.name, rule.desc]
 

@@ -21,7 +21,7 @@ processing_rate = 2.0
 [resource]
 script = ExtResource("1")
 building_name = "Research Lab"
-description = "Research verisini (Clean) tüketerek Decryption Key üretir. Her 5 MB Research → 1 Key. Decryptor'a sürekli Key tedarik zinciri sağlar."
+description = "Consumes Clean Research data to produce Decryption Keys. Every 5 MB Research yields 1 Key. Feeds the Decryptor's continuous Key demand."
 grid_size = Vector2i(2, 2)
 color = Color(0.4, 0.6, 1, 1)
 category = "processing"

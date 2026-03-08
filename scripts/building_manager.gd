@@ -321,68 +321,49 @@ func _update_manual_routing() -> void:
 
 
 func _try_extend_path(target: Vector2i) -> void:
-	## Try to extend the cable path toward the target vertex.
-	## Only extends in straight lines (no diagonal).
+	## Extend cable path one step at a time toward mouse vertex.
+	## Follows mouse movement direction — fills in straight lines,
+	## and picks the dominant axis when diagonal.
 	if _cable_path.is_empty():
 		return
-	var last_v: Vector2i = _cable_path[_cable_path.size() - 1]
-	var diff: Vector2i = target - last_v
 
-	# Adjacent vertex — simple single step
-	if absi(diff.x) + absi(diff.y) == 1:
-		if _can_extend_to(last_v, target):
-			_cable_path.append(target)
-		return
+	# Try multiple steps per frame to keep up with fast mouse movement
+	for _step in range(8):
+		var last_v: Vector2i = _cable_path[_cable_path.size() - 1]
+		if last_v == target:
+			break
+		var diff: Vector2i = target - last_v
+		var next_v: Vector2i
 
-	# Same row or column — fill straight line
-	if diff.x == 0 or diff.y == 0:
-		var dx: int = signi(diff.x)
-		var dy: int = signi(diff.y)
-		var current: Vector2i = last_v
-		while current != target:
-			var next: Vector2i = current + Vector2i(dx, dy)
-			if not _can_extend_to(current, next):
-				break
-			_cable_path.append(next)
-			current = next
-		return
+		if diff.x == 0:
+			# Same column — move vertically
+			next_v = last_v + Vector2i(0, signi(diff.y))
+		elif diff.y == 0:
+			# Same row — move horizontally
+			next_v = last_v + Vector2i(signi(diff.x), 0)
+		else:
+			# Diagonal — move along the axis with greater distance
+			if absi(diff.x) >= absi(diff.y):
+				next_v = last_v + Vector2i(signi(diff.x), 0)
+			else:
+				next_v = last_v + Vector2i(0, signi(diff.y))
 
-	# Not in line — try L-shape: first move along the longer axis
-	# This helps when mouse jumps ahead
-	var ax: int = absi(diff.x)
-	var ay: int = absi(diff.y)
-	var dx: int = signi(diff.x)
-	var dy: int = signi(diff.y)
-	var current: Vector2i = last_v
-
-	if ax >= ay:
-		# Move horizontally first
-		while current.x != target.x:
-			var next := current + Vector2i(dx, 0)
-			if not _can_extend_to(current, next):
-				break
-			_cable_path.append(next)
-			current = next
-		while current.y != target.y:
-			var next := current + Vector2i(0, dy)
-			if not _can_extend_to(current, next):
-				break
-			_cable_path.append(next)
-			current = next
-	else:
-		# Move vertically first
-		while current.y != target.y:
-			var next := current + Vector2i(0, dy)
-			if not _can_extend_to(current, next):
-				break
-			_cable_path.append(next)
-			current = next
-		while current.x != target.x:
-			var next := current + Vector2i(dx, 0)
-			if not _can_extend_to(current, next):
-				break
-			_cable_path.append(next)
-			current = next
+		if _can_extend_to(last_v, next_v):
+			_cable_path.append(next_v)
+		else:
+			# Primary direction blocked — try the other axis
+			if diff.x != 0 and diff.y != 0:
+				var alt_v: Vector2i
+				if absi(diff.x) >= absi(diff.y):
+					alt_v = last_v + Vector2i(0, signi(diff.y))
+				else:
+					alt_v = last_v + Vector2i(signi(diff.x), 0)
+				if _can_extend_to(last_v, alt_v):
+					_cable_path.append(alt_v)
+				else:
+					break  # Both directions blocked
+			else:
+				break  # Single axis blocked
 
 
 func _can_extend_to(from_v: Vector2i, to_v: Vector2i) -> bool:
@@ -475,7 +456,7 @@ func _clear_cable_hover() -> void:
 func _place_building() -> void:
 	# Check material costs before placing
 	if not _can_afford(_current_definition):
-		print("[BuildingManager] Yetersiz malzeme — %s yerleştirilemedi" % _current_definition.building_name)
+		print("[BuildingManager] Insufficient materials — %s could not be placed" % _current_definition.building_name)
 		return
 	# Deduct materials
 	_spend_materials(_current_definition)

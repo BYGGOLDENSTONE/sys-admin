@@ -316,6 +316,7 @@ Kablolar vertex-based (grid kesisim noktasi) edge sistemi kullanir:
 ---
 
 ## Onemli Kurallar
+- **OYUN DILI INGILIZCE** — Tum kullaniciya gorunen metinler (yapi isimleri, kaynak isimleri, tooltip'ler, bildirimler, badge'ler, UI label'lari) INGILIZCE olmali. Turkce string YAZMA. Log mesajlari da Ingilizce olmali.
 - Kullanici teknik degil — ne ve neden acikla, kod detayi degil
 - Her commit kullanici onayi ile yapilir
 - Commit ve push birlikte yapilir

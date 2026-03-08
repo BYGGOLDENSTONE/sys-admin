@@ -4,8 +4,8 @@
 
 [resource]
 script = ExtResource("1")
-source_name = "Hastane Terminali"
-description = "Tıbbi kayıtlar ve araştırma verileri. Biometric ve Research içerir, bir kısmı şifreli — ilk Decryptor ihtiyacın burada ortaya çıkar."
+source_name = "Hospital Terminal"
+description = "Medical records and research data. Contains Biometric and Research, some encrypted — your first Decryptor need emerges here."
 color = Color(0.4, 0.9, 0.7, 1.0)
 content_weights = {2: 0.55, 4: 0.45}
 state_weights = {0: 0.60, 1: 0.40}

@@ -4,8 +4,8 @@
 
 [resource]
 script = ExtResource("1")
-source_name = "Mağaza Sunucusu"
-description = "Perakende ağının merkez sunucusu. Standard, Financial ve Biometric karışık — 3 content tipi Compiler'a giden yolu açar. Bazıları bozuk."
+source_name = "Shop Server"
+description = "Retail network hub server. Mixes Standard, Financial, and Biometric — 3 content types unlock Compiler paths. Some corrupted."
 color = Color(1.0, 0.8, 0.3, 1.0)
 content_weights = {0: 0.35, 1: 0.40, 2: 0.25}
 state_weights = {0: 0.65, 2: 0.35}

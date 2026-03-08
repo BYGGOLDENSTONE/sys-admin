@@ -28,7 +28,7 @@ func undo() -> void:
 	_execute_reverse(cmd)
 	_redo_stack.append(cmd)
 	is_undoing = false
-	print("[Undo] %s geri alındı" % cmd.type)
+	print("[Undo] %s undone" % cmd.type)
 
 
 func redo() -> void:
@@ -39,7 +39,7 @@ func redo() -> void:
 	_execute_forward(cmd)
 	_undo_stack.append(cmd)
 	is_undoing = false
-	print("[Redo] %s tekrarlandı" % cmd.type)
+	print("[Redo] %s redone" % cmd.type)
 
 
 func _execute_reverse(cmd: Dictionary) -> void:

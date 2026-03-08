@@ -4,8 +4,8 @@
 
 [resource]
 script = ExtResource("1")
-source_name = "Akıllı Kilit"
-description = "Akıllı kapı kilidi. Sadece biyometrik veri üretir. Çoğu temiz, azı bozuk."
+source_name = "Smart Lock"
+description = "Smart door lock. Only produces biometric data. Mostly clean, some corrupted."
 color = Color(1.0, 0.55, 0.8, 1.0)
 content_weights = {2: 1.0}
 state_weights = {0: 0.8, 2: 0.2}

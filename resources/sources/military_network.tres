@@ -4,8 +4,8 @@
 
 [resource]
 script = ExtResource("1")
-source_name = "Askeri Ağ"
-description = "Aktif askeri iletişim ağı. Değerli Blueprint ve Classified verisi, ama T3 şifreleme + ağır Malware. Quarantine şart."
+source_name = "Military Network"
+description = "Active military comms network. Valuable Blueprint and Classified data, but T3 encryption + heavy Malware. Quarantine essential."
 color = Color(1.0, 0.4, 0.2, 1.0)
 content_weights = {0: 0.05, 1: 0.05, 2: 0.05, 3: 0.30, 4: 0.20, 5: 0.35}
 state_weights = {0: 0.05, 1: 0.40, 2: 0.20, 3: 0.35}

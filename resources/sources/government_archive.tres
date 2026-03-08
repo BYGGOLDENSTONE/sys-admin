@@ -4,8 +4,8 @@
 
 [resource]
 script = ExtResource("1")
-source_name = "Devlet Arşivi"
-description = "Gizli devlet veri kasası. Research, Blueprint ve Classified verisi barındırır. T3 şifreleme + bozuk veri — çoklu pipeline ustalığı gerektirir."
+source_name = "Government Archive"
+description = "Secret government data vault. Contains Research, Blueprint, and Classified data. T3 encryption + corrupted data — requires multi-pipeline mastery."
 color = Color(0.7, 0.8, 1.0, 1.0)
 content_weights = {0: 0.05, 1: 0.05, 2: 0.05, 3: 0.25, 4: 0.30, 5: 0.30}
 state_weights = {0: 0.10, 1: 0.60, 2: 0.20, 3: 0.10}

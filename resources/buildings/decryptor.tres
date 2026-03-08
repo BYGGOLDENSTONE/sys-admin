@@ -22,14 +22,14 @@ forward_rate = 0.0
 script = ExtResource("4")
 max_level = 3
 costs = Array[int]([15, 30, 60])
-stat_label = "İşleme Hızı"
+stat_label = "Processing Speed"
 stat_target = "processing_rate"
 level_values = Array[float]([5.0, 6.0, 8.0])
 
 [resource]
 script = ExtResource("1")
 building_name = "Decryptor"
-description = "Şifreyi kırar. İki girişli: sol porttan Encrypted veri, üst porttan Key alır. Key yoksa durur. Research Lab'dan sürekli Key tedarik zinciri gerektirir."
+description = "Breaks encryption. Dual input: Encrypted data from left, Key from top. Halts without Key. Requires continuous Key supply from Research Lab."
 grid_size = Vector2i(2, 2)
 color = Color(0.7, 0.3, 0.9, 1)
 category = "processing"

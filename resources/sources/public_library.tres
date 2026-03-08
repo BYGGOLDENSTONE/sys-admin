@@ -4,8 +4,8 @@
 
 [resource]
 script = ExtResource("1")
-source_name = "Halk Kütüphanesi"
-description = "Açık erişimli akademik veritabanları. Standard ve Research içerir, bazıları bozuk. Research Lab için ana yakıt kaynağı."
+source_name = "Public Library"
+description = "Open-access academic databases. Contains Standard and Research, some corrupted. Primary fuel source for Research Lab."
 color = Color(0.6, 0.7, 1.0, 1.0)
 content_weights = {0: 0.45, 4: 0.55}
 state_weights = {0: 0.70, 2: 0.30}

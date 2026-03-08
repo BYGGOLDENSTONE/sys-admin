@@ -78,8 +78,8 @@ func _draw() -> void:
 		return
 
 	# === FULL DETAIL MODE ===
-	var base_alpha: float = 0.12 + pulse
-	var border_alpha: float = 0.5 + pulse * 2.0
+	var base_alpha: float = 0.22 + pulse
+	var border_alpha: float = 0.7 + pulse * 2.0
 
 	# Territory tint
 	_draw_territory_tint(accent)
@@ -123,11 +123,11 @@ func _draw_pcb_source(accent: Color, pulse: float, zoom: float) -> void:
 	var center: Vector2 = get_center_world() - global_position
 	var inv_zoom: float = clampf(1.0 / zoom, 2.0, 8.0)
 
-	# Soft glow halo — scales inversely with zoom for consistent screen presence
+	# Soft glow halo — scales inversely with zoom for consistent screen presence (brighter)
 	var glow_r: float = (30.0 + float(cells.size()) * 3.0) * inv_zoom
-	draw_circle(center, glow_r, Color(accent, 0.02 + pulse * 0.005))
-	draw_circle(center, glow_r * 0.5, Color(accent, 0.06 + pulse * 0.02))
-	draw_circle(center, glow_r * 0.25, Color(accent, 0.15 + pulse * 0.04))
+	draw_circle(center, glow_r, Color(accent, 0.035 + pulse * 0.01))
+	draw_circle(center, glow_r * 0.5, Color(accent, 0.09 + pulse * 0.03))
+	draw_circle(center, glow_r * 0.25, Color(accent, 0.2 + pulse * 0.06))
 
 	# Bright core
 	draw_circle(center, maxf(6.0, glow_r * 0.08), Color(accent, 0.4 + pulse * 3.0))
@@ -144,24 +144,24 @@ func _draw_medium_source(accent: Color, pulse: float, zoom: float) -> void:
 	var border_alpha: float = (0.5 + pulse * 2.0) * zoom_boost
 	var center: Vector2 = get_center_world() - global_position
 
-	# Soft glow halo behind source
+	# Soft glow halo behind source (brighter)
 	var glow_r: float = sqrt(float(cells.size())) * TILE_SIZE * 0.5
-	draw_circle(center, glow_r * 1.2, Color(accent, 0.02 * zoom_boost))
-	draw_circle(center, glow_r * 0.6, Color(accent, 0.05 * zoom_boost + pulse * 0.01))
+	draw_circle(center, glow_r * 1.2, Color(accent, 0.04 * zoom_boost))
+	draw_circle(center, glow_r * 0.6, Color(accent, 0.08 * zoom_boost + pulse * 0.02))
 
 	# Territory tint (brighter)
-	_draw_territory_tint(accent, 0.06 * zoom_boost)
+	_draw_territory_tint(accent, 0.08 * zoom_boost)
 
-	# Filled cells
+	# Filled cells (brighter)
 	for cell in cells:
 		var local_pos := Vector2(
 			(cell.x - grid_cell.x) * TILE_SIZE,
 			(cell.y - grid_cell.y) * TILE_SIZE
 		)
-		draw_rect(Rect2(local_pos, Vector2(TILE_SIZE, TILE_SIZE)), Color(accent, minf(base_alpha, 0.35)), true)
+		draw_rect(Rect2(local_pos, Vector2(TILE_SIZE, TILE_SIZE)), Color(accent, minf(base_alpha, 0.45)), true)
 
 	# Thicker brighter border
-	_draw_organic_border(accent, minf(border_alpha, 0.9), 3.0, 8.0)
+	_draw_organic_border(accent, minf(border_alpha, 0.9), 3.0, 10.0)
 
 	# Signal rings (larger, fewer)
 	_draw_signal_rings(center, accent, zoom_boost)
@@ -228,7 +228,7 @@ func _draw_hidden(zoom: float) -> void:
 
 	# "Bilinmeyen Sinyal" text below
 	var sub_size := 9
-	var sub_text := "Bilinmeyen Sinyal"
+	var sub_text := "Unknown Signal"
 	var sub_dims := font.get_string_size(sub_text, HORIZONTAL_ALIGNMENT_CENTER, -1, sub_size)
 	var sub_pos := Vector2(center.x - sub_dims.x / 2.0, center.y + 16)
 	draw_string(font, sub_pos, sub_text, HORIZONTAL_ALIGNMENT_LEFT, -1, sub_size, Color(accent, alpha * 0.5))
@@ -248,7 +248,7 @@ func _draw_hidden(zoom: float) -> void:
 func _draw_hidden_badge(center: Vector2) -> void:
 	var font := ThemeDB.fallback_font
 	var font_size := 10
-	var label := "GİZLİ"
+	var label := "HIDDEN"
 	var badge_color := Color(1.0, 0.4, 0.2)
 	var text_size := font.get_string_size(label, HORIZONTAL_ALIGNMENT_CENTER, -1, font_size)
 	var badge_pos := Vector2(center.x - text_size.x / 2.0, center.y - 42)
@@ -318,7 +318,7 @@ func _draw_signal_rings(center: Vector2, accent: Color, scale: float = 1.0) -> v
 	for i in range(RING_COUNT):
 		var phase: float = fmod(_glow_time * RING_EXPAND_SPEED + float(i) / float(RING_COUNT), 1.0)
 		var radius: float = (20.0 + phase * 80.0) * scale
-		var ring_alpha: float = (1.0 - phase) * 0.25
+		var ring_alpha: float = (1.0 - phase) * 0.4
 		if ring_alpha <= 0.01:
 			continue
 		var point_count: int = 32
@@ -326,7 +326,7 @@ func _draw_signal_rings(center: Vector2, accent: Color, scale: float = 1.0) -> v
 		for j in range(point_count + 1):
 			var angle: float = float(j) / float(point_count) * TAU
 			points.append(center + Vector2(cos(angle), sin(angle)) * radius)
-		draw_polyline(points, Color(accent, ring_alpha), 1.5 * scale, true)
+		draw_polyline(points, Color(accent, ring_alpha), 2.0 * scale, true)
 
 
 func _draw_source_name(center: Vector2, accent: Color) -> void:
@@ -387,7 +387,7 @@ func _draw_territory_tint(accent: Color, tint_alpha: float = 0.06) -> void:
 
 
 func _draw_zone_badge(center: Vector2) -> void:
-	var diff_labels: Dictionary = {"easy": "KOLAY", "medium": "ORTA", "hard": "ZOR", "endgame": "ENDGAME"}
+	var diff_labels: Dictionary = {"easy": "EASY", "medium": "MEDIUM", "hard": "HARD", "endgame": "ENDGAME"}
 	var diff_colors: Dictionary = {
 		"easy": Color(0.3, 1.0, 0.4),
 		"medium": Color(1.0, 0.9, 0.3),

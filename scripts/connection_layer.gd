@@ -4,10 +4,10 @@ const TILE_SIZE: int = 64
 const CABLE_WIDTH: float = 3.0
 const CABLE_GLOW_WIDTH: float = 8.0
 const CABLE_GLOW_ALPHA: float = 0.2
-const CABLE_INACTIVE_ALPHA: float = 0.3
+const CABLE_INACTIVE_ALPHA: float = 0.12
 const PARTICLE_SPEED: float = 0.4
-const PARTICLES_PER_CABLE: int = 8
-const PARTICLE_FONT_SIZE: int = 16
+const PARTICLES_PER_CABLE: int = 6
+const PARTICLE_FONT_SIZE: int = 20
 const HOVER_COLOR := Color(1.0, 0.3, 0.3, 0.6)
 const HOVER_WIDTH: float = 10.0
 const PREVIEW_VALID_COLOR := Color(0, 1, 0.5, 0.5)
@@ -18,6 +18,11 @@ var simulation_manager: Node = null
 var hovered_cable_index: int = -1
 var _particle_time: float = 0.0
 var _camera: Camera2D = null
+
+# Cable state constants
+const CABLE_FLOWING: int = 0
+const CABLE_STALLED: int = 1
+const CABLE_INACTIVE: int = 2
 
 # Preview state (set by BuildingManager during CONNECTING)
 var preview_path: Array[Vector2i] = []
@@ -77,12 +82,14 @@ func _draw() -> void:
 	var conns: Array[Dictionary] = connection_manager.get_connections()
 	for i in range(conns.size()):
 		var conn: Dictionary = conns[i]
-		var active: bool = _is_connection_active(conn)
+		var cable_state: int = _get_cable_state(conn, i)
 		var hovered: bool = (i == hovered_cable_index)
-		_draw_connection(conn, active, hovered)
-		# Skip particles at very low zoom (performance + readability)
-		if active and zoom > 0.25:
-			_draw_particles(conn, i)
+		_draw_connection(conn, cable_state != CABLE_INACTIVE, hovered)
+		if zoom > 0.25:
+			if cable_state == CABLE_FLOWING:
+				_draw_particles(conn, i, false)
+			elif cable_state == CABLE_STALLED:
+				_draw_particles(conn, i, true)
 
 	if preview_active and not preview_path.is_empty():
 		_draw_preview()
@@ -145,8 +152,8 @@ func _draw_connection(conn: Dictionary, active: bool, hovered: bool) -> void:
 		# Bright center highlight
 		draw_polyline(points, Color(1.0, 1.0, 1.0, 0.15 + pulse * 0.05), maxf(1.0, core_w * 0.4), true)
 	else:
-		draw_polyline(points, Color(accent, minf(CABLE_INACTIVE_ALPHA * 0.5 * zoom_scale, 0.5)), glow_w * 0.7, true)
-		draw_polyline(points, Color(accent, minf(CABLE_INACTIVE_ALPHA * zoom_scale, 0.6)), core_w, true)
+		draw_polyline(points, Color(accent, minf(CABLE_INACTIVE_ALPHA * 0.4 * zoom_scale, 0.25)), glow_w * 0.4, true)
+		draw_polyline(points, Color(accent, minf(CABLE_INACTIVE_ALPHA * 0.8 * zoom_scale, 0.35)), core_w, true)
 
 
 func _build_polyline(conn: Dictionary) -> PackedVector2Array:
@@ -180,37 +187,36 @@ func _build_polyline(conn: Dictionary) -> PackedVector2Array:
 func _port_stub(port_pos: Vector2, vertex_pos: Vector2, port_side: String) -> Vector2:
 	## Returns an intermediate point that ensures the cable enters/exits the port
 	## at a right angle (perpendicular to the building face).
-	# If already aligned on the approach axis, no stub needed
+	## For 1x1 buildings (32px offset), skip stub to avoid zigzag artifacts.
 	match port_side:
 		"left", "right":
-			# Horizontal port — cable should approach horizontally
-			if absf(port_pos.y - vertex_pos.y) < 1.0:
-				return port_pos  # already aligned
+			var offset := absf(port_pos.y - vertex_pos.y)
+			if offset < 1.0 or offset <= TILE_SIZE * 0.55:
+				return port_pos
 			return Vector2(vertex_pos.x, port_pos.y)
 		"top", "bottom":
-			# Vertical port — cable should approach vertically
-			if absf(port_pos.x - vertex_pos.x) < 1.0:
-				return port_pos  # already aligned
+			var offset := absf(port_pos.x - vertex_pos.x)
+			if offset < 1.0 or offset <= TILE_SIZE * 0.55:
+				return port_pos
 			return Vector2(port_pos.x, vertex_pos.y)
 	return port_pos
 
 
 func _port_stub_entry(port_pos: Vector2, vertex_pos: Vector2, port_side: String) -> Vector2:
 	## Target port stub: first align to port's level at vertex position, then go straight into port.
-	## This ensures perpendicular entry into the port.
-	# Safety cap: don't add long stubs if cable is far from port
+	## For 1x1 buildings (32px offset), skip stub to avoid zigzag artifacts.
 	if port_pos.distance_to(vertex_pos) > TILE_SIZE * 2.0:
 		return port_pos
 	match port_side:
 		"left", "right":
-			# Horizontal port — first move vertically to port's y, then horizontal into port
-			if absf(port_pos.y - vertex_pos.y) < 1.0:
-				return port_pos  # already aligned
+			var offset := absf(port_pos.y - vertex_pos.y)
+			if offset < 1.0 or offset <= TILE_SIZE * 0.55:
+				return port_pos
 			return Vector2(vertex_pos.x, port_pos.y)
 		"top", "bottom":
-			# Vertical port — first move horizontally to port's x, then vertical into port
-			if absf(port_pos.x - vertex_pos.x) < 1.0:
-				return port_pos  # already aligned
+			var offset := absf(port_pos.x - vertex_pos.x)
+			if offset < 1.0 or offset <= TILE_SIZE * 0.55:
+				return port_pos
 			return Vector2(port_pos.x, vertex_pos.y)
 	return port_pos
 
@@ -248,13 +254,28 @@ func _draw_preview() -> void:
 		# Endpoint dots
 		draw_circle(points[0], 5.0, Color(color, 0.5 + pulse * 0.3))
 		draw_circle(points[points.size() - 1], 5.0, Color(color, 0.5 + pulse * 0.3))
-		# Vertex dots along the path
-		for i in range(1, points.size() - 1):
-			draw_circle(points[i], 3.0, Color(color, 0.3 + pulse * 0.2))
 
 
 func _get_preview_from_port() -> String:
 	return preview_from_port if preview_from_port != "" else "right"
+
+
+func _get_cable_state(conn: Dictionary, conn_index: int) -> int:
+	var from_b: Node2D = conn.from_building
+	var to_b: Node2D = conn.to_building
+	# Source must be active
+	if from_b.has_method("is_active") and not from_b.is_active():
+		return CABLE_INACTIVE
+	# Check simulation stalled tracking
+	if simulation_manager and simulation_manager.connection_stalled.get(conn_index, false):
+		return CABLE_STALLED
+	# Source working → flowing
+	if "is_working" in from_b and from_b.is_working:
+		return CABLE_FLOWING
+	# Target full → stalled (fallback check)
+	if to_b.has_method("can_accept_data") and not to_b.can_accept_data(1):
+		return CABLE_STALLED
+	return CABLE_INACTIVE
 
 
 func _is_connection_active(conn: Dictionary) -> bool:
@@ -271,7 +292,7 @@ func _is_connection_active(conn: Dictionary) -> bool:
 	return true
 
 
-func _draw_particles(conn: Dictionary, conn_index: int) -> void:
+func _draw_particles(conn: Dictionary, conn_index: int, stalled: bool = false) -> void:
 	var points: PackedVector2Array = _build_polyline(conn)
 	if points.size() < 2:
 		return
@@ -288,27 +309,50 @@ func _draw_particles(conn: Dictionary, conn_index: int) -> void:
 
 	var font := ThemeDB.fallback_font
 	var count: int = _get_visible_particle_count()
-	var half_size: float = PARTICLE_FONT_SIZE * 0.35
+	var half_fs: float = PARTICLE_FONT_SIZE * 0.5
 
-	var flow: Array = _get_connection_flow(conn_index)
+	# Get flow data — current for flowing, last-known for stalled
+	var flow: Array
+	if stalled:
+		flow = _get_stalled_flow(conn_index)
+	else:
+		flow = _get_connection_flow(conn_index)
 	var ptypes: Array = _build_particle_types(flow, count)
 
 	for i in range(count):
 		var p_offset: float = float(i) / float(count)
-		var t: float = fmod(_particle_time + p_offset, 1.0)
+		# Stalled: particles frozen in place; Flowing: particles move
+		var t: float
+		if stalled:
+			t = p_offset
+		else:
+			t = fmod(_particle_time + p_offset, 1.0)
+
 		var pos: Vector2 = _get_point_along_path(points, seg_lengths, total_length, t)
 		var ptype: Dictionary = ptypes[i] if i < ptypes.size() else {"color": Color("#00ff88"), "char": "0"}
-		var draw_pos := pos + Vector2(-half_size, half_size)
 		var base_color: Color = ptype.color
-		var glow_pulse: float = sin(Time.get_ticks_msec() / 120.0 + float(i) * 1.7) * 0.5 + 0.5
 
-		# Glow halo
-		draw_circle(pos, 6.0 + glow_pulse * 3.0, Color(base_color, 0.1 + glow_pulse * 0.08))
+		# Pulse — stalled particles pulse slower and dimmer
+		var glow_pulse: float
+		if stalled:
+			glow_pulse = sin(Time.get_ticks_msec() / 600.0 + float(i) * 1.7) * 0.25 + 0.5
+		else:
+			glow_pulse = sin(Time.get_ticks_msec() / 120.0 + float(i) * 1.7) * 0.5 + 0.5
+
+		# Outer glow halo (larger for readability)
+		draw_circle(pos, 10.0 + glow_pulse * 4.0, Color(base_color, 0.08 + glow_pulse * 0.06))
 		# Inner glow
-		draw_circle(pos, 3.0, Color(base_color, 0.35))
-		# Character
-		draw_string(font, draw_pos, ptype.char, HORIZONTAL_ALIGNMENT_LEFT, -1, PARTICLE_FONT_SIZE, Color(base_color, 0.5))
-		draw_string(font, draw_pos, ptype.char, HORIZONTAL_ALIGNMENT_LEFT, -1, PARTICLE_FONT_SIZE, Color.WHITE)
+		draw_circle(pos, 5.0, Color(base_color, 0.3))
+
+		# Dark background pill behind character for contrast
+		var bg_rect := Rect2(pos + Vector2(-half_fs * 0.45, -half_fs * 0.55), Vector2(half_fs * 0.9, half_fs * 1.1))
+		draw_rect(bg_rect, Color(0, 0, 0, 0.65), true)
+
+		# Character — bright colored on dark bg
+		var draw_pos := pos + Vector2(-half_fs * 0.3, half_fs * 0.3)
+		draw_string(font, draw_pos, ptype.char, HORIZONTAL_ALIGNMENT_LEFT, -1, PARTICLE_FONT_SIZE, Color(base_color, 0.95))
+		# White overlay for extra brightness
+		draw_string(font, draw_pos, ptype.char, HORIZONTAL_ALIGNMENT_LEFT, -1, PARTICLE_FONT_SIZE, Color(1, 1, 1, 0.35))
 
 
 func _get_point_along_path(points: PackedVector2Array, seg_lengths: Array[float], total: float, t: float) -> Vector2:
@@ -333,6 +377,12 @@ func _get_connection_flow(conn_index: int) -> Array:
 	if simulation_manager == null:
 		return []
 	return simulation_manager.connection_flow_data.get(conn_index, [])
+
+
+func _get_stalled_flow(conn_index: int) -> Array:
+	if simulation_manager == null:
+		return []
+	return simulation_manager.connection_last_flow.get(conn_index, [])
 
 
 func play_connection_flash(building: Node2D) -> void:

@@ -15,6 +15,8 @@ var connection_manager: Node = null
 var building_container: Node2D = null
 var sound_manager: Node = null
 var connection_flow_data: Dictionary = {}  # conn_index → [{content, state, amount}]
+var connection_stalled: Dictionary = {}  # conn_idx → true if stalled
+var connection_last_flow: Dictionary = {}  # conn_idx → last known flow data for stalled visuals
 
 @onready var _sim_timer: Timer = $SimTimer
 
@@ -50,6 +52,10 @@ func _on_sim_tick() -> void:
 	if buildings.is_empty():
 		tick_completed.emit(_tick_count)
 		return
+	# Save current flow as last-known before clearing (for stalled particle visuals)
+	for _fi in connection_flow_data:
+		if not connection_flow_data[_fi].is_empty():
+			connection_last_flow[_fi] = connection_flow_data[_fi].duplicate(true)
 	# Reset work flags and flow tracking
 	connection_flow_data.clear()
 	for b in buildings:
@@ -57,8 +63,58 @@ func _on_sim_tick() -> void:
 	_update_generation(buildings)
 	_update_storage_forward(buildings)
 	_update_processing(buildings)
+	_update_stall_tracking()
 	_update_displays(buildings)
 	tick_completed.emit(_tick_count)
+
+
+# --- STALL TRACKING (back-pressure visual) ---
+func _update_stall_tracking() -> void:
+	if connection_manager == null:
+		return
+	var conns: Array[Dictionary] = connection_manager.get_connections()
+	if conns.is_empty():
+		connection_stalled.clear()
+		return
+
+	connection_stalled.clear()
+
+	# Pass 1: Direct stalls — target can't accept data
+	for i in range(conns.size()):
+		var conn: Dictionary = conns[i]
+		var from_b: Node2D = conn.from_building
+		var to_b: Node2D = conn.to_building
+		if from_b.has_method("is_active") and not from_b.is_active():
+			continue
+		if to_b.has_method("can_accept_data") and not to_b.can_accept_data(1):
+			connection_stalled[i] = true
+
+	# Pass 2-4: Back-pressure propagation (cascade upstream)
+	for _pass in range(3):
+		var newly_stalled: Dictionary = {}
+		var checked_buildings: Dictionary = {}
+		for i in range(conns.size()):
+			var from_b: Node2D = conns[i].from_building
+			if checked_buildings.has(from_b):
+				continue
+			checked_buildings[from_b] = true
+			# Check if ALL outputs of this building are stalled
+			var has_output: bool = false
+			var all_blocked: bool = true
+			for j in range(conns.size()):
+				if conns[j].from_building == from_b:
+					has_output = true
+					if not connection_stalled.has(j) and not newly_stalled.has(j):
+						all_blocked = false
+						break
+			if has_output and all_blocked:
+				# Mark all INPUT connections to this building as stalled
+				for j in range(conns.size()):
+					if conns[j].to_building == from_b and not connection_stalled.has(j):
+						newly_stalled[j] = true
+		if newly_stalled.is_empty():
+			break
+		connection_stalled.merge(newly_stalled)
 
 
 # --- ROLL HELPERS ---
@@ -102,11 +158,11 @@ func _check_discovery(content: int, state: int) -> void:
 	if not discovered_content.get(content, false):
 		discovered_content[content] = true
 		content_discovered.emit(content)
-		print("[Discovery] Yeni content keşfedildi: %s" % DataEnums.content_name(content))
+		print("[Discovery] New content discovered: %s" % DataEnums.content_name(content))
 	if not discovered_states.get(state, false):
 		discovered_states[state] = true
 		state_discovered.emit(state)
-		print("[Discovery] Yeni state keşfedildi: %s" % DataEnums.state_name(state))
+		print("[Discovery] New state discovered: %s" % DataEnums.state_name(state))
 
 
 # --- DATA PUSH ---

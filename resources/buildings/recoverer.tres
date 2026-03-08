@@ -20,7 +20,7 @@ forward_rate = 0.0
 [resource]
 script = ExtResource("1")
 building_name = "Recoverer"
-description = "Bozuk veriyi kurtarmayı dener. %70 başarı oranı — başarısız kısım dijital atık (Residue) olur."
+description = "Attempts to salvage corrupted data. 70% success rate — failed packets become digital waste (Residue)."
 grid_size = Vector2i(2, 2)
 color = Color(0.9, 0.6, 0.2, 1)
 category = "processing"
