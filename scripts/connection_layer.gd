@@ -31,6 +31,7 @@ var preview_valid: bool = true
 var preview_from_pos: Vector2 = Vector2.ZERO
 var preview_to_pos: Vector2 = Vector2.ZERO
 var preview_from_port: String = ""
+var preview_blocked: bool = false  ## True when cable can't reach mouse vertex
 
 # Connection flash effect
 var _flash_positions: Array[Vector2] = []
@@ -227,33 +228,42 @@ func _vertex_pos(v: Vector2i) -> Vector2:
 
 
 func _draw_preview() -> void:
-	var color: Color = PREVIEW_VALID_COLOR if preview_valid else PREVIEW_INVALID_COLOR
-	var points := PackedVector2Array()
-	# Start from port position
-	points.append(preview_from_pos)
-	# Add stub for clean exit from source port
+	var valid_color: Color = PREVIEW_VALID_COLOR
+	var blocked_color: Color = PREVIEW_INVALID_COLOR
+	var pulse := sin(Time.get_ticks_msec() / 150.0) * 0.5 + 0.5
+
+	# Build valid path points (port → stub → vertices)
+	var valid_points := PackedVector2Array()
+	valid_points.append(preview_from_pos)
 	if not preview_path.is_empty():
 		var first_v: Vector2 = _vertex_pos(preview_path[0])
 		var from_stub := _port_stub(preview_from_pos, first_v, _get_preview_from_port())
 		if from_stub != preview_from_pos and from_stub != first_v:
-			points.append(from_stub)
-	# Vertex positions
+			valid_points.append(from_stub)
 	for vertex in preview_path:
-		points.append(_vertex_pos(vertex))
-	# End at mouse position (no stub for mouse — it's not a port)
-	points.append(preview_to_pos)
-	if points.size() >= 2:
-		var pulse := sin(Time.get_ticks_msec() / 150.0) * 0.5 + 0.5
-		if preview_valid:
-			# Outer glow
-			draw_polyline(points, Color(color, 0.08 + pulse * 0.06), CABLE_GLOW_WIDTH * 2.0, true)
-			# Mid glow
-			draw_polyline(points, Color(color, 0.2 + pulse * 0.1), CABLE_GLOW_WIDTH, true)
-		# Core line
-		draw_polyline(points, Color(color, 0.7 + pulse * 0.3), CABLE_WIDTH + 1.0, true)
-		# Endpoint dots
-		draw_circle(points[0], 5.0, Color(color, 0.5 + pulse * 0.3))
-		draw_circle(points[points.size() - 1], 5.0, Color(color, 0.5 + pulse * 0.3))
+		valid_points.append(_vertex_pos(vertex))
+
+	# Draw valid (green) segment
+	if valid_points.size() >= 2:
+		draw_polyline(valid_points, Color(valid_color, 0.08 + pulse * 0.06), CABLE_GLOW_WIDTH * 2.0, true)
+		draw_polyline(valid_points, Color(valid_color, 0.2 + pulse * 0.1), CABLE_GLOW_WIDTH, true)
+		draw_polyline(valid_points, Color(valid_color, 0.7 + pulse * 0.3), CABLE_WIDTH + 1.0, true)
+		draw_circle(valid_points[0], 5.0, Color(valid_color, 0.5 + pulse * 0.3))
+
+	# Draw blocked (red) segment from last valid vertex to mouse
+	if preview_blocked and valid_points.size() >= 1:
+		var blocked_points := PackedVector2Array()
+		blocked_points.append(valid_points[valid_points.size() - 1])
+		blocked_points.append(preview_to_pos)
+		draw_polyline(blocked_points, Color(blocked_color, 0.5 + pulse * 0.2), CABLE_WIDTH + 1.0, true)
+		draw_circle(preview_to_pos, 5.0, Color(blocked_color, 0.6 + pulse * 0.3))
+	elif valid_points.size() >= 1:
+		# Not blocked — draw line to mouse in valid color
+		var tail_points := PackedVector2Array()
+		tail_points.append(valid_points[valid_points.size() - 1])
+		tail_points.append(preview_to_pos)
+		draw_polyline(tail_points, Color(valid_color, 0.4 + pulse * 0.2), CABLE_WIDTH, true)
+		draw_circle(preview_to_pos, 5.0, Color(valid_color, 0.5 + pulse * 0.3))
 
 
 func _get_preview_from_port() -> String:

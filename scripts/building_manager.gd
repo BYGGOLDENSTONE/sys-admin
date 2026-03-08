@@ -35,6 +35,7 @@ var _connecting_from_port: String = ""
 var _cable_path: Array[Vector2i] = []  ## Vertex-based path built manually
 var _start_vertices: Array[Vector2i] = []  ## Two possible starting vertices near port
 var _start_initialized: bool = false
+var _last_mouse_vertex: Vector2i = Vector2i(-9999, -9999)  ## Track mouse grid position
 
 # Moving state
 var _moving_building: Node2D = null
@@ -79,8 +80,10 @@ func _cancel_connecting() -> void:
 	_cable_path.clear()
 	_start_vertices.clear()
 	_start_initialized = false
+	_last_mouse_vertex = Vector2i(-9999, -9999)
 	if connection_layer:
 		connection_layer.preview_active = false
+		connection_layer.preview_blocked = false
 	print("[BuildingManager] Connection cancelled")
 
 
@@ -265,6 +268,7 @@ func _complete_connection(to_building: Node2D, to_port: String) -> void:
 	_cable_path.clear()
 	_start_vertices.clear()
 	_start_initialized = false
+	_last_mouse_vertex = Vector2i(-9999, -9999)
 	if connection_layer:
 		connection_layer.preview_active = false
 		connection_layer.play_connection_flash(to_building)
@@ -292,95 +296,95 @@ func _update_manual_routing() -> void:
 		elif _start_vertices.size() == 1:
 			_cable_path.append(_start_vertices[0])
 		_start_initialized = true
+		_last_mouse_vertex = mouse_vertex
 
 	if _cable_path.is_empty():
 		return
 
-	var last_v: Vector2i = _cable_path[_cable_path.size() - 1]
-	var path_before: int = _cable_path.size()
+	# Only process path changes when mouse moves to a new grid vertex
+	if mouse_vertex != _last_mouse_vertex:
+		var old_vertex := _last_mouse_vertex
+		_last_mouse_vertex = mouse_vertex
+		_process_vertex_movement(old_vertex, mouse_vertex)
 
-	# Backtrack: if mouse vertex is earlier in the path, truncate
-	if _cable_path.size() >= 2:
-		var back_idx: int = _cable_path.find(mouse_vertex)
-		if back_idx >= 0 and back_idx < _cable_path.size() - 1:
-			_cable_path.resize(back_idx + 1)
-			last_v = _cable_path[_cable_path.size() - 1]
-
-	# Extend: try to reach mouse_vertex from last_v
-	if mouse_vertex != last_v:
-		_try_extend_path(mouse_vertex)
-
-	# Update preview visual
+	# Always update preview (smooth cursor tracking for render)
 	var valid: bool = _cable_path.size() >= 2 and connection_manager.is_path_valid(_cable_path)
+	# Check if cable is stuck (can't reach mouse vertex)
+	var last_v: Vector2i = _cable_path[_cable_path.size() - 1] if not _cable_path.is_empty() else mouse_vertex
+	var is_blocked: bool = mouse_vertex != last_v
 	connection_layer.preview_path = _cable_path
 	connection_layer.preview_valid = valid
+	connection_layer.preview_blocked = is_blocked
 	connection_layer.preview_from_pos = from_pos
 	connection_layer.preview_from_port = _connecting_from_port
 	connection_layer.preview_to_pos = mouse_pos
 	connection_layer.preview_active = true
 
 
-func _try_extend_path(target: Vector2i) -> void:
-	## Extend cable path one step at a time toward mouse vertex.
-	## Follows mouse movement direction — fills in straight lines,
-	## and picks the dominant axis when diagonal.
-	if _cable_path.is_empty():
-		return
-
-	# Try multiple steps per frame to keep up with fast mouse movement
-	for _step in range(8):
-		var last_v: Vector2i = _cable_path[_cable_path.size() - 1]
-		if last_v == target:
+func _process_vertex_movement(old_vertex: Vector2i, new_vertex: Vector2i) -> void:
+	## Process mouse movement from one grid vertex to another.
+	## Interpolates through intermediate vertices for fast mouse movement.
+	var steps := _interpolate_vertices(old_vertex, new_vertex)
+	for v in steps:
+		if _cable_path.is_empty():
 			break
-		var diff: Vector2i = target - last_v
-		var next_v: Vector2i
+		var last_v: Vector2i = _cable_path[_cable_path.size() - 1]
 
-		if diff.x == 0:
-			# Same column — move vertically
-			next_v = last_v + Vector2i(0, signi(diff.y))
-		elif diff.y == 0:
-			# Same row — move horizontally
-			next_v = last_v + Vector2i(signi(diff.x), 0)
-		else:
-			# Diagonal — move along the axis with greater distance
-			if absi(diff.x) >= absi(diff.y):
-				next_v = last_v + Vector2i(signi(diff.x), 0)
-			else:
-				next_v = last_v + Vector2i(0, signi(diff.y))
+		# Backtrack: if vertex exists earlier in path, truncate to it
+		var back_idx: int = _cable_path.find(v)
+		if back_idx >= 0 and back_idx < _cable_path.size() - 1:
+			_cable_path.resize(back_idx + 1)
+			continue
 
-		if _can_extend_to(last_v, next_v):
-			_cable_path.append(next_v)
+		# Extend: only if adjacent to path end (Manhattan distance == 1)
+		var diff: Vector2i = v - last_v
+		if absi(diff.x) + absi(diff.y) == 1:
+			if _can_extend_to(last_v, v):
+				_cable_path.append(v)
+
+
+func _interpolate_vertices(from_v: Vector2i, to_v: Vector2i) -> Array[Vector2i]:
+	## Generate step-by-step vertex path between two vertices (Manhattan walk).
+	## Used to fill in skipped vertices when mouse moves fast.
+	var result: Array[Vector2i] = []
+	var total_dist: int = absi(to_v.x - from_v.x) + absi(to_v.y - from_v.y)
+	if total_dist > 30:
+		# Mouse jumped too far — just return target
+		result.append(to_v)
+		return result
+	var current := from_v
+	for _i in range(total_dist):
+		var remaining: Vector2i = to_v - current
+		if remaining == Vector2i.ZERO:
+			break
+		var step: Vector2i
+		if remaining.x == 0:
+			step = Vector2i(0, signi(remaining.y))
+		elif remaining.y == 0:
+			step = Vector2i(signi(remaining.x), 0)
 		else:
-			# Primary direction blocked — try the other axis
-			if diff.x != 0 and diff.y != 0:
-				var alt_v: Vector2i
-				if absi(diff.x) >= absi(diff.y):
-					alt_v = last_v + Vector2i(0, signi(diff.y))
-				else:
-					alt_v = last_v + Vector2i(signi(diff.x), 0)
-				if _can_extend_to(last_v, alt_v):
-					_cable_path.append(alt_v)
-				else:
-					break  # Both directions blocked
+			# Diagonal: prefer axis with greater remaining distance
+			if absi(remaining.x) >= absi(remaining.y):
+				step = Vector2i(signi(remaining.x), 0)
 			else:
-				break  # Single axis blocked
+				step = Vector2i(0, signi(remaining.y))
+		current = current + step
+		result.append(current)
+	return result
 
 
 func _can_extend_to(from_v: Vector2i, to_v: Vector2i) -> bool:
 	if to_v in _cable_path:
 		return false  # prevent loops
-	return grid_system.can_place_cable_edge(from_v, to_v)
+	if not grid_system.can_place_cable_edge(from_v, to_v):
+		return false
+	# Check diagonal corner if this creates a turn
+	if _cable_path.size() >= 2:
+		var prev_v: Vector2i = _cable_path[_cable_path.size() - 2]
+		if grid_system.is_turn_corner_occupied(from_v, prev_v, to_v):
+			return false
+	return true
 
-
-func _get_approach_vertex(exit_v: Vector2i, port_side: String) -> Vector2i:
-	## Returns vertex one step away from exit vertex, from the perpendicular direction.
-	## Cable routes here first, then takes final perpendicular step into exit vertex.
-	match port_side:
-		"left":  return exit_v + Vector2i(-1, 0)
-		"right": return exit_v + Vector2i(1, 0)
-		"top":   return exit_v + Vector2i(0, -1)
-		"bottom": return exit_v + Vector2i(0, 1)
-	return exit_v
 
 
 func _find_port_at(world_pos: Vector2, output_only: bool) -> Dictionary:

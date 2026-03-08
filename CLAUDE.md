@@ -60,7 +60,7 @@ Yapilar ozel siniflar degil, **component Resource'larinin birlesiimi.** Her comp
 | **Bridge** | (ozel) | Kablo kesisme noktasi |
 | **Gig Board** | `gig_board` | Sozlesme terminali |
 
-### Grid Kablo Sistemi (v2.0 — Manuel Edge Routing)
+### Grid Kablo Sistemi (v2.0.2 — Grid-by-Grid Routing)
 Kablolar vertex-based (grid kesisim noktasi) edge sistemi kullanir:
 - Oyuncu fareyi surukleyerek kabloyu elle cizer (otomatik pathfinding YOK)
 - Kablolar grid kenarlarinda (vertex-to-vertex) ilerler, hucre merkezlerinden degil
@@ -69,33 +69,24 @@ Kablolar vertex-based (grid kesisim noktasi) edge sistemi kullanir:
 - Kesisme icin Bridge binasi gerekli
 - Veri kablo boyunca gorulebilir sekilde akar
 
-**Yapisal Kurallar (ONEMLI):**
-- Kablolar binalara/kaynaklara 1 hucre mesafeden fazla YAKLASAMAZ
-- Proximity sistemi: vertex check (4 komsu hucre) + proximity edge bloklama
+**Kablo Cizim Sistemi (v2.0.2 — Grid-by-Grid):**
+- Mouse her yeni grid vertex'e gectiginde 1 adim kablo karari alinir (frame-based chase YOK)
+- Mouse vertex degismedikce islem yapilmaz (performans++)
+- Hizli mouse hareketi icin vertex interpolasyonu (atlanan vertex'ler otomatik doldurulur)
+- Backtrack: mouse mevcut path uzerinde geri giderse kablo otomatik kesilir
+- Gorsel geri bildirim: gecerli path YESIL, engellenenmis kisim KIRMIZI
+
+**Kablo Engelleme Kurali (v2.0.2 — Basitlestirildi):**
+- Eski proximity sistemi TAMAMEN KALDIRILDI (proximity_h/v_edges, port_exit_vertices, vertex_near_occupied)
+- Tek kural: `_edge_touches_occupied(v1, v2)` — edge'in HERHANGI bir yanindaki hucre doluysa engelle
+- Capraz kose kontrolu: `is_turn_corner_occupied()` — kablo donuste capraz hucreye dokunmaz
+- Sonuc: kablolar yapi/kaynaktan 1 hucre uzakta gecer, koselere dokunmaz
 - Exit vertex'ler bina sinirinden 1 hucre disarida, port merkezine hizali
-- Cift boyut (2x2 gibi): tek exit vertex (port ortasina tam hizali)
-- Tek boyut (1x1 gibi): iki exit vertex (port iki yaninda)
-- Kablo porta DİK girer — proximity bloklama sayesinde exit vertex'ten sadece dik yonde cikilabilir
-- Target stub: kablo once bina yuzeyine yatay gider, sonra kisa dikey donus ile porta girer
 
 **Veri Yapilari:**
 - `_cable_h_edges` / `_cable_v_edges`: kablo edge takibi (Vector2i → count)
-- `_proximity_h_edges` / `_proximity_v_edges`: bina etrafindaki engelli edge'ler
 - `_occupied_cells` / `_source_cells`: hucre doluluk takibi
 - Cable path: `Array[Vector2i]` vertex listesi (port-to-port)
-
-**Kablo Proximity Sistemi (v2.0.1 — Buyuk Iyilestirme):**
-- Kose hucre proximity sorunu cozuldu — `_modify_proximity_edges` range'leri +1 uzatildi,
-  `_modify_source_proximity` icin capraz kose edge bloklama eklendi.
-- Port exit vertex exemption: `_port_exit_vertices` dictionary ile port cikis noktalari takip edilir,
-  proximity bloklama bu noktalarda dik yondeki edge'ler icin muaf tutulur.
-- Port stub rendering duzeltildi: `_port_stub_entry` koordinat hatasi giderildi, porta dik giris saglandi.
-- Otomatik routing kaldirildi: `_complete_connection` sadece 1-adim snap yapar, oyuncu kabloyu elle cizer.
-- Kablolar binalardan/kaynaklardan en az 1 tam hucre mesafede, sadece port giris/cikis noktalarinda yaklasabilir.
-
-**Kalan Kablo Eksiklikleri (DEVAM EDIYOR):**
-- Bazi ozel durumlarda (kose yaklasim, capraz kablo cizimleri) hala iyilestirme gerekebilir
-- Kullanici testlerinde tespit edilen ek sorunlar sonraki session'da ele alinacak
 
 ### Data-Driven Tasarim
 - Yapi degerleri → component sub-resource olarak .tres dosyasinda

@@ -155,4 +155,8 @@ func is_path_valid(path: Array[Vector2i]) -> bool:
 	for i in range(path.size() - 1):
 		if not grid_system.can_place_cable_edge(path[i], path[i + 1]):
 			return false
+	# Check diagonal corners at every turn vertex
+	for i in range(1, path.size() - 1):
+		if grid_system.is_turn_corner_occupied(path[i], path[i - 1], path[i + 1]):
+			return false
 	return true
