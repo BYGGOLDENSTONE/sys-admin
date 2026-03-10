@@ -147,7 +147,7 @@ func _update_stats() -> void:
 		else:
 			lines.append(_stat("Success", "%d%%" % int(b.get_effective_value("success_rate") * 100)))
 		lines.append(_stat("Input", "[color=#ff8844]Corrupted[/color]"))
-		lines.append(_stat("Output →", "[color=#44ff88]Public[/color] (recovered)"))
+		lines.append(_stat("Output →", "[color=#44ff88]Recovered[/color]"))
 	if def.producer:
 		lines.append(_stat("Processing", "%d production/tick" % int(b.get_effective_value("processing_rate"))))
 		lines.append(_stat("Input", "[color=#aa77ff]%d MB Research(Public)[/color] → 1 Key" % def.producer.consume_amount))
@@ -161,7 +161,7 @@ func _update_stats() -> void:
 		lines.append(_stat("Throughput", "%d MB/s" % int(b.get_effective_value("processing_rate"))))
 		lines.append(_stat("Left Port ←", "[color=#44aaff]Encrypted[/color] data"))
 		lines.append(_stat("Top Port ←", "[color=#ffaa00]Key[/color] (from Research Lab)"))
-		lines.append(_stat("Output →", "[color=#44ff88]Public[/color] (content preserved)"))
+		lines.append(_stat("Output →", "[color=#44ff88]Decrypted[/color] (content preserved)"))
 		var tier_costs: Array[int] = def.dual_input.tier_key_costs
 		if tier_costs.size() >= 2:
 			lines.append(_stat("Key/packet", "T1=%d, T2=%d" % [tier_costs[0], tier_costs[1]]))
@@ -291,11 +291,9 @@ func _format_stored_data(data: Dictionary) -> String:
 		var parsed: Dictionary = DataEnums.parse_key(key)
 		var c_color: String = DataEnums.content_color_hex(parsed.content)
 		var s_color: String = DataEnums.state_color_hex(parsed.state)
-		var tier_str: String = " T%d" % parsed.tier if parsed.tier > 0 else ""
-		parts.append("[color=%s]%d[/color] [color=%s]%s[/color]([color=%s]%s%s[/color])" % [
-			s_color, data[key],
-			c_color, DataEnums.content_name(parsed.content),
-			s_color, DataEnums.state_name(parsed.state), tier_str
+		var label: String = DataEnums.data_label(parsed.content, parsed.state, parsed.tier, parsed.tags)
+		parts.append("[color=%s]%d[/color] [color=%s]%s[/color]" % [
+			s_color, data[key], c_color, label
 		])
 	if parts.is_empty():
 		return "Empty"

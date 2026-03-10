@@ -29,7 +29,7 @@ var _process_flash: float = 0.0
 var _display_fill: float = 0.0
 
 # Runtime state (set by SimulationManager)
-var stored_data: Dictionary = {}  ## Key: "content_state_tier" (e.g. "0_0_0"), Value: int MB
+var stored_data: Dictionary = {}  ## Key: "content_state_tier_tags" (e.g. "0_0_0_0"), Value: int MB
 var is_working: bool = false  ## True when building did actual work this tick
 var separator_mode: String = "state"  ## For separator: "state" or "content"
 var separator_filter_value: int = 0  ## Filter value for separator (state or content int)

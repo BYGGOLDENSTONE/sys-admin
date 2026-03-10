@@ -7,13 +7,14 @@
 script = ExtResource("2")
 content = 4
 state = 0
+tags = 1
 amount = 10
-label = "Research Public"
+label = "Research Decrypted"
 
 [resource]
 script = ExtResource("1")
 gig_name = "Decryption Run"
-description = "Deliver 10 Research data. Encrypted sources require decryption — build a Research Lab to produce Keys, then use the Decryptor to unlock the data."
+description = "Deliver 10 Research Decrypted data. Build a Research Lab to produce Keys, then use the Decryptor to unlock Encrypted data."
 order_index = 5
 is_tutorial = true
 requirements = Array[Resource]([SubResource("req1")])

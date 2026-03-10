@@ -7,13 +7,14 @@
 script = ExtResource("2")
 content = 1
 state = 0
+tags = 2
 amount = 10
-label = "Financial Public"
+label = "Financial Recovered"
 
 [resource]
 script = ExtResource("1")
 gig_name = "Data Recovery"
-description = "Deliver 10 Financial data. Some sources have Corrupted data — use the Recoverer to repair it. Feed the Recoverer with matching Public data as fuel."
+description = "Deliver 10 Financial Recovered data. Use the Recoverer to repair Corrupted data — feed it matching Public data as fuel."
 order_index = 4
 is_tutorial = true
 requirements = Array[Resource]([SubResource("req1")])

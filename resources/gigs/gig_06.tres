@@ -7,13 +7,14 @@
 script = ExtResource("2")
 content = 2
 state = 0
+tags = 1
 amount = 10
-label = "Biometric Public"
+label = "Biometric Decrypted"
 
 [resource]
 script = ExtResource("1")
 gig_name = "Encryption Job"
-description = "Deliver 10 processed Biometric data. Use the Encryptor to re-encrypt data for secure delivery — it needs a Key, just like the Decryptor."
+description = "Deliver 10 Biometric Decrypted data. Find an Encrypted Biometric source, decrypt it with Keys, and deliver the result."
 order_index = 6
 is_tutorial = true
 requirements = Array[Resource]([SubResource("req1")])

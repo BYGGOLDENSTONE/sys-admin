@@ -85,7 +85,7 @@ func process_deliveries() -> void:
 		if amount <= 0:
 			continue
 		var parsed: Dictionary = DataEnums.parse_key(key)
-		_count_delivery(parsed.content, parsed.state, parsed.tier, amount)
+		_count_delivery(parsed.content, parsed.state, parsed.tier, parsed.tags, amount)
 
 	# Consume all delivered data (Shapez model)
 	_contract_terminal.stored_data.clear()
@@ -94,7 +94,7 @@ func process_deliveries() -> void:
 	_check_completions()
 
 
-func _count_delivery(content: int, state: int, _tier: int, amount: int) -> void:
+func _count_delivery(content: int, state: int, _tier: int, tags: int, amount: int) -> void:
 	for gig in _active_gigs:
 		var progress_arr: Array = _progress.get(gig.order_index, [])
 		for i in range(gig.requirements.size()):
@@ -102,6 +102,9 @@ func _count_delivery(content: int, state: int, _tier: int, amount: int) -> void:
 			if req.content != content:
 				continue
 			if req.state >= 0 and req.state != state:
+				continue
+			# Check tags: delivered data must have ALL required tags
+			if req.tags != 0 and (tags & req.tags) != req.tags:
 				continue
 			# Match — count toward this requirement
 			var old_val: int = progress_arr[i]

@@ -3,13 +3,22 @@ class_name DataEnums
 enum ContentType { STANDARD, FINANCIAL, BIOMETRIC, BLUEPRINT, RESEARCH, CLASSIFIED, KEY }
 enum DataState { PUBLIC, ENCRYPTED, CORRUPTED, MALWARE }
 
-static func make_key(content: int, state: int, tier: int = 0) -> String:
-	return "%d_%d_%d" % [content, state, tier]
+## Processing tags — bit flags that accumulate on data as it gets processed
+enum ProcessingTag {
+	NONE = 0,
+	DECRYPTED = 1,   ## Applied by Decryptor
+	RECOVERED = 2,   ## Applied by Recoverer
+	ENCRYPTED = 4,   ## Applied by Encryptor
+}
+
+static func make_key(content: int, state: int, tier: int = 0, tags: int = 0) -> String:
+	return "%d_%d_%d_%d" % [content, state, tier, tags]
 
 static func parse_key(key: String) -> Dictionary:
 	var parts = key.split("_")
 	var tier: int = int(parts[2]) if parts.size() > 2 else 0
-	return { "content": int(parts[0]), "state": int(parts[1]), "tier": tier }
+	var tags: int = int(parts[3]) if parts.size() > 3 else 0
+	return { "content": int(parts[0]), "state": int(parts[1]), "tier": tier, "tags": tags }
 
 static func tier_name(t: int) -> String:
 	if t <= 0:
@@ -81,6 +90,33 @@ static func state_storage_cost(s: int) -> int:
 		DataState.CORRUPTED: return 3
 		DataState.MALWARE: return 0  # Cannot be stored
 	return 1
+
+
+static func tags_label(tags: int) -> String:
+	if tags == 0:
+		return ""
+	var parts: PackedStringArray = []
+	if tags & ProcessingTag.DECRYPTED:
+		parts.append("Decrypted")
+	if tags & ProcessingTag.RECOVERED:
+		parts.append("Recovered")
+	if tags & ProcessingTag.ENCRYPTED:
+		parts.append("Encrypted")
+	return "·".join(parts)
+
+
+static func data_label(content: int, state: int, tier: int = 0, tags: int = 0) -> String:
+	var label: String = content_name(content)
+	if tags != 0:
+		label += " " + tags_label(tags)
+	elif state != DataState.PUBLIC:
+		label += " " + state_name(state)
+	else:
+		label += " Public"
+	var t: String = tier_name(tier)
+	if t != "":
+		label += " " + t
+	return label
 
 
 static func content_color_hex(c: int) -> String:
