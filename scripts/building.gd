@@ -476,6 +476,8 @@ func _draw_icon(center: Vector2, size: Vector2, accent: Color) -> void:
 			_draw_icon_bridge(icon_center, size, accent)
 		"compiler":
 			_draw_icon_compiler(icon_center, size, accent)
+		"terminal":
+			_draw_icon_terminal(icon_center, size, accent)
 		_:
 			_draw_icon_default(icon_center, size, accent)
 
@@ -796,6 +798,33 @@ func _draw_icon_compiler(center: Vector2, size: Vector2, accent: Color) -> void:
 	# Star at output (refined symbol)
 	draw_circle(out_pos, 3.0, accent)
 	draw_circle(out_pos, 1.5, Color.WHITE)
+
+
+# --- TERMINAL: Mission hub / delivery icon ---
+func _draw_icon_terminal(center: Vector2, size: Vector2, accent: Color) -> void:
+	var s: float = minf(size.x, size.y) * 0.3
+	var glow := Color(accent, ICON_GLOW_ALPHA)
+
+	# Monitor outline
+	var mon_w: float = s * 1.2
+	var mon_h: float = s * 0.8
+	var mon_rect := Rect2(center + Vector2(-mon_w / 2, -mon_h / 2 - s * 0.1), Vector2(mon_w, mon_h))
+	draw_rect(mon_rect, Color(accent, 0.15), true)
+	draw_rect(mon_rect, glow, false, ICON_GLOW_WIDTH)
+	draw_rect(mon_rect, accent, false, 2.0)
+
+	# Stand below monitor
+	var stand_top := Vector2(center.x, mon_rect.end.y)
+	var stand_bot := Vector2(center.x, mon_rect.end.y + s * 0.3)
+	draw_line(stand_top, stand_bot, accent, 2.0)
+	draw_line(stand_bot + Vector2(-s * 0.3, 0), stand_bot + Vector2(s * 0.3, 0), accent, 2.0)
+
+	# Arrow pointing into screen (delivery)
+	var arrow_tip := Vector2(center.x, center.y - s * 0.1)
+	draw_line(arrow_tip + Vector2(0, -s * 0.35), arrow_tip, glow, ICON_GLOW_WIDTH)
+	draw_line(arrow_tip + Vector2(0, -s * 0.35), arrow_tip, accent, 2.0)
+	draw_line(arrow_tip, arrow_tip + Vector2(-4, -6), accent, 2.0)
+	draw_line(arrow_tip, arrow_tip + Vector2(4, -6), accent, 2.0)
 
 
 # --- DEFAULT: Simple dot ---

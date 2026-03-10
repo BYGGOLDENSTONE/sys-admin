@@ -9,7 +9,6 @@ description = "Allows two cables to cross over each other. Place it first, then 
 grid_size = Vector2i(1, 1)
 color = Color(0.47, 0.53, 0.6, 1)
 category = "routing"
-base_cost = 40
 visual_type = "bridge"
 allows_cable_crossing = true
 output_ports = Array[String]([])

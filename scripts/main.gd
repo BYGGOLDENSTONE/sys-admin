@@ -8,7 +8,6 @@ extends Node2D
 @onready var connection_manager: Node = $ConnectionManager
 @onready var connection_layer: Node2D = $ConnectionLayer
 @onready var simulation_manager = $SimulationManager
-@onready var tech_tree_panel: PanelContainer = $UILayer/TechTreePanel
 @onready var source_manager: Node = $SourceManager
 @onready var source_container: Node2D = $SourceContainer
 
@@ -25,6 +24,8 @@ var _top_bar: PanelContainer = null
 var _minimap: Control = null
 var _shortcut_hints: Label = null
 var _sound_manager: Node = null
+var _gig_manager: Node = null
+var _contract_terminal: Node2D = null
 
 
 func _ready() -> void:
@@ -70,10 +71,8 @@ func _ready() -> void:
 	building_manager.building_selected.connect(_upgrade_panel.show_for_building)
 	building_manager.building_deselected.connect(_upgrade_panel.hide_panel)
 
-	# Setup tech tree
-	tech_tree_panel.setup(simulation_manager, building_panel)
-	building_panel._tech_tree = tech_tree_panel
-	tech_tree_panel.building_unlocked.connect(_on_building_unlocked)
+	# Setup gig manager
+	_setup_gig_manager()
 
 	# Setup top bar
 	_setup_top_bar()
@@ -109,6 +108,9 @@ func _ready() -> void:
 
 	# Setup fog of war layer (above sources, below buildings)
 	_setup_fog_layer()
+
+	# Place Contract Terminal at map center
+	_place_contract_terminal()
 
 	# Center camera on map center
 	camera.position = Vector2(256 * 64 + 64, 256 * 64 + 64)
@@ -203,7 +205,7 @@ func _setup_minimap() -> void:
 
 func _setup_shortcut_hints() -> void:
 	_shortcut_hints = Label.new()
-	_shortcut_hints.text = "SPACE Pause  //  1/2/3 Speed  //  Ctrl+Z Undo  //  T Tech Tree  //  H Hide"
+	_shortcut_hints.text = "SPACE Pause  //  1/2/3 Speed  //  Ctrl+Z Undo  //  H Hide"
 	_shortcut_hints.add_theme_font_size_override("font_size", 12)
 	_shortcut_hints.add_theme_color_override("font_color", Color(0.4, 0.6, 0.7, 0.6))
 	_shortcut_hints.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -235,6 +237,97 @@ func _toggle_shortcut_hints() -> void:
 
 func _on_speed_changed(multiplier: int, paused: bool) -> void:
 	_top_bar.update_speed(multiplier, paused)
+
+
+func _setup_gig_manager() -> void:
+	var GigManagerScript = preload("res://scripts/gig_manager.gd")
+	_gig_manager = Node.new()
+	_gig_manager.set_script(GigManagerScript)
+	_gig_manager.name = "GigManager"
+	_gig_manager.building_container = $BuildingContainer
+	add_child(_gig_manager)
+	# Wire to building panel
+	building_panel._gig_manager = _gig_manager
+	building_panel.refresh_buttons()
+	# Wire unlock signals
+	_gig_manager.building_unlocked.connect(_on_building_unlocked)
+	_gig_manager.gig_completed.connect(_on_gig_completed)
+	_gig_manager.gig_activated.connect(_on_gig_activated)
+	# Process deliveries after each simulation tick
+	simulation_manager.tick_completed.connect(_on_tick_for_gig)
+	# Initialize after signals are connected
+	_gig_manager.initialize()
+
+
+func _place_contract_terminal() -> void:
+	var terminal_def := load("res://resources/buildings/contract_terminal.tres") as BuildingDefinition
+	if terminal_def == null:
+		push_error("[Main] Cannot load Contract Terminal definition")
+		return
+	# Try center first, then spiral outward to find clear spot
+	var center := Vector2i(256, 256)
+	var cell := _find_clear_cell(center, terminal_def.grid_size)
+	_contract_terminal = building_manager.place_building_at(terminal_def, cell, true)
+	if _contract_terminal != null and _gig_manager != null:
+		_gig_manager.set_contract_terminal(_contract_terminal)
+		print("[Main] Contract Terminal placed at (%d,%d)" % [cell.x, cell.y])
+	else:
+		push_error("[Main] Failed to place Contract Terminal")
+
+
+func _find_clear_cell(center: Vector2i, building_size: Vector2i) -> Vector2i:
+	## Spiral search for a clear cell near center
+	if grid_system.can_place(center, building_size):
+		return center
+	for radius in range(1, 20):
+		for dx in range(-radius, radius + 1):
+			for dy in range(-radius, radius + 1):
+				if absi(dx) != radius and absi(dy) != radius:
+					continue  # Only check perimeter
+				var cell := center + Vector2i(dx, dy)
+				if grid_system.can_place(cell, building_size):
+					return cell
+	return center  # Fallback
+
+
+func _on_tick_for_gig(_tick_count: int) -> void:
+	if _gig_manager:
+		_gig_manager.process_deliveries()
+
+
+func _on_gig_completed(gig) -> void:
+	_show_gig_notification("GIG COMPLETE: %s" % gig.gig_name, Color("#44ff88"))
+	if _sound_manager:
+		_sound_manager.play_unlock()
+
+
+func _on_gig_activated(gig) -> void:
+	_show_gig_notification("NEW GIG: %s" % gig.gig_name, Color("#00bbee"))
+	building_panel.refresh_buttons()
+
+
+func _show_gig_notification(text: String, color: Color) -> void:
+	var notif := Label.new()
+	notif.text = ">> %s <<" % text
+	notif.add_theme_font_size_override("font_size", 20)
+	notif.add_theme_color_override("font_color", color)
+	notif.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
+	notif.add_theme_constant_override("outline_size", 4)
+	notif.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	notif.anchors_preset = Control.PRESET_CENTER_TOP
+	notif.position.y = 120
+	notif.modulate = Color(1, 1, 1, 0)
+	notif.scale = Vector2(0.7, 0.7)
+	notif.pivot_offset = Vector2(notif.size.x / 2.0, notif.size.y / 2.0)
+	ui_layer.add_child(notif)
+	var tween := create_tween().set_parallel(true)
+	tween.tween_property(notif, "modulate:a", 1.0, 0.2).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tween.tween_property(notif, "scale", Vector2.ONE, 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.tween_property(notif, "position:y", 105.0, 2.5).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tween.tween_property(notif, "modulate:a", 0.0, 0.8).set_delay(2.0)
+	tween.chain().tween_callback(notif.queue_free)
+	if camera.has_method("add_trauma"):
+		camera.add_trauma(0.15)
 
 
 func _on_building_unlocked(building_name: String) -> void:

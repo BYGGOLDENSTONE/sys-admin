@@ -24,7 +24,6 @@ description = "Attempts to salvage corrupted data. 70% success rate — failed p
 grid_size = Vector2i(2, 2)
 color = Color(0.87, 0.47, 0.2, 1)
 category = "processing"
-base_cost = 180
 visual_type = "recoverer"
 output_ports = Array[String](["right", "bottom"])
 input_ports = Array[String](["left"])

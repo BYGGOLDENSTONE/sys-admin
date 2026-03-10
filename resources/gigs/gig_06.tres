@@ -1,0 +1,20 @@
+[gd_resource type="Resource" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://resources/gigs/gig_definition.gd" id="1"]
+[ext_resource type="Script" path="res://resources/gigs/gig_requirement.gd" id="2"]
+
+[sub_resource type="Resource" id="req1"]
+script = ExtResource("2")
+content = 2
+state = 0
+amount = 10
+label = "Biometric Clean"
+
+[resource]
+script = ExtResource("1")
+gig_name = "Encryption Job"
+description = "Deliver 10 processed Biometric data. Use the Encryptor to re-encrypt data for secure delivery — it needs a Key, just like the Decryptor."
+order_index = 6
+is_tutorial = true
+requirements = Array[Resource]([SubResource("req1")])
+reward_buildings = Array[String](["Encryptor"])

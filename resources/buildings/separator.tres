@@ -34,7 +34,6 @@ description = "Splits data by state or content type. Routes matching data to pri
 grid_size = Vector2i(2, 2)
 color = Color(0.2, 0.67, 0.87, 1)
 category = "processing"
-base_cost = 120
 visual_type = "separator"
 output_ports = Array[String](["right", "bottom"])
 input_ports = Array[String](["left"])

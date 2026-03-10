@@ -1,0 +1,20 @@
+[gd_resource type="Resource" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://resources/gigs/gig_definition.gd" id="1"]
+[ext_resource type="Script" path="res://resources/gigs/gig_requirement.gd" id="2"]
+
+[sub_resource type="Resource" id="req1"]
+script = ExtResource("2")
+content = 0
+state = 0
+amount = 20
+label = "Standard Public"
+
+[resource]
+script = ExtResource("1")
+gig_name = "First Extraction"
+description = "Connect an Uplink to a data source and deliver 20 Standard Public data to the Contract Terminal. Route a cable from the Uplink's output to the Terminal's input."
+order_index = 1
+is_tutorial = true
+requirements = Array[Resource]([SubResource("req1")])
+reward_buildings = Array[String]([])

@@ -20,7 +20,6 @@ description = "Combines multiple data flows into a single output. Pairs with Spl
 grid_size = Vector2i(1, 1)
 color = Color(0.47, 0.53, 0.6, 1)
 category = "routing"
-base_cost = 60
 visual_type = "merger"
 output_ports = Array[String](["right"])
 input_ports = Array[String](["left", "top"])

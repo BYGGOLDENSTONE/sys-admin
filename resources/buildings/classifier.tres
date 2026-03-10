@@ -20,7 +20,6 @@ description = "Routes data by content type — Financial one way, Biometric anot
 grid_size = Vector2i(2, 2)
 color = Color(0.2, 0.67, 0.87, 1)
 category = "processing"
-base_cost = 140
 visual_type = "classifier"
 output_ports = Array[String](["right", "bottom", "top"])
 input_ports = Array[String](["left"])

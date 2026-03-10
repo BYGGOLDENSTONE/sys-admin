@@ -45,7 +45,7 @@ func show_for_building(building: Node2D) -> void:
 	name_label.text = def.building_name
 	name_label.add_theme_color_override("font_color", def.color)
 	desc_label.text = def.description
-	info_label.text = "%s | %d CR" % [def.category.to_upper(), def.base_cost]
+	info_label.text = def.category.to_upper()
 	_update_stats()
 	_show_animated()
 

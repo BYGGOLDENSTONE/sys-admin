@@ -10,7 +10,7 @@ const BUTTON_PRESSED_COLOR := Color(0.16, 0.24, 0.36, 0.9)
 const TITLE_COLOR := Color("#00bbee")
 
 var _definitions: Array[BuildingDefinition] = []
-var _tech_tree: Node = null
+var _gig_manager: Node = null
 var _button_container_ref: VBoxContainer = null
 var _panel_tween: Tween = null
 var _is_panel_visible: bool = false
@@ -71,7 +71,9 @@ func _rebuild_buttons() -> void:
 	# Re-create visible buttons with staggered fade-in
 	var idx := 0
 	for def in _definitions:
-		if _tech_tree and not _tech_tree.is_building_unlocked(def.building_name):
+		if not def.is_placeable:
+			continue
+		if _gig_manager and not _gig_manager.is_building_unlocked(def.building_name):
 			continue
 		var button := Button.new()
 		button.text = def.building_name
@@ -92,16 +94,7 @@ func _rebuild_buttons() -> void:
 
 
 func _build_cost_tooltip(def: BuildingDefinition) -> String:
-	var parts: PackedStringArray = [def.description]
-	if not def.material_costs.is_empty() or not def.refined_costs.is_empty():
-		parts.append("\nMaliyet:")
-		for content_type in def.material_costs:
-			parts.append("  %d %s(Clean)" % [def.material_costs[content_type], DataEnums.content_name(int(content_type))])
-		for refined_type in def.refined_costs:
-			parts.append("  %d %s" % [def.refined_costs[refined_type], DataEnums.refined_name(int(refined_type))])
-	else:
-		parts.append("\nBedava")
-	return "\n".join(parts)
+	return def.description
 
 
 func _on_building_button_pressed(def: BuildingDefinition) -> void:

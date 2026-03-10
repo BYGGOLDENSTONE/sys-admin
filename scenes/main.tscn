@@ -10,7 +10,6 @@
 [ext_resource type="Script" uid="uid://dh433gxy6rs5h" path="res://scripts/connection_manager.gd" id="8"]
 [ext_resource type="Script" uid="uid://dhwkdkj0w6noa" path="res://scripts/connection_layer.gd" id="9"]
 [ext_resource type="Shader" uid="uid://dbuy13pxot3fk" path="res://shaders/bloom_vignette.gdshader" id="10"]
-[ext_resource type="Script" uid="uid://c65et5logtucj" path="res://scripts/ui/tech_tree_panel.gd" id="11_jkv2x"]
 [ext_resource type="Script" uid="uid://b4368firahglh" path="res://scripts/simulation_manager.gd" id="12_eb6dy"]
 [ext_resource type="Script" uid="uid://dpn0c826sqcaq" path="res://scripts/source_manager.gd" id="15_srcmgr"]
 
@@ -75,13 +74,6 @@ anchor_bottom = 1.0
 offset_left = -220.0
 grow_horizontal = 0
 script = ExtResource("7_o6xl0")
-
-[node name="TechTreePanel" type="PanelContainer" parent="UILayer" unique_id=1562056194]
-offset_left = 10.0
-offset_top = 48.0
-offset_right = 290.0
-offset_bottom = 48.0
-script = ExtResource("11_jkv2x")
 
 [node name="SourceManager" type="Node" parent="." unique_id=368627126]
 script = ExtResource("15_srcmgr")

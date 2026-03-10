@@ -16,7 +16,6 @@ description = "Connects to the network and downloads raw data streams. The prima
 grid_size = Vector2i(2, 2)
 color = Color(0.2, 0.73, 0.93, 1)
 category = "extraction"
-base_cost = 100
 visual_type = "uplink"
 output_ports = Array[String](["right"])
 input_ports = Array[String]([])

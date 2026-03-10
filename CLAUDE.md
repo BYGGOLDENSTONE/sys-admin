@@ -2,7 +2,7 @@
 
 ## Mevcut Asama: v3.0 Implementasyon — Gig-Driven Core Loop
 - **GDD:** `docs/GDD.md` (v3.0) — Tum tasarim kararlari burada
-- **Kod durumu:** v2.0 calisiyor, v3.0 tasarim HENUZ KODDA YANSITILMADI
+- **Kod durumu:** Faz A tamamlandi, Faz B sirada
 - **Gecmis:** Tamamlanmis fazlar git log'da. `git log --oneline` ile bak.
 
 ## Proje Ozeti
@@ -14,12 +14,12 @@
 
 ## v3.0 Donusum Plani (v2.0 Kod → v3.0 Tasarim)
 
-### Faz A: Core Loop (ONCELIKLI)
-- [ ] Contract Terminal binasi (harita merkezinde sabit, gig UI + teslimat noktasi)
-- [ ] Gig data resource + ilerleme sayaci + tamamlama mekanigi
-- [ ] Bina acma = gig tamamlama (discovery sistemi kaldirilacak)
-- [ ] Bina maliyet sistemi kaldir (material_costs/refined_costs)
-- [ ] Tutorial gig zinciri (Gig 1-7, sirali)
+### Faz A: Core Loop — TAMAMLANDI
+- [x] Contract Terminal binasi (harita merkezinde sabit, teslimat noktasi)
+- [x] Gig data resource + ilerleme sayaci + tamamlama mekanigi
+- [x] Bina acma = gig tamamlama (gig_manager.gd)
+- [x] Bina maliyet sistemi kaldirildi (base_cost, material_costs, refined_costs)
+- [x] Tutorial gig zinciri (Gig 1-7, sirali)
 
 ### Faz B: Veri Modeli
 - [ ] Clean → Public yeniden adlandirma (data_enums.gd)
