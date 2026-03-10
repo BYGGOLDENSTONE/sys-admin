@@ -12,7 +12,7 @@ var _progress: Dictionary = {}  ## order_index → Array[int] (per-requirement c
 var _unlocked_buildings: Dictionary = {}  ## building_name → true
 
 ## Starting buildings (always available)
-var _starter_buildings: PackedStringArray = ["Uplink", "Quarantine", "Splitter", "Merger", "Bridge"]
+var _starter_buildings: PackedStringArray = ["Uplink", "Trash", "Splitter", "Merger", "Bridge"]
 
 var building_container: Node2D = null
 var _contract_terminal: Node2D = null
@@ -84,6 +84,9 @@ func process_deliveries() -> void:
 		var amount: int = _contract_terminal.stored_data[key]
 		if amount <= 0:
 			continue
+		if DataEnums.is_packet(key):
+			_count_packet_delivery(key, amount)
+			continue
 		var parsed: Dictionary = DataEnums.parse_key(key)
 		_count_delivery(parsed.content, parsed.state, parsed.tier, parsed.tags, amount)
 
@@ -92,6 +95,13 @@ func process_deliveries() -> void:
 
 	# Check gig completion
 	_check_completions()
+
+
+func _count_packet_delivery(pkt_key: String, amount: int) -> void:
+	var pkt: Dictionary = DataEnums.parse_packet_key(pkt_key)
+	# A packet [A·B] counts as delivery for both components
+	_count_delivery(pkt.content_a, DataEnums.DataState.PUBLIC, 0, pkt.tags_a, amount)
+	_count_delivery(pkt.content_b, DataEnums.DataState.PUBLIC, 0, pkt.tags_b, amount)
 
 
 func _count_delivery(content: int, state: int, _tier: int, tags: int, amount: int) -> void:

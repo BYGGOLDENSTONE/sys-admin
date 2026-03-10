@@ -35,10 +35,17 @@ func get_storage_capacity() -> int:
 func accepts_data(content: int, state: int) -> bool:
 	## Check if this building can accept data with given content+state
 	if compiler:
-		# Compiler only accepts Public data (matching recipe inputs)
-		return state == DataEnums.DataState.PUBLIC
+		# Compiler accepts any data for packaging
+		return true
 	if dual_input:
-		# Dual input accepts: primary data (matching states) OR keys
+		# Dual input accepts: primary data (matching states) OR fuel/keys
+		if dual_input.fuel_matches_content:
+			# Recoverer: accept Corrupted data OR Public data (as fuel)
+			if state == DataEnums.DataState.PUBLIC:
+				return true
+			if not dual_input.primary_input_states.is_empty():
+				return state in dual_input.primary_input_states
+			return true
 		if content == dual_input.key_content:
 			return true
 		if not dual_input.primary_input_states.is_empty():

@@ -16,12 +16,12 @@ forward_rate = 0.0
 [resource]
 script = ExtResource("1")
 building_name = "Classifier"
-description = "Routes data by content type — Financial one way, Biometric another. Each output port handles a different content category."
+description = "Binary content filter — selected content type exits right, everything else exits bottom."
 grid_size = Vector2i(2, 2)
 color = Color(0.2, 0.67, 0.87, 1)
 category = "processing"
 visual_type = "classifier"
-output_ports = Array[String](["right", "bottom", "top"])
+output_ports = Array[String](["right", "bottom"])
 input_ports = Array[String](["left"])
 classifier = SubResource("cls1")
 storage = SubResource("stor1")

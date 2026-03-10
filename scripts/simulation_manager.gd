@@ -247,6 +247,8 @@ func _update_storage_forward(buildings: Array[Node]) -> void:
 			var available: int = b.stored_data[key]
 			if available <= 0:
 				continue
+			if DataEnums.is_packet(key):
+				continue
 			var parsed: Dictionary = DataEnums.parse_key(key)
 			var pushed: int = _push_data_from(b, parsed.content, parsed.state, mini(available, max_forward - sent), "", parsed.tier, parsed.tags)
 			if pushed > 0:
@@ -287,6 +289,8 @@ func _update_processing(buildings: Array[Node]) -> void:
 			match proc.rule:
 				"separator":
 					processed = _process_separator(b, proc, max_process)
+				"trash":
+					processed = _process_trash(b)
 				"quarantine":
 					processed = _process_quarantine(b, proc, max_process)
 		else:
@@ -301,11 +305,23 @@ func _update_processing(buildings: Array[Node]) -> void:
 		elif b.definition.compiler != null:
 			pass  # Keep stored data (needs both inputs to accumulate)
 		elif b.definition.dual_input != null:
-			var key_key: String = DataEnums.make_key(b.definition.dual_input.key_content, DataEnums.DataState.PUBLIC, 0, 0)
-			var saved_keys: int = b.stored_data.get(key_key, 0)
-			b.stored_data.clear()
-			if saved_keys > 0:
-				b.stored_data[key_key] = saved_keys
+			if b.definition.dual_input.fuel_matches_content:
+				# Recoverer: keep all Public data (potential fuel)
+				var saved_fuel: Dictionary = {}
+				for k in b.stored_data:
+					var p: Dictionary = DataEnums.parse_key(k)
+					if p.state == DataEnums.DataState.PUBLIC and p.tier == 0 and p.tags == 0:
+						saved_fuel[k] = b.stored_data[k]
+				b.stored_data.clear()
+				for k in saved_fuel:
+					b.stored_data[k] = saved_fuel[k]
+			else:
+				# Decryptor/Encryptor: keep keys only
+				var key_key: String = DataEnums.make_key(b.definition.dual_input.key_content, DataEnums.DataState.PUBLIC, 0, 0)
+				var saved_keys: int = b.stored_data.get(key_key, 0)
+				b.stored_data.clear()
+				if saved_keys > 0:
+					b.stored_data[key_key] = saved_keys
 		else:
 			b.stored_data.clear()
 
@@ -313,34 +329,23 @@ func _update_processing(buildings: Array[Node]) -> void:
 func _process_classifier(b: Node2D, max_process: int) -> int:
 	var processed: int = 0
 	var output_ports: Array[String] = b.definition.output_ports
-	if output_ports.is_empty():
+	if output_ports.size() < 2:
 		return 0
-	# Group stored data by content type
-	var content_groups: Dictionary = {}  # content_id → [{key, amount}]
+	var primary_port: String = output_ports[0]   # right — selected content
+	var secondary_port: String = output_ports[1]  # bottom — everything else
+	var filter_content: int = b.classifier_filter_content
 	for key in b.stored_data:
+		if processed >= max_process:
+			break
 		var available: int = b.stored_data[key]
 		if available <= 0:
 			continue
 		var parsed: Dictionary = DataEnums.parse_key(key)
-		var cid: int = parsed.content
-		if not content_groups.has(cid):
-			content_groups[cid] = []
-		content_groups[cid].append({"key": key, "content": cid, "state": parsed.state, "tier": parsed.tier, "tags": parsed.tags, "amount": available})
-	# Assign each content type to a port (round-robin by content id)
-	var content_ids: Array = content_groups.keys()
-	content_ids.sort()
-	for i in range(content_ids.size()):
-		if processed >= max_process:
-			break
-		var cid: int = content_ids[i]
-		var port: String = output_ports[i % output_ports.size()]
-		for entry in content_groups[cid]:
-			if processed >= max_process:
-				break
-			var to_process: int = mini(entry.amount, max_process - processed)
-			var sent: int = _push_data_from(b, entry.content, entry.state, to_process, port, entry.tier, entry.tags)
-			if sent > 0:
-				processed += sent
+		var to_process: int = mini(available, max_process - processed)
+		var target_port: String = primary_port if parsed.content == filter_content else secondary_port
+		var sent: int = _push_data_from(b, parsed.content, parsed.state, to_process, target_port, parsed.tier, parsed.tags)
+		if sent > 0:
+			processed += sent
 	return processed
 
 
@@ -406,7 +411,23 @@ func _process_producer(b: Node2D, max_process: int) -> int:
 
 func _process_dual_input(b: Node2D, max_process: int) -> int:
 	var dual: DualInputComponent = b.definition.dual_input
-	# Count available keys (keys have no tags)
+	var processed: int = 0
+	var fuel_consumed: Dictionary = {}  # fuel_key → amount consumed
+
+	if dual.fuel_matches_content:
+		# RECOVERER MODE: fuel = same content + Public state + tier 0 + tags 0
+		processed = _process_dual_input_fuel_mode(b, dual, max_process, fuel_consumed)
+	else:
+		# KEY MODE (Decryptor/Encryptor): fuel = static key_content type
+		processed = _process_dual_input_key_mode(b, dual, max_process, fuel_consumed)
+
+	# Consume fuel
+	for fuel_key in fuel_consumed:
+		b.stored_data[fuel_key] -= fuel_consumed[fuel_key]
+	return processed
+
+
+func _process_dual_input_key_mode(b: Node2D, dual: DualInputComponent, max_process: int, fuel_consumed: Dictionary) -> int:
 	var key_key: String = DataEnums.make_key(dual.key_content, DataEnums.DataState.PUBLIC, 0, 0)
 	var keys_available: int = b.stored_data.get(key_key, 0)
 	if keys_available <= 0:
@@ -420,110 +441,155 @@ func _process_dual_input(b: Node2D, max_process: int) -> int:
 		if available <= 0:
 			continue
 		var parsed: Dictionary = DataEnums.parse_key(key)
-		# Skip key data — it's fuel, not processed
 		if parsed.content == dual.key_content:
 			continue
-		# Only process matching input states
 		if not dual.primary_input_states.is_empty() and parsed.state not in dual.primary_input_states:
 			continue
-		# Tier-based key cost
 		var tier: int = parsed.tier
 		var actual_key_cost: int = dual.key_cost
 		if tier > 0 and tier <= dual.tier_key_costs.size():
 			actual_key_cost = dual.tier_key_costs[tier - 1]
 		var to_process: int = mini(available, max_process - processed)
-		# Limit by available keys
 		var keys_needed: int = to_process * actual_key_cost
 		if keys_needed > keys_available - keys_used:
 			to_process = (keys_available - keys_used) / actual_key_cost
 		if to_process <= 0:
 			break
-		var out_tags: int = parsed.tags | DataEnums.ProcessingTag.DECRYPTED
+		var out_tags: int = parsed.tags | dual.output_tag
 		var sent: int = _push_data_from(b, parsed.content, dual.output_state, to_process, "", 0, out_tags)
 		if sent > 0:
 			processed += sent
 			keys_used += sent * actual_key_cost
-			var out_label: String = DataEnums.data_label(parsed.content, dual.output_state, 0, out_tags)
 			_spawn_floating_text(b, "+%d %s" % [sent, DataEnums.tags_label(out_tags)], Color("#44ff88"))
 			if sound_manager:
-				sound_manager.play_process_event("decryptor")
-			print("[DualInput] %s: %d MB %s → %s (-%d Key)" % [
+				sound_manager.play_process_event(b.definition.visual_type)
+			print("[DualInput] %s: %d MB → %s (-%d Key)" % [
 				b.definition.building_name, sent,
-				DataEnums.data_label(parsed.content, parsed.state, tier, parsed.tags),
-				out_label, sent * actual_key_cost])
-	# Consume used keys
-	if keys_used > 0:
-		b.stored_data[key_key] -= keys_used
+				DataEnums.data_label(parsed.content, dual.output_state, 0, out_tags),
+				sent * actual_key_cost])
+	fuel_consumed[key_key] = keys_used
 	return processed
 
 
-func _process_compiler(b: Node2D, max_process: int) -> int:
-	var comp: CompilerComponent = b.definition.compiler
-	if comp.recipes.is_empty():
-		return 0
-	# Collect available Public data by content type (sum across all tag variants)
-	var available_by_content: Dictionary = {}  # content_id → amount
+func _process_dual_input_fuel_mode(b: Node2D, dual: DualInputComponent, max_process: int, fuel_consumed: Dictionary) -> int:
+	# Recoverer: fuel must be same content + Public state + tier 0 + tags 0
+	var processed: int = 0
+	for key in b.stored_data.keys():
+		if processed >= max_process:
+			break
+		var available: int = b.stored_data[key]
+		if available <= 0:
+			continue
+		var parsed: Dictionary = DataEnums.parse_key(key)
+		if not dual.primary_input_states.is_empty() and parsed.state not in dual.primary_input_states:
+			continue
+		# Find fuel: same content, Public, tier 0, no tags
+		var fuel_key: String = DataEnums.make_key(parsed.content, DataEnums.DataState.PUBLIC, 0, 0)
+		var fuel_available: int = b.stored_data.get(fuel_key, 0) - fuel_consumed.get(fuel_key, 0)
+		if fuel_available <= 0:
+			continue
+		var tier: int = parsed.tier
+		var actual_fuel_cost: int = dual.key_cost
+		if tier > 0 and tier <= dual.tier_key_costs.size():
+			actual_fuel_cost = dual.tier_key_costs[tier - 1]
+		var to_process: int = mini(available, max_process - processed)
+		var fuel_needed: int = to_process * actual_fuel_cost
+		if fuel_needed > fuel_available:
+			to_process = fuel_available / actual_fuel_cost
+		if to_process <= 0:
+			continue
+		var out_tags: int = parsed.tags | dual.output_tag
+		var sent: int = _push_data_from(b, parsed.content, dual.output_state, to_process, "", 0, out_tags)
+		if sent > 0:
+			processed += sent
+			fuel_consumed[fuel_key] = fuel_consumed.get(fuel_key, 0) + sent * actual_fuel_cost
+			_spawn_floating_text(b, "+%d %s" % [sent, DataEnums.tags_label(out_tags)], Color("#44ff88"))
+			if sound_manager:
+				sound_manager.play_process_event(b.definition.visual_type)
+			print("[DualInput] %s: %d MB → %s (-%d fuel)" % [
+				b.definition.building_name, sent,
+				DataEnums.data_label(parsed.content, dual.output_state, 0, out_tags),
+				sent * actual_fuel_cost])
+	return processed
+
+
+func _process_compiler(b: Node2D, _max_process: int) -> int:
+	# Collect stored data entries (any state/tags, excluding packet keys)
+	var entries: Array[Dictionary] = []  # [{key, content, tags, amount}]
 	for key in b.stored_data:
+		if DataEnums.is_packet(key):
+			continue
 		var amount: int = b.stored_data[key]
 		if amount <= 0:
 			continue
 		var parsed: Dictionary = DataEnums.parse_key(key)
-		if parsed.state != DataEnums.DataState.PUBLIC:
-			continue
-		available_by_content[parsed.content] = available_by_content.get(parsed.content, 0) + amount
-	# Try each recipe and find one that matches
+		entries.append({"key": key, "content": parsed.content, "tags": parsed.tags, "amount": amount})
+	if entries.size() < 2:
+		return 0
+	# Find first pair of DIFFERENT entries to combine (1:1 ratio)
 	var crafted: int = 0
-	for recipe in comp.recipes:
-		if crafted >= max_process:
+	for i in range(entries.size()):
+		if crafted >= _max_process:
 			break
-		var has_a: int = available_by_content.get(recipe.input_a_content, 0)
-		var has_b: int = available_by_content.get(recipe.input_b_content, 0)
-		if has_a < recipe.input_a_cost or has_b < recipe.input_b_cost:
-			continue
-		# How many can we craft?
-		var max_from_a: int = has_a / recipe.input_a_cost
-		var max_from_b: int = has_b / recipe.input_b_cost
-		var to_craft: int = mini(mini(max_from_a, max_from_b), max_process - crafted)
-		if to_craft <= 0:
-			continue
-		# Consume inputs from stored keys (handles any tag variant)
-		var consumed_a: int = to_craft * recipe.input_a_cost
-		var consumed_b: int = to_craft * recipe.input_b_cost
-		_consume_content_from_stored(b, recipe.input_a_content, consumed_a)
-		_consume_content_from_stored(b, recipe.input_b_content, consumed_b)
-		available_by_content[recipe.input_a_content] -= consumed_a
-		available_by_content[recipe.input_b_content] -= consumed_b
-		# Push packaged output to connected buildings
-		var sent: int = _push_data_from(b, recipe.input_a_content, DataEnums.DataState.PUBLIC, to_craft)
-		crafted += to_craft
-		_spawn_floating_text(b, "+%d Packet" % to_craft, Color("#44ff88"))
-		if sound_manager:
-			sound_manager.play_process_event("compiler")
-		print("[Compiler] %d packet crafted (%d %s + %d %s consumed)" % [
-			to_craft,
-			consumed_a, DataEnums.content_name(recipe.input_a_content),
-			consumed_b, DataEnums.content_name(recipe.input_b_content)])
+		for j in range(i + 1, entries.size()):
+			if crafted >= _max_process:
+				break
+			var a: Dictionary = entries[i]
+			var bb: Dictionary = entries[j]
+			if a.amount <= 0 or bb.amount <= 0:
+				continue
+			var to_craft: int = mini(mini(a.amount, bb.amount), _max_process - crafted)
+			if to_craft <= 0:
+				continue
+			# Consume inputs
+			b.stored_data[a.key] -= to_craft
+			b.stored_data[bb.key] -= to_craft
+			a.amount -= to_craft
+			bb.amount -= to_craft
+			# Create packet and push to targets
+			var pkt_key: String = DataEnums.make_packet_key(a.content, a.tags, bb.content, bb.tags)
+			var sent: int = _push_packet_from(b, pkt_key, to_craft)
+			crafted += to_craft
+			_spawn_floating_text(b, "+%d Packet" % to_craft, Color("#44ff88"))
+			if sound_manager:
+				sound_manager.play_process_event("compiler")
+			print("[Compiler] %d packet: %s" % [to_craft, DataEnums.packet_label(pkt_key)])
 	return crafted
 
 
-func _consume_content_from_stored(b: Node2D, content: int, amount: int) -> void:
-	var remaining: int = amount
-	for key in b.stored_data.keys():
-		if remaining <= 0:
+func _push_packet_from(source: Node2D, pkt_key: String, amount: int) -> int:
+	var conns: Array[Dictionary] = connection_manager.get_connections()
+	var targets: Array[Dictionary] = []
+	for conn in conns:
+		if conn.from_building == source:
+			targets.append(conn)
+	if targets.is_empty():
+		return 0
+	var per_target: int = maxi(1, amount / targets.size())
+	var total_sent: int = 0
+	for conn in targets:
+		var target: Node2D = conn.to_building
+		if not target.has_method("can_accept_data"):
+			continue
+		var to_send: int = mini(per_target, amount)
+		if to_send <= 0:
 			break
-		var parsed: Dictionary = DataEnums.parse_key(key)
-		if parsed.content != content or parsed.state != DataEnums.DataState.PUBLIC:
-			continue
-		var available: int = b.stored_data[key]
-		if available <= 0:
-			continue
-		var to_take: int = mini(available, remaining)
-		b.stored_data[key] -= to_take
-		remaining -= to_take
+		target.stored_data[pkt_key] = target.stored_data.get(pkt_key, 0) + to_send
+		amount -= to_send
+		total_sent += to_send
+		# Track flow data for particle visuals
+		var conn_idx: int = conns.find(conn)
+		if conn_idx >= 0:
+			if not connection_flow_data.has(conn_idx):
+				connection_flow_data[conn_idx] = []
+			connection_flow_data[conn_idx].append({
+				"content": -1, "state": DataEnums.DataState.PUBLIC,
+				"amount": to_send, "tier": 0, "tags": 0
+			})
+	return total_sent
 
 
 func _process_separator(b: Node2D, proc: ProcessorComponent, max_process: int) -> int:
-	var eff: float = b.get_effective_value("efficiency")
 	var primary_port: String = b.definition.output_ports[0] if b.definition.output_ports.size() > 0 else ""
 	var secondary_port: String = b.definition.output_ports[1] if b.definition.output_ports.size() > 1 else ""
 	var processed: int = 0
@@ -536,8 +602,7 @@ func _process_separator(b: Node2D, proc: ProcessorComponent, max_process: int) -
 			continue
 		var parsed: Dictionary = DataEnums.parse_key(key)
 		var to_process: int = mini(available, max_process - processed)
-		var output_amount: int = maxi(1, roundi(to_process * eff))
-		# Route: matching value → primary, rest → secondary
+		# Route: matching value → primary (right), rest → secondary (bottom)
 		var matches: bool
 		if mode == "content":
 			matches = (parsed.content == b.separator_filter_value)
@@ -546,10 +611,9 @@ func _process_separator(b: Node2D, proc: ProcessorComponent, max_process: int) -
 		var target_port: String = primary_port if matches else secondary_port
 		if target_port == "":
 			continue
-		var sent: int = _push_data_from(b, parsed.content, parsed.state, output_amount, target_port, parsed.tier, parsed.tags)
+		var sent: int = _push_data_from(b, parsed.content, parsed.state, to_process, target_port, parsed.tier, parsed.tags)
 		if sent > 0:
-			_check_discovery(parsed.content, parsed.state)
-			processed += to_process
+			processed += sent
 	return processed
 
 
@@ -580,6 +644,13 @@ func _process_quarantine(b: Node2D, _proc: ProcessorComponent, _max_process: int
 		return 0
 	# Not full yet — just accumulate (data already stored by _push_data)
 	return 0
+
+
+func _process_trash(b: Node2D) -> int:
+	var total: int = b.get_total_stored_raw()
+	if total > 0:
+		b.stored_data.clear()
+	return total
 
 
 func _process_splitter(b: Node2D, max_process: int) -> int:

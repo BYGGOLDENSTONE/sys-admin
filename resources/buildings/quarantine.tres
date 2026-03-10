@@ -1,41 +1,24 @@
-[gd_resource type="Resource" script_class="BuildingDefinition" load_steps=5 format=3]
+[gd_resource type="Resource" script_class="BuildingDefinition" load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://resources/buildings/building_definition.gd" id="1"]
 [ext_resource type="Script" path="res://resources/components/processor_component.gd" id="2"]
-[ext_resource type="Script" path="res://resources/components/storage_component.gd" id="3"]
-[ext_resource type="Script" path="res://resources/components/upgrade_component.gd" id="4"]
 
 [sub_resource type="Resource" id="proc1"]
 script = ExtResource("2")
-processing_rate = 4.0
-input_states = Array[int]([3])
+processing_rate = 10.0
+input_states = Array[int]([0, 1, 2, 3])
 output_state = -1
-rule = "quarantine"
+rule = "trash"
 efficiency = 1.0
-
-[sub_resource type="Resource" id="stor1"]
-script = ExtResource("3")
-capacity = 50
-forward_rate = 0.0
-
-[sub_resource type="Resource" id="upg1"]
-script = ExtResource("4")
-max_level = 3
-costs = Array[int]([15, 35, 60])
-stat_label = "Capacity"
-stat_target = "capacity"
-level_values = Array[float]([75.0, 100.0, 150.0])
 
 [resource]
 script = ExtResource("1")
-building_name = "Quarantine"
-description = "Accumulates malware until full (50 MB), then flushes. During flush (5s), input is blocked — plan buffers upstream!"
-grid_size = Vector2i(2, 2)
-color = Color(0.87, 0.2, 0.27, 1)
-category = "processing"
-visual_type = "quarantine"
+building_name = "Trash"
+description = "Instantly destroys any incoming data. No output."
+grid_size = Vector2i(1, 1)
+color = Color(0.6, 0.25, 0.2, 1)
+category = "utility"
+visual_type = "trash"
 output_ports = Array[String]([])
 input_ports = Array[String](["left"])
 processor = SubResource("proc1")
-storage = SubResource("stor1")
-upgrade = SubResource("upg1")

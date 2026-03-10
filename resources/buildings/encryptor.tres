@@ -7,13 +7,13 @@
 [sub_resource type="Resource" id="dual1"]
 script = ExtResource("2")
 processing_rate = 4.0
-primary_input_states = Array[int]([2])
-key_content = -1
+primary_input_states = Array[int]([0])
+key_content = 6
 key_cost = 1
 tier_key_costs = Array[int]([1, 1, 1, 1])
 output_state = 0
-output_tag = 2
-fuel_matches_content = true
+output_tag = 4
+fuel_matches_content = false
 
 [sub_resource type="Resource" id="stor1"]
 script = ExtResource("3")
@@ -22,12 +22,12 @@ forward_rate = 0.0
 
 [resource]
 script = ExtResource("1")
-building_name = "Recoverer"
-description = "Repairs corrupted data using fuel. Dual input: Corrupted data from left, same-type Public data as fuel from top. Deterministic — halts without fuel."
+building_name = "Encryptor"
+description = "Re-encrypts processed data. Dual input: data from left, Key from top. Adds Encrypted tag — same Key supply as Decryptor."
 grid_size = Vector2i(2, 2)
-color = Color(0.87, 0.47, 0.2, 1)
+color = Color(0.13, 0.53, 1.0, 1)
 category = "processing"
-visual_type = "recoverer"
+visual_type = "encryptor"
 output_ports = Array[String](["right"])
 input_ports = Array[String](["left", "top"])
 dual_input = SubResource("dual1")

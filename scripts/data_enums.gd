@@ -130,3 +130,35 @@ static func content_color_hex(c: int) -> String:
 		ContentType.KEY: return "#ffaa00"
 	return "#7788aa"
 
+
+## --- PACKET KEYS ---
+## Format: "P_contentA_tagsA_contentB_tagsB" (A <= B by content, for consistency)
+
+static func make_packet_key(content_a: int, tags_a: int, content_b: int, tags_b: int) -> String:
+	# Normalize order: smaller content first
+	if content_a > content_b or (content_a == content_b and tags_a > tags_b):
+		return "P_%d_%d_%d_%d" % [content_b, tags_b, content_a, tags_a]
+	return "P_%d_%d_%d_%d" % [content_a, tags_a, content_b, tags_b]
+
+static func is_packet(key: String) -> bool:
+	return key.begins_with("P_")
+
+static func parse_packet_key(key: String) -> Dictionary:
+	var parts = key.trim_prefix("P_").split("_")
+	return {
+		"content_a": int(parts[0]),
+		"tags_a": int(parts[1]),
+		"content_b": int(parts[2]),
+		"tags_b": int(parts[3]),
+	}
+
+static func packet_label(key: String) -> String:
+	var p: Dictionary = parse_packet_key(key)
+	var a: String = content_name(p.content_a)
+	if p.tags_a != 0:
+		a += " " + tags_label(p.tags_a)
+	var b: String = content_name(p.content_b)
+	if p.tags_b != 0:
+		b += " " + tags_label(p.tags_b)
+	return "[%s · %s]" % [a, b]
+

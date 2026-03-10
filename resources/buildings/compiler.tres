@@ -1,73 +1,23 @@
-[gd_resource type="Resource" script_class="BuildingDefinition" load_steps=10 format=3]
+[gd_resource type="Resource" script_class="BuildingDefinition" load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://resources/buildings/building_definition.gd" id="1"]
 [ext_resource type="Script" path="res://resources/components/compiler_component.gd" id="2"]
-[ext_resource type="Script" path="res://resources/components/compiler_recipe.gd" id="3"]
-[ext_resource type="Script" path="res://resources/components/storage_component.gd" id="4"]
-[ext_resource type="Script" path="res://resources/components/upgrade_component.gd" id="5"]
-
-[sub_resource type="Resource" id="recipe_calibrated"]
-script = ExtResource("3")
-recipe_name = "Calibrated Data"
-input_a_content = 0
-input_b_content = 2
-input_a_cost = 2
-input_b_cost = 2
-
-[sub_resource type="Resource" id="recipe_recovery"]
-script = ExtResource("3")
-recipe_name = "Recovery Matrix"
-input_a_content = 3
-input_b_content = 0
-input_a_cost = 2
-input_b_cost = 2
-
-[sub_resource type="Resource" id="recipe_security"]
-script = ExtResource("3")
-recipe_name = "Security Core"
-input_a_content = 4
-input_b_content = 3
-input_a_cost = 2
-input_b_cost = 2
-
-[sub_resource type="Resource" id="recipe_trade"]
-script = ExtResource("3")
-recipe_name = "Trade License"
-input_a_content = 1
-input_b_content = 5
-input_a_cost = 2
-input_b_cost = 2
-
-[sub_resource type="Resource" id="recipe_neural"]
-script = ExtResource("3")
-recipe_name = "Neural Index"
-input_a_content = 2
-input_b_content = 4
-input_a_cost = 2
-input_b_cost = 2
+[ext_resource type="Script" path="res://resources/components/storage_component.gd" id="3"]
 
 [sub_resource type="Resource" id="comp1"]
 script = ExtResource("2")
 processing_rate = 2.0
-recipes = Array[CompilerRecipe]([SubResource("recipe_calibrated"), SubResource("recipe_recovery"), SubResource("recipe_security"), SubResource("recipe_trade"), SubResource("recipe_neural")])
+recipes = Array[CompilerRecipe]([])
 
 [sub_resource type="Resource" id="stor1"]
-script = ExtResource("4")
+script = ExtResource("3")
 capacity = 20
 forward_rate = 0.0
-
-[sub_resource type="Resource" id="upg1"]
-script = ExtResource("5")
-max_level = 3
-costs = Array[int]([20, 40, 80])
-stat_label = "Crafting Speed"
-stat_target = "processing_rate"
-level_values = Array[float]([3.0, 4.0, 5.0])
 
 [resource]
 script = ExtResource("1")
 building_name = "Compiler"
-description = "Packages two different Public data types into a combined packet. Left port takes one type, top port takes another. Recipe auto-detected from inputs."
+description = "Packages two different data types into one. Left + Top inputs combine into a Packet [A·B]. Any two different data entries work."
 grid_size = Vector2i(2, 2)
 color = Color(0.6, 0.4, 0.87, 1)
 category = "processing"
@@ -76,4 +26,3 @@ output_ports = Array[String](["right"])
 input_ports = Array[String](["left", "top"])
 storage = SubResource("stor1")
 compiler = SubResource("comp1")
-upgrade = SubResource("upg1")

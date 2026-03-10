@@ -33,6 +33,7 @@ var stored_data: Dictionary = {}  ## Key: "content_state_tier_tags" (e.g. "0_0_0
 var is_working: bool = false  ## True when building did actual work this tick
 var separator_mode: String = "state"  ## For separator: "state" or "content"
 var separator_filter_value: int = 0  ## Filter value for separator (state or content int)
+var classifier_filter_content: int = 0  ## Filter value for classifier (content int)
 var upgrade_level: int = 0  ## Current upgrade level (0 = base)
 
 # Quarantine flush state
@@ -104,6 +105,9 @@ func get_port_world_position(port_side: String) -> Vector2:
 func get_total_stored() -> int:
 	var total: int = 0
 	for key in stored_data:
+		if DataEnums.is_packet(key):
+			total += stored_data[key]
+			continue
 		var parsed: Dictionary = DataEnums.parse_key(key)
 		var cost: int = DataEnums.state_storage_cost(parsed.state)
 		total += stored_data[key] * cost
@@ -118,7 +122,10 @@ func get_total_stored_raw() -> int:
 
 
 func can_accept_data(amount: int = 1, state: int = DataEnums.DataState.PUBLIC, content: int = -1) -> bool:
-	# Quarantine/Trash: capacity + flush check for Malware
+	# Trash: always accepts everything
+	if definition.processor != null and definition.processor.rule == "trash":
+		return true
+	# Quarantine (legacy): capacity + flush check for Malware
 	if definition.processor != null and definition.processor.rule == "quarantine":
 		if state != DataEnums.DataState.MALWARE:
 			return false
@@ -128,9 +135,12 @@ func can_accept_data(amount: int = 1, state: int = DataEnums.DataState.PUBLIC, c
 		return get_total_stored_raw() + amount <= cap
 	if state == DataEnums.DataState.MALWARE:
 		return false
-	# Keys always accepted by dual_input buildings (bypass capacity)
-	if definition.dual_input and content == definition.dual_input.key_content:
-		return true
+	# Fuel/keys always accepted by dual_input buildings (bypass capacity)
+	if definition.dual_input:
+		if definition.dual_input.fuel_matches_content and state == DataEnums.DataState.PUBLIC:
+			return true
+		if content == definition.dual_input.key_content:
+			return true
 	var cap: int = int(get_effective_value("capacity")) if definition.storage else 0
 	if cap <= 0:
 		return true
@@ -192,6 +202,8 @@ func get_center_world() -> Vector2:
 
 func _has_malware() -> bool:
 	for key in stored_data:
+		if DataEnums.is_packet(key):
+			continue
 		if stored_data[key] <= 0:
 			continue
 		var parsed: Dictionary = DataEnums.parse_key(key)
@@ -203,6 +215,8 @@ func _has_malware() -> bool:
 func get_malware_amount() -> int:
 	var total: int = 0
 	for key in stored_data:
+		if DataEnums.is_packet(key):
+			continue
 		var parsed: Dictionary = DataEnums.parse_key(key)
 		if parsed.state == DataEnums.DataState.MALWARE:
 			total += stored_data[key]
@@ -369,27 +383,13 @@ func _draw() -> void:
 	if _process_flash > 0.0 and not is_medium:
 		draw_rect(rect, Color(accent.r, accent.g, accent.b, _process_flash * 0.2), true)
 
-	# Malware overlay
+	# Malware overlay (skip for Trash — it destroys everything)
 	if not _is_ghost and _has_malware():
-		if definition.processor == null or (definition.processor != null and definition.processor.rule != "quarantine"):
+		var dominated_by_trash: bool = definition.processor != null and (definition.processor.rule == "trash" or definition.processor.rule == "quarantine")
+		if not dominated_by_trash:
 			var malware_alpha: float = 0.12 + sin(_glow_time * 6.0) * 0.06
 			draw_rect(rect, Color(0.8, 0.0, 0.3, malware_alpha), true)
 			draw_rect(rect, Color(0.8, 0.0, 0.3, 0.5), false, 2.0)
-
-	# Quarantine flush overlay
-	if not _is_ghost and is_flushing:
-		var flush_pulse: float = (sin(_glow_time * 8.0) * 0.5 + 0.5)
-		var flush_color := Color(1.0, 0.4, 0.1)
-		draw_rect(rect, Color(flush_color, 0.08 + flush_pulse * 0.12), true)
-		draw_rect(rect, Color(flush_color, 0.4 + flush_pulse * 0.3), false, 2.0)
-		if not is_medium:
-			var flush_font := ThemeDB.fallback_font
-			var flush_text := "FLUSHING"
-			var fs: int = 10
-			var ft_size := flush_font.get_string_size(flush_text, HORIZONTAL_ALIGNMENT_CENTER, -1, fs)
-			var ft_pos := Vector2((size.x - ft_size.x) / 2.0, size.y - 8)
-			draw_string(flush_font, ft_pos + Vector2(1, 1), flush_text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0, 0, 0, 0.6))
-			draw_string(flush_font, ft_pos, flush_text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(flush_color, 0.6 + flush_pulse * 0.4))
 
 	# Inactive generator overlay
 	if not _is_ghost and not active and definition.generator != null:
@@ -440,9 +440,10 @@ func _draw_pcb_mode(size: Vector2, rect: Rect2, accent: Color, pulse: float) -> 
 	if is_working:
 		draw_rect(rect, Color(accent, 0.08), true)
 
-	# Malware overlay (still visible at distance)
+	# Malware overlay (still visible at distance — skip for Trash)
 	if not _is_ghost and _has_malware():
-		if definition.processor == null or (definition.processor != null and definition.processor.rule != "quarantine"):
+		var dominated_by_trash: bool = definition.processor != null and (definition.processor.rule == "trash" or definition.processor.rule == "quarantine")
+		if not dominated_by_trash:
 			draw_rect(rect, Color(0.8, 0.0, 0.3, 0.15 + sin(_glow_time * 6.0) * 0.08), true)
 
 
@@ -461,8 +462,12 @@ func _draw_icon(center: Vector2, size: Vector2, accent: Color) -> void:
 			_draw_icon_separator(icon_center, size, accent)
 		"decryptor":
 			_draw_icon_decryptor(icon_center, size, accent)
+		"encryptor":
+			_draw_icon_encryptor(icon_center, size, accent)
 		"recoverer":
 			_draw_icon_recoverer(icon_center, size, accent)
+		"trash":
+			_draw_icon_trash(icon_center, size, accent)
 		"quarantine":
 			_draw_icon_quarantine(icon_center, size, accent)
 		"research":
@@ -537,7 +542,7 @@ func _draw_icon_storage(center: Vector2, size: Vector2, accent: Color) -> void:
 		draw_circle(light_pos, 2.0, accent)
 
 
-# --- CLASSIFIER: Filter/funnel with content symbols ---
+# --- CLASSIFIER: Binary content filter (selected → right, rest → bottom) ---
 func _draw_icon_classifier(center: Vector2, size: Vector2, accent: Color) -> void:
 	var s: float = minf(size.x, size.y) * 0.3
 	var glow := Color(accent, ICON_GLOW_ALPHA)
@@ -548,7 +553,7 @@ func _draw_icon_classifier(center: Vector2, size: Vector2, accent: Color) -> voi
 	draw_line(in_start, in_end, glow, ICON_GLOW_WIDTH)
 	draw_line(in_start, in_end, accent, 2.0)
 
-	# Center diamond (classifier node)
+	# Center diamond (filter node)
 	var d: float = s * 0.25
 	var diamond := PackedVector2Array([
 		center + Vector2(0, -d),
@@ -560,38 +565,44 @@ func _draw_icon_classifier(center: Vector2, size: Vector2, accent: Color) -> voi
 	draw_polyline(diamond, glow, ICON_GLOW_WIDTH)
 	draw_polyline(diamond, accent, 2.0)
 
-	# Three output lines with content symbols
-	var symbols: Array[String] = ["$", "@", "#"]
-	var font := ThemeDB.fallback_font
-	for i in range(3):
-		var y_off: float = (i - 1) * s * 0.5
-		var out_end := center + Vector2(s * 0.8, y_off)
-		draw_line(center + Vector2(d, y_off * 0.3), out_end, glow, ICON_GLOW_WIDTH)
-		draw_line(center + Vector2(d, y_off * 0.3), out_end, accent, 1.5)
-		draw_string(font, out_end + Vector2(-4, 4), symbols[i], HORIZONTAL_ALIGNMENT_LEFT, -1, 10, accent)
+	# Right output (selected content) — bright
+	var out_right := center + Vector2(s * 0.8, 0)
+	draw_line(center + Vector2(d, 0), out_right, glow, ICON_GLOW_WIDTH)
+	draw_line(center + Vector2(d, 0), out_right, accent, 2.0)
+	draw_circle(out_right, 3.0, accent)
+
+	# Bottom output (rest) — dimmer
+	var out_bottom := center + Vector2(0, s * 0.8)
+	draw_line(center + Vector2(0, d), out_bottom, Color(accent, 0.4), ICON_GLOW_WIDTH)
+	draw_line(center + Vector2(0, d), out_bottom, Color(accent, 0.6), 1.5)
+	draw_circle(out_bottom, 2.0, Color(accent, 0.6))
 
 
-# --- SEPARATOR: Fork/split symbol ---
+# --- SEPARATOR: Binary state filter (selected → right, rest → bottom) ---
 func _draw_icon_separator(center: Vector2, size: Vector2, accent: Color) -> void:
 	var s: float = minf(size.x, size.y) * 0.3
 	var glow := Color(accent, ICON_GLOW_ALPHA)
 
 	# Input line (left)
 	var in_start := center + Vector2(-s * 0.8, 0)
-	var in_end := center + Vector2(-s * 0.1, 0)
+	var in_end := center + Vector2(-s * 0.2, 0)
 	draw_line(in_start, in_end, glow, ICON_GLOW_WIDTH)
 	draw_line(in_start, in_end, accent, 2.0)
 
 	# Center node
 	draw_circle(center, 4.0, accent)
 
-	# Three output lines (right, fanning out)
-	for i in range(3):
-		var y_off: float = (i - 1) * s * 0.5
-		var out_end := center + Vector2(s * 0.8, y_off)
-		draw_line(center, out_end, glow, ICON_GLOW_WIDTH)
-		draw_line(center, out_end, accent, 1.5)
-		draw_circle(out_end, 2.0, accent)
+	# Right output (selected state) — bright
+	var out_right := center + Vector2(s * 0.8, 0)
+	draw_line(center, out_right, glow, ICON_GLOW_WIDTH)
+	draw_line(center, out_right, accent, 2.0)
+	draw_circle(out_right, 3.0, accent)
+
+	# Bottom output (rest) — dimmer
+	var out_bottom := center + Vector2(0, s * 0.8)
+	draw_line(center, out_bottom, Color(accent, 0.4), ICON_GLOW_WIDTH)
+	draw_line(center, out_bottom, Color(accent, 0.6), 1.5)
+	draw_circle(out_bottom, 2.0, Color(accent, 0.6))
 
 
 # --- DECRYPTOR: Lock/key symbol ---
@@ -616,6 +627,27 @@ func _draw_icon_decryptor(center: Vector2, size: Vector2, accent: Color) -> void
 	draw_line(kh_bottom, kh_bottom + Vector2(0, 5), accent, 2.0)
 
 
+# --- ENCRYPTOR: Closed lock symbol (reverse of Decryptor) ---
+func _draw_icon_encryptor(center: Vector2, size: Vector2, accent: Color) -> void:
+	var s: float = minf(size.x, size.y) * 0.3
+	var glow := Color(accent, ICON_GLOW_ALPHA)
+
+	# Lock body (filled)
+	var lock_w: float = s * 0.8
+	var lock_h: float = s * 0.6
+	var lock_rect := Rect2(center + Vector2(-lock_w / 2, -lock_h * 0.1), Vector2(lock_w, lock_h))
+	draw_rect(lock_rect, Color(accent, 0.25), true)
+	draw_rect(lock_rect, accent, false, 2.0)
+
+	# Closed shackle (full arc on top)
+	_draw_arc_segment(center + Vector2(0, -lock_h * 0.1), s * 0.3, PI, TAU, glow, ICON_GLOW_WIDTH)
+	_draw_arc_segment(center + Vector2(0, -lock_h * 0.1), s * 0.3, PI, TAU, accent, 2.5)
+
+	# Lock indicator (solid dot instead of keyhole)
+	draw_circle(center + Vector2(0, lock_h * 0.2), 4.0, accent)
+	draw_circle(center + Vector2(0, lock_h * 0.2), 2.0, Color.WHITE)
+
+
 # --- RECOVERER: Wrench/repair symbol ---
 func _draw_icon_recoverer(center: Vector2, size: Vector2, accent: Color) -> void:
 	var s: float = minf(size.x, size.y) * 0.3
@@ -634,6 +666,18 @@ func _draw_icon_recoverer(center: Vector2, size: Vector2, accent: Color) -> void
 	# Center plus sign (repair)
 	draw_line(center + Vector2(-4, 0), center + Vector2(4, 0), accent, 2.0)
 	draw_line(center + Vector2(0, -4), center + Vector2(0, 4), accent, 2.0)
+
+
+# --- TRASH: X mark (data incinerator) ---
+func _draw_icon_trash(center: Vector2, size: Vector2, accent: Color) -> void:
+	var s: float = minf(size.x, size.y) * 0.3
+	var glow := Color(accent, ICON_GLOW_ALPHA)
+	# X mark
+	var x_size: float = s * 0.45
+	draw_line(center + Vector2(-x_size, -x_size), center + Vector2(x_size, x_size), glow, ICON_GLOW_WIDTH + 1)
+	draw_line(center + Vector2(x_size, -x_size), center + Vector2(-x_size, x_size), glow, ICON_GLOW_WIDTH + 1)
+	draw_line(center + Vector2(-x_size, -x_size), center + Vector2(x_size, x_size), accent, 2.5)
+	draw_line(center + Vector2(x_size, -x_size), center + Vector2(-x_size, x_size), accent, 2.5)
 
 
 # --- QUARANTINE: Biohazard/shield symbol ---

@@ -21,6 +21,7 @@ level_values = Array[float]([150.0, 200.0, 300.0])
 script = ExtResource("1")
 building_name = "Storage"
 description = "Buffers and stores data packets. Prevents data loss when downstream buildings are busy."
+is_placeable = false
 grid_size = Vector2i(2, 2)
 color = Color(0.2, 0.87, 0.53, 1)
 category = "storage"

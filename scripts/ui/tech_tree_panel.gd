@@ -17,8 +17,8 @@ var _unlock_rules: Array[Dictionary] = [
 	 "desc": "Unlocks when Encrypted data is discovered"},
 	{"name": "Compiler", "trigger": "content_count", "value": 3,
 	 "desc": "Unlocks when 3rd content type is discovered"},
-	{"name": "Quarantine", "trigger": "state", "value": DataEnums.DataState.MALWARE,
-	 "desc": "Unlocks when Malware is discovered"},
+	{"name": "Separator", "trigger": "content_count", "value": 2,
+	 "desc": "Unlocks when 2nd content type is discovered"},
 ]
 
 var _unlocked: Dictionary = {}  ## "name" -> true

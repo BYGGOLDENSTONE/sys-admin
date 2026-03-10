@@ -1,9 +1,8 @@
-[gd_resource type="Resource" script_class="BuildingDefinition" load_steps=7 format=3]
+[gd_resource type="Resource" script_class="BuildingDefinition" load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://resources/buildings/building_definition.gd" id="1"]
 [ext_resource type="Script" path="res://resources/components/processor_component.gd" id="2"]
 [ext_resource type="Script" path="res://resources/components/storage_component.gd" id="3"]
-[ext_resource type="Script" path="res://resources/components/upgrade_component.gd" id="4"]
 
 [sub_resource type="Resource" id="proc1"]
 script = ExtResource("2")
@@ -11,7 +10,7 @@ processing_rate = 5.0
 input_states = Array[int]([0, 1, 2, 3])
 output_state = -1
 rule = "separator"
-efficiency = 0.6
+efficiency = 1.0
 separator_mode = "state"
 
 [sub_resource type="Resource" id="stor1"]
@@ -19,18 +18,10 @@ script = ExtResource("3")
 capacity = 20
 forward_rate = 0.0
 
-[sub_resource type="Resource" id="upg1"]
-script = ExtResource("4")
-max_level = 3
-costs = Array[int]([10, 25, 50])
-stat_label = "Efficiency"
-stat_target = "efficiency"
-level_values = Array[float]([0.7, 0.8, 0.9])
-
 [resource]
 script = ExtResource("1")
 building_name = "Separator"
-description = "Splits data by state or content type. Routes matching data to primary port, rest to secondary. Starts at 60% efficiency."
+description = "Binary state filter — selected state exits right, everything else exits bottom."
 grid_size = Vector2i(2, 2)
 color = Color(0.2, 0.67, 0.87, 1)
 category = "processing"
@@ -39,4 +30,3 @@ output_ports = Array[String](["right", "bottom"])
 input_ports = Array[String](["left"])
 processor = SubResource("proc1")
 storage = SubResource("stor1")
-upgrade = SubResource("upg1")

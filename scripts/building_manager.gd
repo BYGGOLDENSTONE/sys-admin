@@ -116,6 +116,11 @@ func _process(_delta: float) -> void:
 
 
 func _handle_idle_input(event: InputEvent) -> void:
+	# Tab key: cycle filter on selected building (Classifier/Separator)
+	if event is InputEventKey and event.pressed and event.keycode == KEY_TAB:
+		if _selected_building != null:
+			_cycle_building_filter(_selected_building)
+		return
 	if not (event is InputEventMouseButton and event.pressed):
 		return
 
@@ -603,6 +608,21 @@ func _deselect_building() -> void:
 	_selected_building.is_selected = false
 	_selected_building = null
 	building_deselected.emit()
+
+
+func _cycle_building_filter(building: Node2D) -> void:
+	var def: BuildingDefinition = building.definition
+	if def.classifier:
+		# Cycle through data content types (0-5, skip KEY=6)
+		building.classifier_filter_content = (building.classifier_filter_content + 1) % 6
+		print("[BuildingManager] Classifier filter → %s" % DataEnums.content_name(building.classifier_filter_content))
+	elif def.processor and def.processor.rule == "separator":
+		if building.separator_mode == "state":
+			building.separator_filter_value = (building.separator_filter_value + 1) % 4
+			print("[BuildingManager] Separator filter → %s" % DataEnums.state_name(building.separator_filter_value))
+		else:
+			building.separator_filter_value = (building.separator_filter_value + 1) % 6
+			print("[BuildingManager] Separator filter → %s" % DataEnums.content_name(building.separator_filter_value))
 
 
 ## Programmatic API (AutoPlayManager ve test sistemleri icin)

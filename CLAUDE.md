@@ -2,7 +2,7 @@
 
 ## Mevcut Asama: v3.0 Implementasyon — Gig-Driven Core Loop
 - **GDD:** `docs/GDD.md` (v3.0) — Tum tasarim kararlari burada
-- **Kod durumu:** Faz B tamamlandi, Faz C sirada
+- **Kod durumu:** Faz C tamamlandi, Faz D sirada
 - **Gecmis:** Tamamlanmis fazlar git log'da. `git log --oneline` ile bak.
 
 ## Proje Ozeti
@@ -26,14 +26,14 @@
 - [x] Residue state + RefinedType enum kaldirildi
 - [x] Islem etiket sistemi: Decrypted, Recovered, Encrypted (birikir)
 
-### Faz C: Bina Mekanikleri
-- [ ] Classifier → binary filtre (sag: secilen content, sol: kalan)
-- [ ] Separator → binary filtre (sag: secilen state, sol: kalan)
-- [ ] Recoverer → deterministik + yakit (ProbabilisticComponent → DualInputComponent)
-- [ ] Quarantine → Trash (flush kaldir, basit imha)
-- [ ] Storage kaldir
-- [ ] Encryptor binasi ekle (DualInputComponent: veri + Key → Encrypted etiketi)
-- [ ] Compiler → paketleyici (Refined yerine: A + B → Paket [A·B])
+### Faz C: Bina Mekanikleri — TAMAMLANDI
+- [x] Classifier → binary filtre (sag: secilen content, sol: kalan) + Tab ile dongu
+- [x] Separator → binary filtre (sag: secilen state, sol: kalan) + efficiency kaldirildi + Tab
+- [x] Recoverer → deterministik + yakit (ProbabilisticComponent → DualInputComponent fuel_matches_content)
+- [x] Quarantine → Trash (flush kaldirildi, 1x1, basit imha, tum veri kabul)
+- [x] Storage devre disi (is_placeable=false)
+- [x] Encryptor binasi eklendi (DualInputComponent: veri + Key → ENCRYPTED etiketi)
+- [x] Compiler → paketleyici (recipe kaldirildi, A + B → Paket [A·B], P_ key format)
 
 ### Faz D: Tier Revizyon
 - [ ] Encrypted tier: Key tarifi zorlasiyor (T1:Research, T2:+Financial, T3:+Biometric)
@@ -57,6 +57,11 @@ Grid kablo routing, kablo rendering, gorsel polish, ses, harita uretimi, fog of 
 - Degerleri koda gomme → component Resource'a koy
 - Yeni yapi = yeni .tres + mevcut component birlestir
 - Sistemler arasi iletisim = signal (loose coupling)
+- Bir bina şu dört sorudan en az birine güçlü “evet” dedirtmiyorsa gereksizdir:
+Yeni bir girdi bağımlılığı getiriyor mu?
+Yeni bir routing/topology kararı doğuruyor mu?
+Mevcut veriyi nitelik olarak farklı bir ürüne çeviriyor mu?
+Oyuncuyu aynı kaynağa veya başka kaynağa farklı bakmaya zorluyor mu?
 
 ### v3.0 Hedef Component Eslesmesi
 
