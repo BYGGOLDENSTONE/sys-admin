@@ -1,8 +1,7 @@
 class_name DataEnums
 
 enum ContentType { STANDARD, FINANCIAL, BIOMETRIC, BLUEPRINT, RESEARCH, CLASSIFIED, KEY }
-enum DataState { CLEAN, ENCRYPTED, CORRUPTED, MALWARE, RESIDUE }
-enum RefinedType { CALIBRATED_DATA, RECOVERY_MATRIX, SECURITY_CORE, TRADE_LICENSE, NEURAL_INDEX }
+enum DataState { PUBLIC, ENCRYPTED, CORRUPTED, MALWARE }
 
 static func make_key(content: int, state: int, tier: int = 0) -> String:
 	return "%d_%d_%d" % [content, state, tier]
@@ -30,20 +29,18 @@ static func content_name(c: int) -> String:
 
 static func state_name(s: int) -> String:
 	match s:
-		DataState.CLEAN: return "Clean"
+		DataState.PUBLIC: return "Public"
 		DataState.ENCRYPTED: return "Encrypted"
 		DataState.CORRUPTED: return "Corrupted"
 		DataState.MALWARE: return "Malware"
-		DataState.RESIDUE: return "Residue"
 	return "Unknown"
 
 static func state_color(s: int) -> Color:
 	match s:
-		DataState.CLEAN: return Color("#00ffaa")
+		DataState.PUBLIC: return Color("#00ffaa")
 		DataState.ENCRYPTED: return Color("#2288ff")
 		DataState.CORRUPTED: return Color("#ffaa00")
 		DataState.MALWARE: return Color("#ff1133")
-		DataState.RESIDUE: return Color("#bbbb44")
 	return Color("#778899")
 
 static func content_char(c: int) -> String:
@@ -71,20 +68,18 @@ static func content_color(c: int) -> Color:
 
 static func state_color_hex(s: int) -> String:
 	match s:
-		DataState.CLEAN: return "#00ffaa"
+		DataState.PUBLIC: return "#00ffaa"
 		DataState.ENCRYPTED: return "#2288ff"
 		DataState.CORRUPTED: return "#ffaa00"
 		DataState.MALWARE: return "#ff1133"
-		DataState.RESIDUE: return "#bbbb44"
 	return "#778899"
 
 static func state_storage_cost(s: int) -> int:
 	match s:
-		DataState.CLEAN: return 1
+		DataState.PUBLIC: return 1
 		DataState.ENCRYPTED: return 2
 		DataState.CORRUPTED: return 3
 		DataState.MALWARE: return 0  # Cannot be stored
-		DataState.RESIDUE: return 1
 	return 1
 
 
@@ -99,32 +94,3 @@ static func content_color_hex(c: int) -> String:
 		ContentType.KEY: return "#ffaa00"
 	return "#7788aa"
 
-
-static func refined_name(r: int) -> String:
-	match r:
-		RefinedType.CALIBRATED_DATA: return "Calibrated Data"
-		RefinedType.RECOVERY_MATRIX: return "Recovery Matrix"
-		RefinedType.SECURITY_CORE: return "Security Core"
-		RefinedType.TRADE_LICENSE: return "Trade License"
-		RefinedType.NEURAL_INDEX: return "Neural Index"
-	return "Unknown"
-
-
-static func refined_color(r: int) -> Color:
-	match r:
-		RefinedType.CALIBRATED_DATA: return Color("#22ffbb")
-		RefinedType.RECOVERY_MATRIX: return Color("#55bbff")
-		RefinedType.SECURITY_CORE: return Color("#cc55ff")
-		RefinedType.TRADE_LICENSE: return Color("#ffbb44")
-		RefinedType.NEURAL_INDEX: return Color("#bb44ff")
-	return Color("#ffffff")
-
-
-static func refined_color_hex(r: int) -> String:
-	match r:
-		RefinedType.CALIBRATED_DATA: return "#22ffbb"
-		RefinedType.RECOVERY_MATRIX: return "#55bbff"
-		RefinedType.SECURITY_CORE: return "#cc55ff"
-		RefinedType.TRADE_LICENSE: return "#ffbb44"
-		RefinedType.NEURAL_INDEX: return "#bb44ff"
-	return "#ffffff"

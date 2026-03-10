@@ -8,7 +8,7 @@ script = ExtResource("2")
 content = 4
 state = 0
 amount = 10
-label = "Research Clean"
+label = "Research Public"
 
 [resource]
 script = ExtResource("1")

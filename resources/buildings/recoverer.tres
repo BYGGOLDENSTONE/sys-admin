@@ -10,7 +10,6 @@ processing_rate = 4.0
 success_rate = 0.7
 input_states = Array[int]([2])
 output_state = 0
-residue_port = "bottom"
 
 [sub_resource type="Resource" id="stor1"]
 script = ExtResource("3")
@@ -20,12 +19,12 @@ forward_rate = 0.0
 [resource]
 script = ExtResource("1")
 building_name = "Recoverer"
-description = "Attempts to salvage corrupted data. 70% success rate — failed packets become digital waste (Residue)."
+description = "Attempts to recover corrupted data. Success rate depends on tier — failed packets are lost."
 grid_size = Vector2i(2, 2)
 color = Color(0.87, 0.47, 0.2, 1)
 category = "processing"
 visual_type = "recoverer"
-output_ports = Array[String](["right", "bottom"])
+output_ports = Array[String](["right"])
 input_ports = Array[String](["left"])
 probabilistic = SubResource("prob1")
 storage = SubResource("stor1")

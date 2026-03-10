@@ -8,7 +8,7 @@ script = ExtResource("2")
 content = 2
 state = 0
 amount = 10
-label = "Biometric Clean"
+label = "Biometric Public"
 
 [resource]
 script = ExtResource("1")

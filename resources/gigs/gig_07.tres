@@ -8,14 +8,14 @@ script = ExtResource("2")
 content = 3
 state = 0
 amount = 5
-label = "Blueprint Clean"
+label = "Blueprint Public"
 
 [sub_resource type="Resource" id="req2"]
 script = ExtResource("2")
 content = 4
 state = 0
 amount = 5
-label = "Research Clean"
+label = "Research Public"
 
 [resource]
 script = ExtResource("1")

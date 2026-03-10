@@ -147,11 +147,10 @@ func _update_stats() -> void:
 		else:
 			lines.append(_stat("Success", "%d%%" % int(b.get_effective_value("success_rate") * 100)))
 		lines.append(_stat("Input", "[color=#ff8844]Corrupted[/color]"))
-		lines.append(_stat("Right Port →", "[color=#44ff88]Clean[/color] (recovered)"))
-		lines.append(_stat("Bottom Port →", "[color=#888844]Residue[/color] (digital waste)"))
+		lines.append(_stat("Output →", "[color=#44ff88]Public[/color] (recovered)"))
 	if def.producer:
 		lines.append(_stat("Processing", "%d production/tick" % int(b.get_effective_value("processing_rate"))))
-		lines.append(_stat("Input", "[color=#aa77ff]%d MB Research(Clean)[/color] → 1 Key" % def.producer.consume_amount))
+		lines.append(_stat("Input", "[color=#aa77ff]%d MB Research(Public)[/color] → 1 Key" % def.producer.consume_amount))
 		lines.append(_stat("Output", "[color=#ffaa00]Decryption Key[/color]"))
 		# Show stored research and keys produced
 		var research_key: String = DataEnums.make_key(def.producer.input_content, def.producer.input_state)
@@ -162,22 +161,22 @@ func _update_stats() -> void:
 		lines.append(_stat("Throughput", "%d MB/s" % int(b.get_effective_value("processing_rate"))))
 		lines.append(_stat("Left Port ←", "[color=#44aaff]Encrypted[/color] data"))
 		lines.append(_stat("Top Port ←", "[color=#ffaa00]Key[/color] (from Research Lab)"))
-		lines.append(_stat("Output →", "[color=#44ff88]Clean[/color] (content preserved)"))
+		lines.append(_stat("Output →", "[color=#44ff88]Public[/color] (content preserved)"))
 		var tier_costs: Array[int] = def.dual_input.tier_key_costs
 		if tier_costs.size() >= 2:
 			lines.append(_stat("Key/packet", "T1=%d, T2=%d" % [tier_costs[0], tier_costs[1]]))
 		else:
 			lines.append(_stat("Key/packet", "%d" % def.dual_input.key_cost))
 		# Show stored keys
-		var key_key: String = DataEnums.make_key(def.dual_input.key_content, DataEnums.DataState.CLEAN)
+		var key_key: String = DataEnums.make_key(def.dual_input.key_content, DataEnums.DataState.PUBLIC)
 		var stored_keys: int = b.stored_data.get(key_key, 0)
 		var key_color: String = "#ff6644" if stored_keys <= 0 else "#ffaa00"
 		lines.append(_stat("Key Stock", "[color=%s]%d Key[/color]" % [key_color, stored_keys]))
 	if def.compiler:
 		lines.append(_stat("Processing", "%d craft/tick" % int(b.get_effective_value("processing_rate"))))
-		lines.append(_stat("Left Port ←", "Clean data (Type A)"))
-		lines.append(_stat("Top Port ←", "Clean data (Type B)"))
-		lines.append(_stat("Output →", "[color=#66ffcc]Refined Material[/color]"))
+		lines.append(_stat("Left Port ←", "Public data (Type A)"))
+		lines.append(_stat("Top Port ←", "Public data (Type B)"))
+		lines.append(_stat("Output →", "[color=#66ffcc]Packet[/color]"))
 		# Show matched recipe if inputs present
 		var matched_recipe: String = _get_matched_recipe(b)
 		if matched_recipe != "":
@@ -196,17 +195,6 @@ func _update_stats() -> void:
 			lines.append(_stat("Contents", _format_stored_data(b.stored_data)))
 		if def.storage.forward_rate > 0:
 			lines.append(_stat("Transfer", "%d MB/s" % int(def.storage.forward_rate)))
-		# Show refined materials in storage
-		if not b.stored_refined.is_empty():
-			var refined_parts: PackedStringArray = []
-			for rtype in b.stored_refined:
-				if b.stored_refined[rtype] <= 0:
-					continue
-				var color: String = DataEnums.refined_color_hex(int(rtype))
-				refined_parts.append("[color=%s]%d %s[/color]" % [
-					color, b.stored_refined[rtype], DataEnums.refined_name(int(rtype))])
-			if not refined_parts.is_empty():
-				lines.append(_stat("Refined", ", ".join(refined_parts)))
 	if def.processor:
 		lines.append(_stat("Throughput", "%d MB/s" % int(b.get_effective_value("processing_rate"))))
 		lines.append(_stat("Efficiency", "%d%%" % int(b.get_effective_value("efficiency") * 100)))
@@ -221,7 +209,7 @@ func _update_stats() -> void:
 			lines.append(_stat("Right Port →", "[color=#44ff88]%s[/color]" % filter_name))
 			lines.append(_stat("Bottom Port →", "All other data"))
 		elif def.processor.rule == "quarantine":
-			lines.append(_stat("Input", "[color=#ff4466]Malware + Residue[/color]"))
+			lines.append(_stat("Input", "[color=#ff4466]Malware[/color]"))
 			var cap: int = int(b.get_effective_value("capacity")) if def.storage else 50
 			var stored: int = b.get_total_stored_raw()
 			if b.is_flushing:
@@ -284,13 +272,12 @@ func _get_matched_recipe(b: Node2D) -> String:
 		if b.stored_data[key] <= 0:
 			continue
 		var parsed: Dictionary = DataEnums.parse_key(key)
-		if parsed.state == DataEnums.DataState.CLEAN:
+		if parsed.state == DataEnums.DataState.PUBLIC:
 			available_contents[parsed.content] = true
 	for recipe in b.definition.compiler.recipes:
 		if available_contents.has(recipe.input_a_content) and available_contents.has(recipe.input_b_content):
-			var color: String = DataEnums.refined_color_hex(recipe.output_refined)
-			return "[color=%s]%s[/color] (%s + %s)" % [
-				color, DataEnums.refined_name(recipe.output_refined),
+			return "[color=#66ffcc]%s[/color] (%s + %s)" % [
+				recipe.recipe_name,
 				DataEnums.content_name(recipe.input_a_content),
 				DataEnums.content_name(recipe.input_b_content)]
 	return "[color=#667788]No matching recipe[/color]"

@@ -11,7 +11,6 @@ script = ExtResource("3")
 recipe_name = "Calibrated Data"
 input_a_content = 0
 input_b_content = 2
-output_refined = 0
 input_a_cost = 2
 input_b_cost = 2
 
@@ -20,7 +19,6 @@ script = ExtResource("3")
 recipe_name = "Recovery Matrix"
 input_a_content = 3
 input_b_content = 0
-output_refined = 1
 input_a_cost = 2
 input_b_cost = 2
 
@@ -29,7 +27,6 @@ script = ExtResource("3")
 recipe_name = "Security Core"
 input_a_content = 4
 input_b_content = 3
-output_refined = 2
 input_a_cost = 2
 input_b_cost = 2
 
@@ -38,7 +35,6 @@ script = ExtResource("3")
 recipe_name = "Trade License"
 input_a_content = 1
 input_b_content = 5
-output_refined = 3
 input_a_cost = 2
 input_b_cost = 2
 
@@ -47,7 +43,6 @@ script = ExtResource("3")
 recipe_name = "Neural Index"
 input_a_content = 2
 input_b_content = 4
-output_refined = 4
 input_a_cost = 2
 input_b_cost = 2
 
@@ -72,7 +67,7 @@ level_values = Array[float]([3.0, 4.0, 5.0])
 [resource]
 script = ExtResource("1")
 building_name = "Compiler"
-description = "Compiles two different Clean data types into advanced materials. Left port takes one type, top port takes another. Recipe auto-detected from inputs."
+description = "Packages two different Public data types into a combined packet. Left port takes one type, top port takes another. Recipe auto-detected from inputs."
 grid_size = Vector2i(2, 2)
 color = Color(0.6, 0.4, 0.87, 1)
 category = "processing"

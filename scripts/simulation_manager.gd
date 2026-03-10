@@ -132,14 +132,14 @@ func _roll_content(weights: Dictionary) -> int:
 
 func _roll_state(weights: Dictionary) -> int:
 	if weights.is_empty():
-		return DataEnums.DataState.CLEAN
+		return DataEnums.DataState.PUBLIC
 	var roll: float = randf()
 	var cumulative: float = 0.0
 	for state_id in weights:
 		cumulative += weights[state_id]
 		if roll <= cumulative:
 			return int(state_id)
-	return DataEnums.DataState.CLEAN
+	return DataEnums.DataState.PUBLIC
 
 
 func _roll_tier(state: int, enc_max: int, cor_max: int) -> int:
@@ -301,7 +301,7 @@ func _update_processing(buildings: Array[Node]) -> void:
 		elif b.definition.compiler != null:
 			pass  # Keep stored data (needs both inputs to accumulate)
 		elif b.definition.dual_input != null:
-			var key_key: String = DataEnums.make_key(b.definition.dual_input.key_content, DataEnums.DataState.CLEAN)
+			var key_key: String = DataEnums.make_key(b.definition.dual_input.key_content, DataEnums.DataState.PUBLIC)
 			var saved_keys: int = b.stored_data.get(key_key, 0)
 			b.stored_data.clear()
 			if saved_keys > 0:
@@ -348,8 +348,7 @@ func _process_probabilistic(b: Node2D, max_process: int) -> int:
 	var prob: ProbabilisticComponent = b.definition.probabilistic
 	var base_success: float = b.get_effective_value("success_rate")
 	var output_ports: Array[String] = b.definition.output_ports
-	var clean_port: String = output_ports[0] if output_ports.size() > 0 else ""
-	var residue_port: String = prob.residue_port if prob.residue_port != "" else ""
+	var out_port: String = output_ports[0] if output_ports.size() > 0 else ""
 	var processed: int = 0
 	for key in b.stored_data:
 		if processed >= max_process:
@@ -366,26 +365,19 @@ func _process_probabilistic(b: Node2D, max_process: int) -> int:
 		if tier > 0 and tier <= prob.tier_success_rates.size():
 			actual_success = prob.tier_success_rates[tier - 1]
 		var to_process: int = mini(available, max_process - processed)
-		# Process each unit individually for probability
 		var success_count: int = 0
-		var fail_count: int = 0
 		for _i in range(to_process):
 			if randf() <= actual_success:
 				success_count += 1
-			else:
-				fail_count += 1
-		# Push successful recoveries (output is Clean, tier=0)
-		if success_count > 0 and clean_port != "":
-			_push_data_from(b, parsed.content, prob.output_state, success_count, clean_port)
-		# Push residue (failed recoveries)
-		if fail_count > 0 and residue_port != "":
-			_push_data_from(b, parsed.content, DataEnums.DataState.RESIDUE, fail_count, residue_port)
+		# Push successful recoveries (output is Public, tier=0)
+		if success_count > 0 and out_port != "":
+			_push_data_from(b, parsed.content, prob.output_state, success_count, out_port)
 		processed += to_process
-		if success_count > 0 or fail_count > 0:
+		if success_count > 0:
 			var tier_label: String = " T%d" % tier if tier > 0 else ""
-			print("[Recoverer] %d MB %s%s → %d Clean + %d Residue (%%%d)" % [
+			print("[Recoverer] %d MB %s%s → %d Public (%d lost, %d%%)" % [
 				to_process, DataEnums.content_name(parsed.content), tier_label,
-				success_count, fail_count, int(actual_success * 100)])
+				success_count, to_process - success_count, int(actual_success * 100)])
 	return processed
 
 
@@ -413,7 +405,7 @@ func _process_producer(b: Node2D, max_process: int) -> int:
 func _process_dual_input(b: Node2D, max_process: int) -> int:
 	var dual: DualInputComponent = b.definition.dual_input
 	# Count available keys
-	var key_key: String = DataEnums.make_key(dual.key_content, DataEnums.DataState.CLEAN)
+	var key_key: String = DataEnums.make_key(dual.key_content, DataEnums.DataState.PUBLIC)
 	var keys_available: int = b.stored_data.get(key_key, 0)
 	if keys_available <= 0:
 		return 0
@@ -449,7 +441,7 @@ func _process_dual_input(b: Node2D, max_process: int) -> int:
 			processed += sent
 			keys_used += sent * actual_key_cost
 			var tier_label: String = " T%d" % tier if tier > 0 else ""
-			_spawn_floating_text(b, "+%d Clean" % sent, Color("#44ff88"))
+			_spawn_floating_text(b, "+%d Public" % sent, Color("#44ff88"))
 			if sound_manager:
 				sound_manager.play_process_event("decryptor")
 			print("[DualInput] %s: %d MB %s(%s%s) → %s (-%d Key)" % [
@@ -468,14 +460,14 @@ func _process_compiler(b: Node2D, max_process: int) -> int:
 	var comp: CompilerComponent = b.definition.compiler
 	if comp.recipes.is_empty():
 		return 0
-	# Collect available Clean data by content type
+	# Collect available Public data by content type
 	var available_by_content: Dictionary = {}  # content_id → amount
 	for key in b.stored_data:
 		var amount: int = b.stored_data[key]
 		if amount <= 0:
 			continue
 		var parsed: Dictionary = DataEnums.parse_key(key)
-		if parsed.state != DataEnums.DataState.CLEAN:
+		if parsed.state != DataEnums.DataState.PUBLIC:
 			continue
 		available_by_content[parsed.content] = available_by_content.get(parsed.content, 0) + amount
 	# Try each recipe and find one that matches
@@ -496,35 +488,23 @@ func _process_compiler(b: Node2D, max_process: int) -> int:
 		# Consume inputs
 		var consumed_a: int = to_craft * recipe.input_a_cost
 		var consumed_b: int = to_craft * recipe.input_b_cost
-		var key_a: String = DataEnums.make_key(recipe.input_a_content, DataEnums.DataState.CLEAN)
-		var key_b: String = DataEnums.make_key(recipe.input_b_content, DataEnums.DataState.CLEAN)
+		var key_a: String = DataEnums.make_key(recipe.input_a_content, DataEnums.DataState.PUBLIC)
+		var key_b: String = DataEnums.make_key(recipe.input_b_content, DataEnums.DataState.PUBLIC)
 		b.stored_data[key_a] = b.stored_data.get(key_a, 0) - consumed_a
 		b.stored_data[key_b] = b.stored_data.get(key_b, 0) - consumed_b
 		available_by_content[recipe.input_a_content] -= consumed_a
 		available_by_content[recipe.input_b_content] -= consumed_b
-		# Produce refined output — store in global refined storage
-		_add_refined_to_storage(recipe.output_refined, to_craft)
+		# Push packaged output to connected buildings
+		var sent: int = _push_data_from(b, recipe.input_a_content, DataEnums.DataState.PUBLIC, to_craft)
 		crafted += to_craft
-		_spawn_floating_text(b, "+%d %s" % [to_craft, DataEnums.refined_name(recipe.output_refined)], Color("#44ff88"))
+		_spawn_floating_text(b, "+%d Packet" % to_craft, Color("#44ff88"))
 		if sound_manager:
 			sound_manager.play_process_event("compiler")
-		print("[Compiler] %d x %s crafted (%d %s + %d %s consumed)" % [
-			to_craft, DataEnums.refined_name(recipe.output_refined),
+		print("[Compiler] %d packet crafted (%d %s + %d %s consumed)" % [
+			to_craft,
 			consumed_a, DataEnums.content_name(recipe.input_a_content),
 			consumed_b, DataEnums.content_name(recipe.input_b_content)])
 	return crafted
-
-
-func _add_refined_to_storage(refined_type: int, amount: int) -> void:
-	# Add refined materials to all connected Storage buildings (or global pool)
-	for child in building_container.get_children():
-		if not child.has_method("is_active"):
-			continue
-		if child.definition != null and child.definition.storage != null:
-			child.stored_refined[refined_type] = child.stored_refined.get(refined_type, 0) + amount
-			return
-	# Fallback: no storage found, log warning
-	push_warning("[Compiler] No Storage building found for refined output!")
 
 
 func _process_separator(b: Node2D, proc: ProcessorComponent, max_process: int) -> int:

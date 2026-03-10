@@ -2,7 +2,7 @@
 
 ## Mevcut Asama: v3.0 Implementasyon — Gig-Driven Core Loop
 - **GDD:** `docs/GDD.md` (v3.0) — Tum tasarim kararlari burada
-- **Kod durumu:** Faz A tamamlandi, Faz B sirada
+- **Kod durumu:** Faz B devam ediyor (adim 1 tamam, adim 2 sirada)
 - **Gecmis:** Tamamlanmis fazlar git log'da. `git log --oneline` ile bak.
 
 ## Proje Ozeti
@@ -21,10 +21,10 @@
 - [x] Bina maliyet sistemi kaldirildi (base_cost, material_costs, refined_costs)
 - [x] Tutorial gig zinciri (Gig 1-7, sirali)
 
-### Faz B: Veri Modeli
-- [ ] Clean → Public yeniden adlandirma (data_enums.gd)
+### Faz B: Veri Modeli — DEVAM EDIYOR
+- [x] Clean → Public yeniden adlandirma (data_enums.gd + tum referanslar)
+- [x] Residue state + RefinedType enum kaldirildi
 - [ ] Islem etiket sistemi: Decrypted, Recovered, Encrypted (birikir)
-- [ ] Residue state + RefinedType enum kaldir
 
 ### Faz C: Bina Mekanikleri
 - [ ] Classifier → binary filtre (sag: secilen content, sol: kalan)

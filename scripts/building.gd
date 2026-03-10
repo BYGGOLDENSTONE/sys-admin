@@ -30,7 +30,6 @@ var _display_fill: float = 0.0
 
 # Runtime state (set by SimulationManager)
 var stored_data: Dictionary = {}  ## Key: "content_state_tier" (e.g. "0_0_0"), Value: int MB
-var stored_refined: Dictionary = {}  ## Key: RefinedType int, Value: int amount (Compiler output)
 var is_working: bool = false  ## True when building did actual work this tick
 var separator_mode: String = "state"  ## For separator: "state" or "content"
 var separator_filter_value: int = 0  ## Filter value for separator (state or content int)
@@ -118,10 +117,10 @@ func get_total_stored_raw() -> int:
 	return total
 
 
-func can_accept_data(amount: int = 1, state: int = DataEnums.DataState.CLEAN, content: int = -1) -> bool:
-	# Quarantine: capacity + flush check for Malware and Residue
+func can_accept_data(amount: int = 1, state: int = DataEnums.DataState.PUBLIC, content: int = -1) -> bool:
+	# Quarantine/Trash: capacity + flush check for Malware
 	if definition.processor != null and definition.processor.rule == "quarantine":
-		if state != DataEnums.DataState.MALWARE and state != DataEnums.DataState.RESIDUE:
+		if state != DataEnums.DataState.MALWARE:
 			return false
 		if is_flushing:
 			return false
@@ -791,11 +790,11 @@ func _draw_icon_compiler(center: Vector2, size: Vector2, accent: Color) -> void:
 	draw_polyline(diamond, glow, ICON_GLOW_WIDTH)
 	draw_polyline(diamond, accent, 2.0)
 
-	# Output arrow (refined)
+	# Output arrow (packet)
 	var out_pos := center + Vector2(s * 0.7, 0)
 	draw_line(center + Vector2(d, 0), out_pos, glow, ICON_GLOW_WIDTH)
 	draw_line(center + Vector2(d, 0), out_pos, accent, 2.0)
-	# Star at output (refined symbol)
+	# Star at output (packet symbol)
 	draw_circle(out_pos, 3.0, accent)
 	draw_circle(out_pos, 1.5, Color.WHITE)
 
