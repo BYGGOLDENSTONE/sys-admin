@@ -20,7 +20,7 @@ label = "Biometric Public"
 [resource]
 script = ExtResource("1")
 gig_name = "Data Sorting"
-description = "Use the Classifier to separate Financial and Biometric data from a mixed source. Deliver 10 of each to the Contract Terminal."
+description = "Use your new Classifier to split a mixed source. Set the filter with TAB — send Financial one way, Biometric the other."
 order_index = 2
 is_tutorial = true
 requirements = Array[Resource]([SubResource("req1"), SubResource("req2")])

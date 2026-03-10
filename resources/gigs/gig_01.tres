@@ -13,7 +13,7 @@ label = "Standard Public"
 [resource]
 script = ExtResource("1")
 gig_name = "First Extraction"
-description = "Connect an Uplink to a data source and deliver 20 Standard Public data to the Contract Terminal. Route a cable from the Uplink's output to the Terminal's input."
+description = "Place an Uplink next to a data source and connect it to the Contract Terminal with a cable. Deliver 20 Standard Public data."
 order_index = 1
 is_tutorial = true
 requirements = Array[Resource]([SubResource("req1")])

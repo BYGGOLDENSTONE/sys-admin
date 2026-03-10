@@ -27,6 +27,7 @@ var _sound_manager: Node = null
 var _gig_manager: Node = null
 var _gig_panel: PanelContainer = null
 var _contract_terminal: Node2D = null
+var _tutorial_manager: Node = null
 
 
 func _ready() -> void:
@@ -130,6 +131,9 @@ func _ready() -> void:
 
 	# Setup shortcut hints
 	_setup_shortcut_hints()
+
+	# Setup tutorial manager
+	_setup_tutorial_manager()
 
 	# Setup sound manager
 	_setup_sound_manager()
@@ -331,11 +335,15 @@ func _on_gig_completed(gig) -> void:
 	_show_gig_notification("GIG COMPLETE: %s" % gig.gig_name, Color("#44ff88"))
 	if _sound_manager:
 		_sound_manager.play_unlock()
+	if _tutorial_manager:
+		_tutorial_manager.on_gig_completed(gig)
 
 
 func _on_gig_activated(gig) -> void:
 	_show_gig_notification("NEW GIG: %s" % gig.gig_name, Color("#00bbee"))
 	building_panel.refresh_buttons()
+	if _tutorial_manager:
+		_tutorial_manager.on_gig_activated(gig)
 
 
 func _show_gig_notification(text: String, color: Color) -> void:
@@ -367,6 +375,8 @@ func _on_building_unlocked(building_name: String) -> void:
 	_show_unlock_notification(building_name)
 	if _sound_manager:
 		_sound_manager.play_unlock()
+	if _tutorial_manager:
+		_tutorial_manager.on_building_unlocked(building_name)
 
 
 func _show_unlock_notification(building_name: String) -> void:
@@ -437,6 +447,15 @@ func _show_discovery_notification(display_name: String, color: Color) -> void:
 func _on_source_discovered(source: Node2D) -> void:
 	var def = source.definition
 	_show_discovery_notification(def.source_name, def.color)
+
+
+func _setup_tutorial_manager() -> void:
+	var TutorialManagerScript = preload("res://scripts/tutorial_manager.gd")
+	_tutorial_manager = Node.new()
+	_tutorial_manager.set_script(TutorialManagerScript)
+	_tutorial_manager.name = "TutorialManager"
+	add_child(_tutorial_manager)
+	_tutorial_manager.setup(ui_layer)
 
 
 func _setup_sound_manager() -> void:

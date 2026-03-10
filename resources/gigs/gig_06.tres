@@ -14,7 +14,7 @@ label = "Biometric Decrypted·Encrypted"
 [resource]
 script = ExtResource("1")
 gig_name = "Encryption Job"
-description = "Deliver 10 Biometric data that has been decrypted and re-encrypted. Use the Decryptor first, then run it through the Encryptor."
+description = "Some clients want re-encrypted data. Decrypt first, then run it through your new Encryptor — it needs a Key from top, just like the Decryptor."
 order_index = 6
 is_tutorial = true
 requirements = Array[Resource]([SubResource("req1")])

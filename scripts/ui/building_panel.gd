@@ -7,7 +7,28 @@ const BORDER_COLOR := Color(0.13, 0.67, 0.87, 0.38)
 const BUTTON_NORMAL_COLOR := Color(0.08, 0.1, 0.14, 0.7)
 const BUTTON_HOVER_COLOR := Color(0.12, 0.18, 0.26, 0.85)
 const BUTTON_PRESSED_COLOR := Color(0.16, 0.24, 0.36, 0.9)
+const LOCKED_BG_COLOR := Color(0.05, 0.06, 0.08, 0.5)
+const LOCKED_BORDER_COLOR := Color(0.2, 0.22, 0.25, 0.4)
+const LOCKED_TEXT_COLOR := Color(0.35, 0.38, 0.42, 0.7)
 const TITLE_COLOR := Color("#00bbee")
+
+## Display order for buildings (consistent layout)
+const BUILDING_ORDER: PackedStringArray = [
+	"Uplink", "Trash", "Splitter", "Merger", "Bridge",
+	"Classifier", "Separator", "Recoverer",
+	"Research Lab", "Decryptor", "Encryptor", "Compiler",
+]
+
+## Which gig unlocks each building (for locked tooltip)
+const UNLOCK_GIG: Dictionary = {
+	"Classifier": "Gig 2: Data Sorting",
+	"Separator": "Gig 3: Public Extraction",
+	"Recoverer": "Gig 4: Data Recovery",
+	"Research Lab": "Gig 5: Decryption Run",
+	"Decryptor": "Gig 5: Decryption Run",
+	"Encryptor": "Gig 6: Encryption Job",
+	"Compiler": "Gig 7: Package Deal",
+}
 
 var _definitions: Array[BuildingDefinition] = []
 var _gig_manager: Node = null
@@ -68,19 +89,34 @@ func _rebuild_buttons() -> void:
 	# Clear old buttons
 	for child in _button_container_ref.get_children():
 		child.queue_free()
-	# Re-create visible buttons with staggered fade-in
-	var idx := 0
+
+	# Build a name->def lookup
+	var def_map: Dictionary = {}
 	for def in _definitions:
-		if not def.is_placeable:
+		def_map[def.building_name] = def
+
+	# Re-create buttons in fixed order with staggered fade-in
+	var idx := 0
+	for bname in BUILDING_ORDER:
+		var def: BuildingDefinition = def_map.get(bname)
+		if def == null or not def.is_placeable:
 			continue
-		if _gig_manager and not _gig_manager.is_building_unlocked(def.building_name):
-			continue
+		var unlocked: bool = not _gig_manager or _gig_manager.is_building_unlocked(bname)
+
 		var button := Button.new()
-		button.text = def.building_name
-		button.tooltip_text = _build_cost_tooltip(def)
 		button.custom_minimum_size = Vector2(180, 48)
-		_style_button(button, def.color)
-		button.pressed.connect(_on_building_button_pressed.bind(def))
+
+		if unlocked:
+			button.text = def.building_name
+			button.tooltip_text = def.description
+			_style_button(button, def.color)
+			button.pressed.connect(_on_building_button_pressed.bind(def))
+		else:
+			button.text = "??? %s" % def.building_name
+			button.tooltip_text = "Locked — Complete %s" % UNLOCK_GIG.get(bname, "a gig")
+			button.disabled = true
+			_style_locked_button(button)
+
 		_button_container_ref.add_child(button)
 
 		# Staggered fade-in animation
@@ -116,6 +152,24 @@ func _setup_panel_style() -> void:
 	style.shadow_color = Color(0.13, 0.53, 0.73, 0.06)
 	style.shadow_size = 6
 	add_theme_stylebox_override("panel", style)
+
+
+func _style_locked_button(button: Button) -> void:
+	var style := StyleBoxFlat.new()
+	style.bg_color = LOCKED_BG_COLOR
+	style.border_color = LOCKED_BORDER_COLOR
+	style.border_width_left = 3
+	style.corner_radius_top_left = 3
+	style.corner_radius_bottom_left = 3
+	style.corner_radius_top_right = 1
+	style.corner_radius_bottom_right = 1
+	style.content_margin_left = 14
+	style.content_margin_top = 8
+	style.content_margin_bottom = 8
+	button.add_theme_stylebox_override("normal", style)
+	button.add_theme_stylebox_override("disabled", style)
+	button.add_theme_color_override("font_color", LOCKED_TEXT_COLOR)
+	button.add_theme_color_override("font_disabled_color", LOCKED_TEXT_COLOR)
 
 
 func _style_button(button: Button, accent_color: Color) -> void:

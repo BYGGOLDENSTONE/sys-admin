@@ -14,7 +14,7 @@ label = "Financial Recovered"
 [resource]
 script = ExtResource("1")
 gig_name = "Data Recovery"
-description = "Deliver 10 Financial Recovered data. Use the Recoverer to repair Corrupted data — feed it matching Public data as fuel."
+description = "Corrupted data can be repaired! Use your new Recoverer — feed Corrupted data from the left and Public fuel from the top."
 order_index = 4
 is_tutorial = true
 requirements = Array[Resource]([SubResource("req1")])

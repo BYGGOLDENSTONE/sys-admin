@@ -1,8 +1,8 @@
 # SYS_ADMIN - Proje Durumu ve Demo Release Plani
 
-## Mevcut Asama: v3.0 Faz E Tamam, Faz F Sirada
+## Mevcut Asama: v3.0 Faz G Tamam, Faz H Sirada
 - **GDD:** `docs/GDD.md` (v3.0) - Tum tasarim kararlari burada
-- **Kod durumu:** v3.0 Faz A-E tamamlandi, demo release execution plani asagida
+- **Kod durumu:** v3.0 Faz A-G tamamlandi, demo release execution plani asagida
 - **Hedef:** Steam Next Fest Haziran 2026 icin oynanabilir, polished, save/load'lu, onboarding'i guclu demo
 - **Ticari hedef:** Tam oyun icin $9.99 fiyat noktasina yakisan kalite ve guven hissi
 
@@ -97,10 +97,10 @@ Asagidaki maddeler demo release oncesi mutlaka cozulmeli:
 - [x] Packet semantigi gercek urun gibi islemiyor
 - [x] Source bandwidth gameplay'de uygulanmiyor
 - [x] Paralel gig sistemi + gig UI eksik
+- [x] Onboarding, "oyuncu neden ne yapiyor" sorusunu UI ile cevaplayacak kadar guclu degil
 - [ ] Save/load/autosave yok
 - [ ] Demo source/gig havuzu heniz net sekilde curate edilmemis
 - [x] Legacy quarantine/probabilistic/storage izleri demo scope'unu bulandiriyor
-- [ ] Onboarding, "oyuncu neden ne yapiyor" sorusunu UI ile cevaplayacak kadar guclu degil
 - [ ] Demo'yu satin alinabilir gosterecek screenshot/trailer kalitesi henuz garanti degil
 - [ ] Demo-scale fabrikada performans/stability kabul kriterleri tanimli degil
 
@@ -206,29 +206,29 @@ Asagidaki durumlarda dur ve kullaniciya don:
 **Amac:** Ilk 15 dakika neredeyse frictionless; ilk 60 dakika ise "oyunun hook'u" eksiksiz hissedilmeli.
 
 ### Must-Do
-- [ ] 7 tutorial gig'i yeniden yaz ve akis sirasini kesinlestir
-- [ ] Her tutorial gig acilan binayi **hemen** kullandirsin
-- [ ] Ilk kaynak, ilk uplink, ilk classifier, ilk separator, ilk recoverer, ilk key, ilk encryptor, ilk compiler deneyimlerini netlestir
-- [ ] Oyuncuya "neden akmiyor?" sorusuna cevap veren feedback ekle
-- [ ] Input/output port mantigini daha gorunur yap
-- [ ] Tikanma, key yoklugu, fuel yoklugu gibi durumlari UI/FX ile acik goster
-- [ ] Contract paneli ile tutorial akisini birbirine bagla
-- [ ] Ilk 2-3 kontratta fazla secim degil, dogru secim alanini sinirla
+- [x] 7 tutorial gig'i yeniden yaz ve akis sirasini kesinlestir
+- [x] Her tutorial gig acilan binayi **hemen** kullandirsin
+- [x] Ilk kaynak, ilk uplink, ilk classifier, ilk separator, ilk recoverer, ilk key, ilk encryptor, ilk compiler deneyimlerini netlestir
+- [x] Oyuncuya "neden akmiyor?" sorusuna cevap veren feedback ekle
+- [x] Input/output port mantigini daha gorunur yap
+- [x] Tikanma, key yoklugu, fuel yoklugu gibi durumlari UI/FX ile acik goster
+- [x] Contract paneli ile tutorial akisini birbirine bagla
+- [x] Ilk 2-3 kontratta fazla secim degil, dogru secim alanini sinirla
 
 ### Tutorial Zinciri (Kilit Akis)
-- [ ] Gig 1: Standard Public teslim et
-- [ ] Gig 2: Financial ve Biometric ayir
-- [ ] Gig 3: Public filtreleme yap
-- [ ] Gig 4: Recoverer kullan
-- [ ] Gig 5: Research Lab + Decryptor kullan
-- [ ] Gig 6: Encryptor kullan, Decrypted·Encrypted urun teslim et
-- [ ] Gig 7: Compiler kullan, gercek packet teslim et
+- [x] Gig 1: Standard Public teslim et
+- [x] Gig 2: Financial ve Biometric ayir
+- [x] Gig 3: Public filtreleme yap
+- [x] Gig 4: Recoverer kullan
+- [x] Gig 5: Research Lab + Decryptor kullan
+- [x] Gig 6: Encryptor kullan, Decrypted·Encrypted urun teslim et
+- [x] Gig 7: Compiler kullan, gercek packet teslim et
 
 ### Definition of Done
-- [ ] Oyuncu ilk 15 dakikada dis yardim olmadan ilerleyebiliyor
-- [ ] Tutorial boyunca acilip da kullanilmayan bina yok
-- [ ] "Neden bu gig tamam olmadi?" sorusu UI'da anlasilir cevap buluyor
-- [ ] Gig 7 sonunda oyuncu oyunun ana dilini ogrenmis oluyor
+- [x] Oyuncu ilk 15 dakikada dis yardim olmadan ilerleyebiliyor
+- [x] Tutorial boyunca acilip da kullanilmayan bina yok
+- [x] "Neden bu gig tamam olmadi?" sorusu UI'da anlasilir cevap buluyor
+- [x] Gig 7 sonunda oyuncu oyunun ana dilini ogrenmis oluyor
 
 ### Bu Fazda Yapilmayacaklar
 - [ ] Overexplaining / uzun tutorial pencereleri
@@ -446,7 +446,7 @@ Demo "hazir" sayilabilmesi icin su maddelerin hepsi saglanmali:
 - [ ] Malware gameplay demo'da yok
 - [ ] Save/load/autosave var
 - [x] Contract UI var
-- [ ] Goal clarity guclu
+- [x] Goal clarity guclu
 - [ ] Demo source havuzu curate edilmis
 - [ ] Temel bug bash tamam
 - [ ] Screenshot/trailer capture icin gorsel kalite yeterli
