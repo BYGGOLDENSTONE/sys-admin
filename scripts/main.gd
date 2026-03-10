@@ -25,6 +25,7 @@ var _minimap: Control = null
 var _shortcut_hints: Label = null
 var _sound_manager: Node = null
 var _gig_manager: Node = null
+var _gig_panel: PanelContainer = null
 var _contract_terminal: Node2D = null
 
 
@@ -74,6 +75,9 @@ func _ready() -> void:
 	# Setup gig manager
 	_setup_gig_manager()
 
+	# Setup gig panel
+	_setup_gig_panel()
+
 	# Setup top bar
 	_setup_top_bar()
 
@@ -111,6 +115,9 @@ func _ready() -> void:
 
 	# Place Contract Terminal at map center
 	_place_contract_terminal()
+
+	# Wire terminal click to gig panel
+	building_manager.building_selected.connect(_on_building_selected_for_panel)
 
 	# Center camera on map center
 	camera.position = Vector2(256 * 64 + 64, 256 * 64 + 64)
@@ -157,6 +164,9 @@ func _unhandled_input(event: InputEvent) -> void:
 			_toggle_dev_mode()
 		KEY_H:
 			_toggle_shortcut_hints()
+		KEY_G:
+			if _gig_panel:
+				_gig_panel.toggle()
 
 
 func _get_seed_from_args() -> int:
@@ -205,7 +215,7 @@ func _setup_minimap() -> void:
 
 func _setup_shortcut_hints() -> void:
 	_shortcut_hints = Label.new()
-	_shortcut_hints.text = "SPACE Pause  //  1/2/3 Speed  //  Ctrl+Z Undo  //  H Hide"
+	_shortcut_hints.text = "SPACE Pause  //  1/2/3 Speed  //  G Contracts  //  Ctrl+Z Undo  //  H Hide"
 	_shortcut_hints.add_theme_font_size_override("font_size", 12)
 	_shortcut_hints.add_theme_color_override("font_color", Color(0.4, 0.6, 0.7, 0.6))
 	_shortcut_hints.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -257,6 +267,28 @@ func _setup_gig_manager() -> void:
 	simulation_manager.tick_completed.connect(_on_tick_for_gig)
 	# Initialize after signals are connected
 	_gig_manager.initialize()
+
+
+func _setup_gig_panel() -> void:
+	var GigPanelScript = preload("res://scripts/ui/gig_panel.gd")
+	_gig_panel = PanelContainer.new()
+	_gig_panel.set_script(GigPanelScript)
+	_gig_panel.anchor_left = 0.0
+	_gig_panel.anchor_top = 0.0
+	_gig_panel.anchor_right = 0.0
+	_gig_panel.anchor_bottom = 1.0
+	_gig_panel.offset_left = 10.0
+	_gig_panel.offset_right = 290.0
+	_gig_panel.offset_top = 44.0
+	_gig_panel.offset_bottom = -200.0
+	ui_layer.add_child(_gig_panel)
+	_gig_panel.setup(_gig_manager)
+	_gig_panel.play_slide_in()
+
+
+func _on_building_selected_for_panel(building: Node2D) -> void:
+	if building == _contract_terminal and _gig_panel:
+		_gig_panel.show_panel()
 
 
 func _place_contract_terminal() -> void:

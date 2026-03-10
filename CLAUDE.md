@@ -96,7 +96,7 @@ Asagidaki maddeler demo release oncesi mutlaka cozulmeli:
 - [x] GDD ile gig/resource gercegi tam hizali degil
 - [x] Packet semantigi gercek urun gibi islemiyor
 - [x] Source bandwidth gameplay'de uygulanmiyor
-- [ ] Paralel gig sistemi + gig UI eksik
+- [x] Paralel gig sistemi + gig UI eksik
 - [ ] Save/load/autosave yok
 - [ ] Demo source/gig havuzu heniz net sekilde curate edilmemis
 - [x] Legacy quarantine/probabilistic/storage izleri demo scope'unu bulandiriyor
@@ -174,15 +174,15 @@ Asagidaki durumlarda dur ve kullaniciya don:
 **Amac:** Oyuncu, dokuman okumadan aktif hedeflerini, eksigini, odulunu ve ilerlemesini oyunun icinden anlayabilsin.
 
 ### Must-Do
-- [ ] Kalici bir **Gig/Contract paneli** ekle
-- [ ] Aktif gig listesini ve her requirement'in ilerlemesini goster
-- [ ] Bir "primary tracked objective" sistemi ekle
-- [ ] Gig reward building'lerini panelde acikca goster
-- [ ] Yeni gig acildiginda ve bitince toast + panel feedback ver
-- [ ] Contract Terminal ile panel arasinda net bag kur
-- [ ] Teslim edilen datayi oyuncuya okunur sekilde feed et
-- [ ] Hangi gig'in tutorial, hangisinin optional/parallel oldugu net gorunsun
-- [ ] Gig tamamlaninca "siradaki adim ne?" sorusuna UI cevap versin
+- [x] Kalici bir **Gig/Contract paneli** ekle
+- [x] Aktif gig listesini ve her requirement'in ilerlemesini goster
+- [x] Bir "primary tracked objective" sistemi ekle
+- [x] Gig reward building'lerini panelde acikca goster
+- [x] Yeni gig acildiginda ve bitince toast + panel feedback ver
+- [x] Contract Terminal ile panel arasinda net bag kur
+- [x] Teslim edilen datayi oyuncuya okunur sekilde feed et
+- [x] Hangi gig'in tutorial, hangisinin optional/parallel oldugu net gorunsun
+- [x] Gig tamamlaninca "siradaki adim ne?" sorusuna UI cevap versin
 
 ### Yuksek Deger Ekleri
 - [ ] Requirement tooltip'lerinde beklenen urunun acik etiketi olsun
@@ -190,10 +190,10 @@ Asagidaki durumlarda dur ve kullaniciya don:
 - [ ] "Bu urun icin hangi bina zinciri lazim?" hissini destekleyen aciklama metinleri yaz
 
 ### Definition of Done
-- [ ] Oyuncu aktif kontratlarini tek panelden takip edebiliyor
-- [ ] Progress sadece toast ile degil, surekli gorunur sekilde izlenebiliyor
-- [ ] Reward unlock mantigi oyuncu icin gorunur ve anlasilir
-- [ ] Contract Terminal oyunun gercek "mission hub"i gibi hissettiriyor
+- [x] Oyuncu aktif kontratlarini tek panelden takip edebiliyor
+- [x] Progress sadece toast ile degil, surekli gorunur sekilde izlenebiliyor
+- [x] Reward unlock mantigi oyuncu icin gorunur ve anlasilir
+- [x] Contract Terminal oyunun gercek "mission hub"i gibi hissettiriyor
 
 ### Bu Fazda Yapilmayacaklar
 - [ ] Full campaign map screen
@@ -445,7 +445,7 @@ Demo "hazir" sayilabilmesi icin su maddelerin hepsi saglanmali:
 - [ ] Packet gercek urun olarak calisiyor
 - [ ] Malware gameplay demo'da yok
 - [ ] Save/load/autosave var
-- [ ] Contract UI var
+- [x] Contract UI var
 - [ ] Goal clarity guclu
 - [ ] Demo source havuzu curate edilmis
 - [ ] Temel bug bash tamam
