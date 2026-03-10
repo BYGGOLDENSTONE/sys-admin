@@ -1,6 +1,6 @@
 # SYS_ADMIN — Game Design Document
 
-**Versiyon:** 2.2
+**Versiyon:** 3.0
 **Son Guncelleme:** 2026-03-10
 **Motor:** Godot 4.6
 **Hedef:** $9.99, 100K+ satis, Steam Next Fest Haziran 2026
@@ -13,15 +13,15 @@
 2. [Tasarim Sutunlari](#2-tasarim-sutunlari)
 3. [Cekirdek Dongu](#3-cekirdek-dongu)
 4. [Sutun 1: Grid Kablo Routing](#4-sutun-1-grid-kablo-routing)
-5. [Sutun 2: Zengin Mekanik Seti](#5-sutun-2-zengin-mekanik-seti)
+5. [Sutun 2: Mekanik Seti](#5-sutun-2-mekanik-seti)
 6. [Sutun 3: Gorsel Kimlik](#6-sutun-3-gorsel-kimlik)
-7. [Veri Modeli: Content + State](#7-veri-modeli-content--state)
-8. [Ekonomi: Veri = Malzeme](#8-ekonomi-veri--malzeme)
+7. [Veri Modeli](#7-veri-modeli)
+8. [Tier Sistemi](#8-tier-sistemi)
 9. [Yapi Detaylari](#9-yapi-detaylari)
 10. [Harita ve Kaynaklar](#10-harita-ve-kaynaklar)
-11. [Ilerleme Sistemi](#11-ilerleme-sistemi)
-12. [Kisit ve Zorluk](#12-kisit-ve-zorluk)
-13. [Gig Sistemi](#13-gig-sistemi)
+11. [Gig Sistemi (Core Loop)](#11-gig-sistemi-core-loop)
+12. [Ilerleme Sistemi](#12-ilerleme-sistemi)
+13. [Kisit ve Zorluk](#13-kisit-ve-zorluk)
 14. [Gorsel Tasarim Detaylari](#14-gorsel-tasarim-detaylari)
 15. [Referans Oyunlar](#15-referans-oyunlar)
 16. [Pazar Stratejisi](#16-pazar-stratejisi)
@@ -34,19 +34,19 @@
 
 **SYS_ADMIN**, oyuncunun siberuzayda veri kaynaklarini kesfedip, grid tabanli kablo routing ile parlayan veri pipeline'lari kurdugu 2D top-down chill otomasyon oyunudur. Oyuncunun fabrikasi yukaridan bakildiginda canli bir devre kartina benzer.
 
-**Tek Cumle:** "Siberuzayda devre karti gibi veri fabrikalari tasarla — her kaynak yeni bir muhendislik bulmacasi."
+**Tek Cumle:** "Siberuzayda devre karti gibi veri fabrikalari tasarla — her sozlesme yeni bir muhendislik bulmacasi."
 
-**Temel Fantezi:** Koyu bir arka plan uzerinde, senin tasarladigin neon kanallardan renkli veri nehirleri akiyor. Her yeni kaynak farkli bir bulmaca sunuyor. Zoom out yaptiginda kocaman, parlayan bir devre karti goruyorsun — ve onu sen tasarladin.
+**Temel Fantezi:** Contract Terminal'den bir sozlesme aliyorsun: "Bana sifresi cozulmus Biometric veri getir." Kaynagi buluyorsun, pipeline kuruyorsun, veri akmaya basliyor. Ama sifreyi cozmek icin Key lazim — Key icin ayni kaynaktan Research verisi cekmen gerek. Iki paralel hat, birbirini besliyor. Zoom out yaptiginda parlayan bir devre karti goruyorsun — ve onu sen tasarladin.
 
 **Tur:** Chill Otomasyon
 **Perspektif:** 2D Top-Down
 **Tema:** Cyberpunk / Netrunner / Siberuzay
-**Hedef:** Rehberli Sandbox — kazanma kosulu yok, surekli optimize et
+**Hedef:** Gig-Driven Sandbox — sozlesmeler yon verir, oyuncu fabrikalasir
 
 **Ana Referanslar:**
+- **Shapez:** Kademeli bulmaca karmasikligi, chill otomasyon, merkez hub teslimat, bina maliyeti yok
 - **Factorio:** Grid routing, mekansal bulmacalar, bant yonetimi
-- **Satisfactory:** Kaynak → malzeme → uretim dongusu, Assembler (coklu girdi)
-- **Shapez:** Kademeli bulmaca karmasikligi, chill otomasyon
+- **Satisfactory:** Kaynak → isleme → uretim dongusu, coklu girdili binalar
 
 ---
 
@@ -56,61 +56,72 @@
 Oyuncunun yaratimi yukaridan bakildiginda guzel, canli bir devre karti gibi gorunmeli. Parlayan kanallar, titreyen binalar, akan veri nehirleri. Screenshot'lar "bu ne guzel sey?" dedirtmeli.
 
 ### Sutun 2: Basit Ogren, Derin Ustalan
-Her mekanik sezgisel ("sifreli dosya icin anahtar lazim" — herkes anlar). Ama birlestirildiklerinde gercek muhendislik bulmacalari yaratirlar. Karmasiklik bireysel mekanikten degil, KOMBINASYONDAN gelir.
+Her mekanik sezgisel ("sifreli dosya icin anahtar lazim" — herkes anlar). Karmasiklik bireysel mekanikten degil, KOMBINASYONDAN gelir. Shapez modeli: islemlerin kendisi basit, birlesimleri zor.
 
 ### Sutun 3: Her Kaynak Yeni Bir Bulmaca
 Yakin kaynaklar basit (tek veri tipi, kolay durum). Uzak kaynaklar karmasik (coklu tip, zor durumlar, yuksek tier). Her yeni kaynak genuinely farkli pipeline tasarimi gerektirir.
 
 ### Sutun 4: Layout = Oyun
-Kablolar grid uzerinde fiziksel yer kaplar, serbestce kesilemez. Yerlesim planlamak hangi binayi kullanacagin kadar onemli. Factorio'nun bant sistemini bu kadar bagimlastiran sey budur.
+Kablolar grid uzerinde fiziksel yer kaplar, serbestce kesilemez. Yerlesim planlamak hangi binayi kullanacagin kadar onemli.
 
 ---
 
 ## 3. Cekirdek Dongu
 
-### Ana Akis: "Kesfet → Cek → Ayir → Isle → Biriktir → Uret → Genisle"
+### Ana Akis: Gig-Driven Pipeline Building
 
 ```
-[KESFET]   — Haritada yeni veri kaynagi bul
-     |
-[CEK]      — Uplink kur, veri cekmeye basla
-     |
-[SINIFLA]  — Classifier ile content tiplerini ayir (Biometric/Financial/...)
-     |
-[AYIR]     — Her tip icin Separator ile state ayir (Clean/Encrypted/Corrupted/Malware)
-     |
-[ISLE]     — Duruma gore isle:
-     |         Decryptor (sifreyi kir — Key gerekli!)
-     |         Recoverer (bozugu kurtar — %70 basari, %30 atik!)
-     |         Quarantine (malware'i imha et — dolunca flush!)
-     |
-[BIRIKTIR] — Clean veri → Storage (malzeme havuzu)
-     |
-[BIRLESTIR]— Compiler ile 2 farkli Clean → 1 Refined malzeme
-     |
-[URET]     — Malzeme harcayarak yeni yapi uret
-     |
-[GENISLE]  — Yeni yapilarla yeni kaynaklara eris
-     |
-[OPTIMIZE] — Darbogaz? Kablo rotasini degistir, paralel hat kur
+[CONTRACT TERMINAL]  — Sozlesme al: "X veriyi Y sekilde isle ve teslim et"
+        |
+[KESFET]             — Uygun kaynagi haritada bul
+        |
+[CEK]                — Uplink kur, veri cekmeye basla
+        |
+[AYIKLA]             — Classifier ile istedigin content'i ayir
+        |
+[AYIR]               — Separator ile istedigin state'i ayir
+        |
+[ISLE]               — Duruma gore isle:
+        |                Decryptor (sifreyi coz — Key gerekli!)
+        |                Recoverer (hasari onar — ayni kaynaktan yakit gerekli!)
+        |
+[PAKETLE]            — Encryptor ile sifrele / Compiler ile birlestir
+        |
+[TESLIM]             — Contract Terminal'e gonder → Gig tamamlandi!
+        |
+[GENISLE]            — Yeni bina acilir → daha karmasik gig'ler belirir → tekrarla
 ```
 
-### Satisfactory Paraleli
+### Shapez Paraleli
 
 ```
-Satisfactory:                    SYS_ADMIN:
-Demir Cevheri → Erit → Ingot    Financial(Encrypted) → Decrypt → Financial(Clean)
-Bakir Cevheri → Erit → Ingot    Blueprint(Corrupted) → Recover → Blueprint(Clean)
-Ingot + Ingot → Assembler        Clean + Clean → Compiler → Refined
-Refined → Makine uret            Refined → Yapi uret
-Yeni makine → Yeni cevher        Yeni yapi → Yeni kaynak
+Shapez:                          SYS_ADMIN:
+Hub'dan seviye gelir             Contract Terminal'den gig gelir
+Sekil kes/boya/birlestir         Veri ayir/isle/paketle
+Conveyor belt ile Hub'a teslim   Kablo ile Terminal'e teslim
+Yeni seviye = daha zor sekil     Yeni gig = daha zor pipeline
+Binalar bedava                   Binalar bedava
 ```
 
 ### Temel Gerilim
-**"Degerli kaynaklar her yerde olabilir — goruyorsun ama isleyemiyorsun. Isleyebilmek icin once daha basit kaynaklardan malzeme biriktirmen lazim."**
+**"Sozlesme acik — Decrypted Biometric lazim. Ama sifreyi cozmek icin Key uretmem gerek. Key icin Research verisi lazim. Research ayni kaynakta var ama Corrupted — onu onarmak icin de ayni kaynaktan Public veri lazim yakit olarak... tek kaynaktan uc paralel hat!"**
 
-### Bagimlilik Dongusu
-> "Hemen yanımda bir Askeri Ag var... Classified Data goruyorum... ama Encrypted T3, Decryptor'um bile yok... Decryptor icin Research lazim, Hastane Terminali'ni gordum biraz otede... ama oraya hat cekmek icin mevcut kablolarimin arasından rota bulmam lazim..."
+### Pozitif Geri Besleme Dongusu (Core Mechanic)
+Oyunun kalbindeki mekanik: **ayni kaynaktan gelen farkli veriler birbirini besler.**
+
+```
+Kaynak (Financial Public + Financial Corrupted + Research Encrypted)
+   |
+   ├── Financial Public ──→ Recoverer'a YAKIT (corrupted'i onarmak icin)
+   |
+   ├── Financial Corrupted ──→ Recoverer + yakit ──→ Financial Recovered
+   |
+   └── Research Encrypted ──→ Decryptor + Key ──→ Research Decrypted
+                                     ↑
+                              Key ←── Research Lab ←── (baska kaynaktan Research)
+```
+
+Oyuncu tek kaynak icin birden fazla paralel hat kuruyor. Her hat baska bir hatti besliyor. Bu bir fabrika, kendi kendini besleyen bir sistem.
 
 ---
 
@@ -129,30 +140,15 @@ Kablolar noktadan noktaya cizgi olursa, yerlesim onemsizlesir. Oyun "akis semasi
 - Kesisme icin **Bridge** binasi gerekli
 - Binalarin port pozisyonlari sabit (giris sol, cikis sag vb.)
 - Veri kablo boyunca akar (aninda degil, gorulebilir sekilde)
-
-**Ornek — Once vs Sonra:**
-
-```
-ONCE (noktadan noktaya):         SONRA (grid routing):
-
-  [Uplink]--------[Separator]      [Uplink]═══╗
-       |               |                      ║
-  [Storage]-------[Decryptor]      [Separator]═╬═══[Decryptor]
-                                              ║         ║
-  (kablolar havada gecer,          [Storage]══╝    [Storage]
-   kesisme sorun degil)
-                                   Kablolar yer kapliyor!
-                                   Rota planla!
-```
+- Veri surekli akar, depolanmaz (Shapez conveyor modeli)
 
 ### Bridge (Kopru) Binasi
 - Iki kablonun kesismesi gerektiginde araya konur
-- Maliyeti: 10 Standard(Clean)
 - Isleme yapmaz — saf altyapi
 - Bir kablo yatay, digeri dikey gecer
 - Iyi tasarim = az kopru = verimli layout
 
-### Kablo Yerlestirme UX (Kritik — Oyunun Hissi Buna Bagli)
+### Kablo Yerlestirme UX
 
 Kablo dosemek oyunun en sik yapilan eylemi. Akici ve tatmin edici olmali.
 
@@ -165,15 +161,7 @@ Kablo dosemek oyunun en sik yapilan eylemi. Akici ve tatmin edici olmali.
 
 **Hizli Duzenleme:**
 - Sag tikla kablo segmentini siler
-- Ctrl+Z undo destegi (kablo doseme geri alinabilir)
-
-**Gelecek Potansiyel (henuz implemente degil):**
-- Alan secimi ile toplu silme
-- Otomatik yol onerisi (A→B en kisa rota)
-- Mevcut kabloyu itmek/yol degistirmek
-
-**Neden Bu Kadar Onemli:**
-Factorio'da bant dosemek ZEVKLI cunku akici. Klunky kablo doseme = oyuncu routing'den nefret eder. Bu UX oyunun kalbi.
+- Ctrl+Z undo destegi
 
 ### Neden Bu Her Seyi Degistirir
 - Yerlesim planlamasi = ana bulmaca
@@ -183,30 +171,31 @@ Factorio'da bant dosemek ZEVKLI cunku akici. Klunky kablo doseme = oyuncu routin
 
 ---
 
-## 5. Sutun 2: Zengin Mekanik Seti
+## 5. Sutun 2: Mekanik Seti
 
-### Problem
-Tum isleme binalari ayni mekanik: girdi → cikti kutusu. Cesitlilik yok.
+### Felsefe: Basit Islemler, Derin Kombinasyonlar
 
-### Cozum: Her Bina Genuinely Farkli Mekanik
+Her bina tek bir basit is yapar. Zorluk bireysel binalardan degil, birlesimlerin yarattigi pipeline bulmacalarindan gelir. Shapez'deki kes/boya/birlestir gibi — tek basina basit, birlikte derin.
 
-| Bina | Fiil | Benzersiz Mekanik | Dusunme Turu |
-|------|------|-------------------|-------------|
-| **Uplink** | Cek | Kaynaktan veri cikarir | Kaynak secimi |
-| **Classifier** | Sinifla | N cikis, content tipine gore dagit | Dagitim planlama |
-| **Separator** | Ayir | 2 cikis, state/content filtreleme | Dagitim planlama |
-| **Decryptor** | Coz | CIFT GIRDI: veri + key gerekli | Lojistik senkronizasyon |
-| **Recoverer** | Kurtar | OLASILIKSAL: %70 basari + %30 atik | Risk/atik yonetimi |
-| **Quarantine** | Imha et | DOLULUK/FLUSH: kapasite dolar, bosaltma suresi var | Buffer zamanlama |
-| **Compiler** | Birlestir | CIFT GIRDI: 2 farkli Clean → 1 Refined | Lojistik senkronizasyon |
-| **Research Lab** | Uret | Research(Clean) tuketir → Key uretir | Tedarik zinciri |
-| **Storage** | Depola | Buffer, Clean = malzeme havuzu | Kaynak planlama |
-| **Splitter** | Bol | 1→2 esit dagitim | Paralel hat tasarimi |
-| **Merger** | Birlestir | 2→1 akis toplama | Paralel hat tasarimi |
-| **Bridge** | Gecir | Kablo kesisme noktasi | Mekansal bulmaca |
-| **Gig Board** | Sozlesme | Gorev terminali, odul verir | Hedef belirleme |
+### Bina Listesi
 
-**13 bina, 9 genuinely farkli dusunme turu.** Mevcut tasarimdaki 2'den (ayir + temizle) buyuk siçrama.
+| Bina | Fiil | Kategori | Benzersiz Mekanik |
+|------|------|----------|-------------------|
+| **Uplink** | Cek | Uretim | Kaynaktan veri cikarir |
+| **Classifier** | Ayikla | Routing | Binary filtre: secilen content sag, kalan sol |
+| **Separator** | Ayir | Routing | Binary filtre: secilen state sag, kalan sol |
+| **Decryptor** | Coz | Isleme | Cift girdi: veri + Key → Decrypted |
+| **Recoverer** | Onar | Isleme | Cift girdi: veri + ayni tur Public yakit → Recovered |
+| **Research Lab** | Key uret | Uretim | Research content tuketir → Key uretir |
+| **Encryptor** | Sifrele | Donusum | Cift girdi: islenmis veri + Key → Encrypted |
+| **Compiler** | Paketle | Donusum | Cift girdi: A + B → Paket [A·B] |
+| **Splitter** | Bol | Routing | 1 akis → 2 akis (esit dagitim) |
+| **Merger** | Birlestir | Routing | 2 akis → 1 akis |
+| **Bridge** | Gecir | Altyapi | Kablo kesisme noktasi |
+| **Trash** | Yok et | Altyapi | Istenmeyen veriyi imha eder |
+| **Contract Terminal** | Teslim al | Merkez | Gig'leri gosterir + veri teslim noktasi |
+
+**13 bina. Bina maliyeti YOK — bulmaca zorlugu yeter. Binalar gig ilerlemesiyle acilir.**
 
 ---
 
@@ -219,7 +208,7 @@ Dikdortgenler + ince cizgiler + kucuk noktalar $9.99 icin yeterince cekici degil
 
 **Kablolar → Veri Otoyollari:**
 - Grid hucresi boyutunda parlayan kanallar (ince cizgi degil!)
-- Ic renk = akan verinin dominant state'i (yesil/mavi/turuncu/kirmizi)
+- Ic renk = akan verinin dominant state'i
 - Icinden semboller akar: $ @ # ? ! 0/1
 - Yogun trafik = parlak, bos = sonuk
 - Koseler ve kavsaklar yumusak gecisli
@@ -227,7 +216,6 @@ Dikdortgenler + ince cizgiler + kucuk noktalar $9.99 icin yeterince cekici degil
 **Binalar → Canli Makineler:**
 - Calisirken animasyonlu (donen elementler, yanip sonen ekranlar, port flash'lari)
 - Bostayken sonuk ve hareketsiz (kontrast = anlam)
-- Asiri yuklendiginde kirmizi uyari parlamasi
 - Her binanin benzersiz silueti (zoom-out'da bile taninabilir)
 
 **Zoom Seviyeleri:**
@@ -239,224 +227,307 @@ Dikdortgenler + ince cizgiler + kucuk noktalar $9.99 icin yeterince cekici degil
 
 ---
 
-## 7. Veri Modeli: Content + State
+## 7. Veri Modeli
 
 ### Temel Prensip
-Her veri paketi iki boyutlu:
-- **Content (Icerik):** Verinin NE oldugu → malzeme turunu belirler
+Her veri paketi iki temel boyuta sahip:
+- **Content (Icerik):** Verinin NE oldugu → hangi gig icin kullanilacagini belirler
 - **State (Durum):** Verinin NE HALDE oldugu → isleme yolunu belirler
+
+Ek olarak, islem etiketleri birikir ve verinin gecmisini korur.
 
 ### Content Tipleri (6)
 
-| Content | Kaynak Ornekleri | Malzeme Rolu | Gorsel Sembol |
-|---------|-----------------|--------------|---------------|
-| **Standard** | Otomat, Trafik Kamerasi | Temel yapilar | 0/1 |
-| **Financial** | ATM, Corporate Server | Orta seviye yapilar | $ |
-| **Biometric** | Akilli Kilit, Hastane | Ozel yapilar | @ |
-| **Blueprint** | Corporate, Devlet, Askeri | Ileri yapilar | # |
-| **Research** | Hastane, Biyotek, Devlet | Key uretimi + ileri | ? |
-| **Classified** | Devlet Arsivi, Askeri, Blackwall | Endgame yapilar | ! |
+| Content | Gorsel Sembol | Gorsel Renk | Kolay Kaynak | Zor Kaynak |
+|---------|---------------|-------------|-------------|------------|
+| **Standard** | 0/1 | #7788aa | Otomat | Her yerde |
+| **Financial** | $ | #ffcc00 | ATM | Corporate Server |
+| **Biometric** | @ | #ff33aa | Akilli Kilit | Hastane, Askeri Ag |
+| **Blueprint** | # | #00ffcc | — | Corporate, Devlet |
+| **Research** | ? | #9955ff | — | Biyotek, Devlet |
+| **Classified** | ! | #ff3388 | — | Askeri Ag, Blackwall |
 
-### State Tipleri (4 + Residue)
+### Base State'ler (Kaynaktan Gelen)
 
-| State | Anlami | Isleyici Bina | Depolama Maliyeti | Gorsel Renk |
-|-------|--------|---------------|-------------------|-------------|
-| **Clean** | Kullanima hazir | Yok — direkt malzeme | 1 MB/paket | Yesil |
-| **Encrypted** | Kilitli, anahtar lazim | Decryptor (Key gerekli) | 2 MB/paket | Mavi |
-| **Corrupted** | Hasarli, kismen kurtarilabilir | Recoverer (%70 basari) | 3 MB/paket | Turuncu |
-| **Malware** | Tehlikeli, imha edilmeli | Quarantine (doldur/bosalt) | DEPOLANAMAZ | Kirmizi |
-| **Residue** | Dijital atik (Recoverer'dan) | Quarantine | 1 MB/paket | Koyu Sari |
+| State | Anlam | Isleyici Bina | Gorsel Renk | Tier Var Mi |
+|-------|-------|---------------|-------------|-------------|
+| **Public** | Acik veri, islem gerektirmez | — | #00ffaa (yesil) | Hayir |
+| **Encrypted** | Kilitli veri | Decryptor (Key gerekli) | #2288ff (mavi) | Evet (T1-T4) |
+| **Corrupted** | Hasarli veri | Recoverer (yakit gerekli) | #ffaa00 (turuncu) | Evet (T1-T4) |
+| **Malware** | Endgame — coklu kaynak cozumu gerektirir | Ozel pipeline | #ff1133 (kirmizi) | Evet (T1-T4) |
 
-### State Tier Sistemi
+**Public'in tier'i YOK.** Public veri direkt kullanilabilir veya baska islemlere yakit olur.
 
-Her state'in (Clean haric) zorluk kademesi var:
+### Islem Etiketleri
 
-**Encrypted Tier'lari:**
+Her isleme adimi veriye bir etiket ekler. Etiketler BIRIKIR — verinin islem gecmisi korunur.
+
+| Etiket | Nasil Eklenir | Bina |
+|--------|--------------|------|
+| **Decrypted** | Encrypted verinin sifresi cozuldu | Decryptor |
+| **Recovered** | Corrupted verinin hasari onarildi | Recoverer |
+| **Encrypted** | Veri yeniden sifrelendi | Encryptor |
+
+**Etiket Birikmesi Ornekleri:**
+
 ```
-T1 (4-bit):     1 Decryptor yeterli, 1 Key/paket
-T2 (16-bit):    1 Decryptor ama yavas, 2 Key/paket
-T3 (256-bit):   Paralel Decryptor gerekli (Splitter → NxDecryptor → Merger), 4 Key/paket
-T4 (Kuantum):   Endgame challenge
-```
-
-**Corrupted Tier'lari:**
-```
-T1 (%10 hasar):  Recoverer %80 basari
-T2 (%30 hasar):  Recoverer %60 basari
-T3 (%60 hasar):  Recoverer %40 basari, bol atik
-T4 (%90 hasar):  Recoverer %20 basari
-```
-
-**Malware Tier'lari:**
-```
-T1 (Worm):       Standart karantina, 1 MB/paket
-T2 (Trojan):     2 MB/paket, daha hizli dolar
-T3 (Ransomware): 5 MB/paket, cok hizli dolar
-T4 (Rootkit):    10 MB/paket, flush daha uzun surer
+Financial Encrypted          → Decryptor → Financial DECRYPTED
+Financial Decrypted          → Encryptor → Financial DECRYPTED·ENCRYPTED
+Biometric Corrupted          → Recoverer → Biometric RECOVERED
+Biometric Recovered          → Encryptor → Biometric RECOVERED·ENCRYPTED
 ```
 
-### Carpimsal Derinlik
-6 content x 4 state x 4 tier = ~96 varyant. Her kaynak benzersiz karisim → her kaynak benzersiz bulmaca.
+**Kritik:** "Financial Encrypted" (kaynaktan ham) ≠ "Financial Decrypted·Encrypted" (islenmis + paketlenmis). Ayni content, ayni state adi ama FARKLI urunler. Gig'ler spesifik etiket kombinasyonlari ister.
+
+### Neden Bu Sistem Calisir
+- Okuma kolayligi: "Financial Decrypted·Encrypted" — ne oldugunu okuyarak anlarsin
+- Combinatorial derinlik: az sayida islemle cok sayida urun
+- Gig cesitliligi: her gig farkli etiket kombinasyonu isteyebilir
+- Shapez paraleli: kes+boya+birlestir gibi basit islemler, derin kombinasyonlar
 
 ---
 
-## 8. Ekonomi: Veri = Malzeme
+## 8. Tier Sistemi
 
-### Para Birimi Yok — Veri = Para
-Credits, Research Points, soyut para birimi yok. Storage'daki Clean veri = malzeme stogun.
+### Felsefe: Tier Artisi = Workflow Seklini Degistir, Boyutunu Degil
 
-### Malzeme Hiyerarsisi
+"Daha fazla bina koy" degil, "farkli dusun" olmali. Encrypted ve Corrupted tier'lari FARKLI sekilde zorlasiyor.
 
-**Ham Malzeme (Storage'daki Clean veri):**
+### Encrypted Tier'lari: KEY TARIFI Karmasiklasir
 
-| Malzeme | Nereden Gelir | Ne Uretir |
-|---------|--------------|-----------|
-| Standard(Clean) | Her yerde, bol | Storage, Bridge, temel seyler |
-| Financial(Clean) | ATM, Corporate | Orta seviye yapilar |
-| Biometric(Clean) | Akilli Kilit, Hastane | Ozel yapilar |
-| Blueprint(Clean) | Corporate, Devlet | Ileri yapilar |
-| Research(Clean) | Hastane, Biyotek | Research Lab yakit + ileri |
-| Classified(Clean) | Askeri, Blackwall | Endgame yapilar |
+Decryptor ayni kaliyor. Degisen sey: Key'in uretim tarifi.
 
-**Refined Malzeme (Compiler'dan):**
+**T1 (4-bit Encryption):**
+```
+Research Lab: Research content → Key
+Basit: tek kaynak, tek girdi.
+```
 
-| Refined Malzeme | Tarif (Compiler) | Kullanimlar |
-|----------------|-----------------|-------------|
-| **Calibrated Data** | Standard + Biometric | Bina upgrade'leri |
-| **Recovery Matrix** | Blueprint + Standard | Recoverer upgrade'leri |
-| **Security Core** | Research + Blueprint | Quarantine yapimi + upgrade |
-| **Trade License** | Financial + Classified | Gig Board yapimi |
-| **Neural Index** | Biometric + Research | Research Lab upgrade'leri |
-**Onemli:** Decryption Key'ler Research Lab tarafindan uretilir (Compiler'dan degil). Research Lab, Research(Clean) tuketir → Key uretir. Decryptor surekli Key tuketir = Research Lab surekli calismali = aktif tedarik zinciri.
+**T2 (16-bit Encryption):**
+```
+Research Lab: Research + Financial → Strong Key
+Iki farkli content lazim. Iki kaynaktan hat cek.
+```
 
-### Yapi Maliyetleri
+**T3 (256-bit Encryption):**
+```
+Research Lab: Research + Financial + Biometric → Master Key
+Uc farkli content. Uc kaynak. Key fabrikasi buyuyor.
+```
 
-| Bina | Maliyet | Ne Zaman Acilir |
-|------|---------|-----------------|
-| Uplink | Ilk bedava, sonraki 50 Standard | Oyun basi |
-| Storage | 30 Standard | Oyun basi |
-| Separator | Bedava (baslangic seti) | Oyun basi |
-| Splitter | 20 Standard | Oyun basi |
-| Merger | 20 Standard | Oyun basi |
-| Bridge | 10 Standard | Oyun basi |
-| Classifier | 40 Standard + 20 Biometric | 2. content kesfi |
-| Recoverer | 30 Biometric + 20 Standard | Corrupted kesfi |
-| Research Lab | 50 Research | Research kesfi |
-| Decryptor | 40 Research + 30 Financial | Encrypted kesfi |
-| Compiler | 40 Blueprint + 30 Standard | 3+ content kesfi |
-| Quarantine | 1 Security Core | Malware kesfi |
-| Gig Board | 1 Trade License | Classified kesfi |
+**T4 (Quantum Encryption):**
+```
+Endgame. Key tarifi 4+ content + islenms veri gerektirir.
+```
 
-**NOT:** Degerler dengeleme testleriyle ayarlanacak. Model onemli, rakamlar degil.
+**Oyuncu hissi:** "Daha guclu sifre = daha karmasik anahtar fabrikasi." Decryptor'u cogaltmiyorsun, Key uretim hattini buyutuyorsun.
+
+**Fabrika sekli:** GENIS — cok kaynaktan tek Key fabrikasina dogru akan hatlar.
+
+### Corrupted Tier'lari: YAKIT Zorlasiyor (Pozitif Geri Besleme)
+
+Recoverer ayni kaliyor. Degisen sey: gereken YAKITIN islem seviyesi.
+
+**T1 (Hafif Hasar):**
+```
+Recoverer: Corrupted veri + [ayni content] PUBLIC yakit → Recovered
+
+Ornek: Financial Corrupted T1 + Financial Public → Financial Recovered
+Basit: ayni kaynaktan Public halini ayir, yakit olarak kullan.
+```
+
+**T2 (Orta Hasar):**
+```
+Recoverer: Corrupted veri + [ayni content] DECRYPTED yakit → Recovered
+
+Ornek: Financial Corrupted T2 + Financial DECRYPTED → Financial Recovered
+Zor: once Encrypted Financial'i bul → Decryptor'dan gecir → Decrypted Financial'i yakit yap
+Yakit KENDISI islem gerektiriyor! Pipeline icinde pipeline.
+```
+
+**T3 (Agir Hasar):**
+```
+Recoverer: Corrupted veri + [ayni content] DECRYPTED·ENCRYPTED yakit → Recovered
+
+Ornek: Financial Corrupted T3 + Financial DECRYPTED·ENCRYPTED → Financial Recovered
+Cok zor: Encrypted bul → Decrypt → tekrar Encrypt → bu islenmis veriyi yakit yap.
+Uc adimli yakit uretim hatti.
+```
+
+**T4 (Kritik Hasar):**
+```
+Endgame. Yakit = farkli content'lerden olusturulmus paket (Compiler gerekli).
+```
+
+**Oyuncu hissi:** "Bu hasar cok agir — onarmak icin kullandigim yakit bile islem gormesi gereken bir sey." Her tier'da yakit hatti bir kademe daha derinlesiyor.
+
+**Fabrika sekli:** DERIN — tek hattan uzun islem zinciri, her adim yakiti daha cok isliyor.
+
+### Encrypted vs Corrupted: Neden Farkli Hissettiriyor
+
+| | Encrypted Tier Artisi | Corrupted Tier Artisi |
+|---|---|---|
+| **Ne zorlasiyor** | Key'in TARIFI | Yakitin ISLEM SEVIYESI |
+| **Ne buyuyor** | Key uretim fabrikasi (yan hat) | Yakit isleme hatti (ayni kaynak icinde) |
+| **Daha fazla ne lazim** | FARKLI kaynaklardan content | AYNI kaynaktan daha islenmis veri |
+| **Dusunme tarzi** | "Bu kilide hangi malzemelerden anahtar yapmaliyim?" | "Bu yakiti nasil daha fazla islerim?" |
+| **Fabrika sekli** | Genis (cok kaynak → Key fabrikasi) | Derin (uzun islem zinciri, geri besleme) |
+
+### Malware: Endgame Boss Puzzle
+
+Malware ne Encrypted ne Corrupted gibi cozulur. **Tek kaynak yetmez.**
+
+Malware temizlemek icin birden fazla kaynak icin kurulmus pipeline'lardan gelen islenmis urunlerin birlestirilmesi gerekir.
+
+```
+Ornek: Askeri Ag'dan Classified Malware verisini temizle
+
+  ATM pipeline'i ────── Financial Decrypted ─────────┐
+  Hastane pipeline'i ── Biometric Recovered ──────────┼→ Malware Processor → Cleaned
+  Kutuphane pipeline'i  Standard Public ──────────────┘
+
+  Askeri Ag ── Classified Malware ────────────────────┘
+```
+
+**Oyuncu daha once AYRI kurulan pipeline'lari tek noktada bulusturmali.** Devasa "cyber fabrika" ani — tum hatlar birbirine baglanarak Malware'i cozer. Layout bulmacasinin zirvesi.
+
+**Detaylar henuz tasarlanmadi** — Malware Processor'un kac girdi alacagi, hangi islenmis verilerin gerekecegi dengeleme asamasinda belirlenecek.
 
 ---
 
 ## 9. Yapi Detaylari
 
-### UPLINK — "Veri cikarici"
+### UPLINK — "Data Extractor"
 - Haritadaki kaynak node'unun yanina yerlestirilir
 - Kaynaktan veri ceker (kaynağin bandwidth hizinda)
 - Cikti: kaynağin content+state dagilimina gore karisik paketler
 - Tek cikis portu (sag)
 - Her pipeline'in baslangic noktasi
 
-### CLASSIFIER — "Icerik ayirici"
-- Gelen veriyi CONTENT TIPINE gore ayirir
-- N cikis portu — her tespit edilen content tipi icin bir cikis
-- Ornek: Financial+Biometric aliyorsa 2 cikis portu aktif
+### CLASSIFIER — "Content Filter"
+- Gelen veriyi CONTENT TIPINE gore filtreler (binary filtre)
+- Oyuncu hangi content'i cikartacagini secer
+- 2 cikis portu: Sag = secilen content, Sol = geri kalan her sey
+- N content'li kaynaktan spesifik content cikarma = Classifier zinciri gerekli
 - Veriyi DEGISTIRMEZ — saf routing
-- Tooltip: "Veriyi turune gore yonlendirir — Financial bir yone, Biometric baska yone"
 
-### SEPARATOR — "Durum ayirici"
-- Gelen veriyi STATE veya CONTENT tipine gore filtreler
-- 2 cikis portu: Birincil (sag — eslesen veri) + Ikincil (alt — geri kalan)
-- Oyuncu hangi state/content'i filtreleyecegini secer
-- Ornek: "Clean filtresi" → Clean sag porta, geri kalan alta gider
-- Tooltip: "Veriyi durumuna veya turune gore iki akisa ayirir"
+**Ornek — 3 content'li kaynaktan ayiklama:**
+```
+Karisik (Fin+Bio+Blue) → Classifier "Financial" → Financial (sag)
+                                                 → Kalan (sol) → Classifier "Biometric" → Biometric (sag)
+                                                                                         → Blueprint (sol)
+```
 
-### DECRYPTOR — "Sifre kirici" (CIFT GIRDI)
+### SEPARATOR — "State Filter"
+- Gelen veriyi STATE tipine gore filtreler (binary filtre)
+- Oyuncu hangi state'i filtreleyecegini secer
+- 2 cikis portu: Sag = secilen state, Sol = geri kalan
+- Classifier ile ayni mantik, farkli boyut (content yerine state)
+
+**Ornek:**
+```
+Financial (Public + Corrupted + Encrypted)
+    → Separator "Public" → Financial Public (sag)
+                         → Kalan (sol) → Separator "Corrupted" → Financial Corrupted (sag)
+                                                                → Financial Encrypted (sol)
+```
+
+### DECRYPTOR — "Cipher Breaker" (CIFT GIRDI)
 - IKI giris portu: Veri (sol) + Key (ust)
-- Encrypted veri + Decryption Key → Clean veri
-- Key tuketimi: T1=1, T2=2, T3=4 Key/paket
+- Encrypted veri + Key → Decrypted veri (DECRYPTED etiketi eklenir)
+- Key tuketimi tier'a bagli (T1=1, T2=1, T3=1 Key ama KEY'IN KENDISI farkli)
 - Key yoksa bina DURUR, veri kuyrukta bekler
-- Cikti: Clean veri (content tipi korunur)
-- Tooltip: "Sifreyi kirar. Research Lab'dan Decryption Key gerektirir."
+- Content tipi korunur, state etiketi degisir
 
-**Ornek pipeline:**
+**Ornek:**
 ```
 Research Lab (Key uretir) ═══╗
-                              ╠══ Decryptor ══ Clean cikti
-Encrypted veri ══════════════╝
+                              ╠══ Decryptor ══ Financial DECRYPTED
+Financial Encrypted ═════════╝
 ```
 
-### RECOVERER — "Veri kurtarici" (OLASILIKSAL + YAN URUN)
-- Tek giris: Corrupted veri
-- IKI cikis portu: Clean (sag) + Residue (alt)
-- Basari orani tier'a bagli: T1=%80, T2=%60, T3=%40, T4=%20
-- Basarili → Clean veri (content korunur)
-- Basarisiz → Residue (dijital atik)
-- Tooltip: "Bozuk veriyi kurtarmayi dener. Her zaman basarili olmaz — dijital atik uretir."
+### RECOVERER — "Data Restorer" (CIFT GIRDI — Pozitif Geri Besleme)
+- IKI giris portu: Corrupted veri (sol) + Yakit (ust)
+- Yakit = AYNI CONTENT turunden veri (islenmislik seviyesi tier'a bagli)
+- Yakit varsa %100 calisir, yoksa DURUR
+- Cikti: Recovered veri (RECOVERED etiketi eklenir)
 
-**Ornek pipeline:**
+**Yakit Kuralları:**
 ```
-Corrupted veri ══ Recoverer ═══ Clean cikti (%70)
-                          ╚═══ Residue (%30) → Quarantine
+T1 yakit: [ayni content] Public         → Financial Corrupted T1 + Financial Public
+T2 yakit: [ayni content] Decrypted      → Financial Corrupted T2 + Financial Decrypted
+T3 yakit: [ayni content] Decrypted·Encrypted → Financial Corrupted T3 + Financial Decrypted·Encrypted
 ```
 
-### QUARANTINE — "Malware firini" (DOLULUK/FLUSH)
-- Tek giris: Malware verisi + Recoverer'dan Residue
-- CIKIS YOK (veri imha edilir)
-- 50 MB dahili kapasite
-- Dolunca → FLUSH modu (5 saniye, giris kabul etmez)
-- Flush sirasinda upstream pipeline tiKANIR — buffer planla!
-- Yuksek tier malware daha hizli doldurur
-- Tooltip: "Malware ve dijital atigi guvenle imha eder. Dolunca bosaltma suresi gerekir."
+**Neden bu guclu:** Ayni kaynaktan gelen "iyi" veri, "kotu" veriyi onarmak icin yakit oluyor. Oyuncu tek kaynaktan paralel hatlar cekiyor — biri isleme icin, biri yakit icin. Tier arttikca yakitin KENDISI de islem gerektiriyor.
 
-### COMPILER — "Malzeme birlestirici" (CIFT GIRDI)
-- IKI giris portu: Malzeme A (sol) + Malzeme B (ust)
-- 2 farkli Clean veri tipi → 1 Refined malzeme
-- Tarif otomatik algilanir (bagli girdilere gore)
-- Yanlis kombinasyon → veri reddedilir
-- Cikti: Refined malzeme (Storage'da ayri depolanir)
-- Tooltip: "Iki farkli temiz veri turunu ileri malzemeye donusturur."
+**Ornek — T2 Corrupted recovery pipeline:**
+```
+Kaynak (Financial Public + Financial Corrupted T2 + Financial Encrypted)
+  |
+  ├── Financial Public → direkt kullanimlar icin
+  |
+  ├── Financial Encrypted → Decryptor + Key → Financial Decrypted ──→ Recoverer'a YAKIT
+  |                                                                        |
+  └── Financial Corrupted T2 ──────────────────────────────────────→ Recoverer → Financial Recovered
+```
+Yakitin kendisi islem gormeli! Pipeline icinde pipeline.
 
-### RESEARCH LAB — "Anahtar fabrikasi"
-- Tek giris: Research(Clean)
-- Cikti: Decryption Key'ler
-- 5 MB Research(Clean) tuketir → 1 Key uretir
-- Key'ler kablo ile Decryptor'lara gider
-- Tooltip: "Arastirma verisini sifre cozme anahtarina donusturur."
+### RESEARCH LAB — "Key Forge"
+- Research content tuketir → Decryption/Encryption Key uretir
+- Key tarifi tier'a bagli (Bolum 8'e bak)
+- T1: sadece Research, T2: Research + Financial, T3: Research + Financial + Biometric
+- Key'ler kablo ile Decryptor/Encryptor'lara gider
 
-### STORAGE — "Veri deposu"
-- Her tur veriyi depolar
-- Clean veri = global malzeme havuzu (yapi uretimi icin)
-- State'e gore yer: Clean=1, Encrypted=2, Corrupted=3 MB/paket
-- Malware DEPOLANAMAZ (otomatik reddedilir)
-- Kapasite: 100 MB (upgrade edilebilir)
-- Tooltip: "Veri depolar. Temiz veri burada yapi malzemesi olarak kullanilir."
+### ENCRYPTOR — "Cipher Lock" (CIFT GIRDI — Geri Besleme Dongusu)
+- IKI giris portu: Veri (sol) + Key (ust)
+- Islenmis veri + Key → yeniden sifrelenmis veri (ENCRYPTED etiketi eklenir)
+- Mevcut etiketler korunur: Financial Decrypted → Financial Decrypted·ENCRYPTED
+- Decryptor'un tersi — ayni Key'leri tuketir
 
-### SPLITTER — "Akis bolici"
+**Neden onemli:**
+- Bazi gig'ler "paketlenmis" (sifrelenmis) veri istiyor
+- Key hem Decryptor'a hem Encryptor'a lazim — Key uretim hattinin onemi artiyor
+- Ayni kaynaktan: bir content Decryptor'a gider (cozme), baska content Encryptor'a (paketleme)
+- Geri besleme dongusu: cikti → isleme → tekrar girdi
+
+### COMPILER — "Data Packager" (CIFT GIRDI)
+- IKI giris portu: Veri A (sol) + Veri B (ust)
+- Iki farkli islenmis veriyi tek pakete birlestirir
+- Cikti: Paket [A·B] (her iki verinin etiketleri korunur)
+- Gig'ler spesifik kombinasyon paketleri isteyebilir
+
+**Ornek:**
+```
+Financial Decrypted ═══════╗
+                            ╠══ Compiler ══ Paket [Financial Decrypted · Biometric Recovered]
+Biometric Recovered ═══════╝
+```
+
+### SPLITTER — "Flow Divider"
 - 1 giris → 2 cikis (esit dagitim, donusumlu)
 - Paralel isleme icin kullanilir (or: 4x Decryptor setup)
-- Tooltip: "Veri akisini iki cikisa esit boler."
 
-### MERGER — "Akis birlestirici"
+### MERGER — "Flow Combiner"
 - 2 giris → 1 cikis (donusumlu)
 - Paralel isleme ciktilarini yeniden birlestirme
-- Tooltip: "Iki veri akisini tek akista birlestirir."
 
-### BRIDGE — "Kablo koprüsü"
+### BRIDGE — "Cable Junction"
 - Iki kablonun kesismesi gereken yere konur
 - Isleme yapmaz — saf altyapi
 - Bir kablo yatay, digeri dikey gecer
-- Tooltip: "Kablolarin girisim olmadan kesismesini saglar."
 
-### GIG BOARD — "Sozlesme terminali"
-- Bolgedeki mevcut gig'leri (gorevleri) gosterir
-- Her gig: "X miktar Y veri isle/teslim et"
-- Veri HARCANMAZ — throughput sayilir, veri sistemde kalir
-- Tamamlaninca bonus odul
-- Tooltip: "Sozlesme al, odul kazan. Veri harcanmaz, sadece sayilir."
+### TRASH — "Data Incinerator"
+- Istenmeyen veriyi yok eder
+- Gig'ler zorlastikca oyuncu cöpe daha az atar — her veri lazim olur
+- Shapez'deki cop kutusu mantigi
+
+### CONTRACT TERMINAL — "Mission Hub"
+- Harita merkezinde SABIT (oyuncu yerlestirmez)
+- Mevcut gig'leri (sozlesmeleri) gosterir
+- Islenmis veriyi teslim alir → gig ilerlemesi sayar
+- Gig tamamlaninca yeni bina acilir
+- Oyunun kalbi — tum pipeline'lar buraya akar
 
 ---
 
@@ -469,183 +540,197 @@ Corrupted veri ══ Recoverer ═══ Clean cikti (%70)
 - Sis perdesi (fog of war): kesfedilmemis alanlar gizli
 - Yakin bina yerlestirme ile kesif
 - Kaynaklar tukenmez (chill otomasyon, stres yok)
+- Contract Terminal harita merkezinde sabit
 
 ### Tasarim Felsefesi: Factorio/Satisfactory Modeli
-Kaynaklar haritaya **rastgele sacilmis.** Zorluk konumdan degil, kaynağin TIPINDEN gelir. Bir ATM kolay, bir Askeri Ag zor — nerede olurlarsa olsunlar.
+Kaynaklar haritaya **rastgele sacilmis.** Zorluk konumdan degil, kaynağin TIPINDEN gelir.
 
 **Neden ring sistemi degil:**
-- **Merak:** Yanindaki Askeri Ag'i goruyorsun ama isleyemiyorsun — "bir gun orayi cozeceğim"
-- **Oyuncu secimi:** Hangi yone gidecegini SEN seciyorsun, oyun seni merkezden disa zorlamiyor
+- **Merak:** Yanindaki Askeri Ag'i goruyorsun ama isleyemiyorsun
+- **Oyuncu secimi:** Hangi yone gidecegini SEN seciyorsun
 - **Replayability:** Her seed genuinely farkli strateji gerektirir
-- **Benzersiz fabrikalar:** Herkesin kablo agi farkli gorunur — Reddit'e atilan her screenshot benzersiz
-- **Referans:** Factorio, Satisfactory, Mindustry — hicbiri ring sistemi kullanmiyor
+- **Benzersiz fabrikalar:** Herkesin kablo agi farkli gorunur
 
 ### Kaynak Tipleri ve Zorluklari
 
-Her kaynak SOMUT ve AKILDA KALICI isme sahip. Zorluk kaynağin tipine bagli, konumuna degil.
+**Kolay Kaynaklar (1-2 content, basit state'ler):**
 
-**Kolay Kaynaklar (1 content, basit state'ler):**
-
-| Kaynak | Content | State'ler | Karmasiklik |
-|--------|---------|-----------|-------------|
-| **Otomat** | Sadece Standard | %100 Clean | En basit — sadece bagla ve depola |
-| **ATM** | Sadece Financial | %70 Clean, %30 Corrupted | State ayirma ogren |
-| **Akilli Kilit** | Sadece Biometric | %80 Clean, %20 Corrupted | Tek tip, basit state |
-| **Trafik Kamerasi** | Standard + Biometric | Cogu Clean | 2 content — Classifier ogren |
-| **Acik Veritabani** | Standard + Biometric + Research | Cogu Clean, az Corrupted | Cesitli icerik, basit state'ler |
+| Kaynak | Content | State'ler | Bulmaca |
+|--------|---------|-----------|---------|
+| **Otomat** | Standard | %100 Public | En basit — bagla ve teslim et |
+| **ATM** | Financial | %70 Public, %30 Corrupted T1 | Ayirma + ilk recovery ogren |
+| **Akilli Kilit** | Biometric | %80 Public, %20 Corrupted T1 | Tek tip, basit recovery |
+| **Trafik Kamerasi** | Standard + Biometric | Cogu Public | 2 content — Classifier ogren |
+| **Acik Veritabani** | Standard + Bio + Research | Cogu Public, az Corrupted | 3 content, basit state |
 
 **Orta Kaynaklar (2-3 content, karisik state'ler):**
 
-| Kaynak | Content | State'ler | Karmasiklik |
-|--------|---------|-----------|-------------|
-| **Hastane Terminali** | Biometric + Research | Clean + Encrypted T1 | Ilk Encrypted — Decryptor lazim |
-| **Halk Kutuphanesi** | Standard + Research | Clean + Corrupted | Research kaynagi, basit state'ler |
-| **Magaza Sunucusu** | Standard + Financial + Biometric | Clean + Corrupted karisik | 3 content — Compiler lazim |
-| **Biyotek Labi** | Biometric + Research + Blueprint + Standard | Corrupted + Encrypted T1 + az Malware | Karisik isleme |
+| Kaynak | Content | State'ler | Bulmaca |
+|--------|---------|-----------|---------|
+| **Hastane Terminali** | Biometric + Research | Public + Encrypted T1 | Ilk encryption — Key lazim |
+| **Halk Kutuphanesi** | Standard + Research | Public + Corrupted T1 | Recovery + Research kaynak |
+| **Magaza Sunucusu** | Standard + Financial + Biometric | Public + Corrupted T1-T2 | 3 content + T2 yakit bulmacasi |
+| **Biyotek Labi** | Bio + Research + Blueprint + Standard | Corrupted T1-T2 + Encrypted T1 | Karisik isleme |
 
-**Zor Kaynaklar (2-4 content, agir state'ler, yuksek tier):**
+**Zor Kaynaklar (3-4 content, agir state'ler, yuksek tier):**
 
-| Kaynak | Content | State'ler | Karmasiklik |
-|--------|---------|-----------|-------------|
-| **Corporate Server** | Financial + Blueprint + Standard | Encrypted T1-T2 | Agir decryption, paralel hat |
-| **Devlet Arsivi** | Research + Classified + Blueprint (+ az Standard/Financial/Biometric) | Encrypted T3 + Corrupted | Coklu pipeline ustaligi |
+| Kaynak | Content | State'ler | Bulmaca |
+|--------|---------|-----------|---------|
+| **Corporate Server** | Financial + Blueprint + Standard | Encrypted T2 + Corrupted T2 | Cift isleme + karmasik Key |
+| **Devlet Arsivi** | Research + Classified + Blueprint + diger | Encrypted T3 + Corrupted T2 | Master Key + derin yakit zinciri |
 
-**Cok Zor Kaynaklar (karisik content, tum state'ler, malware):**
+**Endgame Kaynaklar (karmasik content, Malware):**
 
-| Kaynak | Content | State'ler | Karmasiklik |
-|--------|---------|-----------|-------------|
-| **Askeri Ag** | Classified + Blueprint + Research | Encrypted T3 + Malware + Corrupted | Quarantine sart, karmasik routing |
-| **Dark Web Node** | Tum tipler (6 content) | Tum state'ler, tum tier'lar (T4) | Evrensel fabrika challenge |
-| **Blackwall Parcasi** | Classified + Research + Blueprint | Maks tier (T4) + agir Malware | Nihai optimizasyon |
+| Kaynak | Content | State'ler | Bulmaca |
+|--------|---------|-----------|---------|
+| **Askeri Ag** | Classified + Blueprint + Research | Encrypted T3 + Malware | Coklu kaynak birlestirme |
+| **Dark Web Node** | Tum tipler | Tum state'ler, T4 | Evrensel fabrika |
+| **Blackwall Parcasi** | Classified + Research + Blueprint | T4 + agir Malware | Nihai bulmaca |
+
+### Kaynak Ozellikleri
+Her kaynak su bilgilere sahip:
+- **Isim:** Somut, akilda kalici (ATM, Hastane, Askeri Ag)
+- **Zorluk seviyesi:** Kolay / Orta / Zor / Endgame
+- **Content dagilimi:** Hangi content tipleri, hangi oranlarda
+- **State dagilimi:** Her content icin hangi state'ler, hangi oranlarda
+- **Maks tier:** Encrypted/Corrupted icin tier limiti
+- **Bant genisligi:** Maks cikis hizi (MB/s)
+- **Tukenmez:** Kaynaklar bitmez (chill otomasyon)
 
 ### Spawn Garanti Kurallari
-Harita uretimi su kurallara uyar:
-- **Spawn yaninda:** En az 2 kolay kaynak (oyuncu hemen baslar)
-- **Yakin cevre:** En az 1 orta kaynak (ilk challenge)
-- **Harita genelinde:** Her content tipinden en az 1 kaynak var (progression kilitlenmez)
-- **Dagilim:** Kolay kaynaklar bol (~%40), orta oranli (~%30), zor az (~%20), cok zor nadir (~%10)
-- **Karisim:** Zor kaynak spawn'in yanininda ciKABILIR — gorebilirsin ama isleyemezsin (merak!)
-
-### Kaynak Sayilari (Seed Basina)
+- **Spawn yaninda:** En az 2 kolay kaynak
+- **Yakin cevre:** En az 1 orta kaynak
+- **Harita genelinde:** Her content tipinden en az 1 kaynak
+- **Dagilim:** Kolay ~%40, Orta ~%30, Zor ~%20, Endgame ~%10
 - **Toplam:** ~25-35 kaynak/harita
-- Kolay: ~10-14
-- Orta: ~8-10
-- Zor: ~5-7
-- Cok zor: ~2-4
+- **Zor kaynak spawn yaninda olabilir** — gorebilirsin ama isleyemezsin (merak!)
 
 ### "Gorebilirsin Ama Isleyemezsin" Mekanigi
-Bu oyunun en guclu motivasyon kaynaği:
 ```
 Oyuncu spawn'da basliyor...
-  → Yaninda bir Otomat (kolay, Standard Clean) — guzel, basla
-  → 10 kare otede bir Askeri Ag gorünuyor! — Classified Data, Encrypted T3 + Malware
+  → Yaninda bir Otomat (kolay, Standard Public) — basla
+  → 10 kare otede bir Askeri Ag! — Classified Data, Malware
   → "Vay, orada ne var... ama Decryptor'um bile yok..."
   → 3 saat sonra: "SONUNDA o Askeri Ag'i islemeye hazirim!"
   → Bu his = oyunun bagimlilık dongusu
 ```
 
-### Kaynak Ozellikleri (Data Resource)
-Her kaynak su bilgilere sahip:
-- **Isim:** Somut, akilda kalici (ATM, Hastane, Askeri Ag)
-- **Zorluk seviyesi:** Kolay / Orta / Zor / Cok Zor
-- **Content dagilimi:** Hangi content tipleri, hangi oranlarda
-- **State dagilimi:** Her content icin hangi state'ler, hangi oranlarda
-- **Maks tier:** Encrypted/Corrupted/Malware icin tier limiti
-- **Bant genisligi:** Maks cikis hizi (MB/s)
-- **Hucre sayisi:** Kaynağin haritadaki fiziksel boyutu (organik sekil)
-- **Tukenmez:** Kaynaklar bitmez (chill otomasyon)
+---
+
+## 11. Gig Sistemi (Core Loop)
+
+### Genel Bakis
+Gig sistemi oyunun KALBI. Opsiyonel degil, ana ilerleme mekanigi. Contract Terminal'den sozlesmeler alir, pipeline kurarsun, teslim edersin. Her gig yeni mekanik ogretiyor ve yeni bina aciyor.
+
+### Nasil Calisir
+1. Contract Terminal'de mevcut gig'ler goruntulenir
+2. Gig: "X miktar Y veri isle ve teslim et"
+3. Oyuncu pipeline kurar: kaynak → islem → Contract Terminal
+4. Veri akar → gig ilerleme sayaci artar
+5. Gig tamam → yeni bina acilir + yeni gig'ler belirir
+6. Veri teslimde TUKETILIR (Shapez modeli — Hub'a giren veri gider)
+
+### Gig Ilerleme Zinciri
+
+Ilk gig'ler SIRALI (tutorial islevi gorur). Sonra PARALEL acilir.
+
+**Erken Oyun (Sirali — Tutorial):**
+
+| # | Gig | Ne Ogretiyor | Acilan Bina |
+|---|-----|-------------|-------------|
+| 1 | "20 Standard Public teslim et" | Uplink + kablo + teslim | Uplink, Trash, Splitter, Merger, Bridge (baslangic) |
+| 2 | "Biometric ve Financial'i AYRI teslim et" | Classifier (binary filtre) | Classifier |
+| 3 | "15 Financial Public teslim et" (kaynakta Corrupted var) | Separator (state ayirma) | Separator |
+| 4 | "10 Financial Recovered teslim et" | Recovery + pozitif geri besleme | Recoverer |
+| 5 | "10 Research Decrypted teslim et" | Key uretimi + decryption | Research Lab, Decryptor |
+| 6 | "10 Biometric Decrypted·Encrypted teslim et" | Encryptor + geri besleme dongusu | Encryptor |
+| 7 | "5 [Bio + Financial] paket teslim et" | Paketleme | Compiler |
+
+**Orta Oyun (Paralel — Birden Fazla Aktif Gig):**
+
+| Gig Ornegi | Zorluk | Pipeline Gereksinimi |
+|-----------|--------|---------------------|
+| "20 Blueprint Decrypted teslim et" | Orta | Corporate → Classify → Separate → Decrypt (T2 Key!) |
+| "15 Financial Recovered teslim et" (T2) | Orta | ATM → Separate → Decrypt yakiti hazirla → Recover |
+| "10 [Research Decrypted · Biometric Recovered] paket" | Zor | 2 kaynak + isleme + paketleme |
+| "5 Classified Decrypted·Encrypted" | Zor | Devlet Arsivi → T3 Key + Decrypt + Encrypt |
+
+**Gec Oyun (Karmasik Paralel Gig'ler):**
+
+| Gig Ornegi | Zorluk | Pipeline Gereksinimi |
+|-----------|--------|---------------------|
+| "Askeri Ag Malware temizle" | Endgame | Coklu kaynak birlestirme |
+| "Blackwall verisini isle" | Endgame | T4 Key + T3 yakit + Malware pipeline |
+
+### Gig Odul Sistemi
+- Her gig yeni bina acar (ilerleme)
+- Ileri gig'ler mevcut binalarin verimlilgini artirabilir
+- Detayli odul dengeleme henuz tasarlanmadi
 
 ---
 
-## 11. Ilerleme Sistemi
+## 12. Ilerleme Sistemi
 
-### Tech Tree Yok — Kesif = Kilit Acma
-Bir content tipini veya state'i ilk kez kesf ettiğinde, ilgili binalar acilir.
+### Bina Acilma Siralamasi
 
-| Ilk Kesif | Acilan Binalar | Neden |
-|-----------|---------------|-------|
-| Oyun basi | Uplink, Storage, Separator, Splitter, Merger, Bridge | Temel toolkit |
-| Corrupted state | Recoverer | "Bozuk veri! Onaracak alet lazim" |
-| 2. content tipi | Classifier | "Karisik veri! Turlerine ayirmam lazim" |
-| Research content | Research Lab, Decryptor | "Sifreli veri! Anahtar lazim" |
-| 3+ content tipi | Compiler | "Yeterli cesitlilik var, malzeme birlestirebilirim" |
-| Malware state | Quarantine | "Tehlike! Guvenle imha etmeliyim" |
-| Classified content | Gig Board | "Gizli veri! Sozlesme alabilirim" |
+Binalar gig tamamlayarak acilir. Bina maliyeti YOK — bulmaca zorlugu yeter.
+
+| Asama | Acilan Binalar | Tetikleyici |
+|-------|---------------|-------------|
+| **Oyun Basi** | Uplink, Trash, Splitter, Merger, Bridge | — |
+| **Gig 2** | Classifier | Ilk content ayirma gig'i |
+| **Gig 3** | Separator | Ilk state ayirma gig'i |
+| **Gig 4** | Recoverer | Ilk recovery gig'i |
+| **Gig 5** | Research Lab, Decryptor | Ilk decryption gig'i |
+| **Gig 6** | Encryptor | Ilk sifreleme gig'i |
+| **Gig 7** | Compiler | Ilk paketleme gig'i |
+| **Gec Oyun** | Malware Processor | Malware gig'i |
 
 ### Ilerleme Asamalari
 
-| Asama | Tetikleyici | Oyuncu Deneyimi | His |
-|-------|------------|----------------|-----|
-| **Copcu** | Ilk kolay kaynak | Tek content, temelleri ogren | "Anladim" |
-| **Ayirici** | 2+ content kesfi | Coklu tip, ayirmayi ogren | "Farkli veriler farkli islem istiyor!" |
-| **Muhendis** | Encrypted kesfi | Cift girdili binalar, key tedarik zinciri | "Bu gercek bir fabrika artik" |
-| **Mimar** | 5+ kaynak aktif | Karmasik coklu kaynak pipeline'lari, routing bulmacalari | "Yaptığım devre kartına bak!" |
-| **Netrunner** | Zor/cok zor kaynaklar | Her sey, optimizasyon, gig'ler | "Sisteme hakim oldum" |
+| Asama | Oyuncu Deneyimi | His |
+|-------|----------------|-----|
+| **Copcu** | Tek kaynak, tek hat, Public veri | "Anladim, basit" |
+| **Ayirici** | Classifier + Separator, coklu cikis | "Farkli veriler farkli yonlere!" |
+| **Muhendis** | Decryptor + Research Lab, Key zinciri | "Bu gercek bir fabrika" |
+| **Mimar** | Coklu kaynak, paralel gig, geri besleme | "Devre kartima bak!" |
+| **Netrunner** | Malware, T3-T4, tum mekanikler birlikte | "Sisteme hakim oldum" |
 
 ---
 
-## 12. Kisit ve Zorluk
+## 13. Kisit ve Zorluk
 
-### Felsefe: Shapez Modeli — Saf Otomasyon
-Power, heat, combat yok. Challenge tamamen otomasyon ve yonetimden gelir.
+### Felsefe: Shapez Modeli — Saf Otomasyon Bulmacasi
+Power, heat, combat, para birimi YOK. Challenge tamamen pipeline tasarimindan gelir.
 
 | Kisit | Nasil Calisir | Oyuncu Karari |
 |-------|--------------|---------------|
-| **Kablo routing** | Kablolar grid'de yer kaplar, serbestce kesilemez | "Mevcut layout'u bozmadan buraya nasil hat cekerim?" |
-| **Content karmasikligi** | Zor kaynaklar 3-4+ content tipi | "Daha buyuk ayirma sistemi kurmam lazim" |
-| **State karmasikligi** | Zor kaynaklar 4 state + yuksek tier | "Her state icin ayri isleme hatti lazim" |
-| **Throughput** | Binalarin isleme hizi sinirli | "Paralel hat mi, upgrade mi?" |
-| **Depolama alani** | Farkli state'ler farkli yer kaplar | "Islemeden mi depolasam, once mi islesem?" |
-| **Key tedariği** | Decryptor surekli Key tuketiyor | "Research Lab yeterli Key uretiyor mu?" |
-| **Atik yonetimi** | Recoverer'dan Residue cikiyor | "Atik nereye gidecek?" |
-| **Quarantine zamanlama** | Doluluk/flush dongusu girisi bloke eder | "Quarantine oncesi buffer planlamam lazim" |
-| **Malzeme onceligi** | Yapilar belirli Clean veri tipleri harcar | "Hangi yapiyi once ureteyim?" |
-| **Harita routing** | Yeni kaynak = mevcut fabrikadan gecen kablo | "Yeni kaynagi mevcut aga nasil entegre ederim?" |
+| **Kablo routing** | Kablolar grid'de yer kaplar | "Bu hatti nereye cekeyim?" |
+| **Content cesitliligi** | Zor kaynaklar 3-4+ content | "Kac Classifier zincirlersem?" |
+| **State karisikligi** | Kaynaklar karisik state | "Her state icin ayri hat lazim" |
+| **Key tedarigi** | Tier arttikca Key tarifi zorlasir | "Key fabrikam yeterli mi?" |
+| **Yakit dongusu** | Corrupted tier arttikca yakit islenmeli | "Yakitim icin ayri pipeline mi?" |
+| **Geri besleme** | Encryptor/Recoverer ayni kaynaktan yakit | "Bu kaynaktan kac paralel hat?" |
+| **Layout planlamasi** | Yeni kaynak = mevcut fabrikadan hat cekme | "Mevcut kablolarin arasinda yer var mi?" |
+| **Gig karmasikligi** | Gec gig'ler karmasik urun istiyor | "Bu urunu uretmek icin kac kaynak lazim?" |
 
-### Gec Oyun Zorlugu
-Bireysel mekanikler zorlasmaz — hepsini AYNI ANDA, BIRDEN FAZLA kaynak icin yonetmen ve her yeni kablo mevcut grid layout'una uydurmak gerekir. Zor kaynaklar haritanin her yerinde olabilir — yakin gorunur ama ancak yeterli altyapi kuruldugunda islenebilir.
+### Zorluk Kaynaklari (Uc Eksen)
 
----
+```
+EKSEN 1: GIG KARMASIKLIGI
+  Erken: "Public veri teslim et"
+  Gec:   "Decrypted·Encrypted paket teslim et" (cok adimli islem)
 
-## 13. Gig Sistemi
+EKSEN 2: KAYNAK KARMASIKLIGI
+  Kolay: 1 content, Public
+  Zor:   4 content, T3 Encrypted + T3 Corrupted (istenen veriyi ayikla + isle)
 
-### Genel Bakis
-Gig Board gec oyun binasi. Opsiyonel hedefler + bonus oduller sağlar.
+EKSEN 3: LAYOUT KARMASIKLIGI
+  Erken: Tek kaynak, kisa hat
+  Gec:   10+ kaynak, yuzlerce kablo, routing bulmacasi
+```
 
-### Nasil Calisir
-1. Gig Board'u haritaya yerlestir
-2. Board 3 mevcut gig gosterir
-3. Pipeline'ini Gig Board'a bagla
-4. Veri akar → gig ilerleme sayaci artar
-5. Gig tamam → odul verilir
-6. Veri HARCANMAZ — throughput sayilir, sistemde kalir
-
-### Ornek Gig'ler
-
-| Gig | Gereksinim | Odul |
-|-----|-----------|------|
-| "ISP Temizligi" | 200 MB Corrupted → Clean isle | 100 Standard(Clean) bonus |
-| "Kurum Casusluğu" | 100 Financial(Clean) teslim et | Compiler tarifi acilir |
-| "Askeri Istihbarat" | 50 Classified(Clean) teslim et | Research Lab hiz +%20 |
-| "Atik Yonetimi" | 100 MB Malware imha et | Quarantine kapasite +25 MB |
-| "Seri Uretim" | 20 Decryption Key uret | Decryptor hiz +%15 |
-
-### Gig Veri Harcamaz Cunku
-- Gig = "bunu YAPABILDIĞINI kanıtla" hedefi
-- Oyuncunun malzeme uretimi etkilenmez
-- Gig'ler saf ek motivasyon
-- Satisfactory'nin milestone sistemiyle ayni mantik
-
-### Ileri Gig'ler: Refined Malzeme Talebi
-Bazi gig'ler Clean veri degil, REFINED malzeme teslimi ister. Bu Compiler'i gec oyunda aktif tutar:
-
-| Ileri Gig | Gereksinim | Odul |
-|-----------|-----------|------|
-| "Guvenlik Paketi" | 5 Security Core teslim et | Quarantine kapasite x2 |
-| "Ticaret Anlasmasi" | 10 Trade License teslim et | Tum bina hizlari +%10 |
-| "Neural Arastirma" | 8 Neural Index teslim et | Research Lab hizi x2 |
-
-Bu gig'ler icin Compiler SUREKLI calisir — Storage'da biriken Clean veriyi Refined'a donusturur.
+Uc eksen birlikte: ayni gig farkli kaynaklardan farkli zorlukta cozulebilir. Oyuncu stratejik olarak **hangi kaynaktan cekmenin daha verimli olduguna** karar verir.
 
 ---
 
@@ -654,15 +739,7 @@ Bu gig'ler icin Compiler SUREKLI calisir — Storage'da biriken Clean veriyi Ref
 ### Sanat Stili: Prosedürel + Shader (Sifir Harici Asset)
 Her sey kodla cizilir + shader efektleri. Sprite yok, satin alinan asset yok.
 
-### Devre Karti Estetigi
-Zoom-out'da oyuncunun fabrikasi parlayan bir PCB (baski devre karti) gibi gorunmeli:
-- Koyu arka plan (derin lacivert/siyah)
-- Parlak neon kanallar (kablolar)
-- Dikdortgen bina siluetleri
-- Her sey grid duzende bagli
-- Aktiviteyle titresir
-
-### Renk Paleti (v2.0.3 — "Dark PCB" Palette C)
+### Renk Paleti ("Dark PCB")
 
 ```
 Arka plan:     #060a10 (koyu siyah)
@@ -671,11 +748,10 @@ Bina govde:    #0a0d14
 UI Accent:     #00bbee (teal-cyan)
 
 State Renkleri:
-  Clean:       #00ffaa (neon yesil)
+  Public:      #00ffaa (neon yesil)
   Encrypted:   #2288ff (neon mavi)
   Corrupted:   #ffaa00 (neon turuncu)
   Malware:     #ff1133 (neon kirmizi)
-  Residue:     #bbbb44
 
 Content Renkleri:
   Standard:    #7788aa
@@ -685,13 +761,6 @@ Content Renkleri:
   Research:    #9955ff
   Classified:  #ff3388
   Key:         #ffaa00
-
-Refined Renkleri:
-  Calibrated:  #22ffbb
-  Recovery:    #55bbff
-  Security:    #cc55ff
-  Trade:       #ffbb44
-  Neural:      #bb44ff
 ```
 
 ### Shader Efektleri
@@ -702,31 +771,26 @@ Refined Renkleri:
 
 ### Ses Tasarimi
 
-Otomasyon oyunlarinin tatmini buyuk olcude SESTEN gelir. Fabrika "canli" hissetmeli.
-
 **Ambient Katmani:**
-- Temel: dusuk frekanslı dijital hum (fabrikanin genel sesi)
+- Temel: dusuk frekanslı dijital hum
 - Aktif kablo sayisina gore yogunluk artar
-- Zoom seviyesine gore ses degisir (yakin = detay, uzak = genel ugultu)
+- Zoom seviyesine gore ses degisir
 
 **Bina Sesleri (her bina benzersiz):**
-- Uplink: veri cekme/indirme sesi (pulse)
-- Classifier/Separator: ayirma/routing "tik-tak" sesi
-- Decryptor: sifre kirma sesi (dijital "crack" efekti)
-- Recoverer: tarama/onarma sesi + basarisiz oldugunda farkli ton
-- Quarantine: uyari sesi + flush sirasinda bosaltma efekti
-- Compiler: birlestirme/sentez sesi (iki sesin birlesip ucuncuye donusmesi)
-- Storage: doldukca daha dolu/tok ses
+- Uplink: veri cekme/indirme pulse
+- Classifier/Separator: routing "tik-tak"
+- Decryptor: dijital "crack" efekti
+- Recoverer: tarama/onarma sesi
+- Encryptor: sifreleme/paketleme sesi
+- Compiler: sentez sesi
+- Research Lab: arastirma hum'i
+- Trash: imha sesi
 
 **UI Sesleri:**
-- Kablo doseme: tatmin edici "snap" sesi (her segment)
-- Bina yerlestirme: agir/sagdam "placement" sesi
-- Yeni kesif: dikkat cekici bildirim melodisi
-- Yeni bina acilma: basari jingle'i
-- Malzeme yeterliligi: olumlu onay sesi
-- Hata: yumusak uyari (agresif degil — chill oyun)
-
-**Implementasyon:** Prosedürel ses + free SFX kutuphaneleri. Her sesin pitch/volume parametreleri data-driven (bina state'ine gore).
+- Kablo doseme: tatmin edici "snap"
+- Bina yerlestirme: sagdam "placement"
+- Gig tamamlama: basari jingle
+- Yeni bina acilma: kilit acma sesi
 
 ---
 
@@ -734,17 +798,16 @@ Otomasyon oyunlarinin tatmini buyuk olcude SESTEN gelir. Fabrika "canli" hissetm
 
 | Oyun | Ne Aliyoruz | Ne Almiyoruz |
 |------|------------|-------------|
-| **Factorio** | Grid routing, mekansal bulmaca, bant yonetimi | Savas, kirlilik, devasa karmasiklik |
-| **Satisfactory** | Kaynak → Malzeme → Uretim, Assembler (=Compiler) | 3D, buyuk kapsam |
-| **Shapez** | Kademeli bulmaca, chill atmosfer | Sekil-spesifik mekanikler |
+| **Shapez** | Hub teslimat, bedava binalar, kademeli bulmaca, chill | Sekil-spesifik mekanikler |
+| **Factorio** | Grid routing, mekansal bulmaca, bant yonetimi | Savas, kirlilik, devasa kapsam |
+| **Satisfactory** | Coklu girdili binalar, kaynak→isleme dongusu | 3D, buyuk kapsam |
 | **Mindustry** | Harita kaynaklar, cikarim | Kule savunma |
 | **Hacknet** | Cyberpunk estetik, terminal hissi | Tekrarci oynanis |
 
 ### Kritik Dersler
-- **Factorio'dan:** Grid routing = oyun. Bantlar kesilemeyince layout ana bulmaca OLUR. 200K+ inceleme bunun kaniti.
-- **Satisfactory'den:** Coklu girdili tarifler (Assembler) en iyi lojistik bulmacalari yaratir. Surekli kaynak tuketimi fabrikalari canli tutar.
-- **Shapez'den:** Saf otomasyon yeterli. Savas gereksiz. Kademeli karmasiklik anahtardir.
-- **Hacknet'ten:** Cyberpunk tema tek basina yetmez. Tekrardan kacinilmali.
+- **Shapez'den:** Bina maliyeti yok, bulmaca yeter. Hub merkezi teslimat. Operasyonlar basit, kombinasyonlar zor.
+- **Factorio'dan:** Grid routing = oyun. Layout planlamasi ana bulmaca.
+- **Satisfactory'den:** Coklu girdili tarifler en iyi lojistik bulmacalari yaratir. Surekli tuketim fabrikalari canli tutar.
 
 ---
 
@@ -753,71 +816,47 @@ Otomasyon oyunlarinin tatmini buyuk olcude SESTEN gelir. Fabrika "canli" hissetm
 ### Hedef
 - **Fiyat:** $9.99
 - **Satis hedefi:** 100K+
-- **Platform:** Steam (birincil)
+- **Platform:** Steam
 - **Cikis:** Steam Next Fest demo sonrasi
 
 ### Hook + Anchor
-- **Hook (benzersiz):** "Siberuzayda parlayan devre kartlari tasarla — daha once gormedİğin veri otomasyonu"
-- **Anchor (tanidik):** "Factorio-tarz grid routing + Satisfactory-tarz crafting zincirleri"
-
-### Neden 100K Ulasilabilir
-1. Otomasyon turu sadik, katilimci kitleye sahip
-2. Cyberpunk + otomasyon genuinely yeni kombinasyon
-3. Grid routing Factorio-derinliğinde mekansal bulmaca sagliyor
-4. Devre karti estetigi screenshot'a deger
-5. $9.99 durtuk satin alma fiyat noktasi
-6. Solo gelistirici hikayesi indie kitleyle rezonans yapar
+- **Hook:** "Siberuzayda parlayan devre kartlari tasarla — veri madenciligi otomasyon bulmacasi"
+- **Anchor:** "Shapez'in kademeli bulmacalari + Factorio'nun grid routing'i"
 
 ### Steam Next Fest Stratejisi
-- Demo icerigi: grid routing + ayirma + isleme + birlestirme
-- ~12-15 kaynak (kolay + orta + birkac zor)
-- 4-6 saatlik demo deneyimi (otomasyon oyuncusu uzun oturum oynar)
-- Screenshot'lar MUTLAKA etkileyici olmali (devre karti estetigi = satis noktasi)
+- Demo: Gig 1-7 + birkac paralel gig
+- ~12-15 kaynak (kolay + orta + gec oyun gorsel teaser)
+- 4-6 saatlik demo deneyimi
+- Screenshot'lar etkileyici olmali (devre karti estetigi = satis noktasi)
 
 ---
 
 ## 17. Kapsam ve Yol Haritasi
 
-### Demo Milestone Sistemi (Gig Board Yerine)
-Demoda Gig Board yok — onun yerine basit milestone'lar oyuncuya yon verir:
-
-| Milestone | Tetikleyici | Odul/Bildirim |
-|-----------|-----------|---------------|
-| "Ilk Baglanti" | Ilk kablo dosenildi | Tutorial tamamlandi bildirimi |
-| "Veri Akisi" | Ilk Clean veri Storage'a ulasti | "Ilk malzemen hazir!" |
-| "Ayristirici" | Ilk Classifier veya Separator kuruldu | "Veri cesitliligini yonetiyorsun" |
-| "Sifre Kirici" | Ilk Decryptor + Research Lab calisti | "Sifreli veriler artik senin icin degil" |
-| "Muhendis" | Ilk Compiler uretimi yapildi | "Ileri malzeme uretimi baslatildi!" |
-| "Fabrika Sahibi" | 5 kaynak ayni anda aktif | "Devre kartin buyuyor!" |
-| "Demo Sonu" | Ilk zor kaynagi islemeye basladin | "Tam oyunda daha fazlasi seni bekliyor..." |
-
-Bu milestone'lar tutorial + motivasyon islevi gorur. Oyuncu ne yapmasi gerektigini anlar.
-
 ### Demo Kapsami (Next Fest) — 4-6 saat
 - Grid kablo routing + Bridge
-- 10 bina: Uplink, Classifier, Separator, Recoverer, Decryptor, Research Lab, Storage, Compiler, Splitter, Merger
-- ~12-15 kaynak (kolay + orta + birkac zor — haritada gorunur ama islenemez olanlar dahil)
+- 11 bina: Uplink, Classifier, Separator, Recoverer, Decryptor, Research Lab, Encryptor, Compiler, Splitter, Merger, Trash
+- Contract Terminal (sabit, harita merkezinde)
+- ~12-15 kaynak (kolay + orta + birkac zor teaser)
 - 5 content: Standard, Financial, Biometric, Research, Blueprint
-- 3 state: Clean, Corrupted, Encrypted (T1-T2)
-- 4-5 Compiler tarifi
+- 3 state: Public, Corrupted (T1-T2), Encrypted (T1-T2)
+- 7 sirali tutorial gig + 3-5 paralel orta gig
 - Tam gorsel islem (devre karti estetigi)
-- Malware + Quarantine YOK (tam oyuna sakla)
-- Gig Board YOK (tam oyuna sakla)
+- Malware YOK (tam oyuna sakla)
 
 ### Tam Oyun Kapsami
-- 13 binanin tamami
-- ~25-35 kaynak/harita (rastgele dagilim)
+- 13 binanin tamami (+ Malware Processor)
+- ~25-35 kaynak/harita
 - 6 content tipinin tamami
-- 4 state + tam tier sistemi (T1-T4)
-- Quarantine, Gig Board
-- Tam Compiler tarif listesi
-- Upgrade sistemi
+- 3 state + Malware + tam tier sistemi (T1-T4)
+- Paralel gig sistemi, onlarca gig
+- Endgame: Malware pipeline bulmacalari
 
 ### Lansman Sonrasi Potansiyel
-- Protokol katmani (3. veri boyutu)
+- Yeni content tipleri
 - Yeni bina tipleri
-- Savas/savunma DLC
 - Topluluk challenge'lari
+- Trace/hostile AI katmani (aktif tehdit mekanigi)
 
 ---
 
@@ -825,46 +864,62 @@ Bu milestone'lar tutorial + motivasyon islevi gorur. Oyuncu ne yapmasi gerektigi
 
 ### Tasarlanacak
 - [ ] Bina isleme hizlari ve dengeleme
-- [ ] Compiler tarif dengeleme (malzeme miktarlari)
-- [ ] Gig odul dengeleme
-- [ ] Upgrade maliyetleri ve ilerleme egrisi
+- [ ] Gig zorluk skalasi ve odul detaylari
+- [ ] Gig sayisi ve cesitliligi (toplam kac gig?)
+- [ ] Malware Processor detaylari (kac girdi, nasil calisir?)
 - [ ] Kaynak spawn dagilim algoritmasi ve dengeleme
-- [ ] Kablo kose/kavsakk gorsel tasarimi
-- [ ] Bina boyutlari (1x1 mi, bazi 2x2 mi)
-- [ ] Overclock mekanigi (demo sonrasi potansiyel)
-- [ ] Ses asset'leri secimi (prosedürel vs free library)
-- [ ] Separator efficiency degeri (su an 0.6 = %40 kayip — 1.0 mi olmali?)
+- [ ] Bina boyutlari (hepsi 2x2 mi, bazi 1x1 mi?)
+- [ ] Bina ic buffer boyutu (Shapez modeli — kucuk ama ne kadar?)
+- [ ] Key tuketim orani ve dengeleme
+- [ ] Recoverer yakit tuketim orani
+- [ ] T4 Key ve yakit tarifleri (endgame)
+- [ ] Ses asset'leri (prosedürel vs free library)
 
 ### Dogrulanmis Kararlar
 - [x] Grid kablo routing (Factorio modeli)
-- [x] Cift girdili binalar (Decryptor + Compiler)
-- [x] Olasiliksal Recoverer + Residue yan urunu
-- [x] Doluluk/flush Quarantine
-- [x] Veri = Malzeme ekonomi (Satisfactory modeli)
-- [x] Kesif = Kilit Acma ilerleme
+- [x] Gig sistemi = core loop (Shapez hub modeli)
+- [x] Contract Terminal harita merkezinde sabit
+- [x] Bina maliyeti YOK — gig ile acilir (Shapez modeli)
+- [x] Storage binasi YOK — veri surekli akar
+- [x] Public (eski "Clean") state ismi
+- [x] Islem etiketleri birikir (Decrypted, Recovered, Encrypted)
+- [x] Classifier = binary filtre (sag: secilen, sol: kalan)
+- [x] Separator = binary filtre (state icin)
+- [x] Recoverer = deterministik + yakit tabanli (olasilik YOK)
+- [x] Recoverer yakiti = ayni content'in islenmis hali (pozitif geri besleme)
+- [x] Corrupted tier = yakit islenmisligi artar (pipeline icinde pipeline)
+- [x] Encrypted tier = Key tarifi karmasiklasir (farkli content'ler)
+- [x] Encryptor binasi (Decryptor'un tersi, geri besleme dongusu)
+- [x] Compiler = paketleyici (iki veriyi birlestir)
+- [x] Trash = basit cop (Shapez modeli)
+- [x] Malware = endgame boss puzzle (coklu kaynak birlestirme)
+- [x] Chill otomasyon (savas, power, heat YOK)
 - [x] Devre karti gorsel kimligi
-- [x] 13 bina toplam
-- [x] 6 content x 4 state veri modeli
 - [x] Rastgele dagitimli harita, somut kaynak isimleri
-- [x] Chill otomasyon (savas yok)
 - [x] $9.99 fiyat hedefi
 
 ### Reddedilen Fikirler
-- ~~Credits/para birimi~~ → Veri = Malzeme
-- ~~Tech Tree~~ → Kesif = Kilit Acma
+- ~~Credits/para birimi~~ → Bina maliyeti yok, gig ile acilir
+- ~~Storage binasi~~ → Veri surekli akar (Shapez modeli)
+- ~~Refined malzeme sistemi~~ → Compiler = paketleyici
+- ~~Olasiliksal Recoverer~~ → Deterministik + yakit tabanli
+- ~~Quarantine (doluluk/flush)~~ → Trash (basit cop)
+- ~~Residue (yan urun)~~ → Recoverer deterministik, yan urun yok
+- ~~Tech Tree~~ → Gig ilerlemesi ile bina acma
 - ~~Power/Heat sistemi~~ → Saf otomasyon
 - ~~Noktadan noktaya kablolar~~ → Grid routing
-- ~~Ayni mekanikli isleyiciler~~ → Her bina benzersiz
-- ~~Soyut kaynak isimleri~~ → Somut isimler (ATM, Hastane, vb.)
-- ~~Mesafe sinirli kablolar~~ → Kablolar serbest uzunluk, zorluk routing'den
-- ~~Ring/halka sistemi~~ → Rastgele dagitim (Factorio modeli) — zorluk konumdan degil kaynak tipinden
+- ~~Ayni mekanikli isleyiciler~~ → Her bina benzersiz fiil
+- ~~Ring/halka sistemi~~ → Rastgele dagitim
 - ~~Research Points~~ → Research Lab direkt Key uretir
-- ~~Patch Data~~ → Refined malzeme sistemi
-- ~~Compressor (ayri bina)~~ → Scope disinda, gerekirse sonra eklenir
-- ~~Replicator~~ → Gereksiz — Splitter zaten 1→2, kaynaklar tukenmez
-- ~~Banka Kasasi~~ → Corporate Server ayni rolu kapsiyor
+- ~~Compressor~~ → Scope disinda
+- ~~Replicator~~ → Gereksiz
+- ~~Duplicator~~ → Oyunu kirar
+- ~~Validator~~ → Gereksiz karmasiklik
+- ~~Karisim tipleri (Bond/Fused/Obfuscated)~~ → Basit Classifier zinciri yeter
+- ~~Stabilizer binasi~~ → Yakit tier sistemi ile gereksiz
+- ~~Tier = daha fazla bina koy~~ → Tier = workflow seklini degistir
 
 ---
 
 *Bu dokuman canlidir ve her tasarim oturumunda guncellenecektir.*
-*Versiyon 2.2 — Replicator + Banka Kasasi kaldirildi, renk paleti v2.0.3'e guncellendi, Recycled Data tarifi kaldirildi*
+*Versiyon 3.0 — Tamamen yeniden yazildi. Gig-driven core loop, Shapez ekonomi modeli, pozitif geri besleme mekanigi, etiket sistemi.*
