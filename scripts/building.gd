@@ -34,6 +34,7 @@ var is_working: bool = false  ## True when building did actual work this tick
 var separator_mode: String = "state"  ## For separator: "state" or "content"
 var separator_filter_value: int = 0  ## Filter value for separator (state or content int)
 var classifier_filter_content: int = 0  ## Filter value for classifier (content int)
+var selected_tier: int = 1  ## For producer: which tier to produce (1-3)
 var upgrade_level: int = 0  ## Current upgrade level (0 = base)
 
 # Quarantine flush state

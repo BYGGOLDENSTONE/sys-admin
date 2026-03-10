@@ -14,6 +14,7 @@ tier_key_costs = Array[int]([1, 1, 1, 1])
 output_state = 0
 output_tag = 2
 fuel_matches_content = true
+required_fuel_tags = Array[int]([0, 1, 5])
 
 [sub_resource type="Resource" id="stor1"]
 script = ExtResource("3")
@@ -23,7 +24,7 @@ forward_rate = 0.0
 [resource]
 script = ExtResource("1")
 building_name = "Recoverer"
-description = "Repairs corrupted data using fuel. Dual input: Corrupted data from left, same-type Public data as fuel from top. Deterministic — halts without fuel."
+description = "Repairs corrupted data using fuel. T1=Public fuel, T2=Decrypted fuel, T3=Decrypted+Encrypted fuel. Higher corruption tiers need more processed fuel."
 grid_size = Vector2i(2, 2)
 color = Color(0.87, 0.47, 0.2, 1)
 category = "processing"

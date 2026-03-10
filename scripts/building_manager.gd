@@ -623,6 +623,12 @@ func _cycle_building_filter(building: Node2D) -> void:
 		else:
 			building.separator_filter_value = (building.separator_filter_value + 1) % 6
 			print("[BuildingManager] Separator filter → %s" % DataEnums.content_name(building.separator_filter_value))
+	elif def.producer and def.producer.max_tier > 1:
+		# Cycle through Key tiers (1 to max_tier)
+		building.selected_tier = (building.selected_tier % def.producer.max_tier) + 1
+		var tier_names: Array[String] = ["T1 Key", "T2 Strong Key", "T3 Master Key"]
+		var label: String = tier_names[building.selected_tier - 1] if building.selected_tier <= tier_names.size() else "T%d Key" % building.selected_tier
+		print("[BuildingManager] Research Lab tier → %s" % label)
 
 
 ## Programmatic API (AutoPlayManager ve test sistemleri icin)

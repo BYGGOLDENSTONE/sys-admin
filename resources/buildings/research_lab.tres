@@ -17,11 +17,16 @@ input_state = 0
 output_content = 6
 output_state = 0
 processing_rate = 2.0
+max_tier = 3
+tier2_extra_content = 1
+tier2_extra_amount = 2
+tier3_extra_content = 2
+tier3_extra_amount = 2
 
 [resource]
 script = ExtResource("1")
 building_name = "Research Lab"
-description = "Consumes Public Research data to produce Decryption Keys. Every 5 MB Research yields 1 Key. Feeds the Decryptor's continuous Key demand."
+description = "Produces Decryption Keys. Tab to select tier: T1=Research only, T2=Research+Financial, T3=Research+Financial+Biometric. Higher tier Keys unlock stronger encryption."
 grid_size = Vector2i(2, 2)
 color = Color(0.6, 0.4, 0.87, 1)
 category = "processing"

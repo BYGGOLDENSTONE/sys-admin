@@ -390,6 +390,7 @@ func _process_probabilistic(b: Node2D, max_process: int) -> int:
 
 func _process_producer(b: Node2D, max_process: int) -> int:
 	var prod: ProducerComponent = b.definition.producer
+	var selected: int = b.selected_tier
 	var input_key: String = DataEnums.make_key(prod.input_content, prod.input_state)
 	var available: int = b.stored_data.get(input_key, 0)
 	if available <= 0:
@@ -397,15 +398,35 @@ func _process_producer(b: Node2D, max_process: int) -> int:
 	var productions: int = mini(available / prod.consume_amount, max_process)
 	if productions <= 0:
 		return 0
+	# Check tier-based extra content requirements
+	if selected >= 2 and prod.tier2_extra_content >= 0:
+		var extra2_key: String = DataEnums.make_key(prod.tier2_extra_content, prod.input_state)
+		var extra2_avail: int = b.stored_data.get(extra2_key, 0)
+		productions = mini(productions, extra2_avail / prod.tier2_extra_amount)
+	if selected >= 3 and prod.tier3_extra_content >= 0:
+		var extra3_key: String = DataEnums.make_key(prod.tier3_extra_content, prod.input_state)
+		var extra3_avail: int = b.stored_data.get(extra3_key, 0)
+		productions = mini(productions, extra3_avail / prod.tier3_extra_amount)
+	if productions <= 0:
+		return 0
+	# Consume base input
 	var consumed: int = productions * prod.consume_amount
 	b.stored_data[input_key] -= consumed
+	# Consume extra inputs
+	if selected >= 2 and prod.tier2_extra_content >= 0:
+		var extra2_key: String = DataEnums.make_key(prod.tier2_extra_content, prod.input_state)
+		b.stored_data[extra2_key] -= productions * prod.tier2_extra_amount
+	if selected >= 3 and prod.tier3_extra_content >= 0:
+		var extra3_key: String = DataEnums.make_key(prod.tier3_extra_content, prod.input_state)
+		b.stored_data[extra3_key] -= productions * prod.tier3_extra_amount
 	var sent: int = 0
 	for i in range(productions):
-		sent += _push_data_from(b, prod.output_content, prod.output_state, 1)
+		sent += _push_data_from(b, prod.output_content, prod.output_state, 1, "", selected)
 	if sent > 0:
-		print("[Producer] %s: %d MB %s consumed → %d Key produced" % [
+		var tier_label: String = "T%d " % selected if selected > 0 else ""
+		print("[Producer] %s: %d MB consumed → %d %sKey produced" % [
 			b.definition.building_name, consumed,
-			DataEnums.content_name(prod.input_content), sent])
+			sent, tier_label])
 	return consumed
 
 
@@ -428,12 +449,7 @@ func _process_dual_input(b: Node2D, max_process: int) -> int:
 
 
 func _process_dual_input_key_mode(b: Node2D, dual: DualInputComponent, max_process: int, fuel_consumed: Dictionary) -> int:
-	var key_key: String = DataEnums.make_key(dual.key_content, DataEnums.DataState.PUBLIC, 0, 0)
-	var keys_available: int = b.stored_data.get(key_key, 0)
-	if keys_available <= 0:
-		return 0
 	var processed: int = 0
-	var keys_used: int = 0
 	for key in b.stored_data.keys():
 		if processed >= max_process:
 			break
@@ -445,34 +461,39 @@ func _process_dual_input_key_mode(b: Node2D, dual: DualInputComponent, max_proce
 			continue
 		if not dual.primary_input_states.is_empty() and parsed.state not in dual.primary_input_states:
 			continue
+		# Match Key tier to data tier (min T1)
 		var tier: int = parsed.tier
+		var key_tier: int = maxi(tier, 1)
+		var key_key: String = DataEnums.make_key(dual.key_content, DataEnums.DataState.PUBLIC, key_tier, 0)
+		var keys_available: int = b.stored_data.get(key_key, 0) - fuel_consumed.get(key_key, 0)
+		if keys_available <= 0:
+			continue
 		var actual_key_cost: int = dual.key_cost
 		if tier > 0 and tier <= dual.tier_key_costs.size():
 			actual_key_cost = dual.tier_key_costs[tier - 1]
 		var to_process: int = mini(available, max_process - processed)
 		var keys_needed: int = to_process * actual_key_cost
-		if keys_needed > keys_available - keys_used:
-			to_process = (keys_available - keys_used) / actual_key_cost
+		if keys_needed > keys_available:
+			to_process = keys_available / actual_key_cost
 		if to_process <= 0:
-			break
+			continue
 		var out_tags: int = parsed.tags | dual.output_tag
 		var sent: int = _push_data_from(b, parsed.content, dual.output_state, to_process, "", 0, out_tags)
 		if sent > 0:
 			processed += sent
-			keys_used += sent * actual_key_cost
+			fuel_consumed[key_key] = fuel_consumed.get(key_key, 0) + sent * actual_key_cost
 			_spawn_floating_text(b, "+%d %s" % [sent, DataEnums.tags_label(out_tags)], Color("#44ff88"))
 			if sound_manager:
 				sound_manager.play_process_event(b.definition.visual_type)
-			print("[DualInput] %s: %d MB → %s (-%d Key)" % [
+			print("[DualInput] %s: %d MB → %s (-%d T%d Key)" % [
 				b.definition.building_name, sent,
 				DataEnums.data_label(parsed.content, dual.output_state, 0, out_tags),
-				sent * actual_key_cost])
-	fuel_consumed[key_key] = keys_used
+				sent * actual_key_cost, key_tier])
 	return processed
 
 
 func _process_dual_input_fuel_mode(b: Node2D, dual: DualInputComponent, max_process: int, fuel_consumed: Dictionary) -> int:
-	# Recoverer: fuel must be same content + Public state + tier 0 + tags 0
+	# Recoverer: fuel must be same content, tier-based tags required
 	var processed: int = 0
 	for key in b.stored_data.keys():
 		if processed >= max_process:
@@ -483,12 +504,15 @@ func _process_dual_input_fuel_mode(b: Node2D, dual: DualInputComponent, max_proc
 		var parsed: Dictionary = DataEnums.parse_key(key)
 		if not dual.primary_input_states.is_empty() and parsed.state not in dual.primary_input_states:
 			continue
-		# Find fuel: same content, Public, tier 0, no tags
-		var fuel_key: String = DataEnums.make_key(parsed.content, DataEnums.DataState.PUBLIC, 0, 0)
+		# Find fuel: same content, Public, tier 0, tags based on corrupted tier
+		var required_tags: int = 0
+		var tier: int = parsed.tier
+		if tier > 0 and tier <= dual.required_fuel_tags.size():
+			required_tags = dual.required_fuel_tags[tier - 1]
+		var fuel_key: String = DataEnums.make_key(parsed.content, DataEnums.DataState.PUBLIC, 0, required_tags)
 		var fuel_available: int = b.stored_data.get(fuel_key, 0) - fuel_consumed.get(fuel_key, 0)
 		if fuel_available <= 0:
 			continue
-		var tier: int = parsed.tier
 		var actual_fuel_cost: int = dual.key_cost
 		if tier > 0 and tier <= dual.tier_key_costs.size():
 			actual_fuel_cost = dual.tier_key_costs[tier - 1]

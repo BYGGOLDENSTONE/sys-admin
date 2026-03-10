@@ -52,7 +52,15 @@ func accepts_data(content: int, state: int) -> bool:
 			return state in dual_input.primary_input_states
 		return true
 	if producer:
-		return content == producer.input_content and state == producer.input_state
+		if state != producer.input_state:
+			return false
+		if content == producer.input_content:
+			return true
+		if producer.tier2_extra_content >= 0 and content == producer.tier2_extra_content:
+			return true
+		if producer.tier3_extra_content >= 0 and content == producer.tier3_extra_content:
+			return true
+		return false
 	if processor and not processor.input_states.is_empty():
 		return state in processor.input_states
 	if probabilistic and not probabilistic.input_states.is_empty():

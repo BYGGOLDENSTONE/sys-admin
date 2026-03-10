@@ -142,8 +142,17 @@ func _update_stats() -> void:
 		lines.append(_stat("", "[color=#668899](Tab to cycle filter)[/color]"))
 	if def.producer:
 		lines.append(_stat("Processing", "%d production/tick" % int(b.get_effective_value("processing_rate"))))
-		lines.append(_stat("Input", "[color=#aa77ff]%d MB Research(Public)[/color] → 1 Key" % def.producer.consume_amount))
-		lines.append(_stat("Output", "[color=#ffaa00]Decryption Key[/color]"))
+		var tier_names: Array[String] = ["T1 Key", "T2 Strong Key", "T3 Master Key"]
+		var tier_label: String = tier_names[b.selected_tier - 1] if b.selected_tier <= tier_names.size() else "T%d Key" % b.selected_tier
+		lines.append(_stat("Mode", "[color=#ffaa00]%s[/color]" % tier_label))
+		var recipe: String = "[color=#aa77ff]%d MB Research[/color]" % def.producer.consume_amount
+		if b.selected_tier >= 2 and def.producer.tier2_extra_content >= 0:
+			recipe += " + [color=#ffcc00]%d MB %s[/color]" % [def.producer.tier2_extra_amount, DataEnums.content_name(def.producer.tier2_extra_content)]
+		if b.selected_tier >= 3 and def.producer.tier3_extra_content >= 0:
+			recipe += " + [color=#ff33aa]%d MB %s[/color]" % [def.producer.tier3_extra_amount, DataEnums.content_name(def.producer.tier3_extra_content)]
+		lines.append(_stat("Recipe", recipe))
+		if def.producer.max_tier > 1:
+			lines.append(_stat("", "[color=#668899](Tab to cycle tier)[/color]"))
 		var research_key: String = DataEnums.make_key(def.producer.input_content, def.producer.input_state)
 		var stored_research: int = b.stored_data.get(research_key, 0)
 		if stored_research > 0:
@@ -153,9 +162,15 @@ func _update_stats() -> void:
 		if def.dual_input.fuel_matches_content:
 			# Recoverer
 			lines.append(_stat("Left Port ←", "[color=#ff8844]Corrupted[/color] data"))
-			lines.append(_stat("Top Port ←", "Same-type [color=#44ff88]Public[/color] data (fuel)"))
+			var fuel_tags: Array[int] = def.dual_input.required_fuel_tags
+			if fuel_tags.size() >= 3:
+				lines.append(_stat("Top Port ←", "Same-type fuel:"))
+				lines.append(_stat("  T1", "[color=#44ff88]Public[/color]"))
+				lines.append(_stat("  T2", "[color=#44aaff]Decrypted[/color]"))
+				lines.append(_stat("  T3", "[color=#44aaff]Decrypted·Encrypted[/color]"))
+			else:
+				lines.append(_stat("Top Port ←", "Same-type [color=#44ff88]Public[/color] data (fuel)"))
 			lines.append(_stat("Output →", "[color=#44ff88]Recovered[/color] (content preserved)"))
-			lines.append(_stat("Fuel/packet", "%d" % def.dual_input.key_cost))
 		elif def.dual_input.output_tag == DataEnums.ProcessingTag.ENCRYPTED:
 			# Encryptor
 			lines.append(_stat("Left Port ←", "[color=#44ff88]Processed[/color] data"))
@@ -165,19 +180,21 @@ func _update_stats() -> void:
 		else:
 			# Decryptor
 			lines.append(_stat("Left Port ←", "[color=#44aaff]Encrypted[/color] data"))
-			lines.append(_stat("Top Port ←", "[color=#ffaa00]Key[/color] (from Research Lab)"))
+			lines.append(_stat("Top Port ←", "[color=#ffaa00]Key[/color] (tier must match data)"))
 			lines.append(_stat("Output →", "[color=#44ff88]Decrypted[/color] (content preserved)"))
-			var tier_costs: Array[int] = def.dual_input.tier_key_costs
-			if tier_costs.size() >= 2:
-				lines.append(_stat("Key/packet", "T1=%d, T2=%d" % [tier_costs[0], tier_costs[1]]))
-			else:
-				lines.append(_stat("Key/packet", "%d" % def.dual_input.key_cost))
-		# Show stored fuel/keys
+			lines.append(_stat("Key rule", "T1 data → T1 Key, T2 → T2, T3 → T3"))
+		# Show stored fuel/keys (per tier)
 		if not def.dual_input.fuel_matches_content:
-			var key_key: String = DataEnums.make_key(def.dual_input.key_content, DataEnums.DataState.PUBLIC)
-			var stored_keys: int = b.stored_data.get(key_key, 0)
-			var key_color: String = "#ff6644" if stored_keys <= 0 else "#ffaa00"
-			lines.append(_stat("Key Stock", "[color=%s]%d Key[/color]" % [key_color, stored_keys]))
+			var key_parts: PackedStringArray = []
+			for kt in range(1, 4):
+				var kk: String = DataEnums.make_key(def.dual_input.key_content, DataEnums.DataState.PUBLIC, kt, 0)
+				var count: int = b.stored_data.get(kk, 0)
+				if count > 0:
+					key_parts.append("T%d:%d" % [kt, count])
+			if key_parts.is_empty():
+				lines.append(_stat("Key Stock", "[color=#ff6644]0 Key[/color]"))
+			else:
+				lines.append(_stat("Key Stock", "[color=#ffaa00]%s[/color]" % ", ".join(key_parts)))
 	if def.compiler:
 		lines.append(_stat("Processing", "%d craft/tick" % int(b.get_effective_value("processing_rate"))))
 		lines.append(_stat("Left Port ←", "Data A (any type)"))
