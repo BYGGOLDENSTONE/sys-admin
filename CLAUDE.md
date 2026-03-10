@@ -28,16 +28,14 @@ Yapilar ozel siniflar degil, **component Resource'larinin birlesiimi.** Her comp
 ```
 @export var generator: GeneratorComponent          # Uplink
 @export var classifier: ClassifierComponent        # Classifier
-@export var separator: SeparatorComponent          # Separator
+@export var processor: ProcessorComponent          # Separator, Quarantine (rule-based)
 @export var dual_input: DualInputComponent         # Decryptor, Compiler
 @export var probabilistic: ProbabilisticComponent  # Recoverer
-@export var capacity_processor: CapacityComponent  # Quarantine
-@export var replicator: ReplicatorComponent        # Replicator
 @export var producer: ProducerComponent            # Research Lab
 @export var storage: StorageComponent              # Storage
 @export var splitter: SplitterComponent            # Splitter
 @export var merger: MergerComponent                # Merger
-@export var gig_board: GigBoardComponent           # Gig Board
+@export var compiler: CompilerComponent            # Compiler
 @export var upgrade: UpgradeComponent              # Upgrade destegi
 ```
 
@@ -47,18 +45,17 @@ Yapilar ozel siniflar degil, **component Resource'larinin birlesiimi.** Her comp
 |------|---------------|-------------------|
 | **Uplink** | `generator` | Kaynaktan veri ceker |
 | **Classifier** | `classifier` | Content tipine gore N cikis |
-| **Separator** | `separator` | State'e gore 4 cikis |
+| **Separator** | `processor` (rule="separator") | State/content filtre, 2 cikis |
 | **Decryptor** | `dual_input` | Veri + Key → Clean (surekli Key tuketir) |
 | **Recoverer** | `probabilistic` | %70 basari + Residue yan urunu |
-| **Quarantine** | `capacity_processor` | 50 MB kapasite, doldur/bosalt dongusu |
-| **Compiler** | `dual_input` | 2 Clean → 1 Refined (tarif sistemi) |
-| **Replicator** | `replicator` | 1 → 2 kopya (yavas, degerli) |
+| **Quarantine** | `processor` (rule="quarantine") | 50 MB kapasite, dol→flush(5s)→purge |
+| **Compiler** | `compiler` | 2 Clean → 1 Refined (tarif sistemi) |
 | **Research Lab** | `producer` | Research(Clean) → Key uretir |
 | **Storage** | `storage` | Buffer + malzeme havuzu |
 | **Splitter** | `splitter` | 1→2 esit dagitim |
 | **Merger** | `merger` | 2→1 birlestirme |
 | **Bridge** | (ozel) | Kablo kesisme noktasi |
-| **Gig Board** | `gig_board` | Sozlesme terminali |
+| **Gig Board** | (henuz implemente edilmedi) | Sozlesme terminali |
 
 ### Grid Kablo Sistemi (v2.0.2 — Grid-by-Grid Routing)
 Kablolar vertex-based (grid kesisim noktasi) edge sistemi kullanir:

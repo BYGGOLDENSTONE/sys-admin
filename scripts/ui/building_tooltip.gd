@@ -221,8 +221,14 @@ func _update_stats() -> void:
 			lines.append(_stat("Right Port →", "[color=#44ff88]%s[/color]" % filter_name))
 			lines.append(_stat("Bottom Port →", "All other data"))
 		elif def.processor.rule == "quarantine":
-			lines.append(_stat("Input", "[color=#ff4466]Malware[/color]"))
-			lines.append(_stat("Output", "[color=#44ff88]Safe Destruction[/color]"))
+			lines.append(_stat("Input", "[color=#ff4466]Malware + Residue[/color]"))
+			var cap: int = int(b.get_effective_value("capacity")) if def.storage else 50
+			var stored: int = b.get_total_stored_raw()
+			if b.is_flushing:
+				lines.append(_stat("Status", "[color=#ff6622]FLUSHING (%.1fs)[/color]" % b.flush_timer))
+			else:
+				lines.append(_stat("Buffer", "%d / %d MB" % [stored, cap]))
+			lines.append(_stat("Mode", "Fill → Flush (%.0fs purge cycle)" % b.FLUSH_DURATION))
 		elif def.processor.rule == "splitter":
 			lines.append(_stat("Distribution", "Equal (50/50)"))
 			lines.append(_stat("Ports", "→ Right, ↓ Bottom"))

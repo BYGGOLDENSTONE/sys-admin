@@ -8,28 +8,28 @@
 [sub_resource type="Resource" id="proc1"]
 script = ExtResource("2")
 processing_rate = 4.0
-input_states = Array[int]([3])
+input_states = Array[int]([3, 4])
 output_state = -1
 rule = "quarantine"
 efficiency = 1.0
 
 [sub_resource type="Resource" id="stor1"]
 script = ExtResource("3")
-capacity = 10
+capacity = 50
 forward_rate = 0.0
 
 [sub_resource type="Resource" id="upg1"]
 script = ExtResource("4")
 max_level = 3
 costs = Array[int]([15, 35, 60])
-stat_label = "Processing Speed"
-stat_target = "processing_rate"
-level_values = Array[float]([5.0, 6.0, 8.0])
+stat_label = "Capacity"
+stat_target = "capacity"
+level_values = Array[float]([75.0, 100.0, 150.0])
 
 [resource]
 script = ExtResource("1")
 building_name = "Quarantine"
-description = "Safely neutralizes malware packets. Without quarantine, malware lingers in your network and causes damage."
+description = "Accumulates malware until full (50 MB), then flushes. During flush (5s), input is blocked — plan buffers upstream!"
 grid_size = Vector2i(2, 2)
 color = Color(0.87, 0.2, 0.27, 1)
 category = "processing"

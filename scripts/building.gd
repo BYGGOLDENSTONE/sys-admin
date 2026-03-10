@@ -36,6 +36,11 @@ var separator_mode: String = "state"  ## For separator: "state" or "content"
 var separator_filter_value: int = 0  ## Filter value for separator (state or content int)
 var upgrade_level: int = 0  ## Current upgrade level (0 = base)
 
+# Quarantine flush state
+var is_flushing: bool = false
+var flush_timer: float = 0.0
+const FLUSH_DURATION: float = 5.0
+
 # Source link (set by SourceManager when Uplink is near a data source)
 var linked_source: Node2D = null  ## The data source this Uplink is tapped into
 var runtime_content_weights: Dictionary = {}  ## Overrides generator content_weights when linked
@@ -114,10 +119,15 @@ func get_total_stored_raw() -> int:
 
 
 func can_accept_data(amount: int = 1, state: int = DataEnums.DataState.CLEAN, content: int = -1) -> bool:
+	# Quarantine: capacity + flush check for Malware and Residue
+	if definition.processor != null and definition.processor.rule == "quarantine":
+		if state != DataEnums.DataState.MALWARE and state != DataEnums.DataState.RESIDUE:
+			return false
+		if is_flushing:
+			return false
+		var cap: int = int(get_effective_value("capacity")) if definition.storage else 50
+		return get_total_stored_raw() + amount <= cap
 	if state == DataEnums.DataState.MALWARE:
-		# Malware can only enter buildings with quarantine processor
-		if definition.processor != null and definition.processor.rule == "quarantine":
-			return true
 		return false
 	# Keys always accepted by dual_input buildings (bypass capacity)
 	if definition.dual_input and content == definition.dual_input.key_content:
@@ -367,6 +377,21 @@ func _draw() -> void:
 			draw_rect(rect, Color(0.8, 0.0, 0.3, malware_alpha), true)
 			draw_rect(rect, Color(0.8, 0.0, 0.3, 0.5), false, 2.0)
 
+	# Quarantine flush overlay
+	if not _is_ghost and is_flushing:
+		var flush_pulse: float = (sin(_glow_time * 8.0) * 0.5 + 0.5)
+		var flush_color := Color(1.0, 0.4, 0.1)
+		draw_rect(rect, Color(flush_color, 0.08 + flush_pulse * 0.12), true)
+		draw_rect(rect, Color(flush_color, 0.4 + flush_pulse * 0.3), false, 2.0)
+		if not is_medium:
+			var flush_font := ThemeDB.fallback_font
+			var flush_text := "FLUSHING"
+			var fs: int = 10
+			var ft_size := flush_font.get_string_size(flush_text, HORIZONTAL_ALIGNMENT_CENTER, -1, fs)
+			var ft_pos := Vector2((size.x - ft_size.x) / 2.0, size.y - 8)
+			draw_string(flush_font, ft_pos + Vector2(1, 1), flush_text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0, 0, 0, 0.6))
+			draw_string(flush_font, ft_pos, flush_text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(flush_color, 0.6 + flush_pulse * 0.4))
+
 	# Inactive generator overlay
 	if not _is_ghost and not active and definition.generator != null:
 		if not is_medium:
@@ -431,14 +456,10 @@ func _draw_icon(center: Vector2, size: Vector2, accent: Color) -> void:
 			_draw_icon_uplink(icon_center, size, accent)
 		"storage":
 			_draw_icon_storage(icon_center, size, accent)
-		"broker":
-			_draw_icon_broker(icon_center, size, accent)
 		"classifier":
 			_draw_icon_classifier(icon_center, size, accent)
 		"separator":
 			_draw_icon_separator(icon_center, size, accent)
-		"compressor":
-			_draw_icon_compressor(icon_center, size, accent)
 		"decryptor":
 			_draw_icon_decryptor(icon_center, size, accent)
 		"recoverer":
@@ -515,36 +536,6 @@ func _draw_icon_storage(center: Vector2, size: Vector2, accent: Color) -> void:
 		draw_circle(light_pos, 2.0, accent)
 
 
-# --- DATA BROKER: Credits symbol + arrow ---
-func _draw_icon_broker(center: Vector2, size: Vector2, accent: Color) -> void:
-	var s: float = minf(size.x, size.y) * 0.3
-	var glow := Color(accent, ICON_GLOW_ALPHA)
-
-	# Credits symbol (C with lines, like ₵)
-	var c_radius: float = s * 0.5
-	# Draw C arc
-	_draw_arc_segment(center, c_radius, PI * 0.3, PI * 1.7, glow, ICON_GLOW_WIDTH)
-	_draw_arc_segment(center, c_radius, PI * 0.3, PI * 1.7, accent, 2.0)
-
-	# Horizontal strike-through lines
-	var line_l := center + Vector2(-c_radius * 0.3, -c_radius * 0.2)
-	var line_r := center + Vector2(c_radius * 0.5, -c_radius * 0.2)
-	draw_line(line_l, line_r, accent, 1.5)
-	var line_l2 := center + Vector2(-c_radius * 0.3, c_radius * 0.2)
-	var line_r2 := center + Vector2(c_radius * 0.5, c_radius * 0.2)
-	draw_line(line_l2, line_r2, accent, 1.5)
-
-	# Upward arrow (credits going up)
-	var arrow_x: float = center.x + s * 0.8
-	var arrow_bottom := Vector2(arrow_x, center.y + s * 0.4)
-	var arrow_top := Vector2(arrow_x, center.y - s * 0.4)
-	draw_line(arrow_bottom, arrow_top, glow, ICON_GLOW_WIDTH)
-	draw_line(arrow_bottom, arrow_top, accent, 2.0)
-	# Arrow head
-	draw_line(arrow_top, arrow_top + Vector2(-4, 6), accent, 2.0)
-	draw_line(arrow_top, arrow_top + Vector2(4, 6), accent, 2.0)
-
-
 # --- CLASSIFIER: Filter/funnel with content symbols ---
 func _draw_icon_classifier(center: Vector2, size: Vector2, accent: Color) -> void:
 	var s: float = minf(size.x, size.y) * 0.3
@@ -600,34 +591,6 @@ func _draw_icon_separator(center: Vector2, size: Vector2, accent: Color) -> void
 		draw_line(center, out_end, glow, ICON_GLOW_WIDTH)
 		draw_line(center, out_end, accent, 1.5)
 		draw_circle(out_end, 2.0, accent)
-
-
-# --- COMPRESSOR: Squeeze arrows ---
-func _draw_icon_compressor(center: Vector2, size: Vector2, accent: Color) -> void:
-	var s: float = minf(size.x, size.y) * 0.35
-	var glow := Color(accent, ICON_GLOW_ALPHA)
-
-	# Two inward-pointing arrows (squeeze)
-	# Left arrow pointing right
-	var la_start := center + Vector2(-s * 0.7, 0)
-	var la_end := center + Vector2(-s * 0.1, 0)
-	draw_line(la_start, la_end, glow, ICON_GLOW_WIDTH)
-	draw_line(la_start, la_end, accent, 2.0)
-	draw_line(la_end, la_end + Vector2(-5, -4), accent, 1.5)
-	draw_line(la_end, la_end + Vector2(-5, 4), accent, 1.5)
-
-	# Right arrow pointing left
-	var ra_start := center + Vector2(s * 0.7, 0)
-	var ra_end := center + Vector2(s * 0.1, 0)
-	draw_line(ra_start, ra_end, glow, ICON_GLOW_WIDTH)
-	draw_line(ra_start, ra_end, accent, 2.0)
-	draw_line(ra_end, ra_end + Vector2(5, -4), accent, 1.5)
-	draw_line(ra_end, ra_end + Vector2(5, 4), accent, 1.5)
-
-	# Center compressed block
-	var block := Rect2(center + Vector2(-4, -6), Vector2(8, 12))
-	draw_rect(block, Color(accent, 0.2), true)
-	draw_rect(block, accent, false, 1.5)
 
 
 # --- DECRYPTOR: Lock/key symbol ---

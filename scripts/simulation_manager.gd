@@ -296,7 +296,6 @@ func _update_processing(buildings: Array[Node]) -> void:
 		# Producer accumulates input — don't clear
 		# Dual_input: clear processed data but keep keys
 		# Compiler: keep unprocessed data (accumulates both inputs)
-		# Replicator: clear processed data
 		if b.definition.producer != null:
 			pass  # Keep all stored data (accumulates input)
 		elif b.definition.compiler != null:
@@ -560,50 +559,32 @@ func _process_separator(b: Node2D, proc: ProcessorComponent, max_process: int) -
 
 
 
-func _process_decryptor(b: Node2D, proc: ProcessorComponent, max_process: int) -> int:
-	var eff: float = b.get_effective_value("efficiency")
-	var processed: int = 0
-	for key in b.stored_data:
-		if processed >= max_process:
-			break
-		var available: int = b.stored_data[key]
-		if available <= 0:
-			continue
-		var parsed: Dictionary = DataEnums.parse_key(key)
-		# Only process matching input states (ENCRYPTED)
-		if not proc.input_states.is_empty() and parsed.state not in proc.input_states:
-			continue
-		var to_process: int = mini(available, max_process - processed)
-		var output_amount: int = maxi(1, roundi(to_process * eff))
-		# Encrypted → Clean (content preserved)
-		var sent: int = _push_data_from(b, parsed.content, DataEnums.DataState.CLEAN, output_amount)
-		if sent > 0:
-			processed += to_process
-	return processed
-
-
-
-func _process_quarantine(b: Node2D, proc: ProcessorComponent, max_process: int) -> int:
-	var processed: int = 0
-	for key in b.stored_data:
-		if processed >= max_process:
-			break
-		var available: int = b.stored_data[key]
-		if available <= 0:
-			continue
-		var parsed: Dictionary = DataEnums.parse_key(key)
-		# Only process matching input states (MALWARE)
-		if not proc.input_states.is_empty() and parsed.state not in proc.input_states:
-			continue
-		var to_process: int = mini(available, max_process - processed)
-		processed += to_process
-		print("[Quarantine] Neutralized %d MB malware" % to_process)
-	if processed > 0:
-		_spawn_floating_text(b, "-%d Malware" % processed, Color(1.0, 0.3, 0.4))
-		_add_camera_trauma(0.08 + processed * 0.02)
-		if sound_manager:
-			sound_manager.play_process_event("quarantine")
-	return processed
+func _process_quarantine(b: Node2D, _proc: ProcessorComponent, _max_process: int) -> int:
+	# Flush mode: count down timer, reject input, then purge
+	if b.is_flushing:
+		b.flush_timer -= _sim_timer.wait_time * speed_multiplier
+		if b.flush_timer <= 0.0:
+			var purged: int = b.get_total_stored_raw()
+			b.stored_data.clear()
+			b.is_flushing = false
+			b.flush_timer = 0.0
+			_spawn_floating_text(b, "PURGED %d MB" % purged, Color(1.0, 0.3, 0.4))
+			_add_camera_trauma(0.15 + purged * 0.01)
+			if sound_manager:
+				sound_manager.play_process_event("quarantine")
+			print("[Quarantine] Flush complete — %d MB purged" % purged)
+		return 0
+	# Accumulate mode: check if capacity reached → trigger flush
+	var cap: int = int(b.get_effective_value("capacity")) if b.definition.storage else 50
+	var stored: int = b.get_total_stored_raw()
+	if stored >= cap:
+		b.is_flushing = true
+		b.flush_timer = b.FLUSH_DURATION
+		_spawn_floating_text(b, "FLUSHING...", Color(1.0, 0.6, 0.2))
+		print("[Quarantine] Capacity reached (%d/%d) — flush started (%.1fs)" % [stored, cap, b.FLUSH_DURATION])
+		return 0
+	# Not full yet — just accumulate (data already stored by _push_data)
+	return 0
 
 
 func _process_splitter(b: Node2D, max_process: int) -> int:

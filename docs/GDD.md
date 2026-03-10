@@ -1,7 +1,7 @@
 # SYS_ADMIN — Game Design Document
 
-**Versiyon:** 2.0 (Tam Yeniden Tasarim)
-**Son Guncelleme:** 2026-03-07
+**Versiyon:** 2.2
+**Son Guncelleme:** 2026-03-10
 **Motor:** Godot 4.6
 **Hedef:** $9.99, 100K+ satis, Steam Next Fest Haziran 2026
 
@@ -165,14 +165,12 @@ Kablo dosemek oyunun en sik yapilan eylemi. Akici ve tatmin edici olmali.
 
 **Hizli Duzenleme:**
 - Sag tikla kablo segmentini siler
-- Alan secimi ile toplu silme (dikdortgen secim)
 - Ctrl+Z undo destegi (kablo doseme geri alinabilir)
-- Mevcut kabloyu "itmek" icin surukle (yol degistirme kolayligi)
 
-**Akilli Yardimlar:**
-- Otomatik yol onerisi: bina A'dan bina B'ye tikla, en kisa geçerli rota onerilir
-- Oyuncu oneriyi kabul edebilir veya manuel doseyelibilir
-- Mevcut kablolari otomatik olarak bypass eder (mumkunse)
+**Gelecek Potansiyel (henuz implemente degil):**
+- Alan secimi ile toplu silme
+- Otomatik yol onerisi (A→B en kisa rota)
+- Mevcut kabloyu itmek/yol degistirmek
 
 **Neden Bu Kadar Onemli:**
 Factorio'da bant dosemek ZEVKLI cunku akici. Klunky kablo doseme = oyuncu routing'den nefret eder. Bu UX oyunun kalbi.
@@ -196,12 +194,11 @@ Tum isleme binalari ayni mekanik: girdi → cikti kutusu. Cesitlilik yok.
 |------|------|-------------------|-------------|
 | **Uplink** | Cek | Kaynaktan veri cikarir | Kaynak secimi |
 | **Classifier** | Sinifla | N cikis, content tipine gore dagit | Dagitim planlama |
-| **Separator** | Ayir | 4 cikis, state'e gore dagit | Dagitim planlama |
+| **Separator** | Ayir | 2 cikis, state/content filtreleme | Dagitim planlama |
 | **Decryptor** | Coz | CIFT GIRDI: veri + key gerekli | Lojistik senkronizasyon |
 | **Recoverer** | Kurtar | OLASILIKSAL: %70 basari + %30 atik | Risk/atik yonetimi |
 | **Quarantine** | Imha et | DOLULUK/FLUSH: kapasite dolar, bosaltma suresi var | Buffer zamanlama |
 | **Compiler** | Birlestir | CIFT GIRDI: 2 farkli Clean → 1 Refined | Lojistik senkronizasyon |
-| **Replicator** | Kopyala | 1 → 2 kopya (yavas ama degerli) | Maliyet/fayda analizi |
 | **Research Lab** | Uret | Research(Clean) tuketir → Key uretir | Tedarik zinciri |
 | **Storage** | Depola | Buffer, Clean = malzeme havuzu | Kaynak planlama |
 | **Splitter** | Bol | 1→2 esit dagitim | Paralel hat tasarimi |
@@ -209,7 +206,7 @@ Tum isleme binalari ayni mekanik: girdi → cikti kutusu. Cesitlilik yok.
 | **Bridge** | Gecir | Kablo kesisme noktasi | Mekansal bulmaca |
 | **Gig Board** | Sozlesme | Gorev terminali, odul verir | Hedef belirleme |
 
-**14 bina, 9 genuinely farkli dusunme turu.** Mevcut tasarimdaki 2'den (ayir + temizle) buyuk siçrama.
+**13 bina, 9 genuinely farkli dusunme turu.** Mevcut tasarimdaki 2'den (ayir + temizle) buyuk siçrama.
 
 ---
 
@@ -258,9 +255,9 @@ Her veri paketi iki boyutlu:
 | **Biometric** | Akilli Kilit, Hastane | Ozel yapilar | @ |
 | **Blueprint** | Corporate, Devlet, Askeri | Ileri yapilar | # |
 | **Research** | Hastane, Biyotek, Devlet | Key uretimi + ileri | ? |
-| **Classified** | Bank, Askeri, Blackwall | Endgame yapilar | ! |
+| **Classified** | Devlet Arsivi, Askeri, Blackwall | Endgame yapilar | ! |
 
-### State Tipleri (4)
+### State Tipleri (4 + Residue)
 
 | State | Anlami | Isleyici Bina | Depolama Maliyeti | Gorsel Renk |
 |-------|--------|---------------|-------------------|-------------|
@@ -268,6 +265,7 @@ Her veri paketi iki boyutlu:
 | **Encrypted** | Kilitli, anahtar lazim | Decryptor (Key gerekli) | 2 MB/paket | Mavi |
 | **Corrupted** | Hasarli, kismen kurtarilabilir | Recoverer (%70 basari) | 3 MB/paket | Turuncu |
 | **Malware** | Tehlikeli, imha edilmeli | Quarantine (doldur/bosalt) | DEPOLANAMAZ | Kirmizi |
+| **Residue** | Dijital atik (Recoverer'dan) | Quarantine | 1 MB/paket | Koyu Sari |
 
 ### State Tier Sistemi
 
@@ -329,8 +327,6 @@ Credits, Research Points, soyut para birimi yok. Storage'daki Clean veri = malze
 | **Security Core** | Research + Blueprint | Quarantine yapimi + upgrade |
 | **Trade License** | Financial + Classified | Gig Board yapimi |
 | **Neural Index** | Biometric + Research | Research Lab upgrade'leri |
-| **Recycled Data** | Residue + Research | Atik geri donusumu → Standard(Clean) |
-
 **Onemli:** Decryption Key'ler Research Lab tarafindan uretilir (Compiler'dan degil). Research Lab, Research(Clean) tuketir → Key uretir. Decryptor surekli Key tuketir = Research Lab surekli calismali = aktif tedarik zinciri.
 
 ### Yapi Maliyetleri
@@ -348,7 +344,6 @@ Credits, Research Points, soyut para birimi yok. Storage'daki Clean veri = malze
 | Research Lab | 50 Research | Research kesfi |
 | Decryptor | 40 Research + 30 Financial | Encrypted kesfi |
 | Compiler | 40 Blueprint + 30 Standard | 3+ content kesfi |
-| Replicator | 50 Blueprint + 30 Research | Blueprint kesfi |
 | Quarantine | 1 Security Core | Malware kesfi |
 | Gig Board | 1 Trade License | Classified kesfi |
 
@@ -373,10 +368,11 @@ Credits, Research Points, soyut para birimi yok. Storage'daki Clean veri = malze
 - Tooltip: "Veriyi turune gore yonlendirir — Financial bir yone, Biometric baska yone"
 
 ### SEPARATOR — "Durum ayirici"
-- Gelen veriyi STATE'e gore ayirir
-- 4 cikis portu: Clean, Encrypted, Corrupted, Malware
-- Bagli olmayan portlardaki veri YOK EDILIR (kasitli secim)
-- Tooltip: "Veriyi durumuna gore yonlendirir — temiz, sifreli, bozuk veya enfekte"
+- Gelen veriyi STATE veya CONTENT tipine gore filtreler
+- 2 cikis portu: Birincil (sag — eslesen veri) + Ikincil (alt — geri kalan)
+- Oyuncu hangi state/content'i filtreleyecegini secer
+- Ornek: "Clean filtresi" → Clean sag porta, geri kalan alta gider
+- Tooltip: "Veriyi durumuna veya turune gore iki akisa ayirir"
 
 ### DECRYPTOR — "Sifre kirici" (CIFT GIRDI)
 - IKI giris portu: Veri (sol) + Key (ust)
@@ -399,13 +395,12 @@ Encrypted veri ══════════════╝
 - Basari orani tier'a bagli: T1=%80, T2=%60, T3=%40, T4=%20
 - Basarili → Clean veri (content korunur)
 - Basarisiz → Residue (dijital atik)
-- Residue portu bagli degilse → dahili buffer (10 MB) dolunca bina DURUR
 - Tooltip: "Bozuk veriyi kurtarmayi dener. Her zaman basarili olmaz — dijital atik uretir."
 
 **Ornek pipeline:**
 ```
 Corrupted veri ══ Recoverer ═══ Clean cikti (%70)
-                          ╚═══ Residue (%30) → Quarantine veya Compiler (geri donusum)
+                          ╚═══ Residue (%30) → Quarantine
 ```
 
 ### QUARANTINE — "Malware firini" (DOLULUK/FLUSH)
@@ -424,14 +419,6 @@ Corrupted veri ══ Recoverer ═══ Clean cikti (%70)
 - Yanlis kombinasyon → veri reddedilir
 - Cikti: Refined malzeme (Storage'da ayri depolanir)
 - Tooltip: "Iki farkli temiz veri turunu ileri malzemeye donusturur."
-
-### REPLICATOR — "Veri kopyalayici" (BENZERSIZ DIJITAL MEKANIK)
-- Tek giris, IKI cikis (orijinal + kopya)
-- Herhangi bir veri paketinin kusursuz kopyasini olusturur
-- **YAVAS: 2 MB/s** (kasitli darbogaz)
-- Nadir veriler icin degerli (Classified, yuksek tier Blueprint)
-- Hicbir otomasyon oyununda kaynak kopyalama yok — dijital dunyaya ozel
-- Tooltip: "Veriyi kopyalar. Yavas ama guclu — nadir kaynaklari cogalt."
 
 ### RESEARCH LAB — "Anahtar fabrikasi"
 - Tek giris: Research(Clean)
@@ -505,6 +492,7 @@ Her kaynak SOMUT ve AKILDA KALICI isme sahip. Zorluk kaynağin tipine bagli, kon
 | **ATM** | Sadece Financial | %70 Clean, %30 Corrupted | State ayirma ogren |
 | **Akilli Kilit** | Sadece Biometric | %80 Clean, %20 Corrupted | Tek tip, basit state |
 | **Trafik Kamerasi** | Standard + Biometric | Cogu Clean | 2 content — Classifier ogren |
+| **Acik Veritabani** | Standard + Biometric + Research | Cogu Clean, az Corrupted | Cesitli icerik, basit state'ler |
 
 **Orta Kaynaklar (2-3 content, karisik state'ler):**
 
@@ -513,23 +501,22 @@ Her kaynak SOMUT ve AKILDA KALICI isme sahip. Zorluk kaynağin tipine bagli, kon
 | **Hastane Terminali** | Biometric + Research | Clean + Encrypted T1 | Ilk Encrypted — Decryptor lazim |
 | **Halk Kutuphanesi** | Standard + Research | Clean + Corrupted | Research kaynagi, basit state'ler |
 | **Magaza Sunucusu** | Standard + Financial + Biometric | Clean + Corrupted karisik | 3 content — Compiler lazim |
-| **Biyotek Labi** | Biometric + Research + Blueprint | Corrupted + Encrypted T1 | Karisik isleme |
+| **Biyotek Labi** | Biometric + Research + Blueprint + Standard | Corrupted + Encrypted T1 + az Malware | Karisik isleme |
 
 **Zor Kaynaklar (2-4 content, agir state'ler, yuksek tier):**
 
 | Kaynak | Content | State'ler | Karmasiklik |
 |--------|---------|-----------|-------------|
-| **Corporate Server** | Financial + Blueprint | Encrypted T1-T2 | Agir decryption, paralel hat |
-| **Banka Kasasi** | Financial + Classified | Encrypted T2-T3 | Yuksek tier, cok Key tuketir |
-| **Devlet Arsivi** | Research + Blueprint + Classified | Encrypted T3 + Corrupted | Coklu pipeline ustaligi |
+| **Corporate Server** | Financial + Blueprint + Standard | Encrypted T1-T2 | Agir decryption, paralel hat |
+| **Devlet Arsivi** | Research + Classified + Blueprint (+ az Standard/Financial/Biometric) | Encrypted T3 + Corrupted | Coklu pipeline ustaligi |
 
 **Cok Zor Kaynaklar (karisik content, tum state'ler, malware):**
 
 | Kaynak | Content | State'ler | Karmasiklik |
 |--------|---------|-----------|-------------|
-| **Askeri Ag** | Blueprint + Classified | Encrypted T3 + Malware | Quarantine sart, karmasik routing |
-| **Dark Web Node** | Tum tipler | Tum state'ler, tum tier'lar | Evrensel fabrika challenge |
-| **Blackwall Parcasi** | Classified + Blueprint | Maks tier + agir Malware | Nihai optimizasyon |
+| **Askeri Ag** | Classified + Blueprint + Research | Encrypted T3 + Malware + Corrupted | Quarantine sart, karmasik routing |
+| **Dark Web Node** | Tum tipler (6 content) | Tum state'ler, tum tier'lar (T4) | Evrensel fabrika challenge |
+| **Blackwall Parcasi** | Classified + Research + Blueprint | Maks tier (T4) + agir Malware | Nihai optimizasyon |
 
 ### Spawn Garanti Kurallari
 Harita uretimi su kurallara uyar:
@@ -582,7 +569,6 @@ Bir content tipini veya state'i ilk kez kesf ettiğinde, ilgili binalar acilir.
 | 2. content tipi | Classifier | "Karisik veri! Turlerine ayirmam lazim" |
 | Research content | Research Lab, Decryptor | "Sifreli veri! Anahtar lazim" |
 | 3+ content tipi | Compiler | "Yeterli cesitlilik var, malzeme birlestirebilirim" |
-| Blueprint content | Replicator | "Nadir sema! Kopyalamak istiyorum" |
 | Malware state | Quarantine | "Tehlike! Guvenle imha etmeliyim" |
 | Classified content | Gig Board | "Gizli veri! Sozlesme alabilirim" |
 
@@ -676,20 +662,36 @@ Zoom-out'da oyuncunun fabrikasi parlayan bir PCB (baski devre karti) gibi gorunm
 - Her sey grid duzende bagli
 - Aktiviteyle titresir
 
-### Renk Paleti
+### Renk Paleti (v2.0.3 — "Dark PCB" Palette C)
 
 ```
-Arka plan:     #0a0e14 (derin koyu mavi-siyah)
-Grid:          #1a1e2e (hafif grid cizgileri)
-Kablolar:      State'e gore parlama rengi
-Binalar:       Koyu govde + isleve gore renkli neon kenarlar
-UI:            Neon cyan + beyaz
+Arka plan:     #060a10 (koyu siyah)
+Grid:          #0f1520
+Bina govde:    #0a0d14
+UI Accent:     #00bbee (teal-cyan)
 
 State Renkleri:
-  Clean:       #00ff88 (neon yesil)
-  Encrypted:   #4488ff (neon mavi)
-  Corrupted:   #ff8844 (neon turuncu)
-  Malware:     #ff2244 (neon kirmizi)
+  Clean:       #00ffaa (neon yesil)
+  Encrypted:   #2288ff (neon mavi)
+  Corrupted:   #ffaa00 (neon turuncu)
+  Malware:     #ff1133 (neon kirmizi)
+  Residue:     #bbbb44
+
+Content Renkleri:
+  Standard:    #7788aa
+  Financial:   #ffcc00
+  Biometric:   #ff33aa
+  Blueprint:   #00ffcc
+  Research:    #9955ff
+  Classified:  #ff3388
+  Key:         #ffaa00
+
+Refined Renkleri:
+  Calibrated:  #22ffbb
+  Recovery:    #55bbff
+  Security:    #cc55ff
+  Trade:       #ffbb44
+  Neural:      #bb44ff
 ```
 
 ### Shader Efektleri
@@ -714,7 +716,6 @@ Otomasyon oyunlarinin tatmini buyuk olcude SESTEN gelir. Fabrika "canli" hissetm
 - Recoverer: tarama/onarma sesi + basarisiz oldugunda farkli ton
 - Quarantine: uyari sesi + flush sirasinda bosaltma efekti
 - Compiler: birlestirme/sentez sesi (iki sesin birlesip ucuncuye donusmesi)
-- Replicator: kopyalama "mirror" efekti
 - Storage: doldukca daha dolu/tok ses
 
 **UI Sesleri:**
@@ -800,12 +801,11 @@ Bu milestone'lar tutorial + motivasyon islevi gorur. Oyuncu ne yapmasi gerektigi
 - 3 state: Clean, Corrupted, Encrypted (T1-T2)
 - 4-5 Compiler tarifi
 - Tam gorsel islem (devre karti estetigi)
-- Replicator acilabilir (Blueprint kesfi ile)
 - Malware + Quarantine YOK (tam oyuna sakla)
 - Gig Board YOK (tam oyuna sakla)
 
 ### Tam Oyun Kapsami
-- 14 binanin tamami
+- 13 binanin tamami
 - ~25-35 kaynak/harita (rastgele dagilim)
 - 6 content tipinin tamami
 - 4 state + tam tier sistemi (T1-T4)
@@ -833,17 +833,17 @@ Bu milestone'lar tutorial + motivasyon islevi gorur. Oyuncu ne yapmasi gerektigi
 - [ ] Bina boyutlari (1x1 mi, bazi 2x2 mi)
 - [ ] Overclock mekanigi (demo sonrasi potansiyel)
 - [ ] Ses asset'leri secimi (prosedürel vs free library)
+- [ ] Separator efficiency degeri (su an 0.6 = %40 kayip — 1.0 mi olmali?)
 
 ### Dogrulanmis Kararlar
 - [x] Grid kablo routing (Factorio modeli)
 - [x] Cift girdili binalar (Decryptor + Compiler)
 - [x] Olasiliksal Recoverer + Residue yan urunu
 - [x] Doluluk/flush Quarantine
-- [x] Replicator (benzersiz dijital mekanik)
 - [x] Veri = Malzeme ekonomi (Satisfactory modeli)
 - [x] Kesif = Kilit Acma ilerleme
 - [x] Devre karti gorsel kimligi
-- [x] 14 bina toplam
+- [x] 13 bina toplam
 - [x] 6 content x 4 state veri modeli
 - [x] Rastgele dagitimli harita, somut kaynak isimleri
 - [x] Chill otomasyon (savas yok)
@@ -861,8 +861,10 @@ Bu milestone'lar tutorial + motivasyon islevi gorur. Oyuncu ne yapmasi gerektigi
 - ~~Research Points~~ → Research Lab direkt Key uretir
 - ~~Patch Data~~ → Refined malzeme sistemi
 - ~~Compressor (ayri bina)~~ → Scope disinda, gerekirse sonra eklenir
+- ~~Replicator~~ → Gereksiz — Splitter zaten 1→2, kaynaklar tukenmez
+- ~~Banka Kasasi~~ → Corporate Server ayni rolu kapsiyor
 
 ---
 
 *Bu dokuman canlidir ve her tasarim oturumunda guncellenecektir.*
-*Versiyon 2.1 — Rastgele Dagitim Harita Guncellemesi: Ring sistemi kaldirildi, Factorio-tarz serbest kaynak dagitimi*
+*Versiyon 2.2 — Replicator + Banka Kasasi kaldirildi, renk paleti v2.0.3'e guncellendi, Recycled Data tarifi kaldirildi*
