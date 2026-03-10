@@ -1,8 +1,8 @@
 # SYS_ADMIN - Proje Durumu ve Demo Release Plani
 
-## Mevcut Asama: v3.0 Faz G Tamam, Faz H Sirada
+## Mevcut Asama: v3.0 Faz H Tamam, Faz I Sirada
 - **GDD:** `docs/GDD.md` (v3.0) - Tum tasarim kararlari burada
-- **Kod durumu:** v3.0 Faz A-G tamamlandi, demo release execution plani asagida
+- **Kod durumu:** v3.0 Faz A-H tamamlandi, demo release execution plani asagida
 - **Hedef:** Steam Next Fest Haziran 2026 icin oynanabilir, polished, save/load'lu, onboarding'i guclu demo
 - **Ticari hedef:** Tam oyun icin $9.99 fiyat noktasina yakisan kalite ve guven hissi
 
@@ -99,7 +99,7 @@ Asagidaki maddeler demo release oncesi mutlaka cozulmeli:
 - [x] Paralel gig sistemi + gig UI eksik
 - [x] Onboarding, "oyuncu neden ne yapiyor" sorusunu UI ile cevaplayacak kadar guclu degil
 - [ ] Save/load/autosave yok
-- [ ] Demo source/gig havuzu heniz net sekilde curate edilmemis
+- [x] Demo source/gig havuzu heniz net sekilde curate edilmemis
 - [x] Legacy quarantine/probabilistic/storage izleri demo scope'unu bulandiriyor
 - [ ] Demo'yu satin alinabilir gosterecek screenshot/trailer kalitesi henuz garanti degil
 - [ ] Demo-scale fabrikada performans/stability kabul kriterleri tanimli degil
@@ -240,28 +240,28 @@ Asagidaki durumlarda dur ve kullaniciya don:
 **Amac:** Demo, 4-6 saatlik tatmin edici akis ve tekrar oynanabilir seed farki sunmali.
 
 ### Must-Do
-- [ ] Demo source pool'unu curate et
-- [ ] 12-15 kaynaklik oynanabilir havuz olustur
-- [ ] 7 tutorial gig + 3-5 paralel gig tasarla
-- [ ] Demo'daki tum parallel gig'lerin en az biri T2 key, en az biri T2 fuel, en az biri packet kullansin
-- [ ] Spawn garanti kurallarini demo scope'una gore duzelt
-- [ ] Source rarity ve yakinlik kurallarini tutorial akisina zarar vermeyecek sekilde ayarla
-- [ ] Throughput / buffer / processing rate / capacity degerlerini demo temposuna gore dengele
-- [ ] Key ve fuel tuketimlerinin "beklemek zor ama sinir bozucu degil" dengesini kur
+- [x] Demo source pool'unu curate et
+- [x] 12-15 kaynaklik oynanabilir havuz olustur
+- [x] 7 tutorial gig + 3-5 paralel gig tasarla
+- [x] Demo'daki tum parallel gig'lerin en az biri T2 key, en az biri T2 fuel, en az biri packet kullansin
+- [x] Spawn garanti kurallarini demo scope'una gore duzelt
+- [x] Source rarity ve yakinlik kurallarini tutorial akisina zarar vermeyecek sekilde ayarla
+- [x] Throughput / buffer / processing rate / capacity degerlerini demo temposuna gore dengele
+- [x] Key ve fuel tuketimlerinin "beklemek zor ama sinir bozucu degil" dengesini kur
 
 ### Demo Source Hedefi
-- [ ] Kolay: Vending Machine, ATM, Smart Lock, Traffic Camera, Public Database
-- [ ] Orta: Hospital Terminal, Public Library, Shop Server, Biotech Lab
-- [ ] Zor teaser veya gec demo: Corporate Server, Government Archive
-- [ ] Endgame teaser: Military Network / Dark Web Node gorunebilir ama demo core loop'una bagli olmayacak
+- [x] Kolay: Vending Machine, ATM, Smart Lock, Traffic Camera, Public Database
+- [x] Orta: Hospital Terminal, Public Library, Shop Server, Biotech Lab
+- [x] Zor teaser veya gec demo: Corporate Server, Government Archive
+- [x] Endgame teaser: Military Network / Dark Web Node gorunebilir ama demo core loop'una bagli olmayacak
 
 ### Demo Gig Hedefi
-- [ ] Tutorial 1-7 tamamen calisiyor
-- [ ] 3-5 parallel gig, tutorial sonrasi aciliyor
-- [ ] En az 1 gig Blueprint odakli
-- [ ] En az 1 gig T2 Key kullandiriyor
-- [ ] En az 1 gig T2 Recoverer fuel kullandiriyor
-- [ ] En az 1 gig gercek packet urunu istiyor
+- [x] Tutorial 1-7 tamamen calisiyor
+- [x] 3-5 parallel gig, tutorial sonrasi aciliyor
+- [x] En az 1 gig Blueprint odakli
+- [x] En az 1 gig T2 Key kullandiriyor
+- [x] En az 1 gig T2 Recoverer fuel kullandiriyor
+- [x] En az 1 gig gercek packet urunu istiyor
 
 ### Definition of Done
 - [ ] Demo tek seed'de 4-6 saatlik saglam bir akis verebiliyor
@@ -440,14 +440,14 @@ Bu sirayi ancak acik tasarim onayi ile degistir.
 Demo "hazir" sayilabilmesi icin su maddelerin hepsi saglanmali:
 
 - [ ] 7 tutorial gig tam ve temiz
-- [ ] 3-5 parallel gig var
+- [x] 3-5 parallel gig var
 - [ ] Encryptor ve Compiler zorunlu kullanim goruyor
 - [ ] Packet gercek urun olarak calisiyor
 - [ ] Malware gameplay demo'da yok
 - [ ] Save/load/autosave var
 - [x] Contract UI var
 - [x] Goal clarity guclu
-- [ ] Demo source havuzu curate edilmis
+- [x] Demo source havuzu curate edilmis
 - [ ] Temel bug bash tamam
 - [ ] Screenshot/trailer capture icin gorsel kalite yeterli
 

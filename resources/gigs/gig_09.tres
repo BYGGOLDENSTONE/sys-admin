@@ -1,0 +1,21 @@
+[gd_resource type="Resource" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://resources/gigs/gig_definition.gd" id="1"]
+[ext_resource type="Script" path="res://resources/gigs/gig_requirement.gd" id="2"]
+
+[sub_resource type="Resource" id="req1"]
+script = ExtResource("2")
+content = 5
+state = 0
+tags = 2
+amount = 10
+label = "Classified Recovered"
+
+[resource]
+script = ExtResource("1")
+gig_name = "Deep Recovery"
+description = "Recover damaged Classified data. The toughest corrupted files need processed fuel — you may need to decrypt data first to use as recovery fuel."
+order_index = 9
+is_tutorial = false
+requirements = Array[Resource]([SubResource("req1")])
+reward_buildings = Array[String]([])

@@ -388,6 +388,10 @@ const STALL_HINTS: Dictionary = {
 	5: ["Build a Research Lab for Keys, then a Decryptor. Feed Encrypted data + Key"],
 	6: ["Decrypt first, then re-encrypt: Decryptor → Encryptor. Both need Keys from top"],
 	7: ["Compiler needs two DIFFERENT data types: one from left, one from top"],
+	8: ["Find a source with Blueprint content — try Biotech Lab or Corporate Server"],
+	9: ["Classified Corrupted data may need Decrypted fuel — decrypt data first, then use as fuel"],
+	10: ["T2 Encrypted data needs T2 Keys — set Research Lab to T2 (TAB) and feed Financial + Research"],
+	11: ["Encrypt Financial first, then feed it with Blueprint into the Compiler"],
 }
 
 

@@ -1,0 +1,19 @@
+[gd_resource type="Resource" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://resources/gigs/gig_definition.gd" id="1"]
+[ext_resource type="Script" path="res://resources/gigs/gig_requirement.gd" id="2"]
+
+[sub_resource type="Resource" id="req1"]
+script = ExtResource("2")
+amount = 5
+label = "[Financial·Encrypted + Blueprint] Packet"
+packet_key = "P_1_4_3_0"
+
+[resource]
+script = ExtResource("1")
+gig_name = "Assembly Contract"
+description = "Package encrypted Financial data with raw Blueprint data. Encrypt Financial first, then feed it with Blueprint into the Compiler."
+order_index = 11
+is_tutorial = false
+requirements = Array[Resource]([SubResource("req1")])
+reward_buildings = Array[String]([])

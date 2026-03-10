@@ -178,6 +178,17 @@ func _activate_next_tutorial_gig() -> void:
 				return  # Already active
 			_activate_gig(gig)
 			return
+	# All tutorials done — activate parallel contracts
+	_activate_parallel_gigs()
+
+
+func _activate_parallel_gigs() -> void:
+	for gig in _all_gigs:
+		if not gig.is_tutorial and not _completed_indices.has(gig.order_index):
+			if gig not in _active_gigs:
+				_activate_gig(gig)
+	if _active_gigs.size() > 0:
+		print("[GigManager] Parallel contracts activated — %d contracts" % _active_gigs.size())
 
 
 func _activate_gig(gig) -> void:

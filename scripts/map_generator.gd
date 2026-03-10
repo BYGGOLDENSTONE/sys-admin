@@ -17,24 +17,26 @@ var _pools: Dictionary = {
 	"easy": ["isp_backbone", "public_database", "atm", "smart_lock", "traffic_camera"],
 	"medium": ["hospital_terminal", "public_library", "shop_server", "biotech_lab"],
 	"hard": ["corporate_server", "government_archive"],
-	"endgame": ["military_network", "dark_web_node", "blackwall_fragment"],
+	"endgame": ["military_network", "dark_web_node"],
 }
 
-## Target count ranges per difficulty
+## Target count ranges per difficulty (demo-tuned: 12-18 sources total)
 var _count_ranges: Dictionary = {
-	"easy": Vector2i(10, 14),
-	"medium": Vector2i(8, 10),
-	"hard": Vector2i(5, 7),
-	"endgame": Vector2i(2, 4),
+	"easy": Vector2i(5, 8),
+	"medium": Vector2i(3, 5),
+	"hard": Vector2i(2, 3),
+	"endgame": Vector2i(1, 2),
 }
 
 var _rng := RandomNumberGenerator.new()
 var _placed_origins: Array[Vector2i] = []
+var _placed_names: Array[String] = []
 
 
 func generate_map(seed_value: int, source_manager: Node) -> void:
 	_rng.seed = seed_value
 	_placed_origins.clear()
+	_placed_names.clear()
 
 	# Phase 1: Guaranteed placements (spawn safety)
 	_place_guaranteed(seed_value, source_manager)
@@ -46,22 +48,24 @@ func generate_map(seed_value: int, source_manager: Node) -> void:
 
 
 func _place_guaranteed(seed_value: int, source_manager: Node) -> void:
-	# 1. ISP Backbone at center (always)
+	# 1. ISP Backbone at center (always) — Gig 1 safe start
 	var center_def := _load_source_def("isp_backbone")
 	if center_def:
 		source_manager.place_source(center_def, MAP_CENTER, seed_value)
 		_placed_origins.append(MAP_CENTER)
+		_placed_names.append("isp_backbone")
 
-	# 2. Second easy source near spawn
-	var easy_pool: Array = _pools["easy"].duplicate()
-	easy_pool.erase("isp_backbone")  # Already placed
-	var second_easy: String = easy_pool[_rng.randi_range(0, easy_pool.size() - 1)]
-	_place_near(second_easy, MAP_CENTER, SPAWN_RADIUS, seed_value, source_manager)
+	# 2. Public Database near spawn — diverse content + corruption for Gigs 2-4
+	if _place_near("public_database", MAP_CENTER, SPAWN_RADIUS, seed_value, source_manager):
+		_placed_names.append("public_database")
 
-	# 3. One medium source within near radius
-	var med_pool: Array = _pools["medium"]
-	var first_medium: String = med_pool[_rng.randi_range(0, med_pool.size() - 1)]
-	_place_near(first_medium, MAP_CENTER, NEAR_RADIUS, seed_value, source_manager)
+	# 3. ATM near spawn — reliable Financial content for Gig 2-3
+	if _place_near("atm", MAP_CENTER, SPAWN_RADIUS, seed_value, source_manager):
+		_placed_names.append("atm")
+
+	# 4. Hospital Terminal within near radius — Research + Encrypted for Gig 5
+	if _place_near("hospital_terminal", MAP_CENTER, NEAR_RADIUS, seed_value, source_manager):
+		_placed_names.append("hospital_terminal")
 
 
 func _place_random_fill(seed_value: int, source_manager: Node) -> void:
@@ -89,6 +93,7 @@ func _place_random_fill(seed_value: int, source_manager: Node) -> void:
 			var sub_seed: int = seed_value + source_index * 7919
 			source_manager.place_source(def, pos, sub_seed)
 			_placed_origins.append(pos)
+			_placed_names.append(source_name)
 			source_index += 1
 
 
@@ -151,9 +156,11 @@ func _is_too_close(pos: Vector2i) -> bool:
 
 
 func _count_placed_from_pool(pool: Array, _source_manager: Node) -> int:
-	# Simple heuristic: count guaranteed placements that used this pool
-	# For accuracy we'd track names, but for random fill this approximation works
-	return 0  # Let random fill target full count; guaranteed placements are bonus
+	var count: int = 0
+	for placed_name in _placed_names:
+		if placed_name in pool:
+			count += 1
+	return count
 
 
 func _load_source_def(source_name: String) -> DataSourceDefinition:
