@@ -17,7 +17,6 @@ extends Resource
 @export var storage: StorageComponent
 @export var processor: ProcessorComponent
 @export var classifier: ClassifierComponent
-@export var probabilistic: ProbabilisticComponent
 @export var producer: ProducerComponent
 @export var dual_input: DualInputComponent
 @export var splitter: SplitterComponent
@@ -63,6 +62,4 @@ func accepts_data(content: int, state: int) -> bool:
 		return false
 	if processor and not processor.input_states.is_empty():
 		return state in processor.input_states
-	if probabilistic and not probabilistic.input_states.is_empty():
-		return state in probabilistic.input_states
 	return true

@@ -37,11 +37,6 @@ var classifier_filter_content: int = 0  ## Filter value for classifier (content 
 var selected_tier: int = 1  ## For producer: which tier to produce (1-3)
 var upgrade_level: int = 0  ## Current upgrade level (0 = base)
 
-# Quarantine flush state
-var is_flushing: bool = false
-var flush_timer: float = 0.0
-const FLUSH_DURATION: float = 5.0
-
 # Source link (set by SourceManager when Uplink is near a data source)
 var linked_source: Node2D = null  ## The data source this Uplink is tapped into
 var runtime_content_weights: Dictionary = {}  ## Overrides generator content_weights when linked
@@ -126,14 +121,6 @@ func can_accept_data(amount: int = 1, state: int = DataEnums.DataState.PUBLIC, c
 	# Trash: always accepts everything
 	if definition.processor != null and definition.processor.rule == "trash":
 		return true
-	# Quarantine (legacy): capacity + flush check for Malware
-	if definition.processor != null and definition.processor.rule == "quarantine":
-		if state != DataEnums.DataState.MALWARE:
-			return false
-		if is_flushing:
-			return false
-		var cap: int = int(get_effective_value("capacity")) if definition.storage else 50
-		return get_total_stored_raw() + amount <= cap
 	if state == DataEnums.DataState.MALWARE:
 		return false
 	# Fuel/keys always accepted by dual_input buildings (bypass capacity)
@@ -184,11 +171,7 @@ func _get_base_value(stat: String) -> float:
 				return definition.producer.processing_rate
 			if definition.processor:
 				return definition.processor.processing_rate
-			if definition.probabilistic:
-				return definition.probabilistic.processing_rate
 			return 0.0
-		"success_rate":
-			return definition.probabilistic.success_rate if definition.probabilistic else 0.7
 		"capacity":
 			return float(definition.storage.capacity) if definition.storage else 0.0
 	return 0.0
@@ -386,8 +369,7 @@ func _draw() -> void:
 
 	# Malware overlay (skip for Trash — it destroys everything)
 	if not _is_ghost and _has_malware():
-		var dominated_by_trash: bool = definition.processor != null and (definition.processor.rule == "trash" or definition.processor.rule == "quarantine")
-		if not dominated_by_trash:
+		if not (definition.processor != null and definition.processor.rule == "trash"):
 			var malware_alpha: float = 0.12 + sin(_glow_time * 6.0) * 0.06
 			draw_rect(rect, Color(0.8, 0.0, 0.3, malware_alpha), true)
 			draw_rect(rect, Color(0.8, 0.0, 0.3, 0.5), false, 2.0)
@@ -443,8 +425,7 @@ func _draw_pcb_mode(size: Vector2, rect: Rect2, accent: Color, pulse: float) -> 
 
 	# Malware overlay (still visible at distance — skip for Trash)
 	if not _is_ghost and _has_malware():
-		var dominated_by_trash: bool = definition.processor != null and (definition.processor.rule == "trash" or definition.processor.rule == "quarantine")
-		if not dominated_by_trash:
+		if not (definition.processor != null and definition.processor.rule == "trash"):
 			draw_rect(rect, Color(0.8, 0.0, 0.3, 0.15 + sin(_glow_time * 6.0) * 0.08), true)
 
 
@@ -455,8 +436,6 @@ func _draw_icon(center: Vector2, size: Vector2, accent: Color) -> void:
 	match vtype:
 		"uplink":
 			_draw_icon_uplink(icon_center, size, accent)
-		"storage":
-			_draw_icon_storage(icon_center, size, accent)
 		"classifier":
 			_draw_icon_classifier(icon_center, size, accent)
 		"separator":
@@ -469,8 +448,6 @@ func _draw_icon(center: Vector2, size: Vector2, accent: Color) -> void:
 			_draw_icon_recoverer(icon_center, size, accent)
 		"trash":
 			_draw_icon_trash(icon_center, size, accent)
-		"quarantine":
-			_draw_icon_quarantine(icon_center, size, accent)
 		"research":
 			_draw_icon_research(icon_center, size, accent)
 		"splitter":
@@ -515,32 +492,6 @@ func _draw_icon_uplink(center: Vector2, size: Vector2, accent: Color) -> void:
 		var wave_alpha: float = 0.6 - i * 0.15
 		var wave_color := Color(accent, wave_alpha)
 		_draw_arc_segment(wave_origin, radius, -PI * 0.35, PI * 0.35, wave_color, 1.5)
-
-
-# --- STORAGE: Stacked data blocks ---
-func _draw_icon_storage(center: Vector2, size: Vector2, accent: Color) -> void:
-	var s: float = minf(size.x, size.y) * 0.28
-	var glow := Color(accent, ICON_GLOW_ALPHA)
-	var block_w: float = s * 1.6
-	var block_h: float = s * 0.35
-
-	for i in range(3):
-		var y_offset: float = (i - 1) * (block_h + 4)
-		var block_rect := Rect2(
-			center + Vector2(-block_w / 2, y_offset - block_h / 2),
-			Vector2(block_w, block_h)
-		)
-		# Block fill
-		var fill_alpha: float = 0.15 + i * 0.05
-		draw_rect(block_rect, Color(accent, fill_alpha), true)
-		# Block border glow
-		draw_rect(block_rect, glow, false, ICON_GLOW_WIDTH)
-		# Block border
-		draw_rect(block_rect, accent, false, 1.5)
-
-		# Small indicator light on right
-		var light_pos := Vector2(block_rect.end.x - 6, block_rect.position.y + block_h / 2)
-		draw_circle(light_pos, 2.0, accent)
 
 
 # --- CLASSIFIER: Binary content filter (selected → right, rest → bottom) ---
@@ -679,23 +630,6 @@ func _draw_icon_trash(center: Vector2, size: Vector2, accent: Color) -> void:
 	draw_line(center + Vector2(x_size, -x_size), center + Vector2(-x_size, x_size), glow, ICON_GLOW_WIDTH + 1)
 	draw_line(center + Vector2(-x_size, -x_size), center + Vector2(x_size, x_size), accent, 2.5)
 	draw_line(center + Vector2(x_size, -x_size), center + Vector2(-x_size, x_size), accent, 2.5)
-
-
-# --- QUARANTINE: Biohazard/shield symbol ---
-func _draw_icon_quarantine(center: Vector2, size: Vector2, accent: Color) -> void:
-	var s: float = minf(size.x, size.y) * 0.3
-	var glow := Color(accent, ICON_GLOW_ALPHA)
-
-	# X mark (danger/delete)
-	var x_size: float = s * 0.4
-	draw_line(center + Vector2(-x_size, -x_size), center + Vector2(x_size, x_size), glow, ICON_GLOW_WIDTH + 1)
-	draw_line(center + Vector2(x_size, -x_size), center + Vector2(-x_size, x_size), glow, ICON_GLOW_WIDTH + 1)
-	draw_line(center + Vector2(-x_size, -x_size), center + Vector2(x_size, x_size), accent, 2.5)
-	draw_line(center + Vector2(x_size, -x_size), center + Vector2(-x_size, x_size), accent, 2.5)
-
-	# Enclosing circle (containment)
-	_draw_arc_segment(center, s * 0.6, 0, TAU, glow, ICON_GLOW_WIDTH)
-	_draw_arc_segment(center, s * 0.6, 0, TAU, accent, 1.5)
 
 
 # --- RESEARCH LAB: Atom/science symbol ---

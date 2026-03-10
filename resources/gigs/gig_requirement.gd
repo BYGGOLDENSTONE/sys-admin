@@ -6,3 +6,4 @@ extends Resource
 @export var tags: int = 0      ## DataEnums.ProcessingTag bitmask (0 = no tag requirement)
 @export var amount: int = 10
 @export var label: String = "" ## Display label e.g. "Standard Public"
+@export var packet_key: String = "" ## If set, matches packet deliveries instead of individual data

@@ -98,10 +98,21 @@ func process_deliveries() -> void:
 
 
 func _count_packet_delivery(pkt_key: String, amount: int) -> void:
-	var pkt: Dictionary = DataEnums.parse_packet_key(pkt_key)
-	# A packet [A·B] counts as delivery for both components
-	_count_delivery(pkt.content_a, DataEnums.DataState.PUBLIC, 0, pkt.tags_a, amount)
-	_count_delivery(pkt.content_b, DataEnums.DataState.PUBLIC, 0, pkt.tags_b, amount)
+	# Packet = real product — counts as ONE delivery, not split into components
+	for gig in _active_gigs:
+		var progress_arr: Array = _progress.get(gig.order_index, [])
+		for i in range(gig.requirements.size()):
+			var req = gig.requirements[i]
+			if req.packet_key == "":
+				continue
+			if req.packet_key != pkt_key:
+				continue
+			# Match — count packet as single delivery
+			var old_val: int = progress_arr[i]
+			var new_val: int = mini(old_val + amount, req.amount)
+			progress_arr[i] = new_val
+			if new_val > old_val:
+				gig_progress_updated.emit(gig, i, new_val, req.amount)
 
 
 func _count_delivery(content: int, state: int, _tier: int, tags: int, amount: int) -> void:

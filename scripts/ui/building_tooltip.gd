@@ -203,7 +203,7 @@ func _update_stats() -> void:
 		var total: int = b.get_total_stored_raw()
 		if total > 0:
 			lines.append(_stat("Stock", _format_stored_data(b.stored_data)))
-	if def.storage and def.processor == null and def.classifier == null and def.probabilistic == null and def.producer == null and def.dual_input == null and def.compiler == null:
+	if def.storage and def.processor == null and def.classifier == null and def.producer == null and def.dual_input == null and def.compiler == null:
 		var total: int = b.get_total_stored()
 		var cap: int = int(b.get_effective_value("capacity"))
 		var pct: int = int(float(total) / float(cap) * 100.0) if cap > 0 else 0
@@ -227,15 +227,6 @@ func _update_stats() -> void:
 		elif def.processor.rule == "trash":
 			lines.append(_stat("Input", "All data types"))
 			lines.append(_stat("Mode", "Instant destruction"))
-		elif def.processor.rule == "quarantine":
-			lines.append(_stat("Input", "[color=#ff4466]Malware[/color]"))
-			var cap: int = int(b.get_effective_value("capacity")) if def.storage else 50
-			var stored: int = b.get_total_stored_raw()
-			if b.is_flushing:
-				lines.append(_stat("Status", "[color=#ff6622]FLUSHING (%.1fs)[/color]" % b.flush_timer))
-			else:
-				lines.append(_stat("Buffer", "%d / %d MB" % [stored, cap]))
-			lines.append(_stat("Mode", "Fill → Flush (%.0fs purge cycle)" % b.FLUSH_DURATION))
 		elif def.processor.rule == "splitter":
 			lines.append(_stat("Distribution", "Equal (50/50)"))
 			lines.append(_stat("Ports", "→ Right, ↓ Bottom"))
@@ -253,8 +244,8 @@ func _update_stats() -> void:
 
 	# Malware warning (non-quarantine buildings holding malware)
 	var malware_amount: int = b.get_malware_amount()
-	if malware_amount > 0 and not (def.processor and def.processor.rule == "quarantine"):
-		lines.append(_stat("Malware", "[color=#ff4466]%d MB — Route to Quarantine![/color]" % malware_amount))
+	if malware_amount > 0 and not (def.processor and def.processor.rule == "trash"):
+		lines.append(_stat("Malware", "[color=#ff4466]%d MB — Route to Trash![/color]" % malware_amount))
 
 	stats_label.text = "\n".join(lines)
 

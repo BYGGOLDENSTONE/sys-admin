@@ -1,27 +1,19 @@
-[gd_resource type="Resource" load_steps=4 format=3]
+[gd_resource type="Resource" load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://resources/gigs/gig_definition.gd" id="1"]
 [ext_resource type="Script" path="res://resources/gigs/gig_requirement.gd" id="2"]
 
 [sub_resource type="Resource" id="req1"]
 script = ExtResource("2")
-content = 3
-state = 0
 amount = 5
-label = "Blueprint Public"
-
-[sub_resource type="Resource" id="req2"]
-script = ExtResource("2")
-content = 4
-state = 0
-amount = 5
-label = "Research Public"
+label = "[Blueprint · Research] Packet"
+packet_key = "P_3_0_4_0"
 
 [resource]
 script = ExtResource("1")
 gig_name = "Package Deal"
-description = "Deliver 5 Blueprint and 5 Research data. Use the Compiler to package different data types together for advanced contracts."
+description = "Deliver 5 packaged data bundles. Use the Compiler to combine Blueprint and Research data into a single product."
 order_index = 7
 is_tutorial = true
-requirements = Array[Resource]([SubResource("req1"), SubResource("req2")])
+requirements = Array[Resource]([SubResource("req1")])
 reward_buildings = Array[String](["Compiler"])

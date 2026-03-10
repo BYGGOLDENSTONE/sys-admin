@@ -211,8 +211,12 @@ func _update_generation(buildings: Array[Node]) -> void:
 		# Use runtime weights from linked source if available, otherwise definition weights
 		var c_weights: Dictionary = b.runtime_content_weights if not b.runtime_content_weights.is_empty() else gen.content_weights
 		var s_weights: Dictionary = b.runtime_state_weights if not b.runtime_state_weights.is_empty() else gen.state_weights
-		# Get tier limits from linked source
+		# Get tier limits and enforce bandwidth from linked source
 		var src_def = b.linked_source.definition if b.linked_source else null
+		if src_def:
+			var shared: int = maxi(1, b.linked_source._linked_uplinks)
+			var bw_share: int = maxi(1, int(src_def.bandwidth) / shared)
+			amount = mini(amount, bw_share)
 		var enc_max: int = src_def.encrypted_max_tier if src_def else 1
 		var cor_max: int = src_def.corrupted_max_tier if src_def else 1
 		var total_pushed: int = 0
@@ -280,9 +284,6 @@ func _update_processing(buildings: Array[Node]) -> void:
 			processed = _process_splitter(b, int(b.definition.splitter.throughput_rate))
 		elif b.definition.merger != null:
 			processed = _process_merger(b, int(b.definition.merger.throughput_rate))
-		elif b.definition.probabilistic != null:
-			var max_process: int = int(b.get_effective_value("processing_rate"))
-			processed = _process_probabilistic(b, max_process)
 		elif b.definition.processor != null:
 			var proc: ProcessorComponent = b.definition.processor
 			var max_process: int = int(b.get_effective_value("processing_rate"))
@@ -291,8 +292,6 @@ func _update_processing(buildings: Array[Node]) -> void:
 					processed = _process_separator(b, proc, max_process)
 				"trash":
 					processed = _process_trash(b)
-				"quarantine":
-					processed = _process_quarantine(b, proc, max_process)
 		else:
 			continue
 		if processed > 0:
@@ -346,45 +345,6 @@ func _process_classifier(b: Node2D, max_process: int) -> int:
 		var sent: int = _push_data_from(b, parsed.content, parsed.state, to_process, target_port, parsed.tier, parsed.tags)
 		if sent > 0:
 			processed += sent
-	return processed
-
-
-func _process_probabilistic(b: Node2D, max_process: int) -> int:
-	var prob: ProbabilisticComponent = b.definition.probabilistic
-	var base_success: float = b.get_effective_value("success_rate")
-	var output_ports: Array[String] = b.definition.output_ports
-	var out_port: String = output_ports[0] if output_ports.size() > 0 else ""
-	var processed: int = 0
-	for key in b.stored_data:
-		if processed >= max_process:
-			break
-		var available: int = b.stored_data[key]
-		if available <= 0:
-			continue
-		var parsed: Dictionary = DataEnums.parse_key(key)
-		if not prob.input_states.is_empty() and parsed.state not in prob.input_states:
-			continue
-		# Tier-based success rate
-		var tier: int = parsed.tier
-		var actual_success: float = base_success
-		if tier > 0 and tier <= prob.tier_success_rates.size():
-			actual_success = prob.tier_success_rates[tier - 1]
-		var to_process: int = mini(available, max_process - processed)
-		var success_count: int = 0
-		for _i in range(to_process):
-			if randf() <= actual_success:
-				success_count += 1
-		# Push successful recoveries (output is Public + RECOVERED tag)
-		if success_count > 0 and out_port != "":
-			var out_tags: int = parsed.tags | DataEnums.ProcessingTag.RECOVERED
-			_push_data_from(b, parsed.content, prob.output_state, success_count, out_port, 0, out_tags)
-		processed += to_process
-		if success_count > 0:
-			var out_tags: int = parsed.tags | DataEnums.ProcessingTag.RECOVERED
-			print("[Recoverer] %d MB %s → %d %s (%d lost, %d%%)" % [
-				to_process, DataEnums.data_label(parsed.content, parsed.state, tier, parsed.tags),
-				success_count, DataEnums.data_label(parsed.content, prob.output_state, 0, out_tags),
-				to_process - success_count, int(actual_success * 100)])
 	return processed
 
 
@@ -640,34 +600,6 @@ func _process_separator(b: Node2D, proc: ProcessorComponent, max_process: int) -
 			processed += sent
 	return processed
 
-
-
-func _process_quarantine(b: Node2D, _proc: ProcessorComponent, _max_process: int) -> int:
-	# Flush mode: count down timer, reject input, then purge
-	if b.is_flushing:
-		b.flush_timer -= _sim_timer.wait_time * speed_multiplier
-		if b.flush_timer <= 0.0:
-			var purged: int = b.get_total_stored_raw()
-			b.stored_data.clear()
-			b.is_flushing = false
-			b.flush_timer = 0.0
-			_spawn_floating_text(b, "PURGED %d MB" % purged, Color(1.0, 0.3, 0.4))
-			_add_camera_trauma(0.15 + purged * 0.01)
-			if sound_manager:
-				sound_manager.play_process_event("quarantine")
-			print("[Quarantine] Flush complete — %d MB purged" % purged)
-		return 0
-	# Accumulate mode: check if capacity reached → trigger flush
-	var cap: int = int(b.get_effective_value("capacity")) if b.definition.storage else 50
-	var stored: int = b.get_total_stored_raw()
-	if stored >= cap:
-		b.is_flushing = true
-		b.flush_timer = b.FLUSH_DURATION
-		_spawn_floating_text(b, "FLUSHING...", Color(1.0, 0.6, 0.2))
-		print("[Quarantine] Capacity reached (%d/%d) — flush started (%.1fs)" % [stored, cap, b.FLUSH_DURATION])
-		return 0
-	# Not full yet — just accumulate (data already stored by _push_data)
-	return 0
 
 
 func _process_trash(b: Node2D) -> int:
