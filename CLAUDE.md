@@ -1,8 +1,8 @@
 # SYS_ADMIN - Proje Durumu ve Demo Release Plani
 
-## Mevcut Asama: v3.0 Faz I Devam Ediyor (Save/Load tamam, Options + QoL kaldi)
+## Mevcut Asama: v3.0 Faz I TAMAMLANDI — Faz J sirada
 - **GDD:** `docs/GDD.md` (v3.0) - Tum tasarim kararlari burada
-- **Kod durumu:** v3.0 Faz A-H tamamlandi, Faz I kismi tamamlandi (save/load/menu/autosave bitti)
+- **Kod durumu:** v3.0 Faz A-I tamamlandi
 - **Hedef:** Steam Next Fest Haziran 2026 icin oynanabilir, polished, save/load'lu, onboarding'i guclu demo
 - **Ticari hedef:** Tam oyun icin $9.99 fiyat noktasina yakisan kalite ve guven hissi
 
@@ -287,16 +287,16 @@ Asagidaki durumlarda dur ve kullaniciya don:
 - [x] Seed bilgisini save ile bagla
 - [x] Gig progress, unlocks, buildings, connections, source discovery durumu kaydolmali
 - [x] Save bozulursa oyuncu sessizce mahvolmasin; temel fail-safe davranis ekle
-- [ ] Basit Options menusu ekle
-- [ ] Audio volume ayari ekle
-- [ ] Window/fullscreen gibi en az birkac temel display ayari ekle
+- [x] Basit Options menusu ekle
+- [x] Audio volume ayari ekle
+- [x] Window/fullscreen gibi en az birkac temel display ayari ekle
 
 ### Demo QoL Must-Do
-- [ ] Move/remove akislarini puruzsuzlestir
-- [ ] Kablo silme / yeniden cekme feedback'ini guclendir
+- [x] Move/remove akislarini puruzsuzlestir
+- [x] Kablo silme / yeniden cekme feedback'ini guclendir
 - [x] Pause / speed / shortcut bilgilerini daha net yap
 - [x] Undo/redo'yu save/load sonrasi da guvenilir hale getir veya gerekiyorsa scoped tut
-- [ ] Hover tooltip'lerde yalnizca faydali bilgi kalsin; bilgi gurultusu temizlensin
+- [x] Hover tooltip'lerde yalnizca faydali bilgi kalsin; bilgi gurultusu temizlensin
 
 ### Nice-to-Have (Sadece hizliysa)
 - [ ] Seed secimi / reroll UI
@@ -304,9 +304,9 @@ Asagidaki durumlarda dur ve kullaniciya don:
 - [ ] Temel keybind ayarlari
 
 ### Definition of Done
-- [ ] Oyuncu cikis yapip devam edebiliyor
-- [ ] 30+ dakikalik bir oturum kayipsiz geri yuklenebiliyor
-- [ ] Demo "prototype" degil, "urun" hissi vermeye basliyor
+- [x] Oyuncu cikis yapip devam edebiliyor
+- [x] 30+ dakikalik bir oturum kayipsiz geri yuklenebiliyor
+- [x] Demo "prototype" degil, "urun" hissi vermeye basliyor
 
 ### Bu Fazda Yapilmayacaklar
 - [ ] Cloud save entegrasyonu

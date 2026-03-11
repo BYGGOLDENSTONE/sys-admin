@@ -5,9 +5,11 @@ extends Node
 var _sfx_players: Array[AudioStreamPlayer] = []
 var _ambient_player: AudioStreamPlayer = null
 var _sounds: Dictionary = {}
+var _sfx_volume_offset: float = 0.0
 
 const SFX_POOL_SIZE: int = 8
 const SAMPLE_RATE: int = 22050
+const AMBIENT_BASE_DB: float = -18.0
 
 
 func _ready() -> void:
@@ -16,10 +18,11 @@ func _ready() -> void:
 		add_child(p)
 		_sfx_players.append(p)
 	_ambient_player = AudioStreamPlayer.new()
-	_ambient_player.volume_db = -18.0
+	_ambient_player.volume_db = AMBIENT_BASE_DB
 	add_child(_ambient_player)
 	_generate_sounds()
 	_start_ambient()
+	apply_settings()
 
 
 func play(sound_name: String, volume_db: float = -6.0, pitch_variance: float = 0.05) -> void:
@@ -29,7 +32,7 @@ func play(sound_name: String, volume_db: float = -6.0, pitch_variance: float = 0
 	if player == null:
 		return
 	player.stream = _sounds[sound_name]
-	player.volume_db = volume_db
+	player.volume_db = volume_db + _sfx_volume_offset
 	player.pitch_scale = 1.0 + randf_range(-pitch_variance, pitch_variance)
 	player.play()
 
@@ -82,6 +85,22 @@ func play_ui_click() -> void:
 
 func set_ambient_volume(db: float) -> void:
 	_ambient_player.volume_db = db
+
+
+func apply_settings() -> void:
+	## Read SFX and ambient volumes from SettingsManager and apply.
+	var settings := SettingsManager.get_settings()
+	var sfx_pct: int = clampi(int(settings.get("sfx_volume", 80)), 0, 100)
+	if sfx_pct > 0:
+		_sfx_volume_offset = linear_to_db(sfx_pct / 100.0)
+	else:
+		_sfx_volume_offset = -80.0
+	var ambient_pct: int = clampi(int(settings.get("ambient_volume", 50)), 0, 100)
+	if ambient_pct > 0:
+		_ambient_player.volume_db = AMBIENT_BASE_DB + linear_to_db(ambient_pct / 100.0)
+	else:
+		_ambient_player.volume_db = -80.0
+	print("[SoundManager] Settings applied — SFX offset: %.1f dB, Ambient: %.1f dB" % [_sfx_volume_offset, _ambient_player.volume_db])
 
 
 # --- Player pool ---

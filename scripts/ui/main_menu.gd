@@ -9,10 +9,16 @@ const GAME_SCENE: String = "res://scenes/main.tscn"
 
 var _continue_btn: Button = null
 var _new_game_btn: Button = null
+var _options_btn: Button = null
 var _quit_btn: Button = null
+var _button_vbox: VBoxContainer = null
+var _options_panel: VBoxContainer = null
 
 
 func _ready() -> void:
+	# Apply saved settings on startup
+	SettingsManager.apply_all(SettingsManager.get_settings())
+
 	_build_ui()
 	_update_continue_state()
 	# Fade in
@@ -33,10 +39,10 @@ func _build_ui() -> void:
 	center.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(center)
 
-	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 16)
-	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
-	center.add_child(vbox)
+	var main_box := VBoxContainer.new()
+	main_box.add_theme_constant_override("separation", 0)
+	main_box.alignment = BoxContainer.ALIGNMENT_CENTER
+	center.add_child(main_box)
 
 	# Title
 	var title := Label.new()
@@ -44,7 +50,7 @@ func _build_ui() -> void:
 	title.add_theme_font_size_override("font_size", 64)
 	title.add_theme_color_override("font_color", Color(0.0, 0.85, 0.9, 1.0))
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	vbox.add_child(title)
+	main_box.add_child(title)
 
 	# Subtitle
 	var subtitle := Label.new()
@@ -52,25 +58,42 @@ func _build_ui() -> void:
 	subtitle.add_theme_font_size_override("font_size", 18)
 	subtitle.add_theme_color_override("font_color", Color(0.4, 0.55, 0.65, 0.7))
 	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	vbox.add_child(subtitle)
+	main_box.add_child(subtitle)
 
 	# Spacer
 	var spacer := Control.new()
 	spacer.custom_minimum_size = Vector2(0, 40)
-	vbox.add_child(spacer)
+	main_box.add_child(spacer)
 
-	# Buttons
+	# Menu buttons
+	_button_vbox = VBoxContainer.new()
+	_button_vbox.add_theme_constant_override("separation", 16)
+	_button_vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	main_box.add_child(_button_vbox)
+
 	_continue_btn = _create_menu_button("Continue")
 	_continue_btn.pressed.connect(_on_continue)
-	vbox.add_child(_continue_btn)
+	_button_vbox.add_child(_continue_btn)
 
 	_new_game_btn = _create_menu_button("New Game")
 	_new_game_btn.pressed.connect(_on_new_game)
-	vbox.add_child(_new_game_btn)
+	_button_vbox.add_child(_new_game_btn)
+
+	_options_btn = _create_menu_button("Options")
+	_options_btn.pressed.connect(_on_options)
+	_button_vbox.add_child(_options_btn)
 
 	_quit_btn = _create_menu_button("Quit")
 	_quit_btn.pressed.connect(_on_quit)
-	vbox.add_child(_quit_btn)
+	_button_vbox.add_child(_quit_btn)
+
+	# Options panel (hidden, replaces buttons when active)
+	var OptionsPanelScript = preload("res://scripts/ui/options_panel.gd")
+	_options_panel = VBoxContainer.new()
+	_options_panel.set_script(OptionsPanelScript)
+	_options_panel.visible = false
+	_options_panel.back_pressed.connect(_on_options_back)
+	main_box.add_child(_options_panel)
 
 	# Version label
 	var version_lbl := Label.new()
@@ -151,6 +174,16 @@ func _on_new_game() -> void:
 	_transition_to_game({})
 
 
+func _on_options() -> void:
+	_button_vbox.visible = false
+	_options_panel.visible = true
+
+
+func _on_options_back() -> void:
+	_options_panel.visible = false
+	_button_vbox.visible = true
+
+
 func _on_quit() -> void:
 	get_tree().quit()
 
@@ -159,6 +192,7 @@ func _transition_to_game(save_data: Dictionary) -> void:
 	# Disable buttons during transition
 	_continue_btn.disabled = true
 	_new_game_btn.disabled = true
+	_options_btn.disabled = true
 	_quit_btn.disabled = true
 
 	# Fade out

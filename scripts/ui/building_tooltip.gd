@@ -139,7 +139,6 @@ func _update_stats() -> void:
 		var filter_name: String = DataEnums.content_name(b.classifier_filter_content)
 		lines.append(_stat("Right Port →", "[color=#44ff88]%s[/color]" % filter_name))
 		lines.append(_stat("Bottom Port →", "All other content"))
-		lines.append(_stat("", "[color=#668899](Tab to cycle filter)[/color]"))
 	if def.producer:
 		lines.append(_stat("Processing", "%d production/tick" % int(b.get_effective_value("processing_rate"))))
 		var tier_names: Array[String] = ["T1 Key", "T2 Strong Key", "T3 Master Key"]
@@ -151,8 +150,7 @@ func _update_stats() -> void:
 		if b.selected_tier >= 3 and def.producer.tier3_extra_content >= 0:
 			recipe += " + [color=#ff33aa]%d MB %s[/color]" % [def.producer.tier3_extra_amount, DataEnums.content_name(def.producer.tier3_extra_content)]
 		lines.append(_stat("Recipe", recipe))
-		if def.producer.max_tier > 1:
-			lines.append(_stat("", "[color=#668899](Tab to cycle tier)[/color]"))
+		# Tier cycle hint removed — taught in tutorial
 		var research_key: String = DataEnums.make_key(def.producer.input_content, def.producer.input_state)
 		var stored_research: int = b.stored_data.get(research_key, 0)
 		if stored_research > 0:
@@ -164,10 +162,7 @@ func _update_stats() -> void:
 			lines.append(_stat("Left Port ←", "[color=#ff8844]Corrupted[/color] data"))
 			var fuel_tags: Array[int] = def.dual_input.required_fuel_tags
 			if fuel_tags.size() >= 3:
-				lines.append(_stat("Top Port ←", "Same-type fuel:"))
-				lines.append(_stat("  T1", "[color=#44ff88]Public[/color]"))
-				lines.append(_stat("  T2", "[color=#44aaff]Decrypted[/color]"))
-				lines.append(_stat("  T3", "[color=#44aaff]Decrypted·Encrypted[/color]"))
+				lines.append(_stat("Top Port ←", "Fuel: [color=#44ff88]Public[/color] / [color=#44aaff]Decrypted[/color] / [color=#44aaff]Dec·Enc[/color]"))
 			else:
 				lines.append(_stat("Top Port ←", "Same-type [color=#44ff88]Public[/color] data (fuel)"))
 			lines.append(_stat("Output →", "[color=#44ff88]Recovered[/color] (content preserved)"))
@@ -182,7 +177,6 @@ func _update_stats() -> void:
 			lines.append(_stat("Left Port ←", "[color=#44aaff]Encrypted[/color] data"))
 			lines.append(_stat("Top Port ←", "[color=#ffaa00]Key[/color] (tier must match data)"))
 			lines.append(_stat("Output →", "[color=#44ff88]Decrypted[/color] (content preserved)"))
-			lines.append(_stat("Key rule", "T1 data → T1 Key, T2 → T2, T3 → T3"))
 		# Show stored fuel/keys (per tier)
 		if not def.dual_input.fuel_matches_content:
 			var key_parts: PackedStringArray = []
@@ -223,7 +217,6 @@ func _update_stats() -> void:
 				filter_name = DataEnums.state_name(b.separator_filter_value)
 			lines.append(_stat("Right Port →", "[color=#44ff88]%s[/color]" % filter_name))
 			lines.append(_stat("Bottom Port →", "All other data"))
-			lines.append(_stat("", "[color=#668899](Tab to cycle filter)[/color]"))
 		elif def.processor.rule == "trash":
 			lines.append(_stat("Input", "All data types"))
 			lines.append(_stat("Mode", "Instant destruction"))

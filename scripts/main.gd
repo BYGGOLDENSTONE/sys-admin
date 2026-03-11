@@ -29,12 +29,20 @@ var _gig_panel: PanelContainer = null
 var _contract_terminal: Node2D = null
 var _tutorial_manager: Node = null
 var _save_manager: Node = null
+var _pause_overlay: CanvasLayer = null
+var _pause_buttons: VBoxContainer = null
+var _pause_options: VBoxContainer = null
+var _is_pause_menu_open: bool = false
+var _was_paused_before_menu: bool = false
 
 ## Set this BEFORE _ready() to load a saved game instead of starting new
 var load_save_data: Dictionary = {}
 
 
 func _ready() -> void:
+	# Apply saved settings (master volume + fullscreen)
+	SettingsManager.apply_all(SettingsManager.get_settings())
+
 	building_panel.building_selected.connect(building_manager.start_placement)
 
 	# Setup tooltip
@@ -183,11 +191,21 @@ func _ready() -> void:
 	# Start autosave
 	_save_manager.setup_autosave()
 
+	# Setup in-game pause menu (ESC)
+	_setup_pause_menu()
+
 	print("[Main] SYS_ADMIN initialized — %s" % ("loaded save" if is_loading else "new game"))
 
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not (event is InputEventKey and event.pressed):
+		return
+	# ESC: toggle pause menu (always available)
+	if event.keycode == KEY_ESCAPE:
+		_toggle_pause_menu()
+		return
+	# Block all other input when pause menu is open
+	if _is_pause_menu_open:
 		return
 	if event.ctrl_pressed:
 		match event.keycode:
@@ -264,7 +282,7 @@ func _setup_minimap() -> void:
 
 func _setup_shortcut_hints() -> void:
 	_shortcut_hints = Label.new()
-	_shortcut_hints.text = "SPACE Pause  //  1/2/3 Speed  //  G Contracts  //  Ctrl+S Save  //  Ctrl+Z Undo  //  H Hide"
+	_shortcut_hints.text = "ESC Menu  //  SPACE Pause  //  1/2/3 Speed  //  G Contracts  //  Ctrl+S Save  //  Ctrl+Z Undo  //  H Hide"
 	_shortcut_hints.add_theme_font_size_override("font_size", 12)
 	_shortcut_hints.add_theme_color_override("font_color", Color(0.4, 0.6, 0.7, 0.6))
 	_shortcut_hints.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -560,3 +578,155 @@ func _toggle_dev_mode() -> void:
 	_top_bar.set_dev_visible(_dev_mode)
 	_fog_layer.visible = not _dev_mode
 	print("[Main] Dev mode: %s" % ("ON" if _dev_mode else "OFF"))
+
+
+# --- Pause Menu ---
+
+func _setup_pause_menu() -> void:
+	_pause_overlay = CanvasLayer.new()
+	_pause_overlay.layer = 100
+	_pause_overlay.visible = false
+	add_child(_pause_overlay)
+
+	# Dark overlay (blocks mouse input to game)
+	var bg := ColorRect.new()
+	bg.color = Color(0.01, 0.02, 0.04, 0.75)
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	bg.mouse_filter = Control.MOUSE_FILTER_STOP
+	_pause_overlay.add_child(bg)
+
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_pause_overlay.add_child(center)
+
+	var main_box := VBoxContainer.new()
+	main_box.alignment = BoxContainer.ALIGNMENT_CENTER
+	main_box.add_theme_constant_override("separation", 0)
+	center.add_child(main_box)
+
+	# PAUSED title
+	var title := Label.new()
+	title.text = "PAUSED"
+	title.add_theme_font_size_override("font_size", 36)
+	title.add_theme_color_override("font_color", Color(0.0, 0.85, 0.9))
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	main_box.add_child(title)
+
+	var spacer := Control.new()
+	spacer.custom_minimum_size = Vector2(0, 24)
+	main_box.add_child(spacer)
+
+	# Pause buttons
+	_pause_buttons = VBoxContainer.new()
+	_pause_buttons.add_theme_constant_override("separation", 12)
+	_pause_buttons.alignment = BoxContainer.ALIGNMENT_CENTER
+	main_box.add_child(_pause_buttons)
+
+	var resume_btn := _create_pause_button("Resume")
+	resume_btn.pressed.connect(_close_pause_menu)
+	_pause_buttons.add_child(resume_btn)
+
+	var options_btn := _create_pause_button("Options")
+	options_btn.pressed.connect(_show_pause_options)
+	_pause_buttons.add_child(options_btn)
+
+	var save_btn := _create_pause_button("Save Game")
+	save_btn.pressed.connect(_on_pause_save)
+	_pause_buttons.add_child(save_btn)
+
+	var quit_btn := _create_pause_button("Quit to Menu")
+	quit_btn.pressed.connect(_on_pause_quit)
+	_pause_buttons.add_child(quit_btn)
+
+	# Options sub-panel (hidden, swaps with buttons)
+	var OptionsPanelScript = preload("res://scripts/ui/options_panel.gd")
+	_pause_options = VBoxContainer.new()
+	_pause_options.set_script(OptionsPanelScript)
+	_pause_options.visible = false
+	_pause_options.back_pressed.connect(_hide_pause_options)
+	_pause_options.settings_changed.connect(_on_settings_changed)
+	main_box.add_child(_pause_options)
+
+
+func _create_pause_button(text: String) -> Button:
+	var btn := Button.new()
+	btn.text = text
+	btn.custom_minimum_size = Vector2(260, 46)
+	btn.add_theme_font_size_override("font_size", 20)
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.05, 0.07, 0.1, 0.9)
+	style.border_color = Color(0.0, 0.7, 0.8, 0.5)
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(4)
+	style.set_content_margin_all(10)
+	btn.add_theme_stylebox_override("normal", style)
+	var hover := style.duplicate()
+	hover.bg_color = Color(0.07, 0.1, 0.16, 0.95)
+	hover.border_color = Color(0.0, 0.9, 1.0, 0.9)
+	btn.add_theme_stylebox_override("hover", hover)
+	var pressed := style.duplicate()
+	pressed.bg_color = Color(0.03, 0.05, 0.08, 1.0)
+	pressed.border_color = Color(0.0, 1.0, 1.0, 1.0)
+	btn.add_theme_stylebox_override("pressed", pressed)
+	btn.add_theme_color_override("font_color", Color(0.8, 0.9, 0.95))
+	btn.add_theme_color_override("font_hover_color", Color(0.0, 1.0, 1.0))
+	btn.add_theme_color_override("font_pressed_color", Color(1.0, 1.0, 1.0))
+	return btn
+
+
+func _toggle_pause_menu() -> void:
+	if _is_pause_menu_open:
+		_close_pause_menu()
+	else:
+		_open_pause_menu()
+
+
+func _open_pause_menu() -> void:
+	_is_pause_menu_open = true
+	_was_paused_before_menu = simulation_manager.is_paused
+	if not simulation_manager.is_paused:
+		simulation_manager.toggle_pause()
+	_pause_overlay.visible = true
+	_pause_buttons.visible = true
+	_pause_options.visible = false
+
+
+func _close_pause_menu() -> void:
+	_is_pause_menu_open = false
+	_pause_overlay.visible = false
+	_pause_buttons.visible = true
+	_pause_options.visible = false
+	if not _was_paused_before_menu and simulation_manager.is_paused:
+		simulation_manager.toggle_pause()
+
+
+func _show_pause_options() -> void:
+	_pause_buttons.visible = false
+	_pause_options.visible = true
+
+
+func _hide_pause_options() -> void:
+	_pause_options.visible = false
+	_pause_buttons.visible = true
+	if _sound_manager:
+		_sound_manager.apply_settings()
+
+
+func _on_pause_save() -> void:
+	if _save_manager:
+		_save_manager.save_game()
+	_show_gig_notification("GAME SAVED", Color("#44ddff"))
+
+
+func _on_pause_quit() -> void:
+	if _save_manager:
+		_save_manager.autosave()
+	var menu_scene := load("res://scenes/ui/main_menu.tscn") as PackedScene
+	var menu := menu_scene.instantiate()
+	get_tree().root.add_child(menu)
+	queue_free()
+
+
+func _on_settings_changed() -> void:
+	if _sound_manager:
+		_sound_manager.apply_settings()
