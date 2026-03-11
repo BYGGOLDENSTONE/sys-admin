@@ -358,6 +358,25 @@ func _auto_track() -> void:
 		_style_card(cd.root, tcol, order == _tracked_order)
 
 
+func rebuild_from_state() -> void:
+	## Called after loading a save to rebuild cards from restored gig state.
+	# Clear existing cards
+	for order in _cards:
+		var cd = _cards[order]
+		if is_instance_valid(cd.root):
+			cd.root.queue_free()
+	_cards.clear()
+	_stall_timers.clear()
+	_last_progress.clear()
+	_tracked_order = -1
+	# Rebuild from current active gigs
+	if _gig_manager:
+		for gig in _gig_manager.get_active_gigs():
+			_add_card(gig)
+	_auto_track()
+	_update_empty()
+
+
 func _update_empty() -> void:
 	if _no_gig_label:
 		_no_gig_label.visible = _cards.is_empty()

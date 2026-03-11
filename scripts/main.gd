@@ -28,6 +28,10 @@ var _gig_manager: Node = null
 var _gig_panel: PanelContainer = null
 var _contract_terminal: Node2D = null
 var _tutorial_manager: Node = null
+var _save_manager: Node = null
+
+## Set this BEFORE _ready() to load a saved game instead of starting new
+var load_save_data: Dictionary = {}
 
 
 func _ready() -> void:
@@ -106,16 +110,47 @@ func _ready() -> void:
 	building_manager.building_removed.connect(source_manager.on_building_removed)
 	source_manager.source_discovered.connect(_on_source_discovered)
 
+	# Determine seed: from save, command-line, or random
+	var is_loading: bool = not load_save_data.is_empty()
+	if is_loading:
+		_current_seed = int(load_save_data.get("seed", randi()))
+	else:
+		_current_seed = _get_seed_from_args()
+
 	# Seed-based procedural map generation
-	_current_seed = _get_seed_from_args()
 	_map_generator = _MapGeneratorScript.new()
 	_map_generator.generate_map(_current_seed, source_manager)
 
 	# Setup fog of war layer (above sources, below buildings)
 	_setup_fog_layer()
 
-	# Place Contract Terminal at map center
-	_place_contract_terminal()
+	# Setup save manager (before loading state)
+	_setup_save_manager()
+
+	if is_loading:
+		# LOAD PATH: restore saved state
+		_save_manager.apply_state(load_save_data)
+		# Find Contract Terminal from loaded buildings
+		for child in $BuildingContainer.get_children():
+			if child.definition != null and child.definition.building_name == "Contract Terminal":
+				_contract_terminal = child
+				break
+		if _contract_terminal != null and _gig_manager != null:
+			_gig_manager.set_contract_terminal(_contract_terminal)
+		# Rebuild UI from loaded state
+		building_panel.refresh_buttons()
+		if _gig_panel:
+			_gig_panel.rebuild_from_state()
+		# Clear undo stack (fresh session)
+		if _undo_manager:
+			_undo_manager._undo_stack.clear()
+			_undo_manager._redo_stack.clear()
+		load_save_data = {}
+		print("[Main] Game loaded from save")
+	else:
+		# NEW GAME PATH: place Contract Terminal and initialize gigs
+		_place_contract_terminal()
+		_gig_manager.initialize()
 
 	# Wire terminal click to gig panel
 	building_manager.building_selected.connect(_on_building_selected_for_panel)
@@ -138,11 +173,17 @@ func _ready() -> void:
 	# Setup sound manager
 	_setup_sound_manager()
 
+	# Wire gig completion to autosave
+	_gig_manager.gig_completed.connect(_on_gig_completed_autosave)
+
 	# Pass post-process material to camera for chromatic aberration
 	var post_rect: ColorRect = $PostProcessLayer/PostProcessRect
 	camera.set_post_material(post_rect.material as ShaderMaterial)
 
-	print("[Main] SYS_ADMIN initialized")
+	# Start autosave
+	_save_manager.setup_autosave()
+
+	print("[Main] SYS_ADMIN initialized — %s" % ("loaded save" if is_loading else "new game"))
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -154,6 +195,10 @@ func _unhandled_input(event: InputEvent) -> void:
 				_undo_manager.undo()
 			KEY_Y:
 				_undo_manager.redo()
+			KEY_S:
+				if _save_manager:
+					_save_manager.save_game()
+					_show_gig_notification("GAME SAVED", Color("#44ddff"))
 		return
 	match event.keycode:
 		KEY_SPACE:
@@ -219,7 +264,7 @@ func _setup_minimap() -> void:
 
 func _setup_shortcut_hints() -> void:
 	_shortcut_hints = Label.new()
-	_shortcut_hints.text = "SPACE Pause  //  1/2/3 Speed  //  G Contracts  //  Ctrl+Z Undo  //  H Hide"
+	_shortcut_hints.text = "SPACE Pause  //  1/2/3 Speed  //  G Contracts  //  Ctrl+S Save  //  Ctrl+Z Undo  //  H Hide"
 	_shortcut_hints.add_theme_font_size_override("font_size", 12)
 	_shortcut_hints.add_theme_color_override("font_color", Color(0.4, 0.6, 0.7, 0.6))
 	_shortcut_hints.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -269,8 +314,7 @@ func _setup_gig_manager() -> void:
 	_gig_manager.gig_activated.connect(_on_gig_activated)
 	# Process deliveries after each simulation tick
 	simulation_manager.tick_completed.connect(_on_tick_for_gig)
-	# Initialize after signals are connected
-	_gig_manager.initialize()
+	# NOTE: initialize() is called later — after load check in _ready()
 
 
 func _setup_gig_panel() -> void:
@@ -488,6 +532,26 @@ func _on_cable_connected_sound(_conn: Dictionary) -> void:
 
 func _on_cable_removed_sound(_conn: Dictionary) -> void:
 	_sound_manager.play_cable_remove()
+
+
+func _setup_save_manager() -> void:
+	var SaveManagerScript = preload("res://scripts/save_manager.gd")
+	_save_manager = Node.new()
+	_save_manager.set_script(SaveManagerScript)
+	_save_manager.name = "SaveManager"
+	_save_manager.building_container = $BuildingContainer
+	_save_manager.connection_manager = connection_manager
+	_save_manager.source_manager = source_manager
+	_save_manager.gig_manager = _gig_manager
+	_save_manager.simulation_manager = simulation_manager
+	_save_manager.fog_layer = _fog_layer
+	_save_manager.current_seed = _current_seed
+	add_child(_save_manager)
+
+
+func _on_gig_completed_autosave(_gig) -> void:
+	if _save_manager:
+		_save_manager.autosave()
 
 
 func _toggle_dev_mode() -> void:
