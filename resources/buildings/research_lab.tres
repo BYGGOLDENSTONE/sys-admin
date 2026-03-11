@@ -28,7 +28,7 @@ script = ExtResource("1")
 building_name = "Research Lab"
 description = "Produces Decryption Keys. Tab to select tier: T1=Research only, T2=Research+Financial, T3=Research+Financial+Biometric. Higher tier Keys unlock stronger encryption."
 grid_size = Vector2i(2, 2)
-color = Color(0.6, 0.4, 0.87, 1)
+color = Color(0.18, 0.83, 0.35, 1)
 category = "processing"
 visual_type = "research"
 output_ports = Array[String](["right"])

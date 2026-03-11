@@ -261,22 +261,33 @@ func _draw_hidden_badge(center: Vector2) -> void:
 
 func _draw_reveal_flash() -> void:
 	var accent: Color = definition.color
-	var flash_alpha: float = _reveal_flash * 0.4
+	var flash_alpha: float = _reveal_flash * 0.6
 	for cell in cells:
 		var local_pos := Vector2(
 			(cell.x - grid_cell.x) * TILE_SIZE,
 			(cell.y - grid_cell.y) * TILE_SIZE
 		)
 		draw_rect(Rect2(local_pos, Vector2(TILE_SIZE, TILE_SIZE)), Color(accent, flash_alpha), true)
-	# Expanding ring burst
+	# Double expanding ring burst for impact
 	var center: Vector2 = get_center_world() - global_position
-	var burst_radius: float = (1.0 - _reveal_flash) * 120.0
-	var burst_alpha: float = _reveal_flash * 0.5
-	var points := PackedVector2Array()
+	# Inner ring (fast)
+	var burst1_r: float = (1.0 - _reveal_flash) * 140.0
+	var burst1_a: float = _reveal_flash * 0.6
+	var points1 := PackedVector2Array()
 	for j in range(33):
 		var angle: float = float(j) / 32.0 * TAU
-		points.append(center + Vector2(cos(angle), sin(angle)) * burst_radius)
-	draw_polyline(points, Color(accent, burst_alpha), 2.5, true)
+		points1.append(center + Vector2(cos(angle), sin(angle)) * burst1_r)
+	draw_polyline(points1, Color(accent, burst1_a), 3.0, true)
+	# Outer ring (slower, wider)
+	var burst2_r: float = (1.0 - _reveal_flash) * 200.0
+	var burst2_a: float = _reveal_flash * 0.3
+	var points2 := PackedVector2Array()
+	for j in range(33):
+		var angle: float = float(j) / 32.0 * TAU
+		points2.append(center + Vector2(cos(angle), sin(angle)) * burst2_r)
+	draw_polyline(points2, Color(accent, burst2_a), 2.0, true)
+	# Center flash dot
+	draw_circle(center, 8.0 * _reveal_flash, Color(1.0, 1.0, 1.0, _reveal_flash * 0.5))
 
 
 func _draw_organic_border(accent: Color, alpha: float, line_w: float = 2.0, glow_w: float = 6.0) -> void:

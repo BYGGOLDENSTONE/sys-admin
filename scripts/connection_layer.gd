@@ -144,14 +144,14 @@ func _draw_connection(conn: Dictionary, active: bool, hovered: bool) -> void:
 
 	if active:
 		var pulse := sin(Time.get_ticks_msec() / 200.0) * 0.5 + 0.5
-		# Outer soft halo
-		draw_polyline(points, Color(accent, (0.06 + pulse * 0.04) * zoom_scale), glow_w * 2.5, true)
+		# Outer soft halo — wider for "glowing wire" feel
+		draw_polyline(points, Color(accent, (0.08 + pulse * 0.06) * zoom_scale), glow_w * 2.5, true)
 		# Mid glow
-		draw_polyline(points, Color(accent, minf((CABLE_GLOW_ALPHA + pulse * 0.1) * zoom_scale, 0.6)), glow_w, true)
+		draw_polyline(points, Color(accent, minf((CABLE_GLOW_ALPHA + pulse * 0.12) * zoom_scale, 0.6)), glow_w, true)
 		# Core line
 		draw_polyline(points, accent, core_w, true)
-		# Bright center highlight
-		draw_polyline(points, Color(1.0, 1.0, 1.0, 0.15 + pulse * 0.05), maxf(1.0, core_w * 0.4), true)
+		# Bright center highlight — boosted for screenshot contrast
+		draw_polyline(points, Color(1.0, 1.0, 1.0, 0.2 + pulse * 0.1), maxf(1.0, core_w * 0.4), true)
 	else:
 		draw_polyline(points, Color(accent, minf(CABLE_INACTIVE_ALPHA * 0.4 * zoom_scale, 0.25)), glow_w * 0.4, true)
 		draw_polyline(points, Color(accent, minf(CABLE_INACTIVE_ALPHA * 0.8 * zoom_scale, 0.35)), core_w, true)
@@ -349,10 +349,10 @@ func _draw_particles(conn: Dictionary, conn_index: int, stalled: bool = false) -
 		else:
 			glow_pulse = sin(Time.get_ticks_msec() / 120.0 + float(i) * 1.7) * 0.5 + 0.5
 
-		# Outer glow halo (larger for readability)
-		draw_circle(pos, 10.0 + glow_pulse * 4.0, Color(base_color, 0.08 + glow_pulse * 0.06))
+		# Outer glow halo (larger for readability + screenshot pop)
+		draw_circle(pos, 12.0 + glow_pulse * 5.0, Color(base_color, 0.1 + glow_pulse * 0.08))
 		# Inner glow
-		draw_circle(pos, 5.0, Color(base_color, 0.3))
+		draw_circle(pos, 6.0, Color(base_color, 0.35))
 
 		# Dark background pill behind character for contrast
 		var bg_rect := Rect2(pos + Vector2(-half_fs * 0.45, -half_fs * 0.55), Vector2(half_fs * 0.9, half_fs * 1.1))

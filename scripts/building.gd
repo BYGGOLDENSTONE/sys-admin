@@ -249,13 +249,17 @@ func _draw() -> void:
 	var accent: Color = definition.color if active else Color(definition.color, 0.3)
 	var zoom: float = _get_zoom_level()
 
+	# Active/idle visual contrast — idle buildings desaturated toward gray
+	if active and not is_working and not _is_ghost:
+		accent = accent.lerp(Color(0.35, 0.35, 0.4), 0.3)
+
 	# State-based pulse
 	var pulse: float = 0.0
 	if active:
 		if is_working:
-			pulse = (sin(_glow_time * 7.0) * 0.5 + 0.5) * GLOW_PULSE_AMOUNT * 3.0
+			pulse = (sin(_glow_time * 7.0) * 0.5 + 0.5) * GLOW_PULSE_AMOUNT * 4.0
 		else:
-			pulse = sin(_glow_time * GLOW_PULSE_SPEED) * GLOW_PULSE_AMOUNT
+			pulse = sin(_glow_time * GLOW_PULSE_SPEED) * GLOW_PULSE_AMOUNT * 0.5
 
 	# === PCB MODE (zoom < 0.45) — bright chips on dark board ===
 	if zoom < 0.45:
@@ -274,9 +278,16 @@ func _draw() -> void:
 	)
 	var outer_a := OUTER_GLOW_ALPHA + pulse
 	if is_working:
-		outer_a += 0.08
+		outer_a += 0.15
 	outer_a *= zoom_glow_scale  # brighter at low zoom
 	draw_rect(outer_rect, Color(accent, minf(outer_a, 0.5)), false, outer_w)
+
+	# Contract Terminal beacon — golden radial glow as visual anchor
+	if definition.visual_type == "terminal":
+		var beacon_r: float = maxf(size.x, size.y) * 0.8 * zoom_glow_scale
+		var beacon_pulse: float = (sin(_glow_time * 1.5) * 0.5 + 0.5) * 0.04
+		draw_circle(center, beacon_r, Color(accent, 0.03 + beacon_pulse))
+		draw_circle(center, beacon_r * 0.5, Color(accent, 0.06 + beacon_pulse))
 
 	# Inner glow
 	var inner_w: float = GLOW_WIDTH * zoom_glow_scale
@@ -363,9 +374,10 @@ func _draw() -> void:
 	if not is_medium:
 		_draw_status_bars(size, accent)
 
-	# Processing flash overlay
+	# Processing flash overlay — bright burst when building starts working
 	if _process_flash > 0.0 and not is_medium:
-		draw_rect(rect, Color(accent.r, accent.g, accent.b, _process_flash * 0.2), true)
+		draw_rect(rect, Color(accent.r, accent.g, accent.b, _process_flash * 0.35), true)
+		draw_rect(rect, Color(accent, _process_flash * 0.5), false, 2.0)
 
 	# Malware overlay (skip for Trash — it destroys everything)
 	if not _is_ghost and _has_malware():
@@ -421,7 +433,12 @@ func _draw_pcb_mode(size: Vector2, rect: Rect2, accent: Color, pulse: float) -> 
 
 	# Working indicator: brighter fill
 	if is_working:
-		draw_rect(rect, Color(accent, 0.08), true)
+		draw_rect(rect, Color(accent, 0.12), true)
+
+	# Contract Terminal beacon at PCB zoom
+	if definition.visual_type == "terminal":
+		var beacon_r: float = maxf(size.x, size.y) * 0.6 * inv_zoom
+		draw_circle(center, beacon_r, Color(accent, 0.02 + pulse * 0.01))
 
 	# Malware overlay (still visible at distance — skip for Trash)
 	if not _is_ghost and _has_malware():

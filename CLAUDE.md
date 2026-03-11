@@ -1,8 +1,8 @@
 # SYS_ADMIN - Proje Durumu ve Demo Release Plani
 
-## Mevcut Asama: v3.0 Faz I TAMAMLANDI — Faz J sirada
+## Mevcut Asama: v3.0 Faz J-fix (Code Review Duzeltmeleri) DEVAM EDIYOR
 - **GDD:** `docs/GDD.md` (v3.0) - Tum tasarim kararlari burada
-- **Kod durumu:** v3.0 Faz A-I tamamlandi
+- **Kod durumu:** v3.0 Faz A-J tamamlandi, code review duzeltmeleri basliyor
 - **Hedef:** Steam Next Fest Haziran 2026 icin oynanabilir, polished, save/load'lu, onboarding'i guclu demo
 - **Ticari hedef:** Tam oyun icin $9.99 fiyat noktasina yakisan kalite ve guven hissi
 
@@ -319,23 +319,23 @@ Asagidaki durumlarda dur ve kullaniciya don:
 **Amac:** Harici art gucune bagimli olmadan oyunu daha pahali, daha okunur ve daha paylasilabilir gostermek.
 
 ### Procedural Art Yonu - Zorunlu Kurallar
-- [ ] Her bina 4 sey ile ayristirilsin: siluet, ikon, accent renk, calisma animasyonu
-- [ ] Uzak zoom -> glow/siluet/traffic okunurlugu
-- [ ] Orta zoom -> bina kimligi + portlar + akisin yonu
-- [ ] Yakin zoom -> ikon detayi + package karakterleri + activity feedback
-- [ ] Active ve idle bina arasindaki kontrast guclendirilsin
-- [ ] Source'larin difficulty / deger / tehdit hissi uzaktan da anlasilsin
+- [x] Her bina 4 sey ile ayristirilsin: siluet, ikon, accent renk, calisma animasyonu
+- [x] Uzak zoom -> glow/siluet/traffic okunurlugu
+- [x] Orta zoom -> bina kimligi + portlar + akisin yonu
+- [x] Yakin zoom -> ikon detayi + package karakterleri + activity feedback
+- [x] Active ve idle bina arasindaki kontrast guclendirilsin
+- [x] Source'larin difficulty / deger / tehdit hissi uzaktan da anlasilsin
 
 ### Must-Do
-- [ ] Tum bina siluetlerini ayristir
-- [ ] Tum bina ikonlarinin ayni dilde oldugunu dogrula
-- [ ] Contract Terminal'i sahnede daha "merkez" hissettir
-- [ ] Delivery, unlock, completion anlarina daha guclu moment-to-moment feedback ekle
-- [ ] Kablo traffic'inin screenshot degerini arttir
-- [ ] Uzak zoom'da factory "parlayan devre karti" hissi vermeli
-- [ ] Source discovery ani daha tatmin edici hale getirilsin
-- [ ] Sesleri bina fiilleriyle daha net eslestir
-- [ ] UI panelleri tek bir cyber style system ile tutarli hale getirilsin
+- [x] Tum bina siluetlerini ayristir
+- [x] Tum bina ikonlarinin ayni dilde oldugunu dogrula
+- [x] Contract Terminal'i sahnede daha "merkez" hissettir
+- [x] Delivery, unlock, completion anlarina daha guclu moment-to-moment feedback ekle
+- [x] Kablo traffic'inin screenshot degerini arttir
+- [x] Uzak zoom'da factory "parlayan devre karti" hissi vermeli
+- [x] Source discovery ani daha tatmin edici hale getirilsin
+- [x] Sesleri bina fiilleriyle daha net eslestir
+- [x] UI panelleri tek bir cyber style system ile tutarli hale getirilsin
 
 ### Screenshot Pass
 - [ ] En az 5 farkli "Steam screenshot worthy" goruntu elde et
@@ -353,6 +353,43 @@ Asagidaki durumlarda dur ve kullaniciya don:
 - [ ] Detayli hand-painted art pipeline
 - [ ] Karakter/cevre illustrasyonlari
 - [ ] Tema degistiren buyuk gorsel pivot
+
+---
+
+## Faz J-fix: Code Review Duzeltmeleri (4 Phase)
+**Amac:** Bagimsiz code review'da tespit edilen kritik ve yuksek oncelikli sorunlari demo-ready seviyesine getirmek.
+
+### Phase 1: Tutorial Race Condition Fix (Kolay — 5 dk) — TAMAMLANDI
+- [x] `main.gd`: `_setup_tutorial_manager()` cagrisini `_gig_manager.initialize()`'dan ONCE yap
+- [x] Gig 1 hint'inin ("Find a data source nearby...") gercekten gosterildigini dogrula
+
+### Phase 2: Simulation Back-Pressure — Sessiz Veri Kaybi Duzeltmesi (Kritik) — TAMAMLANDI
+- [x] Routing binalari (Classifier, Separator, Splitter, Merger): Cikis tikaliysa/bagli degilse veriyi stored_data'da TUT, clear etme
+- [x] Producer (Research Lab): Cikis teslim edilemezse girdiyi tuketme (sent kontrolu ekle)
+- [x] Compiler: Cikis teslim edilemezse girdileri tuketme (sent kontrolu ekle)
+- [x] Dual-Input (Decryptor/Encryptor/Recoverer): Tick-sonu temizlemede islenmemis veriyi de koru
+- [x] Tum binalarda "cikis yoksa girdi harca" davranisi sona ermis olsun
+
+### Phase 3: Building Move — Kablo ve Uplink Butunlugu (Yuksek)
+- [ ] `building_manager.gd _complete_move()`: Uplink tasindikta source_manager.on_building_removed + on_building_placed cagir (undo_manager ile tutarli yap)
+- [ ] Move sonrasi gecersiz kablolari tespit et ve kaldir
+- [ ] Normal move ile undo/redo davranisi artik tutarli olsun
+
+### Phase 4: Demo Scope Hizalama — Gig/Resource GDD Uyumu (Orta-Yuksek)
+- [ ] Gig 09: Classified → Blueprint veya Research ile degistir (Classified demo scope disinda)
+- [ ] Public Database: content_weights'ten Classified (5) cikar, GDD'ye hizala (Standard + Bio + Research)
+- [ ] Shop Server: corrupted_max_tier 1→2 yap (GDD: T1-T2 corrupted)
+- [ ] Biotech Lab: corrupted_max_tier 1→2 yap (GDD: T1-T2 corrupted)
+
+### Phase Gecis Kurali
+- Her phase sonunda commit + push
+- Sonraki phase'e gecmeden once oyun CALISIYOR olmali
+
+### Definition of Done
+- [ ] Tutorial ilk hint'i new game'de gorunuyor
+- [ ] Tikanmis hatlarda veri sessizce kaybolmuyor
+- [ ] Bina tasima sonrasi kablolar ve uplink linkleri tutarli
+- [ ] Demo gig/resource havuzu GDD ile uyumlu
 
 ---
 

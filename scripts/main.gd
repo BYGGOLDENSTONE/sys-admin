@@ -135,6 +135,9 @@ func _ready() -> void:
 	# Setup save manager (before loading state)
 	_setup_save_manager()
 
+	# Setup tutorial manager BEFORE gig initialization (so Gig 1 hint is received)
+	_setup_tutorial_manager()
+
 	if is_loading:
 		# LOAD PATH: restore saved state
 		_save_manager.apply_state(load_save_data)
@@ -174,9 +177,6 @@ func _ready() -> void:
 
 	# Setup shortcut hints
 	_setup_shortcut_hints()
-
-	# Setup tutorial manager
-	_setup_tutorial_manager()
 
 	# Setup sound manager
 	_setup_sound_manager()
@@ -330,6 +330,7 @@ func _setup_gig_manager() -> void:
 	_gig_manager.building_unlocked.connect(_on_building_unlocked)
 	_gig_manager.gig_completed.connect(_on_gig_completed)
 	_gig_manager.gig_activated.connect(_on_gig_activated)
+	_gig_manager.gig_progress_updated.connect(_on_gig_progress_sound)
 	# Process deliveries after each simulation tick
 	simulation_manager.tick_completed.connect(_on_tick_for_gig)
 	# NOTE: initialize() is called later — after load check in _ready()
@@ -396,7 +397,9 @@ func _on_tick_for_gig(_tick_count: int) -> void:
 func _on_gig_completed(gig) -> void:
 	_show_gig_notification("GIG COMPLETE: %s" % gig.gig_name, Color("#44ff88"))
 	if _sound_manager:
-		_sound_manager.play_unlock()
+		_sound_manager.play_gig_complete()
+	if camera.has_method("add_trauma"):
+		camera.add_trauma(0.25)
 	if _tutorial_manager:
 		_tutorial_manager.on_gig_completed(gig)
 
@@ -408,28 +411,32 @@ func _on_gig_activated(gig) -> void:
 		_tutorial_manager.on_gig_activated(gig)
 
 
+func _on_gig_progress_sound(_gig, _req_index: int, _current: int, _target: int) -> void:
+	if _sound_manager:
+		_sound_manager.play_delivery()
+
+
 func _show_gig_notification(text: String, color: Color) -> void:
 	var notif := Label.new()
 	notif.text = ">> %s <<" % text
-	notif.add_theme_font_size_override("font_size", 20)
+	notif.add_theme_font_size_override("font_size", 24)
 	notif.add_theme_color_override("font_color", color)
-	notif.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
-	notif.add_theme_constant_override("outline_size", 4)
+	notif.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
+	notif.add_theme_constant_override("outline_size", 5)
 	notif.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	notif.anchors_preset = Control.PRESET_CENTER_TOP
 	notif.position.y = 120
 	notif.modulate = Color(1, 1, 1, 0)
-	notif.scale = Vector2(0.7, 0.7)
+	notif.scale = Vector2(0.5, 0.5)
 	notif.pivot_offset = Vector2(notif.size.x / 2.0, notif.size.y / 2.0)
 	ui_layer.add_child(notif)
 	var tween := create_tween().set_parallel(true)
-	tween.tween_property(notif, "modulate:a", 1.0, 0.2).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	tween.tween_property(notif, "scale", Vector2.ONE, 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.tween_property(notif, "modulate:a", 1.0, 0.15).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tween.tween_property(notif, "scale", Vector2(1.05, 1.05), 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.tween_property(notif, "scale", Vector2.ONE, 0.15).set_delay(0.25)
 	tween.tween_property(notif, "position:y", 105.0, 2.5).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	tween.tween_property(notif, "modulate:a", 0.0, 0.8).set_delay(2.0)
 	tween.chain().tween_callback(notif.queue_free)
-	if camera.has_method("add_trauma"):
-		camera.add_trauma(0.15)
 
 
 func _on_building_unlocked(building_name: String) -> void:
@@ -437,6 +444,8 @@ func _on_building_unlocked(building_name: String) -> void:
 	_show_unlock_notification(building_name)
 	if _sound_manager:
 		_sound_manager.play_unlock()
+	if camera.has_method("add_trauma"):
+		camera.add_trauma(0.18)
 	if _tutorial_manager:
 		_tutorial_manager.on_building_unlocked(building_name)
 
@@ -444,19 +453,22 @@ func _on_building_unlocked(building_name: String) -> void:
 func _show_unlock_notification(building_name: String) -> void:
 	var notif := Label.new()
 	notif.text = ">> %s UNLOCKED <<" % building_name.to_upper()
-	notif.add_theme_font_size_override("font_size", 18)
+	notif.add_theme_font_size_override("font_size", 20)
 	notif.add_theme_color_override("font_color", Color("#aa77ff"))
+	notif.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
+	notif.add_theme_constant_override("outline_size", 4)
 	notif.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	notif.anchors_preset = Control.PRESET_CENTER_TOP
 	notif.position.y = 110
 	notif.modulate = Color(1, 1, 1, 0)
-	notif.scale = Vector2(0.7, 0.7)
+	notif.scale = Vector2(0.5, 0.5)
 	notif.pivot_offset = Vector2(notif.size.x / 2.0, notif.size.y / 2.0)
 	ui_layer.add_child(notif)
 
 	var tween := create_tween().set_parallel(true)
-	tween.tween_property(notif, "modulate:a", 1.0, 0.2).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	tween.tween_property(notif, "scale", Vector2.ONE, 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.tween_property(notif, "modulate:a", 1.0, 0.15).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tween.tween_property(notif, "scale", Vector2(1.05, 1.05), 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.tween_property(notif, "scale", Vector2.ONE, 0.15).set_delay(0.25)
 	tween.tween_property(notif, "position:y", 95.0, 2.5).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	tween.tween_property(notif, "modulate:a", 0.0, 0.8).set_delay(2.0)
 	tween.chain().tween_callback(notif.queue_free)
@@ -499,9 +511,9 @@ func _show_discovery_notification(display_name: String, color: Color) -> void:
 	tween.tween_property(notif, "modulate:a", 0.0, 0.8).set_delay(2.2).set_trans(Tween.TRANS_QUAD)
 	tween.chain().tween_callback(notif.queue_free)
 
-	# Camera shake + discovery sound
+	# Camera shake + discovery sound — stronger for impact
 	if camera.has_method("add_trauma"):
-		camera.add_trauma(0.12)
+		camera.add_trauma(0.18)
 	if _sound_manager:
 		_sound_manager.play_discovery()
 

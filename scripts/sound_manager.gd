@@ -63,14 +63,28 @@ func play_unlock() -> void:
 	play("unlock_fanfare", -4.0, 0.0)
 
 
+func play_gig_complete() -> void:
+	play("gig_complete", -3.0, 0.0)
+
+
+func play_delivery() -> void:
+	play("delivery_blip", -14.0, 0.1)
+
+
 func play_process_event(building_type: String) -> void:
 	match building_type:
 		"decryptor":
 			play("process_crack", -14.0)
+		"encryptor":
+			play("process_encrypt", -14.0)
 		"compiler":
 			play("process_synth", -14.0)
-		"quarantine":
-			play("quarantine_flush", -10.0)
+		"recoverer":
+			play("process_recover", -14.0)
+		"classifier", "separator":
+			play("process_classify", -16.0)
+		"research":
+			play("process_research", -14.0)
 		_:
 			play("process_tick", -16.0)
 
@@ -126,11 +140,18 @@ func _generate_sounds() -> void:
 	# Discovery / Unlock
 	_sounds["discovery_chime"] = _gen_chime([523.0, 659.0, 784.0], 0.12, 0.3)
 	_sounds["unlock_fanfare"] = _gen_chime([262.0, 330.0, 392.0, 523.0], 0.12, 0.35)
-	# Processing
+	# Gig complete (5-note triumphant arpeggio)
+	_sounds["gig_complete"] = _gen_chime([330.0, 392.0, 494.0, 587.0, 659.0], 0.10, 0.35)
+	# Delivery confirmation blip
+	_sounds["delivery_blip"] = _gen(880.0, 0.06, 0.2, "sine", 1320.0)
+	# Processing — per-building type
 	_sounds["process_crack"] = _gen(1200.0, 0.06, 0.15, "square", 2800.0)
 	_sounds["process_synth"] = _gen(400.0, 0.12, 0.15, "sine", 1000.0)
 	_sounds["process_tick"] = _gen(1000.0, 0.03, 0.1, "sine")
-	_sounds["quarantine_flush"] = _gen(55.0, 0.5, 0.35, "saw", 30.0)
+	_sounds["process_encrypt"] = _gen(600.0, 0.08, 0.12, "sine", 1200.0)
+	_sounds["process_recover"] = _gen(220.0, 0.15, 0.15, "sine", 440.0)
+	_sounds["process_classify"] = _gen(1500.0, 0.04, 0.1, "square")
+	_sounds["process_research"] = _gen(330.0, 0.1, 0.12, "sine", 660.0)
 	# UI
 	_sounds["ui_hover"] = _gen(3200.0, 0.015, 0.06, "square")
 	_sounds["ui_click"] = _gen(1800.0, 0.035, 0.12, "square")
