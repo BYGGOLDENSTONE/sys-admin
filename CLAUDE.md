@@ -1,8 +1,8 @@
 # SYS_ADMIN - Proje Durumu ve Demo Release Plani
 
-## Mevcut Asama: v3.0 Faz H Tamam, Faz I Sirada
+## Mevcut Asama: v3.0 Faz I Devam Ediyor (Save/Load tamam, Options + QoL kaldi)
 - **GDD:** `docs/GDD.md` (v3.0) - Tum tasarim kararlari burada
-- **Kod durumu:** v3.0 Faz A-H tamamlandi, demo release execution plani asagida
+- **Kod durumu:** v3.0 Faz A-H tamamlandi, Faz I kismi tamamlandi (save/load/menu/autosave bitti)
 - **Hedef:** Steam Next Fest Haziran 2026 icin oynanabilir, polished, save/load'lu, onboarding'i guclu demo
 - **Ticari hedef:** Tam oyun icin $9.99 fiyat noktasina yakisan kalite ve guven hissi
 
@@ -98,7 +98,7 @@ Asagidaki maddeler demo release oncesi mutlaka cozulmeli:
 - [x] Source bandwidth gameplay'de uygulanmiyor
 - [x] Paralel gig sistemi + gig UI eksik
 - [x] Onboarding, "oyuncu neden ne yapiyor" sorusunu UI ile cevaplayacak kadar guclu degil
-- [ ] Save/load/autosave yok
+- [x] Save/load/autosave yok
 - [x] Demo source/gig havuzu heniz net sekilde curate edilmemis
 - [x] Legacy quarantine/probabilistic/storage izleri demo scope'unu bulandiriyor
 - [ ] Demo'yu satin alinabilir gosterecek screenshot/trailer kalitesi henuz garanti degil
@@ -280,13 +280,13 @@ Asagidaki durumlarda dur ve kullaniciya don:
 **Amac:** Demo, gercek bir urun gibi davranmali; oyuncu cikis yapip geri donebilmeli, fabrika kaybolmamali.
 
 ### Must-Do
-- [ ] New Game / Continue akisi ekle
-- [ ] Save system ekle
-- [ ] Load system ekle
-- [ ] Autosave ekle
-- [ ] Seed bilgisini save ile bagla
-- [ ] Gig progress, unlocks, buildings, connections, source discovery durumu kaydolmali
-- [ ] Save bozulursa oyuncu sessizce mahvolmasin; temel fail-safe davranis ekle
+- [x] New Game / Continue akisi ekle
+- [x] Save system ekle
+- [x] Load system ekle
+- [x] Autosave ekle
+- [x] Seed bilgisini save ile bagla
+- [x] Gig progress, unlocks, buildings, connections, source discovery durumu kaydolmali
+- [x] Save bozulursa oyuncu sessizce mahvolmasin; temel fail-safe davranis ekle
 - [ ] Basit Options menusu ekle
 - [ ] Audio volume ayari ekle
 - [ ] Window/fullscreen gibi en az birkac temel display ayari ekle
@@ -294,8 +294,8 @@ Asagidaki durumlarda dur ve kullaniciya don:
 ### Demo QoL Must-Do
 - [ ] Move/remove akislarini puruzsuzlestir
 - [ ] Kablo silme / yeniden cekme feedback'ini guclendir
-- [ ] Pause / speed / shortcut bilgilerini daha net yap
-- [ ] Undo/redo'yu save/load sonrasi da guvenilir hale getir veya gerekiyorsa scoped tut
+- [x] Pause / speed / shortcut bilgilerini daha net yap
+- [x] Undo/redo'yu save/load sonrasi da guvenilir hale getir veya gerekiyorsa scoped tut
 - [ ] Hover tooltip'lerde yalnizca faydali bilgi kalsin; bilgi gurultusu temizlensin
 
 ### Nice-to-Have (Sadece hizliysa)
@@ -444,7 +444,7 @@ Demo "hazir" sayilabilmesi icin su maddelerin hepsi saglanmali:
 - [ ] Encryptor ve Compiler zorunlu kullanim goruyor
 - [ ] Packet gercek urun olarak calisiyor
 - [ ] Malware gameplay demo'da yok
-- [ ] Save/load/autosave var
+- [x] Save/load/autosave var
 - [x] Contract UI var
 - [x] Goal clarity guclu
 - [x] Demo source havuzu curate edilmis
