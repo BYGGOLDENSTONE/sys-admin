@@ -703,18 +703,32 @@ func _update_move_preview() -> void:
 
 func _complete_move() -> void:
 	var def: BuildingDefinition = _moving_building.definition
+	var old_cell: Vector2i = _moving_original_cell
+	var building: Node2D = _moving_building
+	# Capture cables BEFORE removing (building.grid_cell still = old_cell)
+	var saved_conns: Array[Dictionary] = []
+	if undo_manager:
+		saved_conns = undo_manager.get_connections_for_building(building)
+	# Remove cables — paths reference old position and are now invalid
+	if connection_manager:
+		connection_manager.remove_connections_for(building, old_cell)
 	# Occupy new cells
-	grid_system.occupy(_ghost_cell, def.grid_size, _moving_building)
-	_moving_building.grid_cell = _ghost_cell
-	_moving_building.position = grid_system.grid_to_world(_ghost_cell)
-	_moving_building.visible = true
+	grid_system.occupy(_ghost_cell, def.grid_size, building)
+	building.grid_cell = _ghost_cell
+	building.position = grid_system.grid_to_world(_ghost_cell)
+	building.visible = true
 	ghost_preview.visible = false
+	# Update uplink source links (consistent with undo_manager._move_building)
+	if source_manager and building.definition.generator != null:
+		source_manager.on_building_removed(building, old_cell)
+		source_manager.on_building_placed(building, _ghost_cell)
 	if undo_manager and not undo_manager.is_undoing:
 		undo_manager.push_command({
 			type = "move",
 			definition = def,
-			old_cell = _moving_original_cell,
+			old_cell = old_cell,
 			new_cell = _ghost_cell,
+			connections = saved_conns,
 		})
 	print("[BuildingManager] Building moved — %s to (%d,%d)" % [
 		def.building_name, _ghost_cell.x, _ghost_cell.y

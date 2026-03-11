@@ -5,9 +5,9 @@
 [resource]
 script = ExtResource("1")
 source_name = "Public Database"
-description = "Publicly accessible academic and government databases. Mostly clean standard and biometric records, some corrupted or encrypted."
+description = "Publicly accessible academic and government databases. Standard, biometric, and research records. Mostly clean, some corrupted."
 color = Color(0.4, 0.8, 0.53, 1.0)
-content_weights = {0: 0.45, 1: 0.05, 2: 0.30, 3: 0.05, 4: 0.10, 5: 0.05}
+content_weights = {0: 0.50, 2: 0.35, 4: 0.15}
 state_weights = {0: 0.58, 1: 0.10, 2: 0.32}
 bandwidth = 6.0
 cell_count_range = Vector2i(9, 13)

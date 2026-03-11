@@ -13,4 +13,4 @@ bandwidth = 6.0
 cell_count_range = Vector2i(10, 15)
 difficulty = "medium"
 encrypted_max_tier = 0
-corrupted_max_tier = 1
+corrupted_max_tier = 2

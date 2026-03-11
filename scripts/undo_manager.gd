@@ -54,6 +54,9 @@ func _execute_reverse(cmd: Dictionary) -> void:
 			_add_connection_by_cells(cmd.from_cell, cmd.from_port, cmd.to_cell, cmd.to_port, cmd.get("path", []))
 		"move":
 			_move_building(cmd.new_cell, cmd.old_cell, cmd.definition)
+			# Restore cables that existed before the original move
+			for conn_data in cmd.get("connections", []):
+				_add_connection_by_cells(conn_data.from_cell, conn_data.from_port, conn_data.to_cell, conn_data.to_port, conn_data.get("path", []))
 
 
 func _execute_forward(cmd: Dictionary) -> void:
@@ -105,6 +108,8 @@ func _move_building(from_cell: Vector2i, to_cell: Vector2i, definition: Building
 	var building: Node2D = grid_system.get_building_at(from_cell)
 	if building == null:
 		return
+	# Remove cables at current position — paths will be invalid after move
+	connection_manager.remove_connections_for(building, from_cell)
 	grid_system.free_cells(from_cell, definition.grid_size)
 	if not grid_system.can_place(to_cell, definition.grid_size):
 		grid_system.occupy(from_cell, definition.grid_size, building)

@@ -1,8 +1,8 @@
 # SYS_ADMIN - Proje Durumu ve Demo Release Plani
 
-## Mevcut Asama: v3.0 Faz J-fix (Code Review Duzeltmeleri) DEVAM EDIYOR
+## Mevcut Asama: v3.0 Faz J-fix TAMAMLANDI — Faz K sirada
 - **GDD:** `docs/GDD.md` (v3.0) - Tum tasarim kararlari burada
-- **Kod durumu:** v3.0 Faz A-J tamamlandi, code review duzeltmeleri basliyor
+- **Kod durumu:** v3.0 Faz A-J + J-fix tamamlandi, Faz K (Stability/QA) sirada
 - **Hedef:** Steam Next Fest Haziran 2026 icin oynanabilir, polished, save/load'lu, onboarding'i guclu demo
 - **Ticari hedef:** Tam oyun icin $9.99 fiyat noktasina yakisan kalite ve guven hissi
 
@@ -370,26 +370,26 @@ Asagidaki durumlarda dur ve kullaniciya don:
 - [x] Dual-Input (Decryptor/Encryptor/Recoverer): Tick-sonu temizlemede islenmemis veriyi de koru
 - [x] Tum binalarda "cikis yoksa girdi harca" davranisi sona ermis olsun
 
-### Phase 3: Building Move — Kablo ve Uplink Butunlugu (Yuksek)
-- [ ] `building_manager.gd _complete_move()`: Uplink tasindikta source_manager.on_building_removed + on_building_placed cagir (undo_manager ile tutarli yap)
-- [ ] Move sonrasi gecersiz kablolari tespit et ve kaldir
-- [ ] Normal move ile undo/redo davranisi artik tutarli olsun
+### Phase 3: Building Move — Kablo ve Uplink Butunlugu (Yuksek) — TAMAMLANDI
+- [x] `building_manager.gd _complete_move()`: Uplink tasindikta source_manager.on_building_removed + on_building_placed cagir (undo_manager ile tutarli yap)
+- [x] Move sonrasi gecersiz kablolari tespit et ve kaldir
+- [x] Normal move ile undo/redo davranisi artik tutarli olsun
 
-### Phase 4: Demo Scope Hizalama — Gig/Resource GDD Uyumu (Orta-Yuksek)
-- [ ] Gig 09: Classified → Blueprint veya Research ile degistir (Classified demo scope disinda)
-- [ ] Public Database: content_weights'ten Classified (5) cikar, GDD'ye hizala (Standard + Bio + Research)
-- [ ] Shop Server: corrupted_max_tier 1→2 yap (GDD: T1-T2 corrupted)
-- [ ] Biotech Lab: corrupted_max_tier 1→2 yap (GDD: T1-T2 corrupted)
+### Phase 4: Demo Scope Hizalama — Gig/Resource GDD Uyumu (Orta-Yuksek) — TAMAMLANDI
+- [x] Gig 09: Classified → Blueprint ile degistirildi (content=3, label="Blueprint Recovered")
+- [x] Public Database: content_weights'ten Classified (5) + Financial (1) + Blueprint (3) cikarildi, GDD'ye hizalandi (Standard 0.50 + Bio 0.35 + Research 0.15)
+- [x] Shop Server: corrupted_max_tier 1→2 yapildi (GDD: T1-T2 corrupted)
+- [x] Biotech Lab: corrupted_max_tier 1→2 yapildi (GDD: T1-T2 corrupted)
 
 ### Phase Gecis Kurali
 - Her phase sonunda commit + push
 - Sonraki phase'e gecmeden once oyun CALISIYOR olmali
 
 ### Definition of Done
-- [ ] Tutorial ilk hint'i new game'de gorunuyor
-- [ ] Tikanmis hatlarda veri sessizce kaybolmuyor
-- [ ] Bina tasima sonrasi kablolar ve uplink linkleri tutarli
-- [ ] Demo gig/resource havuzu GDD ile uyumlu
+- [x] Tutorial ilk hint'i new game'de gorunuyor
+- [x] Tikanmis hatlarda veri sessizce kaybolmuyor
+- [x] Bina tasima sonrasi kablolar ve uplink linkleri tutarli
+- [x] Demo gig/resource havuzu GDD ile uyumlu
 
 ---
 
