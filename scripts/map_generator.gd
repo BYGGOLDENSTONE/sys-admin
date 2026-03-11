@@ -44,6 +44,9 @@ func generate_map(seed_value: int, source_manager: Node) -> void:
 	# Phase 2: Fill remaining pools randomly
 	_place_random_fill(seed_value, source_manager)
 
+	# Phase 3: Reveal hard/endgame sources near spawn ("see but can't process" hook)
+	source_manager.reveal_hard_sources_near_spawn(MAP_CENTER, NEAR_RADIUS)
+
 	print("[MapGenerator] Generated map — seed: %d, sources: %d" % [seed_value, _placed_origins.size()])
 
 

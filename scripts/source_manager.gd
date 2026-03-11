@@ -139,6 +139,19 @@ func _auto_link_uplinks_near(source: Node2D) -> void:
 					link_uplink_to_source(building, source)
 
 
+func reveal_hard_sources_near_spawn(center: Vector2i, radius: int) -> void:
+	## "See but can't process" hook — reveal hard/endgame sources near spawn
+	for source in _sources:
+		if source.discovered:
+			continue
+		if source.definition.difficulty != "hard" and source.definition.difficulty != "endgame":
+			continue
+		var dist: int = abs(source.grid_cell.x - center.x) + abs(source.grid_cell.y - center.y)
+		if dist <= radius:
+			source.discovered = true
+			print("[SourceManager] Hard source pre-revealed near spawn — %s" % source.definition.source_name)
+
+
 func set_dev_mode(enabled: bool) -> void:
 	dev_mode = enabled
 	for source in _sources:

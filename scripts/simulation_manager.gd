@@ -17,6 +17,7 @@ var sound_manager: Node = null
 var connection_flow_data: Dictionary = {}  # conn_index → [{content, state, amount}]
 var connection_stalled: Dictionary = {}  # conn_idx → true if stalled
 var connection_last_flow: Dictionary = {}  # conn_idx → last known flow data for stalled visuals
+var _splitter_next_port: Dictionary = {}  # building instance_id → next output port index
 
 @onready var _sim_timer: Timer = $SimTimer
 
@@ -601,8 +602,11 @@ func _process_trash(b: Node2D) -> int:
 func _process_splitter(b: Node2D, max_process: int) -> int:
 	var processed: int = 0
 	var output_ports: Array[String] = b.definition.output_ports
-	if output_ports.is_empty():
+	var port_count: int = output_ports.size()
+	if port_count == 0:
 		return 0
+	var bid: int = b.get_instance_id()
+	var next_idx: int = _splitter_next_port.get(bid, 0) % port_count
 	for key in b.stored_data.keys():
 		if processed >= max_process:
 			break
@@ -611,17 +615,28 @@ func _process_splitter(b: Node2D, max_process: int) -> int:
 			continue
 		var parsed: Dictionary = DataEnums.parse_key(key)
 		var to_process: int = mini(available, max_process - processed)
-		var per_port: int = maxi(1, to_process / output_ports.size())
+		# Round-robin: distribute one at a time, alternating ports
 		var sent_total: int = 0
-		for port in output_ports:
-			var to_send: int = mini(per_port, to_process - sent_total)
-			if to_send <= 0:
-				break
-			var sent: int = _push_data_from(b, parsed.content, parsed.state, to_send, port, parsed.tier, parsed.tags)
-			sent_total += sent
+		for _unit in range(to_process):
+			var port: String = output_ports[next_idx]
+			var sent: int = _push_data_from(b, parsed.content, parsed.state, 1, port, parsed.tier, parsed.tags)
+			if sent > 0:
+				sent_total += 1
+				next_idx = (next_idx + 1) % port_count
+			else:
+				# This port blocked — try next port once
+				var alt_idx: int = (next_idx + 1) % port_count
+				var alt_port: String = output_ports[alt_idx]
+				var alt_sent: int = _push_data_from(b, parsed.content, parsed.state, 1, alt_port, parsed.tier, parsed.tags)
+				if alt_sent > 0:
+					sent_total += 1
+					next_idx = (alt_idx + 1) % port_count
+				else:
+					break  # All ports blocked
 		if sent_total > 0:
 			b.stored_data[key] -= sent_total
 			processed += sent_total
+	_splitter_next_port[bid] = next_idx
 	return processed
 
 

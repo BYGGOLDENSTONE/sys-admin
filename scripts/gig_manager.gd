@@ -124,8 +124,8 @@ func _count_delivery(content: int, state: int, _tier: int, tags: int, amount: in
 				continue
 			if req.state >= 0 and req.state != state:
 				continue
-			# Check tags: delivered data must have ALL required tags
-			if req.tags != 0 and (tags & req.tags) != req.tags:
+			# Check tags: exact match — different tag combo = different product
+			if tags != req.tags:
 				continue
 			# Match — count toward this requirement
 			var old_val: int = progress_arr[i]
