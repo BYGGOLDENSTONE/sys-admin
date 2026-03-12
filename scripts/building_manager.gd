@@ -575,6 +575,14 @@ func _remove_building(building: Node2D) -> void:
 		})
 	grid_system.free_cells(cell, def.grid_size)
 	building_removed.emit(building, cell)
+	# Cancel connection if FROM building is being removed
+	if building == _connecting_from_building:
+		_cancel_connecting()
+	# Clean up move state if moving building is removed (e.g. during load/undo)
+	if building == _moving_building:
+		ghost_preview.visible = false
+		_moving_building = null
+		_state = State.IDLE
 	# Clear hover/selection if removed building was hovered/selected
 	if building == _hovered_building:
 		_hovered_building = null

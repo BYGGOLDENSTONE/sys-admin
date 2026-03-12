@@ -86,6 +86,9 @@ func _update_stall_tracking() -> void:
 		var conn: Dictionary = conns[i]
 		var from_b: Node2D = conn.from_building
 		var to_b: Node2D = conn.to_building
+		if not is_instance_valid(from_b) or not is_instance_valid(to_b):
+			connection_stalled[i] = true
+			continue
 		if from_b.has_method("is_active") and not from_b.is_active():
 			continue
 		if to_b.has_method("can_accept_data") and not to_b.can_accept_data(1):
@@ -97,6 +100,8 @@ func _update_stall_tracking() -> void:
 		var checked_buildings: Dictionary = {}
 		for i in range(conns.size()):
 			var from_b: Node2D = conns[i].from_building
+			if not is_instance_valid(from_b):
+				continue
 			if checked_buildings.has(from_b):
 				continue
 			checked_buildings[from_b] = true

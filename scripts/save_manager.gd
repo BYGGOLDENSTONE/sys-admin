@@ -362,6 +362,17 @@ func _restore_gigs(gig_data: Dictionary) -> void:
 			int_arr.append(int(val))
 		gig_manager._progress[int(idx_str)] = int_arr
 
+	# Validate progress array sizes against current gig definitions
+	for gig in gig_manager._all_gigs:
+		if gig_manager._progress.has(gig.order_index):
+			var arr: Array = gig_manager._progress[gig.order_index]
+			var req_size: int = gig.requirements.size()
+			if arr.size() < req_size:
+				for _i in range(req_size - arr.size()):
+					arr.append(0)
+			elif arr.size() > req_size:
+				arr.resize(req_size)
+
 	# Restore active gigs
 	var active_indices: Array = gig_data.get("active", [])
 	for gig in gig_manager._all_gigs:

@@ -145,7 +145,7 @@ Asagidaki durumlarda dur ve kullaniciya don:
 **Amac:** Demo'nun guvenilir, crashsiz, softlocksiz calismasini garanti etmek.
 
 - [ ] **A10. Kritik bug bash** — New Game → Gig 7 tamamlama akisi (5 farkli seed). Save → Quit → Load → devam. Uplink source linkleri save/load sonrasi. Undo/redo temel akislar. 50+ bina + 100+ kablo performans.
-- [ ] **A11. Building-level root cause feedback** — Her bina "neden calismiyor?" gostersin: "Waiting for Key", "Waiting for fuel", "Output blocked", "No source linked".
+- [x] **A11. Building-level root cause feedback** — Her bina "neden calismiyor?" gostersin: "Waiting for Key", "Waiting for fuel", "Output blocked", "No source linked".
 - [ ] **A12. Edge case duzeltme** — Packet delivery counting dogrulama, tier mismatch durumlari, bos connection'lar, orphan kablolar, paralel gig aktivasyonu.
 - [ ] **A13. Steam Next Fest kaydini yap** — Steamworks'ten kayit (27 Nisan oncesi). Demo store page olustur, placeholder capsule art + kisa aciklama.
 
@@ -219,7 +219,7 @@ Demo "hazir" sayilabilmesi icin su maddelerin hepsi saglanmali:
 - [x] Ses kimligi — ambient muzik, iyilestirilmis SFX
 - [x] Cyberpunk tema — client/faction hissi, monospace font, menu atmosferi
 - [ ] Temel bug bash tamam
-- [ ] Building-level root cause feedback var
+- [x] Building-level root cause feedback var
 - [ ] Demo bitis deneyimi + Wishlist CTA var
 - [ ] Screenshot/trailer capture icin gorsel kalite yeterli
 - [ ] Store page copy + capsule art hazir
