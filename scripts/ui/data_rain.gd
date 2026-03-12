@@ -12,14 +12,13 @@ const HEAD_CLR := Color(0.0, 0.85, 0.95, 0.25)
 
 var _columns: Array = []
 var _rng := RandomNumberGenerator.new()
-var _font: Font = null
+var _font: Font = preload("res://assets/fonts/JetBrainsMono-Regular.ttf")
 
 
 func _ready() -> void:
 	_rng.seed = Time.get_ticks_msec()
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_font = ThemeDB.fallback_font
 	_init_columns()
 
 

@@ -35,6 +35,9 @@ var _is_pause_menu_open: bool = false
 var _was_paused_before_menu: bool = false
 var _demo_complete_shown: bool = false
 
+const WISHLIST_URL: String = "https://store.steampowered.com/app/PLACEHOLDER_APP_ID/SYS_ADMIN/"
+const FEEDBACK_URL: String = "https://store.steampowered.com/app/PLACEHOLDER_APP_ID/SYS_ADMIN/discussions/"
+
 ## Set this BEFORE _ready() to load a saved game instead of starting new
 var load_save_data: Dictionary = {}
 
@@ -752,7 +755,7 @@ func _on_pause_save() -> void:
 
 
 func _on_pause_feedback() -> void:
-	OS.shell_open("https://store.steampowered.com/app/PLACEHOLDER_APP_ID/SYS_ADMIN/")
+	OS.shell_open(FEEDBACK_URL)
 
 
 func _on_pause_quit() -> void:
@@ -849,11 +852,11 @@ func _show_demo_complete() -> void:
 	main_box.add_child(btn_box)
 
 	var wishlist_btn := _create_demo_complete_button("Wishlist Full Game", Color(0.0, 1.0, 0.6))
-	wishlist_btn.pressed.connect(func(): OS.shell_open("https://store.steampowered.com/app/PLACEHOLDER_APP_ID/SYS_ADMIN/"))
+	wishlist_btn.pressed.connect(func(): OS.shell_open(WISHLIST_URL))
 	btn_box.add_child(wishlist_btn)
 
 	var feedback_btn := _create_demo_complete_button("Give Feedback", Color(0.3, 0.7, 1.0))
-	feedback_btn.pressed.connect(func(): OS.shell_open("https://store.steampowered.com/app/PLACEHOLDER_APP_ID/SYS_ADMIN/"))
+	feedback_btn.pressed.connect(func(): OS.shell_open(FEEDBACK_URL))
 	btn_box.add_child(feedback_btn)
 
 	var continue_btn := _create_demo_complete_button("Continue Playing", Color(0.6, 0.65, 0.7))

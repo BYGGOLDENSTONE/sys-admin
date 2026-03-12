@@ -119,7 +119,18 @@ func _get_building_polygon(r: Rect2, vtype: String) -> PackedVector2Array:
 				Vector2(x + w, y + h),
 				Vector2(x, y + h),
 				Vector2(x, y + peak)])
-		_:  # Default rect for splitter, merger, bridge, uplink, separator, trash
+		"uplink":  # Trapezoid — wide top (antenna dish), narrower base
+			var inset := w * 0.15
+			return PackedVector2Array([
+				Vector2(x, y), Vector2(x + w, y),
+				Vector2(x + w - inset, y + h), Vector2(x + inset, y + h)])
+		"separator":  # Chamfered rectangle — angled top-left and bottom-right
+			var ch := w * 0.14
+			return PackedVector2Array([
+				Vector2(x + ch, y), Vector2(x + w, y),
+				Vector2(x + w, y + h - ch), Vector2(x + w - ch, y + h),
+				Vector2(x, y + h), Vector2(x, y + ch)])
+		_:  # Default rect for splitter, merger, bridge, trash
 			return PackedVector2Array([
 				Vector2(x, y), Vector2(x + w, y),
 				Vector2(x + w, y + h), Vector2(x, y + h)])

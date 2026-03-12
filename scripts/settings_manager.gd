@@ -28,6 +28,7 @@ static func save(data: Dictionary) -> void:
 
 static func apply_all(settings: Dictionary) -> void:
 	## Apply master volume and display settings globally.
+	_cache = settings
 	var master: int = clampi(int(settings.get("master_volume", 80)), 0, 100)
 	if master == 0:
 		AudioServer.set_bus_mute(0, true)

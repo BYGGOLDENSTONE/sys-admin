@@ -8,6 +8,8 @@ const AUTOSAVE_FILE: String = "user://saves/autosave.json"
 const GAME_SCENE: String = "res://scenes/main.tscn"
 const TITLE_COLOR := Color(0.0, 0.85, 0.9, 1.0)
 const GLITCH_CHARS: String = "█▓░▒#@$%&*"
+const WISHLIST_URL: String = "https://store.steampowered.com/app/PLACEHOLDER_APP_ID/SYS_ADMIN/"
+const FEEDBACK_URL: String = "https://store.steampowered.com/app/PLACEHOLDER_APP_ID/SYS_ADMIN/discussions/"
 
 var _continue_btn: Button = null
 var _new_game_btn: Button = null
@@ -247,7 +249,7 @@ func _on_options_back() -> void:
 
 
 func _on_wishlist() -> void:
-	OS.shell_open("https://store.steampowered.com/app/PLACEHOLDER_APP_ID/SYS_ADMIN/")
+	OS.shell_open(WISHLIST_URL)
 
 
 func _on_quit() -> void:
