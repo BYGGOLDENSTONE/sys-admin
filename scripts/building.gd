@@ -32,6 +32,7 @@ var _display_fill: float = 0.0
 # Runtime state (set by SimulationManager)
 var stored_data: Dictionary = {}  ## Key: "content_state_tier_tags" (e.g. "0_0_0_0"), Value: int MB
 var is_working: bool = false  ## True when building did actual work this tick
+var status_reason: String = ""  ## Why the building is idle (set by SimulationManager)
 var separator_mode: String = "state"  ## For separator: "state" or "content"
 var separator_filter_value: int = 0  ## Filter value for separator (state or content int)
 var classifier_filter_content: int = 0  ## Filter value for classifier (content int)
@@ -490,6 +491,16 @@ func _draw() -> void:
 			var warn_pos := Vector2((size.x - text_dims.x) / 2.0, size.y - 8)
 			draw_string(warn_font, warn_pos + Vector2(1, 1), warn_text, HORIZONTAL_ALIGNMENT_LEFT, -1, warn_size, Color(0, 0, 0, 0.6))
 			draw_string(warn_font, warn_pos, warn_text, HORIZONTAL_ALIGNMENT_LEFT, -1, warn_size, Color(warn_color, 0.8))
+
+	# Status reason for idle buildings (root cause feedback)
+	if not _is_ghost and active and not is_working and status_reason != "" and not is_medium:
+		var reason_clr := Color(1.0, 0.75, 0.2, 0.85)
+		var reason_font := _MONO_FONT
+		var reason_fs := 9
+		var reason_dims := reason_font.get_string_size(status_reason, HORIZONTAL_ALIGNMENT_CENTER, -1, reason_fs)
+		var reason_pos := Vector2((size.x - reason_dims.x) / 2.0, size.y - 8)
+		draw_string(reason_font, reason_pos + Vector2(1, 1), status_reason, HORIZONTAL_ALIGNMENT_LEFT, -1, reason_fs, Color(0, 0, 0, 0.7))
+		draw_string(reason_font, reason_pos, status_reason, HORIZONTAL_ALIGNMENT_LEFT, -1, reason_fs, reason_clr)
 
 
 ## PCB mode: glowing microchips with distinctive silhouettes per building type

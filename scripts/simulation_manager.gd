@@ -64,6 +64,7 @@ func _on_sim_tick() -> void:
 	_update_generation(buildings)
 	_update_storage_forward(buildings)
 	_update_processing(buildings)
+	_update_status_reasons(buildings)
 	_update_stall_tracking()
 	_update_displays(buildings)
 	tick_completed.emit(_tick_count)
@@ -724,3 +725,106 @@ func _on_building_placed(building: Node2D, _cell: Vector2i) -> void:
 
 func _on_building_removed(_building: Node2D, _cell: Vector2i) -> void:
 	_add_camera_trauma(0.1)
+
+
+# --- STATUS REASONS (root cause feedback for idle buildings) ---
+func _update_status_reasons(buildings: Array[Node]) -> void:
+	for b in buildings:
+		if b.is_working or b.definition == null:
+			b.status_reason = ""
+			continue
+		# Generator (Uplink) — "No Source" overlay handled by building._draw
+		if b.definition.generator != null:
+			b.status_reason = "" if not b.is_active() else "Output blocked"
+			continue
+		# Trash / Contract Terminal — no reason needed
+		if b.definition.visual_type == "terminal":
+			b.status_reason = ""
+			continue
+		if b.definition.processor != null and b.definition.processor.rule == "trash":
+			b.status_reason = ""
+			continue
+		# No data at all
+		if b.get_total_stored_raw() <= 0:
+			b.status_reason = "No input"
+			continue
+		# Compiler
+		if b.definition.compiler != null:
+			var types: int = 0
+			for key in b.stored_data:
+				if not DataEnums.is_packet(key) and b.stored_data[key] > 0:
+					types += 1
+			b.status_reason = "Need 2+ types" if types < 2 else "Output blocked"
+			continue
+		# Dual input (Decryptor/Encryptor/Recoverer)
+		if b.definition.dual_input != null:
+			var dual: DualInputComponent = b.definition.dual_input
+			var has_primary: bool = _reason_has_primary(b, dual)
+			if not has_primary:
+				b.status_reason = "No input"
+			elif dual.fuel_matches_content:
+				b.status_reason = "Waiting for fuel" if not _reason_has_fuel(b, dual) else "Output blocked"
+			else:
+				b.status_reason = "Waiting for Key" if not _reason_has_keys(b, dual) else "Output blocked"
+			continue
+		# Producer (Research Lab)
+		if b.definition.producer != null:
+			var prod: ProducerComponent = b.definition.producer
+			var input_key: String = DataEnums.make_key(prod.input_content, prod.input_state)
+			if b.stored_data.get(input_key, 0) <= 0:
+				b.status_reason = "No %s data" % DataEnums.content_name(prod.input_content)
+			else:
+				var missing: String = ""
+				if b.selected_tier >= 2 and prod.tier2_extra_content >= 0:
+					var ek: String = DataEnums.make_key(prod.tier2_extra_content, prod.input_state)
+					if b.stored_data.get(ek, 0) <= 0:
+						missing = DataEnums.content_name(prod.tier2_extra_content)
+				if missing == "" and b.selected_tier >= 3 and prod.tier3_extra_content >= 0:
+					var ek: String = DataEnums.make_key(prod.tier3_extra_content, prod.input_state)
+					if b.stored_data.get(ek, 0) <= 0:
+						missing = DataEnums.content_name(prod.tier3_extra_content)
+				b.status_reason = ("Need %s" % missing) if missing != "" else "Output blocked"
+			continue
+		# All others (Classifier, Separator, Splitter, Merger, Bridge)
+		b.status_reason = "Output blocked"
+
+
+func _reason_has_primary(b: Node2D, dual: DualInputComponent) -> bool:
+	for key in b.stored_data:
+		if b.stored_data[key] <= 0:
+			continue
+		if DataEnums.is_packet(key):
+			continue
+		var p: Dictionary = DataEnums.parse_key(key)
+		if p.content == dual.key_content:
+			continue
+		if dual.fuel_matches_content and p.state == DataEnums.DataState.PUBLIC and p.tier == 0:
+			continue
+		if not dual.primary_input_states.is_empty() and p.state not in dual.primary_input_states:
+			continue
+		return true
+	return false
+
+
+func _reason_has_keys(b: Node2D, dual: DualInputComponent) -> bool:
+	for key in b.stored_data:
+		if b.stored_data[key] <= 0:
+			continue
+		if DataEnums.is_packet(key):
+			continue
+		var p: Dictionary = DataEnums.parse_key(key)
+		if p.content == dual.key_content:
+			return true
+	return false
+
+
+func _reason_has_fuel(b: Node2D, dual: DualInputComponent) -> bool:
+	for key in b.stored_data:
+		if b.stored_data[key] <= 0:
+			continue
+		if DataEnums.is_packet(key):
+			continue
+		var p: Dictionary = DataEnums.parse_key(key)
+		if p.state == DataEnums.DataState.PUBLIC and p.content != dual.key_content:
+			return true
+	return false
