@@ -122,7 +122,7 @@ func _count_packet_delivery(pkt_key: String, amount: int) -> void:
 				gig_progress_updated.emit(gig, i, new_val, req.amount)
 
 
-func _count_delivery(content: int, state: int, _tier: int, tags: int, amount: int) -> void:
+func _count_delivery(content: int, state: int, tier: int, tags: int, amount: int) -> void:
 	for gig in _active_gigs:
 		var progress_arr: Array = _progress.get(gig.order_index, [])
 		for i in range(gig.requirements.size()):
@@ -133,6 +133,9 @@ func _count_delivery(content: int, state: int, _tier: int, tags: int, amount: in
 				continue
 			# Check tags: exact match — different tag combo = different product
 			if tags != req.tags:
+				continue
+			# Check minimum tier if specified
+			if req.min_tier > 0 and tier < req.min_tier:
 				continue
 			# Match — count toward this requirement
 			var old_val: int = progress_arr[i]
@@ -173,9 +176,11 @@ func _complete_gig(gig) -> void:
 			building_unlocked.emit(b_name)
 			print("[GigManager] Building unlocked — %s" % b_name)
 
-	# Activate next tutorial gig
+	# Progress gig chain
 	if gig.is_tutorial:
 		_activate_next_tutorial_gig()
+	else:
+		_check_wave_activations()
 
 
 func _activate_next_tutorial_gig() -> void:
@@ -185,17 +190,32 @@ func _activate_next_tutorial_gig() -> void:
 				return  # Already active
 			_activate_gig(gig)
 			return
-	# All tutorials done — activate parallel contracts
-	_activate_parallel_gigs()
+	# All tutorials done — check wave activations
+	_check_wave_activations()
 
 
-func _activate_parallel_gigs() -> void:
+func _check_wave_activations() -> void:
+	var activated_any := false
 	for gig in _all_gigs:
-		if not gig.is_tutorial and not _completed_indices.has(gig.order_index):
-			if gig not in _active_gigs:
-				_activate_gig(gig)
-	if _active_gigs.size() > 0:
-		print("[GigManager] Parallel contracts activated — %d contracts" % _active_gigs.size())
+		if gig.is_tutorial:
+			continue
+		if _completed_indices.has(gig.order_index):
+			continue
+		if gig in _active_gigs:
+			continue
+		if not _prerequisites_met(gig):
+			continue
+		_activate_gig(gig)
+		activated_any = true
+	if activated_any:
+		print("[GigManager] Wave check — new contracts activated")
+
+
+func _prerequisites_met(gig) -> bool:
+	for req_index in gig.prerequisite_gigs:
+		if not _completed_indices.has(req_index):
+			return false
+	return true
 
 
 func _activate_gig(gig) -> void:

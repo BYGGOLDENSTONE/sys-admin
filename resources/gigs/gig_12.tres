@@ -1,0 +1,22 @@
+[gd_resource type="Resource" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://resources/gigs/gig_definition.gd" id="1"]
+[ext_resource type="Script" path="res://resources/gigs/gig_requirement.gd" id="2"]
+
+[sub_resource type="Resource" id="req1"]
+script = ExtResource("2")
+content = 1
+state = 0
+tags = 6
+amount = 8
+label = "Financial Recovered·Encrypted"
+
+[resource]
+script = ExtResource("1")
+gig_name = "Data Laundering"
+description = "GHOST_SIGNAL: This Financial data has fingerprints all over it. Recover the corrupted copies, then encrypt them clean. I need it untraceable.\n\nRecover Financial data from a Corrupted source (Recoverer), then run it through the Encryptor with a Key. Deliver the cleaned, encrypted results."
+order_index = 12
+is_tutorial = false
+prerequisite_gigs = Array[int]([8, 9, 10, 11])
+requirements = Array[Resource]([SubResource("req1")])
+reward_buildings = Array[String]([])

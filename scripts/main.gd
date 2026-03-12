@@ -152,8 +152,8 @@ func _ready() -> void:
 			_undo_manager._redo_stack.clear()
 		load_save_data = {}
 		print("[Main] Game loaded from save")
-		# Check if all gigs were already completed in the save
-		if _gig_manager and _gig_manager.are_all_gigs_completed():
+		# Check if finale gig was already completed in the save
+		if _gig_manager and _gig_manager.is_gig_completed(16):
 			_demo_complete_shown = true
 	else:
 		# NEW GAME PATH: place Contract Terminal and initialize gigs
@@ -417,8 +417,8 @@ func _on_gig_completed(gig) -> void:
 		camera.add_trauma(0.25)
 	if _tutorial_manager:
 		_tutorial_manager.on_gig_completed(gig)
-	# Check if all gigs (tutorial + parallel) are done → demo complete
-	if not _demo_complete_shown and _gig_manager and _gig_manager.are_all_gigs_completed():
+	# Check if finale gig (The Net Heist) is done → demo complete
+	if not _demo_complete_shown and _gig_manager and _gig_manager.is_gig_completed(16):
 		_demo_complete_shown = true
 		# Delay to let the last gig complete notification play first
 		get_tree().create_timer(2.5).timeout.connect(_show_demo_complete)

@@ -1,0 +1,36 @@
+[gd_resource type="Resource" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://resources/gigs/gig_definition.gd" id="1"]
+[ext_resource type="Script" path="res://resources/gigs/gig_requirement.gd" id="2"]
+
+[sub_resource type="Resource" id="req1"]
+script = ExtResource("2")
+content = 3
+state = 0
+tags = 5
+amount = 8
+label = "Blueprint Decrypted·Encrypted"
+
+[sub_resource type="Resource" id="req2"]
+script = ExtResource("2")
+amount = 5
+label = "[Financial·Encrypted + Biometric·Recovered] Packet"
+packet_key = "P_1_4_2_2"
+
+[sub_resource type="Resource" id="req3"]
+script = ExtResource("2")
+content = 4
+state = 0
+tags = 2
+amount = 10
+label = "Research Recovered"
+
+[resource]
+script = ExtResource("1")
+gig_name = "The Net Heist"
+description = "FIXER_NULL: One last job. Everyone's in.\nBROKER_7: Three deliveries, three pipelines, one board.\nGHOST_SIGNAL: After this, we're ghosts.\n\nThe final contract. (1) Decrypt Blueprint then re-encrypt it. (2) Encrypt raw Financial + Recover Biometric, then Compile into a Packet. (3) Recover corrupted Research. Build the full network."
+order_index = 16
+is_tutorial = false
+prerequisite_gigs = Array[int]([12, 13, 15])
+requirements = Array[Resource]([SubResource("req1"), SubResource("req2"), SubResource("req3")])
+reward_buildings = Array[String]([])

@@ -381,6 +381,10 @@ func _restore_gigs(gig_data: Dictionary) -> void:
 		if active_indices.has(gig.order_index):
 			gig_manager._active_gigs.append(gig)
 
+	# Migration pass: activate any gigs whose prerequisites are now met
+	# but weren't in the save (e.g. new gigs added after save was created)
+	gig_manager._check_wave_activations()
+
 	print("[SaveManager] Gig state restored — %d completed, %d active" % [
 		gig_manager._completed_indices.size(), gig_manager._active_gigs.size()])
 

@@ -1,0 +1,20 @@
+[gd_resource type="Resource" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://resources/gigs/gig_definition.gd" id="1"]
+[ext_resource type="Script" path="res://resources/gigs/gig_requirement.gd" id="2"]
+
+[sub_resource type="Resource" id="req1"]
+script = ExtResource("2")
+amount = 5
+label = "[Financial Recovered · Research Decrypted] Packet"
+packet_key = "P_1_2_4_1"
+
+[resource]
+script = ExtResource("1")
+gig_name = "Hybrid Package"
+description = "DR_PATCH: A recovered Financial record fused with a decrypted Research file, in one packet. The combinatorics alone... yes. Build it.\n\nRecover Financial data (Recoverer + Public fuel), decrypt Research data (Decryptor + Key), then combine both in a Compiler."
+order_index = 15
+is_tutorial = false
+prerequisite_gigs = Array[int]([8, 9, 10, 11])
+requirements = Array[Resource]([SubResource("req1")])
+reward_buildings = Array[String]([])

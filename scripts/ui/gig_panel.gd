@@ -427,6 +427,11 @@ const STALL_HINTS: Dictionary = {
 	9: ["Classified Corrupted data may need Decrypted fuel — decrypt data first, then use as fuel"],
 	10: ["T2 Encrypted data needs T2 Keys — set Research Lab to T2 (TAB) and feed Financial + Research"],
 	11: ["Encrypt Financial first, then feed it with Blueprint into the Compiler"],
+	12: ["Recover Financial (Corrupted→Recoverer+Public fuel), then Encrypt it (Encryptor+Key). Three steps total"],
+	13: ["Biometric needs T1 Key, Financial needs T2 Key. Set Research Lab to T2 with TAB for stronger Keys", "Financial Encrypted comes from Corporate Server — T2 needs Research + Financial in the Key recipe"],
+	14: ["Research appears in Libraries and Hospitals. Use Classifiers to filter it out of mixed sources"],
+	15: ["Recover Financial (from ATM Corrupted), Decrypt Research (from Hospital Encrypted), then Compile both into a Packet"],
+	16: ["Blueprint Decrypted·Encrypted: Decrypt Blueprint, then re-encrypt it", "Package: Encrypt raw Financial, Recover Biometric, then Compile", "Research Recovered: find Corrupted Research and Recover it with Public fuel"],
 }
 
 

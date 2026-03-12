@@ -429,7 +429,7 @@ func _process_dual_input_key_mode(b: Node2D, dual: DualInputComponent, max_proce
 		if to_process <= 0:
 			continue
 		var out_tags: int = parsed.tags | dual.output_tag
-		var sent: int = _push_data_from(b, parsed.content, dual.output_state, to_process, "", 0, out_tags)
+		var sent: int = _push_data_from(b, parsed.content, dual.output_state, to_process, "", tier, out_tags)
 		if sent > 0:
 			b.stored_data[key] -= sent
 			processed += sent
@@ -439,7 +439,7 @@ func _process_dual_input_key_mode(b: Node2D, dual: DualInputComponent, max_proce
 				sound_manager.play_process_event(b.definition.visual_type)
 			print("[DualInput] %s: %d MB → %s (-%d T%d Key)" % [
 				b.definition.building_name, sent,
-				DataEnums.data_label(parsed.content, dual.output_state, 0, out_tags),
+				DataEnums.data_label(parsed.content, dual.output_state, tier, out_tags),
 				sent * actual_key_cost, key_tier])
 	return processed
 
@@ -475,7 +475,7 @@ func _process_dual_input_fuel_mode(b: Node2D, dual: DualInputComponent, max_proc
 		if to_process <= 0:
 			continue
 		var out_tags: int = parsed.tags | dual.output_tag
-		var sent: int = _push_data_from(b, parsed.content, dual.output_state, to_process, "", 0, out_tags)
+		var sent: int = _push_data_from(b, parsed.content, dual.output_state, to_process, "", tier, out_tags)
 		if sent > 0:
 			b.stored_data[key] -= sent
 			processed += sent
@@ -485,7 +485,7 @@ func _process_dual_input_fuel_mode(b: Node2D, dual: DualInputComponent, max_proc
 				sound_manager.play_process_event(b.definition.visual_type)
 			print("[DualInput] %s: %d MB → %s (-%d fuel)" % [
 				b.definition.building_name, sent,
-				DataEnums.data_label(parsed.content, dual.output_state, 0, out_tags),
+				DataEnums.data_label(parsed.content, dual.output_state, tier, out_tags),
 				sent * actual_fuel_cost])
 	return processed
 
