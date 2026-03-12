@@ -13,7 +13,7 @@ label = "Blueprint Public"
 [resource]
 script = ExtResource("1")
 gig_name = "Blueprint Cache"
-description = "ARCHIVE_X: I'm building a collection. Raw Blueprint data — untouched, unprocessed. Find me sources that carry it.\n\nFind sources that carry Blueprint content — look for Biotech Labs or harder targets."
+description = "ARCHIVE_X: I'm building a collection — a new branch on your network. Raw Blueprint data, untouched. Find me sources that carry it.\n\nBlueprint appears in Biotech Labs and harder targets. Your Package Deal touched Blueprint before — now tap the raw stream."
 order_index = 8
 is_tutorial = false
 requirements = Array[Resource]([SubResource("req1")])

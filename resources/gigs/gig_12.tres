@@ -14,7 +14,7 @@ label = "Financial Recovered·Encrypted"
 [resource]
 script = ExtResource("1")
 gig_name = "Data Laundering"
-description = "GHOST_SIGNAL: This Financial data has fingerprints all over it. Recover the corrupted copies, then encrypt them clean. I need it untraceable.\n\nRecover Financial data from a Corrupted source (Recoverer), then run it through the Encryptor with a Key. Deliver the cleaned, encrypted results."
+description = "GHOST_SIGNAL: This Financial data has fingerprints all over it. Your old recovery line and encryption setup both pay off here — recover it, then encrypt it clean.\n\nIf your recovery and encryption pipelines are still alive, extend them. Corrupted Financial through Recoverer, then Encryptor with a Key. Three steps, no traces."
 order_index = 12
 is_tutorial = false
 prerequisite_gigs = Array[int]([8, 9, 10, 11])

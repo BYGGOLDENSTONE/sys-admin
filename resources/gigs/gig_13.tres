@@ -23,7 +23,7 @@ label = "Financial Decrypted (T2)"
 [resource]
 script = ExtResource("1")
 gig_name = "Twin Decryption"
-description = "BROKER_7: Two buyers, two data types, both encrypted. Biometric from the hospital, Financial from corporate. Crack them both — I'll handle the rest.\n\nDecrypt Biometric data (T1 Key) and Financial data (T2 Key). The Financial source needs a stronger Key — set your Research Lab to T2 with TAB."
+description = "BROKER_7: Two buyers, two encrypted streams. Your Biometric decrypt setup still matters — now pair it with a stronger Financial line.\n\nBiometric needs a T1 Key. Financial needs a T2 Key — set your Research Lab to T2 with TAB. If your Key forge is already running, just upgrade it."
 order_index = 13
 is_tutorial = false
 prerequisite_gigs = Array[int]([8, 9, 10, 11])

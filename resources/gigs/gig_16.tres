@@ -28,7 +28,7 @@ label = "Research Recovered"
 [resource]
 script = ExtResource("1")
 gig_name = "The Net Heist"
-description = "FIXER_NULL: One last job. Everyone's in.\nBROKER_7: Three deliveries, three pipelines, one board.\nGHOST_SIGNAL: After this, we're ghosts.\n\nThe final contract. (1) Decrypt Blueprint then re-encrypt it. (2) Encrypt raw Financial + Recover Biometric, then Compile into a Packet. (3) Recover corrupted Research. Build the full network."
+description = "FIXER_NULL: One last job. Everyone's in.\nBROKER_7: Three deliveries, three pipelines, one board.\nGHOST_SIGNAL: This is why you built a network.\n\nThe final contract. Every rail you've built leads here. (1) Decrypt Blueprint, then re-encrypt. (2) Encrypt Financial + Recover Biometric, Compile into Packet. (3) Recover corrupted Research."
 order_index = 16
 is_tutorial = false
 prerequisite_gigs = Array[int]([12, 13, 15])

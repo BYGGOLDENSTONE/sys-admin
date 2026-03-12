@@ -12,7 +12,7 @@ packet_key = "P_1_2_4_1"
 [resource]
 script = ExtResource("1")
 gig_name = "Hybrid Package"
-description = "DR_PATCH: A recovered Financial record fused with a decrypted Research file, in one packet. The combinatorics alone... yes. Build it.\n\nRecover Financial data (Recoverer + Public fuel), decrypt Research data (Decryptor + Key), then combine both in a Compiler."
+description = "DR_PATCH: Two mature pipelines, one packet. A recovered Financial record fused with a decrypted Research file — the combinatorics alone... yes.\n\nYour Financial recovery line and Research decrypt setup converge here. Recover Financial, Decrypt Research, then Compile both."
 order_index = 15
 is_tutorial = false
 prerequisite_gigs = Array[int]([8, 9, 10, 11])
