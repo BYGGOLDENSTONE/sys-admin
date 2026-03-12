@@ -177,19 +177,22 @@ func _update_continue_state() -> void:
 		_continue_btn.disabled = true
 		_continue_btn.tooltip_text = "No saved game found"
 		return
-	# Check save compatibility
+	# Check save compatibility — try both files, use first compatible one
 	var SaveManagerScript = preload("res://scripts/save_manager.gd")
-	var save_data: Dictionary = {}
-	if FileAccess.file_exists(SAVE_FILE):
-		save_data = SaveManagerScript.load_from_file(SAVE_FILE)
-	elif FileAccess.file_exists(AUTOSAVE_FILE):
-		save_data = SaveManagerScript.load_from_file(AUTOSAVE_FILE)
-	if save_data.get("_incompatible", false):
+	var compatible := false
+	for path in [SAVE_FILE, AUTOSAVE_FILE]:
+		if not FileAccess.file_exists(path):
+			continue
+		var data: Dictionary = SaveManagerScript.load_from_file(path)
+		if not data.get("_incompatible", false) and not data.is_empty():
+			compatible = true
+			break
+	if compatible:
+		_continue_btn.disabled = false
+		_continue_btn.tooltip_text = "Resume your last session"
+	else:
 		_continue_btn.disabled = true
 		_continue_btn.tooltip_text = "Save from older build — start a new game"
-	else:
-		_continue_btn.disabled = save_data.is_empty()
-		_continue_btn.tooltip_text = "Resume your last session"
 
 
 # ── Glitch Effect ─────────────────────────────────────────────
@@ -230,22 +233,22 @@ func _update_glitch(delta: float) -> void:
 # ── Navigation ────────────────────────────────────────────────
 
 func _on_continue() -> void:
-	# Try save file first, then autosave
+	# Try save file first, then autosave — skip incompatible saves
 	var SaveManagerScript = preload("res://scripts/save_manager.gd")
 	var save_data: Dictionary = {}
-	if FileAccess.file_exists(SAVE_FILE):
-		save_data = SaveManagerScript.load_from_file(SAVE_FILE)
-	elif FileAccess.file_exists(AUTOSAVE_FILE):
-		save_data = SaveManagerScript.load_from_file(AUTOSAVE_FILE)
-
-	if save_data.get("_incompatible", false):
-		push_warning("[MainMenu] Incompatible save version — cannot continue")
-		_continue_btn.disabled = true
-		_continue_btn.tooltip_text = "Save from older build — start a new game"
-		return
+	for path in [SAVE_FILE, AUTOSAVE_FILE]:
+		if not FileAccess.file_exists(path):
+			continue
+		var data: Dictionary = SaveManagerScript.load_from_file(path)
+		if data.get("_incompatible", false):
+			push_warning("[MainMenu] Skipping incompatible save: %s" % path)
+			continue
+		if not data.is_empty():
+			save_data = data
+			break
 
 	if save_data.is_empty():
-		push_warning("[MainMenu] Failed to load save — starting new game")
+		push_warning("[MainMenu] No compatible save found — starting new game")
 		_on_new_game()
 		return
 
