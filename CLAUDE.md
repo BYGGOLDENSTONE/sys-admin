@@ -144,9 +144,9 @@ Asagidaki durumlarda dur ve kullaniciya don:
 ### Sprint 3: Stability + Bug Bash (Hafta 5-6: 9-22 Nisan)
 **Amac:** Demo'nun guvenilir, crashsiz, softlocksiz calismasini garanti etmek.
 
-- [ ] **A10. Kritik bug bash** — New Game → Gig 7 tamamlama akisi (5 farkli seed). Save → Quit → Load → devam. Uplink source linkleri save/load sonrasi. Undo/redo temel akislar. 50+ bina + 100+ kablo performans.
+- [x] **A10. Kritik bug bash** — New Game → Gig 7 tamamlama akisi (5 farkli seed). Save → Quit → Load → devam. Uplink source linkleri save/load sonrasi. Undo/redo temel akislar. 50+ bina + 100+ kablo performans.
 - [x] **A11. Building-level root cause feedback** — Her bina "neden calismiyor?" gostersin: "Waiting for Key", "Waiting for fuel", "Output blocked", "No source linked".
-- [ ] **A12. Edge case duzeltme** — Packet delivery counting dogrulama, tier mismatch durumlari, bos connection'lar, orphan kablolar, paralel gig aktivasyonu.
+- [x] **A12. Edge case duzeltme** — Packet delivery counting dogrulama, tier mismatch durumlari, bos connection'lar, orphan kablolar, paralel gig aktivasyonu.
 - [ ] **A13. Steam Next Fest kaydini yap** — Steamworks'ten kayit (27 Nisan oncesi). Demo store page olustur, placeholder capsule art + kisa aciklama.
 
 **Definition of Done:**

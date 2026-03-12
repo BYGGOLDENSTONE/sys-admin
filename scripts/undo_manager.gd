@@ -78,6 +78,10 @@ func _restore_building(cmd: Dictionary) -> void:
 	if building == null:
 		return
 	building.upgrade_level = cmd.get("upgrade_level", 0)
+	building.classifier_filter_content = cmd.get("classifier_filter_content", 0)
+	building.separator_mode = cmd.get("separator_mode", "state")
+	building.separator_filter_value = cmd.get("separator_filter_value", 0)
+	building.selected_tier = cmd.get("selected_tier", 1)
 	# Restore connections (path is stored as vertex array)
 	for conn_data in cmd.get("connections", []):
 		_add_connection_by_cells(conn_data.from_cell, conn_data.from_port, conn_data.to_cell, conn_data.to_port, conn_data.get("path", []))

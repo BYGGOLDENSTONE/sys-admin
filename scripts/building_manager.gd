@@ -571,6 +571,10 @@ func _remove_building(building: Node2D) -> void:
 			definition = def,
 			cell = cell,
 			upgrade_level = building.upgrade_level,
+			classifier_filter_content = building.classifier_filter_content,
+			separator_mode = building.separator_mode,
+			separator_filter_value = building.separator_filter_value,
+			selected_tier = building.selected_tier,
 			connections = saved_conns,
 		})
 	grid_system.free_cells(cell, def.grid_size)
