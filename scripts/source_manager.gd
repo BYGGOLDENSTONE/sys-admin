@@ -16,7 +16,7 @@ var _sources: Array[Node2D] = []
 var _uplink_source_map: Dictionary = {}  ## uplink Node2D → source Node2D
 
 
-func place_source(def: DataSourceDefinition, origin: Vector2i, rng_seed: int = -1) -> Node2D:
+func place_source(def: DataSourceDefinition, origin: Vector2i, rng_seed: int = -1, force_discovered: bool = false) -> Node2D:
 	var shape: Array[Vector2i] = _generate_organic_shape(origin, def.cell_count_range, rng_seed)
 	if shape.is_empty():
 		push_warning("[SourceManager] Failed to generate shape for %s at (%d,%d)" % [def.source_name, origin.x, origin.y])
@@ -26,8 +26,8 @@ func place_source(def: DataSourceDefinition, origin: Vector2i, rng_seed: int = -
 	source.setup(def, origin, shape)
 	source.position = grid_system.grid_to_world(origin)
 
-	# Easy sources auto-discovered, others start hidden
-	source.discovered = (def.difficulty == "easy")
+	# Easy sources auto-discovered; tutorial guarantees forced visible
+	source.discovered = (def.difficulty == "easy") or force_discovered
 	source.dev_mode = dev_mode
 
 	source_container.add_child(source)

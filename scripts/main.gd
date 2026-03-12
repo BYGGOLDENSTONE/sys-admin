@@ -126,6 +126,10 @@ func _ready() -> void:
 	# Setup fog of war layer (above sources, below buildings)
 	_setup_fog_layer()
 
+	# Ensure tutorial-guaranteed sources are visible through fog
+	if _fog_layer and _map_generator:
+		_fog_layer.ensure_cells_explored(_map_generator.guaranteed_origins)
+
 	# Setup save manager (before loading state)
 	_setup_save_manager()
 

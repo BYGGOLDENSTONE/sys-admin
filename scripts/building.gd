@@ -473,7 +473,7 @@ func _draw() -> void:
 
 	# Status bars (skip at medium zoom)
 	if not is_medium:
-		# Status bars removed — fill ratio is not actionable for routing buildings
+		pass  # Status bars removed — fill ratio is not actionable for routing buildings
 
 	# Processing flash overlay — bright burst when building starts working
 	if _process_flash > 0.0 and not is_medium:

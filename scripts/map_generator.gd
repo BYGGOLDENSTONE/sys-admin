@@ -1,17 +1,18 @@
 extends RefCounted
 
-## Factorio-style random source placement.
+## Factorio-style random source placement with tutorial-safe guarantees.
+## Tutorial-critical sources are placed in fixed sectors from center,
+## ensuring every gig 1-7 has the resources it needs within reach.
 ## Difficulty comes from source TYPE, not position.
-## Spawn guarantees ensure playable start every seed.
 
 const MAP_CENTER := Vector2i(256, 256)
 const GRID_MARGIN := 5
 const GRID_MAX := 506
 const MIN_SOURCE_DISTANCE := 14
 const MAX_PLACEMENT_ATTEMPTS := 60
-const SPAWN_RADIUS := 35       ## Easy sources guaranteed within this range
 const NEAR_RADIUS := 70        ## Medium source guaranteed within this range
 const MAP_RADIUS := 220        ## Max placement radius from center
+const SECTOR_VARIANCE := 0.4   ## ±radians (~23°) angle spread per sector
 
 var _pools: Dictionary = {
 	"easy": ["isp_backbone", "public_database", "atm", "smart_lock", "traffic_camera"],
@@ -28,17 +29,34 @@ var _count_ranges: Dictionary = {
 	"endgame": Vector2i(1, 2),
 }
 
+## Tutorial-critical sources: sector-based placement + force discovered.
+## Each gets a fixed direction from center with seed-based variance.
+var _tutorial_guarantees := [
+	# North: Public Database (Standard/Biometric/Research) — Gig 2-4
+	{"name": "public_database", "angle": PI * 1.5, "r_min": 18.0, "r_max": 30.0},
+	# East: ATM (Financial) — Gig 2-3
+	{"name": "atm", "angle": 0.0, "r_min": 18.0, "r_max": 30.0},
+	# South: Hospital Terminal (Biometric/Research, Encrypted) — Gig 5-6
+	{"name": "hospital_terminal", "angle": PI * 0.5, "r_min": 30.0, "r_max": 50.0},
+	# West: Biotech Lab (Blueprint/Research/Biometric) — Gig 7
+	{"name": "biotech_lab", "angle": PI, "r_min": 30.0, "r_max": 50.0},
+]
+
 var _rng := RandomNumberGenerator.new()
 var _placed_origins: Array[Vector2i] = []
 var _placed_names: Array[String] = []
+
+## Positions of tutorial-guaranteed sources (for fog reveal by main.gd)
+var guaranteed_origins: Array[Vector2i] = []
 
 
 func generate_map(seed_value: int, source_manager: Node) -> void:
 	_rng.seed = seed_value
 	_placed_origins.clear()
 	_placed_names.clear()
+	guaranteed_origins.clear()
 
-	# Phase 1: Guaranteed placements (spawn safety)
+	# Phase 1: Tutorial-safe sector-based guarantees
 	_place_guaranteed(seed_value, source_manager)
 
 	# Phase 2: Fill remaining pools randomly
@@ -47,28 +65,33 @@ func generate_map(seed_value: int, source_manager: Node) -> void:
 	# Phase 3: Reveal hard/endgame sources near spawn ("see but can't process" hook)
 	source_manager.reveal_hard_sources_near_spawn(MAP_CENTER, NEAR_RADIUS)
 
-	print("[MapGenerator] Generated map — seed: %d, sources: %d" % [seed_value, _placed_origins.size()])
+	print("[MapGenerator] Generated map — seed: %d, sources: %d, guaranteed: %d" % [
+		seed_value, _placed_origins.size(), guaranteed_origins.size()])
 
 
 func _place_guaranteed(seed_value: int, source_manager: Node) -> void:
 	# 1. ISP Backbone at center (always) — Gig 1 safe start
 	var center_def := _load_source_def("isp_backbone")
 	if center_def:
-		source_manager.place_source(center_def, MAP_CENTER, seed_value)
+		source_manager.place_source(center_def, MAP_CENTER, seed_value, true)
 		_placed_origins.append(MAP_CENTER)
 		_placed_names.append("isp_backbone")
+		guaranteed_origins.append(MAP_CENTER)
 
-	# 2. Public Database near spawn — diverse content + corruption for Gigs 2-4
-	if _place_near("public_database", MAP_CENTER, SPAWN_RADIUS, seed_value, source_manager):
-		_placed_names.append("public_database")
-
-	# 3. ATM near spawn — reliable Financial content for Gig 2-3
-	if _place_near("atm", MAP_CENTER, SPAWN_RADIUS, seed_value, source_manager):
-		_placed_names.append("atm")
-
-	# 4. Hospital Terminal within near radius — Research + Encrypted for Gig 5
-	if _place_near("hospital_terminal", MAP_CENTER, NEAR_RADIUS, seed_value, source_manager):
-		_placed_names.append("hospital_terminal")
+	# 2. Tutorial sources in fixed sectors (all discovered from start)
+	for entry in _tutorial_guarantees:
+		var pos := _find_position_in_sector(entry.angle, entry.r_min, entry.r_max)
+		if pos == Vector2i(-1, -1):
+			push_warning("[MapGenerator] Failed sector placement for %s" % entry.name)
+			continue
+		var def := _load_source_def(entry.name)
+		if def == null:
+			continue
+		var sub_seed: int = seed_value + _placed_origins.size() * 7919
+		source_manager.place_source(def, pos, sub_seed, true)
+		_placed_origins.append(pos)
+		_placed_names.append(entry.name)
+		guaranteed_origins.append(pos)
 
 
 func _place_random_fill(seed_value: int, source_manager: Node) -> void:
@@ -100,17 +123,15 @@ func _place_random_fill(seed_value: int, source_manager: Node) -> void:
 			source_index += 1
 
 
-func _place_near(source_name: String, center: Vector2i, radius: int, seed_value: int, source_manager: Node) -> bool:
-	var def := _load_source_def(source_name)
-	if def == null:
-		return false
-	var pos: Vector2i = _find_position_near(center, radius)
-	if pos == Vector2i(-1, -1):
-		return false
-	var sub_seed: int = seed_value + _placed_origins.size() * 7919
-	source_manager.place_source(def, pos, sub_seed)
-	_placed_origins.append(pos)
-	return true
+func _find_position_in_sector(center_angle: float, r_min: float, r_max: float) -> Vector2i:
+	for _attempt in range(MAX_PLACEMENT_ATTEMPTS):
+		var angle: float = center_angle + _rng.randf_range(-SECTOR_VARIANCE, SECTOR_VARIANCE)
+		var radius: float = _rng.randf_range(r_min, r_max)
+		var offset := Vector2(cos(angle) * radius, sin(angle) * radius)
+		var pos := Vector2i(MAP_CENTER.x + int(offset.x), MAP_CENTER.y + int(offset.y))
+		if _is_valid_position(pos) and not _is_too_close(pos):
+			return pos
+	return Vector2i(-1, -1)
 
 
 func _find_random_position() -> Vector2i:
@@ -119,22 +140,6 @@ func _find_random_position() -> Vector2i:
 		var radius: float = _rng.randf_range(15.0, float(MAP_RADIUS))
 		var offset := Vector2(cos(angle) * radius, sin(angle) * radius)
 		var pos := Vector2i(MAP_CENTER.x + int(offset.x), MAP_CENTER.y + int(offset.y))
-
-		if not _is_valid_position(pos):
-			continue
-		if _is_too_close(pos):
-			continue
-		return pos
-
-	return Vector2i(-1, -1)
-
-
-func _find_position_near(center: Vector2i, max_radius: int) -> Vector2i:
-	for _attempt in range(MAX_PLACEMENT_ATTEMPTS):
-		var angle: float = _rng.randf() * TAU
-		var radius: float = _rng.randf_range(float(MIN_SOURCE_DISTANCE), float(max_radius))
-		var offset := Vector2(cos(angle) * radius, sin(angle) * radius)
-		var pos := Vector2i(center.x + int(offset.x), center.y + int(offset.y))
 
 		if not _is_valid_position(pos):
 			continue

@@ -58,6 +58,14 @@ func explore_around_building(building: Node2D, _cell: Vector2i) -> void:
 				_explored[key] = true
 
 
+func ensure_cells_explored(cells: Array[Vector2i]) -> void:
+	## Reveal fog chunks containing the given cell positions.
+	## Used to guarantee tutorial sources are visible from game start.
+	for cell in cells:
+		var key := Vector2i(cell.x / CHUNK_SIZE, cell.y / CHUNK_SIZE)
+		_explored[key] = true
+
+
 func is_cell_explored(cell: Vector2i) -> bool:
 	return _explored.has(Vector2i(cell.x / CHUNK_SIZE, cell.y / CHUNK_SIZE))
 
