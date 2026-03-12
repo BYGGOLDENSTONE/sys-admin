@@ -112,8 +112,9 @@ func _rebuild_buttons() -> void:
 			_style_button(button, def.color)
 			button.pressed.connect(_on_building_button_pressed.bind(def))
 		else:
-			button.text = "??? %s" % def.building_name
-			button.tooltip_text = "Locked — Complete %s" % UNLOCK_GIG.get(bname, "a gig")
+			var unlock_info: String = UNLOCK_GIG.get(bname, "a gig")
+			button.text = "🔒 %s" % def.building_name
+			button.tooltip_text = "Unlocks after %s" % unlock_info
 			button.disabled = true
 			_style_locked_button(button)
 

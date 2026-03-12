@@ -122,7 +122,11 @@ func _update_stats() -> void:
 	if b.is_working:
 		lines.append(_stat("Status", "[color=#44ff88]● Working[/color]"))
 	else:
-		lines.append(_stat("Status", "[color=#ffcc44]● Idle[/color]"))
+		var reason: String = b.status_reason
+		if reason != "":
+			lines.append(_stat("Status", "[color=#ffcc44]● Idle — %s[/color]" % reason))
+		else:
+			lines.append(_stat("Status", "[color=#ffcc44]● Idle[/color]"))
 
 	# Type-specific stats (component-based)
 	if def.generator:
