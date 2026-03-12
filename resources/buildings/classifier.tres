@@ -1,8 +1,9 @@
-[gd_resource type="Resource" script_class="BuildingDefinition" load_steps=5 format=3]
+[gd_resource type="Resource" script_class="BuildingDefinition" load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://resources/buildings/building_definition.gd" id="1"]
 [ext_resource type="Script" path="res://resources/components/classifier_component.gd" id="2"]
 [ext_resource type="Script" path="res://resources/components/storage_component.gd" id="3"]
+[ext_resource type="Script" path="res://resources/components/upgrade_component.gd" id="4"]
 
 [sub_resource type="Resource" id="cls1"]
 script = ExtResource("2")
@@ -12,6 +13,14 @@ throughput_rate = 5.0
 script = ExtResource("3")
 capacity = 20
 forward_rate = 0.0
+
+[sub_resource type="Resource" id="upg1"]
+script = ExtResource("4")
+max_level = 3
+costs = Array[int]([10, 25, 50])
+stat_label = "Sorting Speed"
+stat_target = "processing_rate"
+level_values = Array[float]([6.0, 8.0, 10.0])
 
 [resource]
 script = ExtResource("1")
@@ -25,3 +34,4 @@ output_ports = Array[String](["right", "bottom"])
 input_ports = Array[String](["left"])
 classifier = SubResource("cls1")
 storage = SubResource("stor1")
+upgrade = SubResource("upg1")

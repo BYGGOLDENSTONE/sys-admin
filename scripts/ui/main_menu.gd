@@ -122,7 +122,7 @@ func _build_ui() -> void:
 
 	# Version label
 	var version_lbl := Label.new()
-	version_lbl.text = "Demo v0.9"
+	version_lbl.text = "Demo v1.0"
 	version_lbl.add_theme_font_size_override("font_size", 12)
 	version_lbl.add_theme_color_override("font_color", Color(0.3, 0.4, 0.5, 0.5))
 	version_lbl.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)

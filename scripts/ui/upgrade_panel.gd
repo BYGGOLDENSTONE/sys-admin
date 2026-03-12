@@ -11,6 +11,7 @@ var _progress_container: HBoxContainer
 var _show_tween: Tween = null
 
 const ACCENT_COLOR := Color(0.9, 0.6, 0.25)
+const DEMO_MAX_LEVEL: int = 1  ## Demo allows up to level 1; higher levels teased as locked
 
 
 func _ready() -> void:
@@ -169,8 +170,14 @@ func _update_display() -> void:
 	if level >= max_level:
 		_stat_label.text = "[color=#ffaa44]%s: %s[/color] [color=#44ff88](MAX)[/color]" % [
 			upg.stat_label, _format_stat(upg.stat_target, current_val)]
-		_cost_label.text = "Tam seviye!"
-		_cost_label.add_theme_color_override("font_color", ACCENT_COLOR)
+		_cost_label.text = ""
+		_upgrade_button.visible = false
+	elif level >= DEMO_MAX_LEVEL:
+		# Demo cap reached — tease higher levels
+		_stat_label.text = "[color=#ffaa44]%s: %s[/color]" % [
+			upg.stat_label, _format_stat(upg.stat_target, current_val)]
+		_cost_label.text = "🔒 More upgrades in full game"
+		_cost_label.add_theme_color_override("font_color", Color(0.4, 0.45, 0.55, 0.7))
 		_upgrade_button.visible = false
 	else:
 		var next_val: float = upg.level_values[level] if level < upg.level_values.size() else current_val

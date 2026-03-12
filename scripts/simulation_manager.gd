@@ -286,7 +286,7 @@ func _update_processing(buildings: Array[Node]) -> void:
 			var max_process: int = int(b.get_effective_value("processing_rate"))
 			processed = _process_producer(b, max_process)
 		elif b.definition.classifier != null:
-			processed = _process_classifier(b, int(b.definition.classifier.throughput_rate))
+			processed = _process_classifier(b, int(b.get_effective_value("processing_rate")))
 		elif b.definition.splitter != null:
 			processed = _process_splitter(b, int(b.definition.splitter.throughput_rate))
 		elif b.definition.merger != null:

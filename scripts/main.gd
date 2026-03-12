@@ -14,7 +14,6 @@ extends Node2D
 var _tooltip_scene: PackedScene = preload("res://scenes/ui/building_tooltip.tscn")
 var _MapGeneratorScript = preload("res://scripts/map_generator.gd")
 var _tooltip: PanelContainer = null
-var _upgrade_panel: PanelContainer = null
 var _undo_manager: Node = null
 var _fog_layer: Node2D = null
 var _map_generator: RefCounted = null
@@ -72,19 +71,10 @@ func _ready() -> void:
 	simulation_manager.content_discovered.connect(_on_content_discovered)
 	simulation_manager.state_discovered.connect(_on_state_discovered)
 
-	# Setup upgrade panel
-	var UpgradePanelScript = preload("res://scripts/ui/upgrade_panel.gd")
-	_upgrade_panel = PanelContainer.new()
-	_upgrade_panel.set_script(UpgradePanelScript)
-	_upgrade_panel.anchors_preset = Control.PRESET_BOTTOM_LEFT
-	_upgrade_panel.offset_left = 200.0
-	_upgrade_panel.offset_bottom = -10.0
-	_upgrade_panel.offset_top = -10.0
-	_upgrade_panel.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	ui_layer.add_child(_upgrade_panel)
-	_upgrade_panel.setup(simulation_manager)
-	building_manager.building_selected.connect(_upgrade_panel.show_for_building)
-	building_manager.building_deselected.connect(_upgrade_panel.hide_panel)
+	# Setup building detail view (upgrade panel integrated into building panel)
+	building_panel.setup_detail(simulation_manager)
+	building_manager.building_selected.connect(building_panel.show_building_detail)
+	building_manager.building_deselected.connect(building_panel.hide_building_detail)
 
 	# Setup gig manager
 	_setup_gig_manager()
@@ -204,7 +194,19 @@ func _ready() -> void:
 	# Setup in-game pause menu (ESC)
 	_setup_pause_menu()
 
+	# Enable close request notification for crash save
+	get_tree().set_auto_accept_quit(false)
+
 	print("[Main] SYS_ADMIN initialized — %s" % ("loaded save" if is_loading else "new game"))
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_CLOSE_REQUEST:
+		# Crash-safe: save before closing
+		if _save_manager:
+			_save_manager.autosave()
+			print("[Main] Emergency save on close")
+		get_tree().quit()
 
 
 func _unhandled_input(event: InputEvent) -> void:

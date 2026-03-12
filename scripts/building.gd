@@ -252,6 +252,8 @@ func _get_base_value(stat: String) -> float:
 		"efficiency":
 			return definition.processor.efficiency if definition.processor else 1.0
 		"processing_rate":
+			if definition.classifier:
+				return definition.classifier.throughput_rate
 			if definition.compiler:
 				return definition.compiler.processing_rate
 			if definition.dual_input:

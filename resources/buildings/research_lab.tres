@@ -1,8 +1,9 @@
-[gd_resource type="Resource" script_class="BuildingDefinition" load_steps=4 format=3]
+[gd_resource type="Resource" script_class="BuildingDefinition" load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://resources/buildings/building_definition.gd" id="1"]
 [ext_resource type="Script" path="res://resources/components/storage_component.gd" id="2"]
 [ext_resource type="Script" path="res://resources/components/producer_component.gd" id="3"]
+[ext_resource type="Script" path="res://resources/components/upgrade_component.gd" id="4"]
 
 [sub_resource type="Resource" id="stor1"]
 script = ExtResource("2")
@@ -23,6 +24,14 @@ tier2_extra_amount = 2
 tier3_extra_content = 2
 tier3_extra_amount = 2
 
+[sub_resource type="Resource" id="upg1"]
+script = ExtResource("4")
+max_level = 3
+costs = Array[int]([10, 25, 50])
+stat_label = "Production Speed"
+stat_target = "processing_rate"
+level_values = Array[float]([3.0, 4.0, 5.0])
+
 [resource]
 script = ExtResource("1")
 building_name = "Research Lab"
@@ -35,3 +44,4 @@ output_ports = Array[String](["right"])
 input_ports = Array[String](["left"])
 storage = SubResource("stor1")
 producer = SubResource("prod1")
+upgrade = SubResource("upg1")

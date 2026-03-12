@@ -11,6 +11,8 @@ const LOCKED_BG_COLOR := Color(0.05, 0.06, 0.08, 0.5)
 const LOCKED_BORDER_COLOR := Color(0.2, 0.22, 0.25, 0.4)
 const LOCKED_TEXT_COLOR := Color(0.35, 0.38, 0.42, 0.7)
 const TITLE_COLOR := Color("#00bbee")
+const ACCENT_COLOR := Color(0.9, 0.6, 0.25)
+const DEMO_MAX_LEVEL: int = 1
 
 ## Display order for buildings (consistent layout)
 const BUILDING_ORDER: PackedStringArray = [
@@ -32,17 +34,40 @@ const UNLOCK_GIG: Dictionary = {
 
 var _definitions: Array[BuildingDefinition] = []
 var _gig_manager: Node = null
+var _simulation_manager: Node = null
 var _button_container_ref: VBoxContainer = null
 var _panel_tween: Tween = null
 var _is_panel_visible: bool = false
+
+# Detail view references
+var _title_label_ref: Label = null
+var _scroll_container_ref: ScrollContainer = null
+var _detail_container: VBoxContainer = null
+var _detail_name: Label = null
+var _detail_desc: Label = null
+var _detail_stats: RichTextLabel = null
+var _detail_upgrade_header: Label = null
+var _detail_upgrade_dots: HBoxContainer = null
+var _detail_upgrade_stat: RichTextLabel = null
+var _detail_upgrade_btn: Button = null
+var _detail_upgrade_cap: Label = null
+var _selected_building: Node2D = null
+var _in_detail_mode: bool = false
 
 
 func _ready() -> void:
 	_setup_panel_style()
 	_load_definitions()
+	_title_label_ref = $MarginContainer/VBoxContainer/TitleLabel
+	_scroll_container_ref = $MarginContainer/VBoxContainer/ScrollContainer
 	_create_buttons()
-	# Slide-in animation on start
+	_build_detail_ui()
 	_play_slide_in()
+
+
+func _process(_delta: float) -> void:
+	if _in_detail_mode and _selected_building != null:
+		_update_detail()
 
 
 func _play_slide_in() -> void:
@@ -130,14 +155,258 @@ func _rebuild_buttons() -> void:
 		idx += 1
 
 
-func _build_cost_tooltip(def: BuildingDefinition) -> String:
-	return def.description
-
-
 func _on_building_button_pressed(def: BuildingDefinition) -> void:
 	building_selected.emit(def)
 	print("[BuildingPanel] Building selected — %s" % def.building_name)
 
+
+# --- DETAIL VIEW ---
+
+func _build_detail_ui() -> void:
+	var vbox: VBoxContainer = $MarginContainer/VBoxContainer
+	_detail_container = VBoxContainer.new()
+	_detail_container.add_theme_constant_override("separation", 8)
+	_detail_container.visible = false
+	vbox.add_child(_detail_container)
+
+	# Back button
+	var back_btn := Button.new()
+	back_btn.text = "← Structures"
+	back_btn.add_theme_font_size_override("font_size", 13)
+	back_btn.add_theme_color_override("font_color", Color(0.5, 0.7, 0.8, 0.8))
+	back_btn.add_theme_color_override("font_hover_color", TITLE_COLOR)
+	var back_style := StyleBoxFlat.new()
+	back_style.bg_color = Color(0.06, 0.08, 0.12, 0.5)
+	back_style.set_content_margin_all(6)
+	back_style.set_corner_radius_all(2)
+	back_btn.add_theme_stylebox_override("normal", back_style)
+	var back_hover := back_style.duplicate()
+	back_hover.bg_color = Color(0.1, 0.14, 0.2, 0.7)
+	back_btn.add_theme_stylebox_override("hover", back_hover)
+	back_btn.pressed.connect(hide_building_detail)
+	_detail_container.add_child(back_btn)
+
+	# Building name
+	_detail_name = Label.new()
+	_detail_name.add_theme_font_size_override("font_size", 18)
+	_detail_container.add_child(_detail_name)
+
+	# Description
+	_detail_desc = Label.new()
+	_detail_desc.add_theme_font_size_override("font_size", 12)
+	_detail_desc.add_theme_color_override("font_color", Color(0.5, 0.6, 0.7, 0.8))
+	_detail_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_detail_container.add_child(_detail_desc)
+
+	# Separator
+	var sep1 := HSeparator.new()
+	sep1.add_theme_constant_override("separation", 4)
+	_detail_container.add_child(sep1)
+
+	# Live status
+	_detail_stats = RichTextLabel.new()
+	_detail_stats.bbcode_enabled = true
+	_detail_stats.fit_content = true
+	_detail_stats.scroll_active = false
+	_detail_stats.add_theme_font_size_override("normal_font_size", 13)
+	_detail_container.add_child(_detail_stats)
+
+	# Separator
+	var sep2 := HSeparator.new()
+	sep2.add_theme_constant_override("separation", 4)
+	_detail_container.add_child(sep2)
+
+	# Upgrade header
+	_detail_upgrade_header = Label.new()
+	_detail_upgrade_header.text = "// UPGRADE"
+	_detail_upgrade_header.add_theme_font_size_override("font_size", 14)
+	_detail_upgrade_header.add_theme_color_override("font_color", ACCENT_COLOR)
+	_detail_container.add_child(_detail_upgrade_header)
+
+	# Level dots
+	_detail_upgrade_dots = HBoxContainer.new()
+	_detail_upgrade_dots.add_theme_constant_override("separation", 4)
+	_detail_container.add_child(_detail_upgrade_dots)
+
+	# Upgrade stat
+	_detail_upgrade_stat = RichTextLabel.new()
+	_detail_upgrade_stat.bbcode_enabled = true
+	_detail_upgrade_stat.fit_content = true
+	_detail_upgrade_stat.scroll_active = false
+	_detail_upgrade_stat.custom_minimum_size = Vector2(0, 20)
+	_detail_container.add_child(_detail_upgrade_stat)
+
+	# Upgrade button
+	_detail_upgrade_btn = Button.new()
+	_detail_upgrade_btn.text = "[ UPGRADE ]"
+	_detail_upgrade_btn.pressed.connect(_on_upgrade_pressed)
+	_style_upgrade_button(_detail_upgrade_btn)
+	_detail_container.add_child(_detail_upgrade_btn)
+
+	# Demo cap label
+	_detail_upgrade_cap = Label.new()
+	_detail_upgrade_cap.add_theme_font_size_override("font_size", 12)
+	_detail_upgrade_cap.add_theme_color_override("font_color", Color(0.4, 0.45, 0.55, 0.7))
+	_detail_upgrade_cap.visible = false
+	_detail_container.add_child(_detail_upgrade_cap)
+
+
+func setup_detail(sim_manager: Node) -> void:
+	_simulation_manager = sim_manager
+
+
+func show_building_detail(building: Node2D) -> void:
+	if building == null or building.definition == null:
+		return
+	# Don't show detail for Contract Terminal
+	if building.definition.visual_type == "terminal":
+		return
+	_selected_building = building
+	_in_detail_mode = true
+
+	# Swap views
+	_scroll_container_ref.visible = false
+	_detail_container.visible = true
+	_title_label_ref.text = "// %s" % building.definition.building_name.to_upper()
+	_title_label_ref.add_theme_color_override("font_color", building.definition.color)
+
+	# Fill static info
+	_detail_name.text = building.definition.building_name
+	_detail_name.add_theme_color_override("font_color", building.definition.color)
+	_detail_desc.text = building.definition.description
+
+	# Show/hide upgrade section
+	var has_upgrade: bool = building.definition.upgrade != null
+	_detail_upgrade_header.visible = has_upgrade
+	_detail_upgrade_dots.visible = has_upgrade
+	_detail_upgrade_stat.visible = has_upgrade
+	_detail_upgrade_btn.visible = has_upgrade
+	_detail_upgrade_cap.visible = false
+	if not has_upgrade:
+		_detail_upgrade_cap.visible = true
+		_detail_upgrade_cap.text = "No upgrades available"
+
+	_update_detail()
+
+
+func hide_building_detail() -> void:
+	_selected_building = null
+	_in_detail_mode = false
+
+	# Swap views back
+	_scroll_container_ref.visible = true
+	_detail_container.visible = false
+	_title_label_ref.text = "// STRUCTURES"
+	_title_label_ref.add_theme_color_override("font_color", TITLE_COLOR)
+
+
+func _update_detail() -> void:
+	if _selected_building == null or _selected_building.definition == null:
+		hide_building_detail()
+		return
+
+	var b: Node2D = _selected_building
+	var def: BuildingDefinition = b.definition
+
+	# Live status
+	var lines: PackedStringArray = []
+	if b.is_working:
+		lines.append("[color=#44ff88]● Working[/color]")
+	else:
+		var reason: String = b.status_reason
+		if reason != "":
+			lines.append("[color=#ffcc44]● Idle — %s[/color]" % reason)
+		else:
+			lines.append("[color=#ffcc44]● Idle[/color]")
+	_detail_stats.text = "\n".join(lines)
+
+	# Upgrade section
+	if def.upgrade == null:
+		return
+
+	var upg: UpgradeComponent = def.upgrade
+	var level: int = b.upgrade_level
+	var max_level: int = upg.max_level
+	var current_val: float = b.get_effective_value(upg.stat_target)
+
+	# Update dots
+	for child in _detail_upgrade_dots.get_children():
+		child.queue_free()
+	for i in range(max_level):
+		var dot := ColorRect.new()
+		dot.custom_minimum_size = Vector2(16, 5)
+		if i < level:
+			dot.color = def.color
+		elif i < DEMO_MAX_LEVEL:
+			dot.color = Color(def.color, 0.25)
+		else:
+			dot.color = Color(0.3, 0.3, 0.35, 0.3)
+		_detail_upgrade_dots.add_child(dot)
+
+	# Update stat + button
+	if level >= max_level:
+		_detail_upgrade_stat.text = "[color=#ffaa44]%s: %s[/color] [color=#44ff88](MAX)[/color]" % [
+			upg.stat_label, _format_stat(upg.stat_target, current_val)]
+		_detail_upgrade_btn.visible = false
+		_detail_upgrade_cap.visible = false
+	elif level >= DEMO_MAX_LEVEL:
+		_detail_upgrade_stat.text = "[color=#ffaa44]%s: %s[/color]" % [
+			upg.stat_label, _format_stat(upg.stat_target, current_val)]
+		_detail_upgrade_btn.visible = false
+		_detail_upgrade_cap.visible = true
+		_detail_upgrade_cap.text = "🔒 More upgrades in full game"
+	else:
+		var next_val: float = upg.level_values[level] if level < upg.level_values.size() else current_val
+		_detail_upgrade_stat.text = "[color=#aaaaaa]%s:[/color] [color=#ffffff]%s[/color] → [color=#44ff88]%s[/color]" % [
+			upg.stat_label, _format_stat(upg.stat_target, current_val), _format_stat(upg.stat_target, next_val)]
+		_detail_upgrade_btn.visible = true
+		_detail_upgrade_btn.disabled = false
+		_detail_upgrade_cap.visible = false
+
+
+func _format_stat(stat_target: String, value: float) -> String:
+	match stat_target:
+		"efficiency":
+			return "%d%%" % int(value * 100)
+		"processing_rate":
+			return "%d MB/s" % int(value)
+		"capacity":
+			return "%d MB" % int(value)
+	return "%.1f" % value
+
+
+func _on_upgrade_pressed() -> void:
+	if _selected_building == null or _simulation_manager == null:
+		return
+	_simulation_manager.upgrade_building(_selected_building)
+
+
+func _style_upgrade_button(btn: Button) -> void:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.15, 0.12, 0.05, 0.7)
+	style.border_color = ACCENT_COLOR
+	style.border_width_bottom = 2
+	style.corner_radius_bottom_left = 2
+	style.corner_radius_bottom_right = 2
+	style.content_margin_left = 12
+	style.content_margin_right = 12
+	style.content_margin_top = 6
+	style.content_margin_bottom = 6
+	btn.add_theme_stylebox_override("normal", style)
+	var hover := style.duplicate() as StyleBoxFlat
+	hover.bg_color = Color(0.25, 0.2, 0.08, 0.85)
+	hover.shadow_color = Color(ACCENT_COLOR, 0.15)
+	hover.shadow_size = 4
+	btn.add_theme_stylebox_override("hover", hover)
+	var pressed := style.duplicate() as StyleBoxFlat
+	pressed.bg_color = Color(0.3, 0.25, 0.1, 0.9)
+	btn.add_theme_stylebox_override("pressed", pressed)
+	btn.add_theme_color_override("font_color", ACCENT_COLOR)
+	btn.add_theme_color_override("font_hover_color", Color(1.0, 0.8, 0.4))
+	btn.add_theme_font_size_override("font_size", 13)
+
+
+# --- PANEL STYLING ---
 
 func _setup_panel_style() -> void:
 	var style := StyleBoxFlat.new()

@@ -139,7 +139,7 @@ func _update_stats() -> void:
 		else:
 			lines.append(_stat("Source", "[color=#ff8844]Not linked — place near a source[/color]"))
 	if def.classifier:
-		lines.append(_stat("Throughput", "%d MB/s" % int(def.classifier.throughput_rate)))
+		lines.append(_stat("Throughput", "%d MB/s" % int(b.get_effective_value("processing_rate"))))
 		var filter_name: String = DataEnums.content_name(b.classifier_filter_content)
 		lines.append(_stat("Right Port →", "[color=#44ff88]%s[/color]" % filter_name))
 		lines.append(_stat("Bottom Port →", "All other content"))

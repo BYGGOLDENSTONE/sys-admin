@@ -190,13 +190,14 @@ Asagidaki durumlarda dur ve kullaniciya don:
 ### Sprint 6: Final Build + RC (Hafta 11-12: 21 Mayis - 1 Haziran)
 **Amac:** Demo'yu teslim edilebilir, guvenilir, polished final build'e donusturmek.
 
-- [ ] **A21. Legacy kod temizligi** — `upgrade_panel.gd`, `upgrade_component.gd`, `tech_tree_panel.gd` — demo'da kullanilmayan sistemleri UI'dan gizle veya kaldir.
-- [ ] **A22. Version string + demo sinir mesajlari** — "Demo v1.0" build identifier. Crash durumunda otomatik save + hata bilgisi.
+- [x] **A21. Legacy kod temizligi + Demo Upgrade** — `tech_tree_panel.gd` silindi, `upgrade_panel.gd` building panel'e entegre edildi, Classifier/Recoverer/Research Lab'a upgrade eklendi, demo cap (Lv.1), "🔒 More in full game" tease.
+- [x] **A22. Version string + crash save** — "Demo v1.0" build identifier. Kapanista otomatik save (`_notification(NOTIFICATION_WM_CLOSE_REQUEST)`).
 - [ ] **A23. 5 seed tam demo playthrough** — Her seed'de: tutorial 1-7, paralel gig'ler, save/load, softlock kontrolu, 1 saatlik oturum stabilitesi.
 - [ ] **A24. Press Preview build teslimi** — 18 Mayis
 - [ ] **A25. Final review build teslimi** — 1 Haziran
 
 **Definition of Done:**
+- [x] Version string "Demo v1.0" + crash save mevcut
 - [ ] Demo build crashsiz, softlocksiz, 1 saat+ stabil
 - [ ] 5 farkli seed'de tam akis calisiyor
 - [ ] Build Steam'e yuklenmeye hazir
