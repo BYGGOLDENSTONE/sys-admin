@@ -162,14 +162,14 @@ Asagidaki durumlarda dur ve kullaniciya don:
 
 - [x] **A14. Wishlist + Feedback CTA butonlari** — Main menu'ye "Wishlist Full Game" (Steam URL acar), pause menu'ye "Give Feedback" (form/forum URL), demo bitis ekranina her ikisi.
 - [x] **A15. Demo bitis deneyimi** — Paralel gig'ler bittikten sonra: haritada gorünen ama islenemeyen ust seviye kaynak teaser olarak parlasın + "Demo Complete — The full network awaits" + Wishlist CTA.
-- [ ] **A16. Tooltip iyilestirme** — Her binada hover'da: 1 satir "ne yapar" ozeti + su an ne bekliyor (input/fuel/key durumu) + bagli source bilgisi (Uplink icin).
-- [ ] **A17. Kilitli binalara acilma kosulu** — Building panel'de kilitli bina: "Unlocks after Gig 4: Financial Recovery" gibi tek satir bilgi.
+- [x] **A16. Tooltip iyilestirme** — Her binada hover'da: 1 satir "ne yapar" ozeti + su an ne bekliyor (input/fuel/key durumu) + bagli source bilgisi (Uplink icin).
+- [x] **A17. Kilitli binalara acilma kosulu** — Building panel'de kilitli bina: "Unlocks after Gig 4: Financial Recovery" gibi tek satir bilgi.
 
 **Definition of Done:**
 - [x] Demo bittiginde oyuncu wishlist'e yonlendiriliyor
 - [x] Feedback verme yolu acik
-- [ ] Tooltip'ler "ne yapıyor + ne bekliyor" sorusunu cevaplayabiliyor
-- [ ] Kilitli binalar merak uyandiriyor, kafa karistirmiyor
+- [x] Tooltip'ler "ne yapıyor + ne bekliyor" sorusunu cevaplayabiliyor
+- [x] Kilitli binalar merak uyandiriyor, kafa karistirmiyor
 
 ---
 
