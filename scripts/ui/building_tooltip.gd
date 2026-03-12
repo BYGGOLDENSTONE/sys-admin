@@ -202,13 +202,6 @@ func _update_stats() -> void:
 		if total > 0:
 			lines.append(_stat("Stock", _format_stored_data(b.stored_data)))
 	if def.storage and def.processor == null and def.classifier == null and def.producer == null and def.dual_input == null and def.compiler == null:
-		var total: int = b.get_total_stored()
-		var cap: int = int(b.get_effective_value("capacity"))
-		var pct: int = int(float(total) / float(cap) * 100.0) if cap > 0 else 0
-		var fill_color: String = "#ff6644" if pct >= 90 else "#ffcc44" if pct >= 70 else "#44ff88"
-		lines.append(_stat("Capacity", "[color=%s]%d / %d MB (%d%%)[/color]" % [fill_color, total, cap, pct]))
-		if total > 0:
-			lines.append(_stat("Contents", _format_stored_data(b.stored_data)))
 		if def.storage.forward_rate > 0:
 			lines.append(_stat("Transfer", "%d MB/s" % int(def.storage.forward_rate)))
 	if def.processor:

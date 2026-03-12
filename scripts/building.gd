@@ -6,9 +6,6 @@ const BODY_COLOR := Color("#0a0d14")
 const BORDER_WIDTH: float = 2.0
 const GLOW_WIDTH: float = 4.0
 const GLOW_ALPHA: float = 0.3
-const BAR_HEIGHT: float = 4.0
-const BAR_MARGIN: float = 6.0
-const BAR_GAP: float = 2.0
 const ICON_GLOW_WIDTH: float = 3.0
 const ICON_GLOW_ALPHA: float = 0.25
 const PORT_RADIUS: float = 6.0
@@ -27,7 +24,6 @@ var _is_ghost: bool = false
 var is_selected: bool = false
 var _prev_working: bool = false
 var _process_flash: float = 0.0
-var _display_fill: float = 0.0
 
 # Runtime state (set by SimulationManager)
 var stored_data: Dictionary = {}  ## Key: "content_state_tier_tags" (e.g. "0_0_0_0"), Value: int MB
@@ -153,8 +149,7 @@ func _process(delta: float) -> void:
 	_prev_working = is_working
 	if _process_flash > 0.0:
 		_process_flash = maxf(_process_flash - delta * 4.0, 0.0)
-	# Smooth fill bar
-	_display_fill = lerpf(_display_fill, fill_ratio, delta * 8.0)
+	# fill_ratio still computed for internal back-pressure; visual bar removed
 	queue_redraw()
 
 
@@ -478,7 +473,7 @@ func _draw() -> void:
 
 	# Status bars (skip at medium zoom)
 	if not is_medium:
-		_draw_status_bars(size, accent)
+		# Status bars removed — fill ratio is not actionable for routing buildings
 
 	# Processing flash overlay — bright burst when building starts working
 	if _process_flash > 0.0 and not is_medium:
@@ -968,44 +963,6 @@ func _draw_ports(size: Vector2, accent: Color) -> void:
 		draw_circle(pos, gr, Color(1, 1, 1, 0.08 + port_pulse * 0.08))
 		draw_circle(pos, PORT_RADIUS, Color(0.6, 0.65, 0.7, 0.8))
 		draw_circle(pos, PORT_RADIUS * 0.4, Color.WHITE)
-
-
-# --- STATUS BARS ---
-func _draw_status_bars(size: Vector2, accent: Color) -> void:
-	if definition.get_storage_capacity() <= 0 or definition.processor != null \
-			or definition.producer != null or definition.dual_input != null \
-			or definition.compiler != null:
-		return
-	var bar_h: float = 6.0
-	var bar_y: float = size.y - BAR_MARGIN - bar_h
-	var bar_x: float = BAR_MARGIN
-	var bar_w: float = size.x - BAR_MARGIN * 2
-
-	# Fill bar (for buildings with storage capacity, but not processors)
-	var fill_bg := Rect2(Vector2(bar_x, bar_y), Vector2(bar_w, bar_h))
-	draw_rect(fill_bg, Color(0.08, 0.12, 0.08, 0.6), true)
-	draw_rect(fill_bg, Color(accent, 0.4), false, 1.0)
-	if _display_fill > 0.001:
-		# Color shifts to warning at 80%+, critical at 95%+
-		var fill_color: Color = accent
-		if _display_fill >= 0.95:
-			fill_color = Color(1.0, 0.2, 0.2)
-		elif _display_fill >= 0.80:
-			fill_color = Color(1.0, 0.6, 0.2)
-		var fill_fill := Rect2(Vector2(bar_x, bar_y), Vector2(bar_w * _display_fill, bar_h))
-		draw_rect(fill_fill, Color(fill_color, 0.9), true)
-		# Bright edge on fill front
-		if _display_fill < 0.99:
-			var edge_x: float = bar_x + bar_w * _display_fill
-			draw_line(Vector2(edge_x, bar_y), Vector2(edge_x, bar_y + bar_h), Color(1, 1, 1, 0.5), 1.0)
-	# Percentage text for nearly full storage
-	if _display_fill >= 0.5:
-		var pct_text := "%d%%" % int(_display_fill * 100)
-		var pct_font := _MONO_FONT
-		var pct_size := 9
-		var pct_dims := pct_font.get_string_size(pct_text, HORIZONTAL_ALIGNMENT_CENTER, -1, pct_size)
-		var pct_pos := Vector2(bar_x + (bar_w - pct_dims.x) / 2.0, bar_y + bar_h - 1)
-		draw_string(pct_font, pct_pos, pct_text, HORIZONTAL_ALIGNMENT_LEFT, -1, pct_size, Color(1, 1, 1, 0.8))
 
 
 # --- UTILITY: Draw arc segment ---
