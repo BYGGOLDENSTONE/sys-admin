@@ -70,6 +70,13 @@ func is_gig_completed(order_index: int) -> bool:
 	return _completed_indices.has(order_index)
 
 
+func are_all_gigs_completed() -> bool:
+	for gig in _all_gigs:
+		if not _completed_indices.has(gig.order_index):
+			return false
+	return _all_gigs.size() > 0
+
+
 ## Called each simulation tick — process deliveries at Contract Terminal
 func process_deliveries() -> void:
 	if _contract_terminal == null:

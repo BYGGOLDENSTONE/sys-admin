@@ -373,10 +373,12 @@ func _restore_gigs(gig_data: Dictionary) -> void:
 			elif arr.size() > req_size:
 				arr.resize(req_size)
 
-	# Restore active gigs
-	var active_indices: Array = gig_data.get("active", [])
+	# Restore active gigs (cast to int for JSON type safety)
+	var active_indices: Dictionary = {}
+	for idx in gig_data.get("active", []):
+		active_indices[int(idx)] = true
 	for gig in gig_manager._all_gigs:
-		if gig.order_index in active_indices:
+		if active_indices.has(gig.order_index):
 			gig_manager._active_gigs.append(gig)
 
 	print("[SaveManager] Gig state restored — %d completed, %d active" % [
@@ -389,8 +391,7 @@ func _restore_simulation(sim_data: Dictionary) -> void:
 	simulation_manager._tick_count = int(sim_data.get("tick_count", 0))
 	var speed: int = int(sim_data.get("speed_multiplier", 1))
 	simulation_manager.set_speed(speed)
-	if sim_data.get("is_paused", false):
-		simulation_manager.toggle_pause()
+	# Always start unpaused after load — pause menu save captures forced pause state
 
 	# Restore discovery
 	var dc: Dictionary = sim_data.get("discovered_content", {})

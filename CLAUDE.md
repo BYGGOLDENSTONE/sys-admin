@@ -160,14 +160,14 @@ Asagidaki durumlarda dur ve kullaniciya don:
 ### Sprint 4: Demo UX Polish (Hafta 7-8: 23 Nisan - 6 Mayis)
 **Amac:** Demo'nun ticari amacina hizmet edecek UX katmanini eklemek.
 
-- [ ] **A14. Wishlist + Feedback CTA butonlari** — Main menu'ye "Wishlist Full Game" (Steam URL acar), pause menu'ye "Give Feedback" (form/forum URL), demo bitis ekranina her ikisi.
-- [ ] **A15. Demo bitis deneyimi** — Paralel gig'ler bittikten sonra: haritada gorünen ama islenemeyen ust seviye kaynak teaser olarak parlasın + "Demo Complete — The full network awaits" + Wishlist CTA.
+- [x] **A14. Wishlist + Feedback CTA butonlari** — Main menu'ye "Wishlist Full Game" (Steam URL acar), pause menu'ye "Give Feedback" (form/forum URL), demo bitis ekranina her ikisi.
+- [x] **A15. Demo bitis deneyimi** — Paralel gig'ler bittikten sonra: haritada gorünen ama islenemeyen ust seviye kaynak teaser olarak parlasın + "Demo Complete — The full network awaits" + Wishlist CTA.
 - [ ] **A16. Tooltip iyilestirme** — Her binada hover'da: 1 satir "ne yapar" ozeti + su an ne bekliyor (input/fuel/key durumu) + bagli source bilgisi (Uplink icin).
 - [ ] **A17. Kilitli binalara acilma kosulu** — Building panel'de kilitli bina: "Unlocks after Gig 4: Financial Recovery" gibi tek satir bilgi.
 
 **Definition of Done:**
-- [ ] Demo bittiginde oyuncu wishlist'e yonlendiriliyor
-- [ ] Feedback verme yolu acik
+- [x] Demo bittiginde oyuncu wishlist'e yonlendiriliyor
+- [x] Feedback verme yolu acik
 - [ ] Tooltip'ler "ne yapıyor + ne bekliyor" sorusunu cevaplayabiliyor
 - [ ] Kilitli binalar merak uyandiriyor, kafa karistirmiyor
 
@@ -220,7 +220,7 @@ Demo "hazir" sayilabilmesi icin su maddelerin hepsi saglanmali:
 - [x] Cyberpunk tema — client/faction hissi, monospace font, menu atmosferi
 - [ ] Temel bug bash tamam
 - [x] Building-level root cause feedback var
-- [ ] Demo bitis deneyimi + Wishlist CTA var
+- [x] Demo bitis deneyimi + Wishlist CTA var
 - [ ] Screenshot/trailer capture icin gorsel kalite yeterli
 - [ ] Store page copy + capsule art hazir
 - [ ] 5 seed'de tam playthrough sorunsuz

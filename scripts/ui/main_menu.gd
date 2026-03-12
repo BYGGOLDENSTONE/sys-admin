@@ -12,6 +12,7 @@ const GLITCH_CHARS: String = "█▓░▒#@$%&*"
 var _continue_btn: Button = null
 var _new_game_btn: Button = null
 var _options_btn: Button = null
+var _wishlist_btn: Button = null
 var _quit_btn: Button = null
 var _button_vbox: VBoxContainer = null
 var _options_panel: VBoxContainer = null
@@ -102,6 +103,10 @@ func _build_ui() -> void:
 	_options_btn = _create_menu_button("Options")
 	_options_btn.pressed.connect(_on_options)
 	_button_vbox.add_child(_options_btn)
+
+	_wishlist_btn = _create_menu_button("Wishlist Full Game")
+	_wishlist_btn.pressed.connect(_on_wishlist)
+	_button_vbox.add_child(_wishlist_btn)
 
 	_quit_btn = _create_menu_button("Quit")
 	_quit_btn.pressed.connect(_on_quit)
@@ -241,6 +246,10 @@ func _on_options_back() -> void:
 	_button_vbox.visible = true
 
 
+func _on_wishlist() -> void:
+	OS.shell_open("https://store.steampowered.com/app/PLACEHOLDER_APP_ID/SYS_ADMIN/")
+
+
 func _on_quit() -> void:
 	get_tree().quit()
 
@@ -250,6 +259,7 @@ func _transition_to_game(save_data: Dictionary) -> void:
 	_continue_btn.disabled = true
 	_new_game_btn.disabled = true
 	_options_btn.disabled = true
+	_wishlist_btn.disabled = true
 	_quit_btn.disabled = true
 
 	# Fade out

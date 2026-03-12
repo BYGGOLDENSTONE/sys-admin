@@ -34,6 +34,7 @@ var _pause_buttons: VBoxContainer = null
 var _pause_options: VBoxContainer = null
 var _is_pause_menu_open: bool = false
 var _was_paused_before_menu: bool = false
+var _demo_complete_shown: bool = false
 
 ## Set this BEFORE _ready() to load a saved game instead of starting new
 var load_save_data: Dictionary = {}
@@ -158,6 +159,9 @@ func _ready() -> void:
 			_undo_manager._redo_stack.clear()
 		load_save_data = {}
 		print("[Main] Game loaded from save")
+		# Check if all gigs were already completed in the save
+		if _gig_manager and _gig_manager.are_all_gigs_completed():
+			_demo_complete_shown = true
 	else:
 		# NEW GAME PATH: place Contract Terminal and initialize gigs
 		_place_contract_terminal()
@@ -408,6 +412,11 @@ func _on_gig_completed(gig) -> void:
 		camera.add_trauma(0.25)
 	if _tutorial_manager:
 		_tutorial_manager.on_gig_completed(gig)
+	# Check if all gigs (tutorial + parallel) are done → demo complete
+	if not _demo_complete_shown and _gig_manager and _gig_manager.are_all_gigs_completed():
+		_demo_complete_shown = true
+		# Delay to let the last gig complete notification play first
+		get_tree().create_timer(2.5).timeout.connect(_show_demo_complete)
 
 
 func _on_gig_activated(gig) -> void:
@@ -652,6 +661,10 @@ func _setup_pause_menu() -> void:
 	save_btn.pressed.connect(_on_pause_save)
 	_pause_buttons.add_child(save_btn)
 
+	var feedback_btn := _create_pause_button("Give Feedback")
+	feedback_btn.pressed.connect(_on_pause_feedback)
+	_pause_buttons.add_child(feedback_btn)
+
 	var quit_btn := _create_pause_button("Quit to Menu")
 	quit_btn.pressed.connect(_on_pause_quit)
 	_pause_buttons.add_child(quit_btn)
@@ -736,6 +749,10 @@ func _on_pause_save() -> void:
 	_show_gig_notification("GAME SAVED", Color("#44ddff"))
 
 
+func _on_pause_feedback() -> void:
+	OS.shell_open("https://store.steampowered.com/app/PLACEHOLDER_APP_ID/SYS_ADMIN/")
+
+
 func _on_pause_quit() -> void:
 	if _save_manager:
 		_save_manager.autosave()
@@ -754,3 +771,124 @@ func _on_settings_changed() -> void:
 	if post_rect and post_rect.material is ShaderMaterial:
 		var mat: ShaderMaterial = post_rect.material
 		mat.set_shader_parameter("scanlines_enabled", settings.get("crt_enabled", true))
+
+
+# --- Demo Complete Screen ---
+
+func _show_demo_complete() -> void:
+	print("[Main] All gigs completed — showing demo complete screen")
+
+	# Pause simulation
+	if not simulation_manager.is_paused:
+		simulation_manager.toggle_pause()
+
+	var overlay := CanvasLayer.new()
+	overlay.layer = 99
+	add_child(overlay)
+
+	# Semi-transparent background
+	var bg := ColorRect.new()
+	bg.color = Color(0.01, 0.02, 0.04, 0.0)
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	bg.mouse_filter = Control.MOUSE_FILTER_STOP
+	overlay.add_child(bg)
+
+	# Fade in background
+	var bg_tw := create_tween()
+	bg_tw.tween_property(bg, "color:a", 0.85, 1.0)
+
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay.add_child(center)
+
+	var main_box := VBoxContainer.new()
+	main_box.alignment = BoxContainer.ALIGNMENT_CENTER
+	main_box.add_theme_constant_override("separation", 0)
+	center.add_child(main_box)
+
+	# "DEMO COMPLETE" title
+	var title := Label.new()
+	title.text = "DEMO COMPLETE"
+	title.add_theme_font_size_override("font_size", 52)
+	title.add_theme_color_override("font_color", Color(0.0, 1.0, 0.6, 1.0))
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	main_box.add_child(title)
+
+	# Subtitle
+	var subtitle := Label.new()
+	subtitle.text = "The full network awaits."
+	subtitle.add_theme_font_size_override("font_size", 22)
+	subtitle.add_theme_color_override("font_color", Color(0.5, 0.7, 0.8, 0.8))
+	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	main_box.add_child(subtitle)
+
+	# Spacer
+	var spacer := Control.new()
+	spacer.custom_minimum_size = Vector2(0, 12)
+	main_box.add_child(spacer)
+
+	# Flavor text
+	var flavor := Label.new()
+	flavor.text = "You've proven yourself, operator. Higher-tier data streams\nand deeper networks are waiting in the full release."
+	flavor.add_theme_font_size_override("font_size", 15)
+	flavor.add_theme_color_override("font_color", Color(0.4, 0.55, 0.65, 0.7))
+	flavor.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	main_box.add_child(flavor)
+
+	# Spacer
+	var spacer2 := Control.new()
+	spacer2.custom_minimum_size = Vector2(0, 32)
+	main_box.add_child(spacer2)
+
+	# Buttons
+	var btn_box := VBoxContainer.new()
+	btn_box.add_theme_constant_override("separation", 14)
+	btn_box.alignment = BoxContainer.ALIGNMENT_CENTER
+	main_box.add_child(btn_box)
+
+	var wishlist_btn := _create_demo_complete_button("Wishlist Full Game", Color(0.0, 1.0, 0.6))
+	wishlist_btn.pressed.connect(func(): OS.shell_open("https://store.steampowered.com/app/PLACEHOLDER_APP_ID/SYS_ADMIN/"))
+	btn_box.add_child(wishlist_btn)
+
+	var feedback_btn := _create_demo_complete_button("Give Feedback", Color(0.3, 0.7, 1.0))
+	feedback_btn.pressed.connect(func(): OS.shell_open("https://store.steampowered.com/app/PLACEHOLDER_APP_ID/SYS_ADMIN/"))
+	btn_box.add_child(feedback_btn)
+
+	var continue_btn := _create_demo_complete_button("Continue Playing", Color(0.6, 0.65, 0.7))
+	continue_btn.pressed.connect(func():
+		overlay.queue_free()
+		if simulation_manager.is_paused:
+			simulation_manager.toggle_pause()
+	)
+	btn_box.add_child(continue_btn)
+
+	# Fade in content
+	main_box.modulate = Color(1, 1, 1, 0)
+	var content_tw := create_tween()
+	content_tw.tween_property(main_box, "modulate:a", 1.0, 0.8).set_delay(0.5)
+
+
+func _create_demo_complete_button(text: String, accent: Color) -> Button:
+	var btn := Button.new()
+	btn.text = text
+	btn.custom_minimum_size = Vector2(300, 52)
+	btn.add_theme_font_size_override("font_size", 21)
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.04, 0.06, 0.1, 0.9)
+	style.border_color = Color(accent.r, accent.g, accent.b, 0.6)
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(4)
+	style.set_content_margin_all(12)
+	btn.add_theme_stylebox_override("normal", style)
+	var hover := style.duplicate()
+	hover.bg_color = Color(0.07, 0.1, 0.16, 0.95)
+	hover.border_color = Color(accent.r, accent.g, accent.b, 0.95)
+	btn.add_theme_stylebox_override("hover", hover)
+	var pressed := style.duplicate()
+	pressed.bg_color = Color(0.03, 0.05, 0.08, 1.0)
+	pressed.border_color = Color(accent.r, accent.g, accent.b, 1.0)
+	btn.add_theme_stylebox_override("pressed", pressed)
+	btn.add_theme_color_override("font_color", Color(accent.r * 0.8 + 0.2, accent.g * 0.8 + 0.2, accent.b * 0.8 + 0.2))
+	btn.add_theme_color_override("font_hover_color", accent)
+	btn.add_theme_color_override("font_pressed_color", Color(1, 1, 1))
+	return btn
