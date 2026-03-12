@@ -173,11 +173,23 @@ func _create_menu_button(text: String) -> Button:
 
 func _update_continue_state() -> void:
 	var has_save: bool = FileAccess.file_exists(SAVE_FILE) or FileAccess.file_exists(AUTOSAVE_FILE)
-	_continue_btn.disabled = not has_save
-	if has_save:
-		_continue_btn.tooltip_text = "Resume your last session"
-	else:
+	if not has_save:
+		_continue_btn.disabled = true
 		_continue_btn.tooltip_text = "No saved game found"
+		return
+	# Check save compatibility
+	var SaveManagerScript = preload("res://scripts/save_manager.gd")
+	var save_data: Dictionary = {}
+	if FileAccess.file_exists(SAVE_FILE):
+		save_data = SaveManagerScript.load_from_file(SAVE_FILE)
+	elif FileAccess.file_exists(AUTOSAVE_FILE):
+		save_data = SaveManagerScript.load_from_file(AUTOSAVE_FILE)
+	if save_data.get("_incompatible", false):
+		_continue_btn.disabled = true
+		_continue_btn.tooltip_text = "Save from older build — start a new game"
+	else:
+		_continue_btn.disabled = save_data.is_empty()
+		_continue_btn.tooltip_text = "Resume your last session"
 
 
 # ── Glitch Effect ─────────────────────────────────────────────
@@ -225,6 +237,12 @@ func _on_continue() -> void:
 		save_data = SaveManagerScript.load_from_file(SAVE_FILE)
 	elif FileAccess.file_exists(AUTOSAVE_FILE):
 		save_data = SaveManagerScript.load_from_file(AUTOSAVE_FILE)
+
+	if save_data.get("_incompatible", false):
+		push_warning("[MainMenu] Incompatible save version — cannot continue")
+		_continue_btn.disabled = true
+		_continue_btn.tooltip_text = "Save from older build — start a new game"
+		return
 
 	if save_data.is_empty():
 		push_warning("[MainMenu] Failed to load save — starting new game")

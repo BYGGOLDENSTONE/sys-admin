@@ -3,7 +3,7 @@ extends Node
 ## Save/Load system for SYS_ADMIN demo.
 ## JSON-based save format with autosave and backup support.
 
-const SAVE_VERSION: int = 1
+const SAVE_VERSION: int = 2
 const SAVE_DIR: String = "user://saves/"
 const SAVE_FILE: String = "user://saves/savegame.json"
 const AUTOSAVE_FILE: String = "user://saves/autosave.json"
@@ -86,7 +86,11 @@ static func load_from_file(path: String) -> Dictionary:
 	if not data.has("version"):
 		push_error("[SaveManager] Invalid save file — missing version")
 		return {}
-	print("[SaveManager] Save loaded — version: %d, seed: %s" % [data.version, str(data.get("seed", "?"))])
+	var file_version: int = int(data.version)
+	if file_version < SAVE_VERSION:
+		push_warning("[SaveManager] Incompatible save — version %d, expected %d" % [file_version, SAVE_VERSION])
+		return {"_incompatible": true, "version": file_version}
+	print("[SaveManager] Save loaded — version: %d, seed: %s" % [file_version, str(data.get("seed", "?"))])
 	return data
 
 
