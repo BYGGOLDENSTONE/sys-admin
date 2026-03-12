@@ -21,9 +21,6 @@ shader_parameter/bloom_spread = 3.0
 shader_parameter/vignette_focus = 1.0
 shader_parameter/vignette_intensity = 0.5
 shader_parameter/vignette_color = Color(0.02, 0.05, 0.1, 1)
-shader_parameter/tilt_shift_focus_y = 0.5
-shader_parameter/tilt_shift_focus_height = 0.35
-shader_parameter/tilt_shift_blur_amount = 3.0
 
 [node name="Main" type="Node2D" unique_id=1707282092]
 script = ExtResource("1")

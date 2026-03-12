@@ -10,6 +10,7 @@ var _master_slider: HSlider = null
 var _sfx_slider: HSlider = null
 var _ambient_slider: HSlider = null
 var _fullscreen_check: CheckButton = null
+var _crt_check: CheckButton = null
 var _master_lbl: Label = null
 var _sfx_lbl: Label = null
 var _ambient_lbl: Label = null
@@ -80,6 +81,14 @@ func _build() -> void:
 	_fullscreen_check.button_pressed = settings.get("fullscreen", false)
 	_fullscreen_check.toggled.connect(_on_setting_changed)
 	add_child(_fullscreen_check)
+
+	_crt_check = CheckButton.new()
+	_crt_check.text = "CRT Effect"
+	_crt_check.add_theme_font_size_override("font_size", 16)
+	_crt_check.add_theme_color_override("font_color", Color(0.7, 0.8, 0.85))
+	_crt_check.button_pressed = settings.get("crt_enabled", true)
+	_crt_check.toggled.connect(_on_setting_changed)
+	add_child(_crt_check)
 
 	# Spacer + Back
 	var spacer := Control.new()
@@ -205,4 +214,5 @@ func _gather() -> Dictionary:
 		"sfx_volume": int(_sfx_slider.value),
 		"ambient_volume": int(_ambient_slider.value),
 		"fullscreen": _fullscreen_check.button_pressed,
+		"crt_enabled": _crt_check.button_pressed,
 	}

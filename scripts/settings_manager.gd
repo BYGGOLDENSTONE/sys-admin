@@ -67,4 +67,5 @@ static func _defaults() -> Dictionary:
 		"sfx_volume": 80,
 		"ambient_volume": 50,
 		"fullscreen": false,
+		"crt_enabled": true,
 	}

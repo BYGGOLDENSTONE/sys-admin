@@ -1,5 +1,6 @@
 extends Node2D
 
+const _MONO_FONT: Font = preload("res://assets/fonts/JetBrainsMono-Regular.ttf")
 const TILE_SIZE: int = 64
 const GLOW_PULSE_SPEED: float = 1.5
 const GLOW_PULSE_AMOUNT: float = 0.08
@@ -198,7 +199,7 @@ func _draw_hidden(zoom: float) -> void:
 			draw_rect(Rect2(local_pos, Vector2(TILE_SIZE, TILE_SIZE)), Color(accent, 0.04), true)
 		_draw_organic_border(accent, alpha * 0.4, 2.0, 4.0)
 		var center: Vector2 = get_center_world() - global_position
-		var font := ThemeDB.fallback_font
+		var font := _MONO_FONT
 		var q_dims := font.get_string_size("?", HORIZONTAL_ALIGNMENT_CENTER, -1, 20)
 		var q_pos := Vector2(center.x - q_dims.x / 2.0, center.y + q_dims.y / 4.0)
 		draw_string(font, q_pos, "?", HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color(accent, alpha + 0.15))
@@ -218,7 +219,7 @@ func _draw_hidden(zoom: float) -> void:
 
 	# "?" icon at center
 	var center: Vector2 = get_center_world() - global_position
-	var font := ThemeDB.fallback_font
+	var font := _MONO_FONT
 	var q_size := 20
 	var q_text := "?"
 	var q_dims := font.get_string_size(q_text, HORIZONTAL_ALIGNMENT_CENTER, -1, q_size)
@@ -246,7 +247,7 @@ func _draw_hidden(zoom: float) -> void:
 
 
 func _draw_hidden_badge(center: Vector2) -> void:
-	var font := ThemeDB.fallback_font
+	var font := _MONO_FONT
 	var font_size := 10
 	var label := "HIDDEN"
 	var badge_color := Color(1.0, 0.4, 0.2)
@@ -341,7 +342,7 @@ func _draw_signal_rings(center: Vector2, accent: Color, scale: float = 1.0) -> v
 
 
 func _draw_source_name(center: Vector2, accent: Color) -> void:
-	var font := ThemeDB.fallback_font
+	var font := _MONO_FONT
 	var font_size := 13
 	var text: String = definition.source_name
 	var text_size := font.get_string_size(text, HORIZONTAL_ALIGNMENT_CENTER, -1, font_size)
@@ -411,7 +412,7 @@ func _draw_zone_badge(center: Vector2) -> void:
 		return
 	var badge_color: Color = diff_colors.get(definition.difficulty, Color.WHITE)
 
-	var font := ThemeDB.fallback_font
+	var font := _MONO_FONT
 	var font_size := 10
 	var text_size := font.get_string_size(label, HORIZONTAL_ALIGNMENT_CENTER, -1, font_size)
 	var badge_pos := Vector2(center.x - text_size.x / 2.0, center.y - 28)

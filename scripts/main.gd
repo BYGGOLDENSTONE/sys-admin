@@ -188,6 +188,12 @@ func _ready() -> void:
 	var post_rect: ColorRect = $PostProcessLayer/PostProcessRect
 	camera.set_post_material(post_rect.material as ShaderMaterial)
 
+	# Apply CRT setting from saved preferences
+	var _settings := SettingsManager.get_settings()
+	if post_rect.material is ShaderMaterial:
+		(post_rect.material as ShaderMaterial).set_shader_parameter(
+			"scanlines_enabled", _settings.get("crt_enabled", true))
+
 	# Start autosave
 	_save_manager.setup_autosave()
 
@@ -742,3 +748,9 @@ func _on_pause_quit() -> void:
 func _on_settings_changed() -> void:
 	if _sound_manager:
 		_sound_manager.apply_settings()
+	# Apply CRT toggle to post-process shader
+	var settings := SettingsManager.get_settings()
+	var post_rect: ColorRect = $PostProcessLayer/PostProcessRect
+	if post_rect and post_rect.material is ShaderMaterial:
+		var mat: ShaderMaterial = post_rect.material
+		mat.set_shader_parameter("scanlines_enabled", settings.get("crt_enabled", true))

@@ -1,15 +1,16 @@
 extends Node2D
 
+const _MONO_FONT: Font = preload("res://assets/fonts/JetBrainsMono-Regular.ttf")
 const TILE_SIZE: int = 64
-const CABLE_WIDTH: float = 3.0
-const CABLE_GLOW_WIDTH: float = 8.0
+const CABLE_WIDTH: float = 5.0
+const CABLE_GLOW_WIDTH: float = 11.0
 const CABLE_GLOW_ALPHA: float = 0.2
 const CABLE_INACTIVE_ALPHA: float = 0.12
 const PARTICLE_SPEED: float = 0.4
 const PARTICLES_PER_CABLE: int = 6
 const PARTICLE_FONT_SIZE: int = 20
 const HOVER_COLOR := Color(1.0, 0.3, 0.3, 0.6)
-const HOVER_WIDTH: float = 10.0
+const HOVER_WIDTH: float = 14.0
 const PREVIEW_VALID_COLOR := Color(0.2, 1, 0.67, 0.5)
 const PREVIEW_INVALID_COLOR := Color(1, 0.13, 0.27, 0.5)
 
@@ -135,7 +136,7 @@ func _draw_connection(conn: Dictionary, active: bool, hovered: bool) -> void:
 
 	var zoom: float = _get_zoom_level()
 	# Scale cable thickness at low zoom so cables stay visible
-	var zoom_scale: float = clampf(1.0 / zoom, 1.0, 3.5) if zoom < 1.0 else 1.0
+	var zoom_scale: float = clampf(1.0 / zoom, 1.0, 2.5) if zoom < 1.0 else 1.0
 	var core_w: float = CABLE_WIDTH * zoom_scale
 	var glow_w: float = CABLE_GLOW_WIDTH * zoom_scale
 
@@ -145,7 +146,7 @@ func _draw_connection(conn: Dictionary, active: bool, hovered: bool) -> void:
 	if active:
 		var pulse := sin(Time.get_ticks_msec() / 200.0) * 0.5 + 0.5
 		# Outer soft halo — wider for "glowing wire" feel
-		draw_polyline(points, Color(accent, (0.08 + pulse * 0.06) * zoom_scale), glow_w * 2.5, true)
+		draw_polyline(points, Color(accent, (0.08 + pulse * 0.06) * zoom_scale), glow_w * 2.0, true)
 		# Mid glow
 		draw_polyline(points, Color(accent, minf((CABLE_GLOW_ALPHA + pulse * 0.12) * zoom_scale, 0.6)), glow_w, true)
 		# Core line
@@ -317,7 +318,7 @@ func _draw_particles(conn: Dictionary, conn_index: int, stalled: bool = false) -
 	if total_length <= 0:
 		return
 
-	var font := ThemeDB.fallback_font
+	var font := _MONO_FONT
 	var count: int = _get_visible_particle_count()
 	var half_fs: float = PARTICLE_FONT_SIZE * 0.5
 

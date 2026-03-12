@@ -1,5 +1,6 @@
 extends Node2D
 
+const _MONO_FONT: Font = preload("res://assets/fonts/JetBrainsMono-Regular.ttf")
 const TILE_SIZE: int = 64
 const BODY_COLOR := Color("#0a0d14")
 const BORDER_WIDTH: float = 2.0
@@ -41,6 +42,93 @@ var upgrade_level: int = 0  ## Current upgrade level (0 = base)
 var linked_source: Node2D = null  ## The data source this Uplink is tapped into
 var runtime_content_weights: Dictionary = {}  ## Overrides generator content_weights when linked
 var runtime_state_weights: Dictionary = {}    ## Overrides generator state_weights when linked
+
+
+func _get_building_polygon(r: Rect2, vtype: String) -> PackedVector2Array:
+	## Returns a distinctive silhouette polygon for each building type.
+	## All shapes fit within the given rect — no footprint/hitbox change.
+	var x := r.position.x
+	var y := r.position.y
+	var w := r.size.x
+	var h := r.size.y
+	match vtype:
+		"terminal":  # Octagon — hub, most distinctive
+			var c := w * 0.2
+			return PackedVector2Array([
+				Vector2(x + c, y), Vector2(x + w - c, y),
+				Vector2(x + w, y + c), Vector2(x + w, y + h - c),
+				Vector2(x + w - c, y + h), Vector2(x + c, y + h),
+				Vector2(x, y + h - c), Vector2(x, y + c)])
+		"classifier":  # Bottom pointed — Y-output / sorting feel
+			var notch := h * 0.15
+			return PackedVector2Array([
+				Vector2(x, y), Vector2(x + w, y),
+				Vector2(x + w, y + h - notch),
+				Vector2(x + w * 0.5, y + h),
+				Vector2(x, y + h - notch)])
+		"compiler":  # Hexagon — assembly/packaging
+			var inset := w * 0.18
+			return PackedVector2Array([
+				Vector2(x + inset, y), Vector2(x + w - inset, y),
+				Vector2(x + w, y + h * 0.5),
+				Vector2(x + w - inset, y + h),
+				Vector2(x + inset, y + h),
+				Vector2(x, y + h * 0.5)])
+		"recoverer":  # Rounded rect — soft repair feel
+			var cr := w * 0.15
+			var pts := PackedVector2Array()
+			for i in range(5):
+				var angle := -PI / 2.0 + (PI / 2.0) * float(i) / 4.0
+				pts.append(Vector2(x + w - cr + cos(angle) * cr, y + cr + sin(angle) * cr))
+			for i in range(5):
+				var angle := float(i) * PI / 8.0
+				pts.append(Vector2(x + w - cr + cos(angle) * cr, y + h - cr + sin(angle) * cr))
+			for i in range(5):
+				var angle := PI / 2.0 + (PI / 2.0) * float(i) / 4.0
+				pts.append(Vector2(x + cr + cos(angle) * cr, y + h - cr + sin(angle) * cr))
+			for i in range(5):
+				var angle := PI + (PI / 2.0) * float(i) / 4.0
+				pts.append(Vector2(x + cr + cos(angle) * cr, y + cr + sin(angle) * cr))
+			return pts
+		"decryptor":  # Top notch — key slot opening
+			var nw := w * 0.25
+			var nd := h * 0.12
+			return PackedVector2Array([
+				Vector2(x, y), Vector2(x + (w - nw) * 0.5, y),
+				Vector2(x + (w - nw) * 0.5, y + nd),
+				Vector2(x + (w + nw) * 0.5, y + nd),
+				Vector2(x + (w + nw) * 0.5, y),
+				Vector2(x + w, y), Vector2(x + w, y + h), Vector2(x, y + h)])
+		"encryptor":  # Bottom notch — key slot closing (mirror of decryptor)
+			var nw := w * 0.25
+			var nd := h * 0.12
+			return PackedVector2Array([
+				Vector2(x, y), Vector2(x + w, y),
+				Vector2(x + w, y + h),
+				Vector2(x + (w + nw) * 0.5, y + h),
+				Vector2(x + (w + nw) * 0.5, y + h - nd),
+				Vector2(x + (w - nw) * 0.5, y + h - nd),
+				Vector2(x + (w - nw) * 0.5, y + h),
+				Vector2(x, y + h)])
+		"research":  # Pentagon — pointed top / lab roof
+			var peak := h * 0.12
+			return PackedVector2Array([
+				Vector2(x + w * 0.5, y),
+				Vector2(x + w, y + peak),
+				Vector2(x + w, y + h),
+				Vector2(x, y + h),
+				Vector2(x, y + peak)])
+		_:  # Default rect for splitter, merger, bridge, uplink, separator, trash
+			return PackedVector2Array([
+				Vector2(x, y), Vector2(x + w, y),
+				Vector2(x + w, y + h), Vector2(x, y + h)])
+
+
+func _get_closed_polyline(poly: PackedVector2Array) -> PackedVector2Array:
+	var closed := poly.duplicate()
+	if closed.size() > 0:
+		closed.append(closed[0])
+	return closed
 
 
 func _process(delta: float) -> void:
@@ -302,18 +390,22 @@ func _draw() -> void:
 		BODY_COLOR.r + accent.r * 0.05,
 		BODY_COLOR.g + accent.g * 0.05,
 		BODY_COLOR.b + accent.b * 0.05, 1.0)
+	# Building silhouette polygon
+	var vtype: String = definition.visual_type if definition else "default"
+	var base_poly := _get_building_polygon(rect, vtype)
 	# Breathing effect — working buildings gently pulse size
-	var body_rect := rect
+	var body_poly := base_poly
 	if is_working and active:
 		var breathe: float = sin(_glow_time * 3.0) * 1.5
-		body_rect = Rect2(Vector2(-breathe, -breathe), size + Vector2(breathe * 2, breathe * 2))
-	draw_rect(body_rect, body_color, true)
+		var breathe_rect := Rect2(Vector2(-breathe, -breathe), size + Vector2(breathe * 2, breathe * 2))
+		body_poly = _get_building_polygon(breathe_rect, vtype)
+	draw_colored_polygon(body_poly, body_color)
 
 	# Neon border (thicker at lower zoom + when selected)
 	var border_w: float = BORDER_WIDTH * zoom_glow_scale
 	if is_selected:
 		border_w *= 2.0
-	draw_rect(rect, accent, false, border_w)
+	draw_polyline(_get_closed_polyline(base_poly), accent, border_w)
 
 	# Selection highlight (only at close/medium zoom)
 	if is_selected:
@@ -353,7 +445,7 @@ func _draw() -> void:
 
 	# Building name (skip at medium zoom)
 	if not is_medium:
-		var font := ThemeDB.fallback_font
+		var font := _MONO_FONT
 		var font_size := 11
 		var text := definition.building_name
 		var text_size := font.get_string_size(text, HORIZONTAL_ALIGNMENT_CENTER, -1, font_size)
@@ -376,22 +468,22 @@ func _draw() -> void:
 
 	# Processing flash overlay — bright burst when building starts working
 	if _process_flash > 0.0 and not is_medium:
-		draw_rect(rect, Color(accent.r, accent.g, accent.b, _process_flash * 0.35), true)
-		draw_rect(rect, Color(accent, _process_flash * 0.5), false, 2.0)
+		draw_colored_polygon(base_poly, Color(accent.r, accent.g, accent.b, _process_flash * 0.35))
+		draw_polyline(_get_closed_polyline(base_poly), Color(accent, _process_flash * 0.5), 2.0)
 
 	# Malware overlay (skip for Trash — it destroys everything)
 	if not _is_ghost and _has_malware():
 		if not (definition.processor != null and definition.processor.rule == "trash"):
 			var malware_alpha: float = 0.12 + sin(_glow_time * 6.0) * 0.06
-			draw_rect(rect, Color(0.8, 0.0, 0.3, malware_alpha), true)
-			draw_rect(rect, Color(0.8, 0.0, 0.3, 0.5), false, 2.0)
+			draw_colored_polygon(base_poly, Color(0.8, 0.0, 0.3, malware_alpha))
+			draw_polyline(_get_closed_polyline(base_poly), Color(0.8, 0.0, 0.3, 0.5), 2.0)
 
 	# Inactive generator overlay
 	if not _is_ghost and not active and definition.generator != null:
 		if not is_medium:
 			var warn_color := Color(1.0, 0.4, 0.2)
-			draw_rect(rect, Color(warn_color, 0.06), true)
-			var warn_font := ThemeDB.fallback_font
+			draw_colored_polygon(base_poly, Color(warn_color, 0.06))
+			var warn_font := _MONO_FONT
 			var warn_text := "No Source"
 			var warn_size := 10
 			var text_dims := warn_font.get_string_size(warn_text, HORIZONTAL_ALIGNMENT_CENTER, -1, warn_size)
@@ -400,11 +492,12 @@ func _draw() -> void:
 			draw_string(warn_font, warn_pos, warn_text, HORIZONTAL_ALIGNMENT_LEFT, -1, warn_size, Color(warn_color, 0.8))
 
 
-## PCB mode: glowing microchips with soft circular halo
+## PCB mode: glowing microchips with distinctive silhouettes per building type
 func _draw_pcb_mode(size: Vector2, rect: Rect2, accent: Color, pulse: float) -> void:
 	var center := size / 2.0
 	var zoom: float = _get_zoom_level()
 	var inv_zoom: float = clampf(1.0 / zoom, 2.0, 8.0)
+	var vtype: String = definition.visual_type if definition else "default"
 
 	# Soft circular glow halo (bloom substitute — zoom-compensated)
 	var glow_r: float = maxf(size.x, size.y) * 0.4 * inv_zoom
@@ -414,18 +507,19 @@ func _draw_pcb_mode(size: Vector2, rect: Rect2, accent: Color, pulse: float) -> 
 	draw_circle(center, glow_r, Color(accent, glow_a))
 	draw_circle(center, glow_r * 0.5, Color(accent, glow_a * 2.5))
 
-	# Body — tinted with accent color for chip look
+	# Body — tinted with accent color, using building silhouette polygon
 	var chip_body := Color(
 		BODY_COLOR.r + accent.r * 0.12,
 		BODY_COLOR.g + accent.g * 0.12,
 		BODY_COLOR.b + accent.b * 0.12, 1.0)
-	draw_rect(rect, chip_body, true)
+	var pcb_poly := _get_building_polygon(rect, vtype)
+	draw_colored_polygon(pcb_poly, chip_body)
 
-	# Thick bright border
+	# Thick bright border — silhouette shape
 	var bw: float = 3.0
 	if is_selected:
 		bw = 5.0
-	draw_rect(rect, accent, false, bw)
+	draw_polyline(_get_closed_polyline(pcb_poly), accent, bw)
 
 	# Center dot/pip (visible identifier)
 	draw_circle(center, 5.0, Color(accent, 0.5 + pulse * 2.0))
@@ -433,17 +527,17 @@ func _draw_pcb_mode(size: Vector2, rect: Rect2, accent: Color, pulse: float) -> 
 
 	# Working indicator: brighter fill
 	if is_working:
-		draw_rect(rect, Color(accent, 0.12), true)
+		draw_colored_polygon(pcb_poly, Color(accent, 0.12))
 
 	# Contract Terminal beacon at PCB zoom
-	if definition.visual_type == "terminal":
+	if vtype == "terminal":
 		var beacon_r: float = maxf(size.x, size.y) * 0.6 * inv_zoom
 		draw_circle(center, beacon_r, Color(accent, 0.02 + pulse * 0.01))
 
 	# Malware overlay (still visible at distance — skip for Trash)
 	if not _is_ghost and _has_malware():
 		if not (definition.processor != null and definition.processor.rule == "trash"):
-			draw_rect(rect, Color(0.8, 0.0, 0.3, 0.15 + sin(_glow_time * 6.0) * 0.08), true)
+			draw_colored_polygon(pcb_poly, Color(0.8, 0.0, 0.3, 0.15 + sin(_glow_time * 6.0) * 0.08))
 
 
 func _draw_icon(center: Vector2, size: Vector2, accent: Color) -> void:
@@ -883,7 +977,7 @@ func _draw_status_bars(size: Vector2, accent: Color) -> void:
 	# Percentage text for nearly full storage
 	if _display_fill >= 0.5:
 		var pct_text := "%d%%" % int(_display_fill * 100)
-		var pct_font := ThemeDB.fallback_font
+		var pct_font := _MONO_FONT
 		var pct_size := 9
 		var pct_dims := pct_font.get_string_size(pct_text, HORIZONTAL_ALIGNMENT_CENTER, -1, pct_size)
 		var pct_pos := Vector2(bar_x + (bar_w - pct_dims.x) / 2.0, bar_y + bar_h - 1)

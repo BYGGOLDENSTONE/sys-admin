@@ -8,6 +8,12 @@ const BG_COLOR := Color("#060a10")
 const GRID_LINE_COLOR := Color("#0f1520")
 const MAP_CENTER := Vector2(256 * 64, 256 * 64)  ## Center in pixels (256,256 grid * 64px)
 
+# PCB background pattern
+const PCB_TRACE_COLOR := Color(0.06, 0.28, 0.22)
+const PCB_VIA_COLOR := Color(0.1, 0.4, 0.3)
+const PCB_PAD_COLOR := Color(0.05, 0.22, 0.16)
+const PCB_TRACE_WIDTH: float = 2.0
+
 var _occupied_cells: Dictionary = {}
 var _source_cells: Dictionary = {}  ## cell → source Node2D ref
 
@@ -253,6 +259,82 @@ func get_source_at(cell: Vector2i) -> Node:
 	return _source_cells.get(cell, null)
 
 
+func _pcb_hash(x: int, y: int, seed_val: int) -> int:
+	return ((x * 73856093) ^ (y * 19349663) ^ (seed_val * 83492791)) & 0x7FFFFFFF
+
+
+func _draw_pcb_pattern(sx: int, ex: int, sy: int, ey: int, zoom_level: float) -> void:
+	## Deterministic PCB trace/via/pad pattern — "circuit board" background feel
+	if zoom_level < 0.15:
+		return
+	var alpha_scale: float = clampf((zoom_level - 0.15) / 0.25, 0.0, 1.0)
+	var trace_a: float = 0.04 * alpha_scale
+	var trace_col := Color(PCB_TRACE_COLOR, trace_a)
+
+	# Sample step — skip cells at low zoom for performance
+	var step: int = 1
+	if zoom_level < 0.3:
+		step = 4
+	elif zoom_level < 0.5:
+		step = 2
+
+	var asx: int = sx - (sx % step)
+	var asy: int = sy - (sy % step)
+
+	# --- Horizontal traces ---
+	for y in range(asy, ey + 1, step):
+		for x in range(asx, ex, step):
+			var h := _pcb_hash(x, y, 1)
+			if h % 11 == 0:
+				var len_cells: int = (1 + (h >> 4) % 3) * step
+				var x2: int = mini(x + len_cells, ex)
+				draw_line(
+					Vector2(x * TILE_SIZE, y * TILE_SIZE),
+					Vector2(x2 * TILE_SIZE, y * TILE_SIZE),
+					trace_col, PCB_TRACE_WIDTH)
+
+	# --- Vertical traces ---
+	for x in range(asx, ex + 1, step):
+		for y in range(asy, ey, step):
+			var h := _pcb_hash(x, y, 2)
+			if h % 13 == 0:
+				var len_cells: int = (1 + (h >> 4) % 3) * step
+				var y2: int = mini(y + len_cells, ey)
+				draw_line(
+					Vector2(x * TILE_SIZE, y * TILE_SIZE),
+					Vector2(x * TILE_SIZE, y2 * TILE_SIZE),
+					trace_col, PCB_TRACE_WIDTH)
+
+	# --- Via points (zoom > 0.3) ---
+	if zoom_level > 0.3:
+		var via_a: float = 0.06 * alpha_scale
+		var via_col := Color(PCB_VIA_COLOR, via_a)
+		var via_ring := Color(PCB_VIA_COLOR, via_a * 0.6)
+		for x in range(asx, ex + 1, step):
+			for y in range(asy, ey + 1, step):
+				var h := _pcb_hash(x, y, 3)
+				if h % 19 == 0:
+					var pos := Vector2(x * TILE_SIZE, y * TILE_SIZE)
+					draw_circle(pos, 3.5, via_col)
+					draw_arc(pos, 5.0, 0.0, TAU, 8, via_ring, 1.0)
+
+	# --- Component pads (zoom > 0.45) ---
+	if zoom_level > 0.45:
+		var pad_a: float = 0.035 * alpha_scale
+		var pad_fill := Color(PCB_PAD_COLOR, pad_a)
+		var pad_border := Color(PCB_PAD_COLOR, pad_a * 1.5)
+		for x in range(sx, ex):
+			for y in range(sy, ey):
+				var h := _pcb_hash(x, y, 4)
+				if h % 29 == 0:
+					var cx: float = (x + 0.5) * TILE_SIZE
+					var cy: float = (y + 0.5) * TILE_SIZE
+					var ps: float = 10.0
+					var pr := Rect2(cx - ps * 0.5, cy - ps * 0.5, ps, ps)
+					draw_rect(pr, pad_fill, true)
+					draw_rect(pr, pad_border, false, 1.0)
+
+
 func _process(_delta: float) -> void:
 	queue_redraw()
 
@@ -277,6 +359,9 @@ func _draw() -> void:
 
 	# Underglow intensity scales with zoom (brighter when zoomed out)
 	var ug_scale: float = clampf(1.0 / zoom_level, 1.0, 3.0) if zoom_level < 1.0 else 1.0
+
+	# PCB trace pattern layer (below everything, above background)
+	_draw_pcb_pattern(sx, ex, sy, ey, zoom_level)
 
 	for cell in _occupied_cells:
 		if cell.x < sx or cell.x > ex or cell.y < sy or cell.y > ey:
