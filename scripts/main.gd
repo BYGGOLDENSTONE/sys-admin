@@ -382,8 +382,8 @@ func _place_contract_terminal() -> void:
 	if terminal_def == null:
 		push_error("[Main] Cannot load Contract Terminal definition")
 		return
-	# Try center first, then spiral outward to find clear spot
-	var center := Vector2i(256, 256)
+	# Center the building at MAP_CENTER (offset by half grid size)
+	var center := Vector2i(256 - terminal_def.grid_size.x / 2, 256 - terminal_def.grid_size.y / 2)
 	var cell := _find_clear_cell(center, terminal_def.grid_size)
 	_contract_terminal = building_manager.place_building_at(terminal_def, cell, true)
 	if _contract_terminal != null and _gig_manager != null:

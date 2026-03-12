@@ -103,42 +103,59 @@ func get_connection_at_point(world_pos: Vector2) -> int:
 # --- PORT EXIT VERTICES ---
 
 func get_port_exit_vertices(building: Node2D, port_side: String) -> Array[Vector2i]:
-	## Returns grid vertices ONE cell away from building boundary, aligned with port center.
-	## Even-sized dimension: port aligns with a vertex → 1 vertex.
-	## Odd-sized dimension: port is between vertices → 2 vertices.
+	## Returns grid vertices ONE cell away from building boundary, aligned with port.
+	## Supports rotation (via building._get_physical_side) and indexed ports (left_0, left_1).
 	var bx: int = building.grid_cell.x
 	var by: int = building.grid_cell.y
 	var sw: int = building.definition.grid_size.x
 	var sh: int = building.definition.grid_size.y
-	match port_side:
+
+	# Get physical side accounting for rotation
+	var physical: String = building._get_physical_side(port_side)
+	var base_side: String
+	var us_pos: int = physical.find("_")
+	if us_pos >= 0:
+		base_side = physical.substr(0, us_pos)
+	else:
+		base_side = physical
+
+	# Get port local pixel position (already accounts for rotation + indexing)
+	var local_pos: Vector2 = building.get_port_local_position(port_side)
+
+	match base_side:
 		"right":
 			var vx: int = bx + sw + 1
-			var vy_mid: int = by + sh / 2
-			if sh % 2 == 0:
-				return [Vector2i(vx, vy_mid)]
+			var cell_y: float = local_pos.y / float(TILE_SIZE)
+			var vy: int = roundi(cell_y)
+			if absf(cell_y - float(vy)) < 0.01:
+				return [Vector2i(vx, by + vy)]
 			else:
-				return [Vector2i(vx, vy_mid), Vector2i(vx, vy_mid + 1)]
+				return [Vector2i(vx, by + floori(cell_y)), Vector2i(vx, by + floori(cell_y) + 1)]
 		"left":
 			var vx: int = bx - 1
-			var vy_mid: int = by + sh / 2
-			if sh % 2 == 0:
-				return [Vector2i(vx, vy_mid)]
+			var cell_y: float = local_pos.y / float(TILE_SIZE)
+			var vy: int = roundi(cell_y)
+			if absf(cell_y - float(vy)) < 0.01:
+				return [Vector2i(vx, by + vy)]
 			else:
-				return [Vector2i(vx, vy_mid), Vector2i(vx, vy_mid + 1)]
+				return [Vector2i(vx, by + floori(cell_y)), Vector2i(vx, by + floori(cell_y) + 1)]
 		"top":
 			var vy: int = by - 1
-			var vx_mid: int = bx + sw / 2
-			if sw % 2 == 0:
-				return [Vector2i(vx_mid, vy)]
+			var cell_x: float = local_pos.x / float(TILE_SIZE)
+			var vx: int = roundi(cell_x)
+			if absf(cell_x - float(vx)) < 0.01:
+				return [Vector2i(bx + vx, vy)]
 			else:
-				return [Vector2i(vx_mid, vy), Vector2i(vx_mid + 1, vy)]
+				return [Vector2i(bx + floori(cell_x), vy), Vector2i(bx + floori(cell_x) + 1, vy)]
 		"bottom":
 			var vy: int = by + sh + 1
-			var vx_mid: int = bx + sw / 2
-			if sw % 2 == 0:
-				return [Vector2i(vx_mid, vy)]
+			var cell_x: float = local_pos.x / float(TILE_SIZE)
+			var vx: int = roundi(cell_x)
+			if absf(cell_x - float(vx)) < 0.01:
+				return [Vector2i(bx + vx, vy)]
 			else:
-				return [Vector2i(vx_mid, vy), Vector2i(vx_mid + 1, vy)]
+				return [Vector2i(bx + floori(cell_x), vy), Vector2i(bx + floori(cell_x) + 1, vy)]
+
 	return [Vector2i(bx + sw + 1, by + sh / 2)]
 
 

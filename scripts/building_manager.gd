@@ -121,6 +121,11 @@ func _handle_idle_input(event: InputEvent) -> void:
 		if _selected_building != null:
 			_cycle_building_filter(_selected_building)
 		return
+	# R key: rotate selected building
+	if event is InputEventKey and event.pressed and event.keycode == KEY_R:
+		if _selected_building != null:
+			_rotate_selected_building()
+		return
 	if not (event is InputEventMouseButton and event.pressed):
 		return
 
@@ -180,6 +185,10 @@ func _handle_idle_input(event: InputEvent) -> void:
 
 
 func _handle_placing_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and event.keycode == KEY_R:
+		ghost_preview.direction = (ghost_preview.direction + 1) % 4
+		ghost_preview.queue_redraw()
+		return
 	if event is InputEventMouseButton and event.pressed:
 		if event.button_index == MOUSE_BUTTON_LEFT and _can_place_here:
 			_place_building()
@@ -348,7 +357,7 @@ func _update_manual_routing() -> void:
 	connection_layer.preview_valid = valid
 	connection_layer.preview_blocked = is_blocked
 	connection_layer.preview_from_pos = from_pos
-	connection_layer.preview_from_port = _connecting_from_port
+	connection_layer.preview_from_port = _connecting_from_building._get_physical_side(_connecting_from_port)
 	connection_layer.preview_to_pos = mouse_pos
 	connection_layer.preview_active = true
 
@@ -538,13 +547,13 @@ func _clear_cable_hover() -> void:
 
 func _place_building() -> void:
 	var building: Node2D = _building_scene.instantiate()
-	building.setup(_current_definition, _ghost_cell)
+	building.setup(_current_definition, _ghost_cell, ghost_preview.direction)
 	building.position = grid_system.grid_to_world(_ghost_cell)
 	building_container.add_child(building)
 	grid_system.occupy(_ghost_cell, _current_definition.grid_size, building)
 	building_placed.emit(building, _ghost_cell)
 	if undo_manager and not undo_manager.is_undoing:
-		undo_manager.push_command({type = "place", definition = _current_definition, cell = _ghost_cell})
+		undo_manager.push_command({type = "place", definition = _current_definition, cell = _ghost_cell, direction = ghost_preview.direction})
 	print("[BuildingManager] Building placed — %s at (%d,%d)" % [
 		_current_definition.building_name, _ghost_cell.x, _ghost_cell.y
 	])
@@ -570,6 +579,7 @@ func _remove_building(building: Node2D) -> void:
 			type = "remove",
 			definition = def,
 			cell = cell,
+			direction = building.direction,
 			upgrade_level = building.upgrade_level,
 			classifier_filter_content = building.classifier_filter_content,
 			separator_mode = building.separator_mode,
@@ -643,6 +653,34 @@ func _cycle_building_filter(building: Node2D) -> void:
 		print("[BuildingManager] Research Lab tier → %s" % label)
 
 
+func _rotate_selected_building() -> void:
+	var building: Node2D = _selected_building
+	if not building.definition.is_placeable:
+		return  # Don't rotate non-placeable buildings (Contract Terminal)
+	var old_dir: int = building.direction
+	var new_dir: int = (old_dir + 1) % 4
+	# Save connections before rotation (paths become invalid when ports move)
+	var saved_conns: Array[Dictionary] = []
+	if undo_manager:
+		saved_conns = undo_manager.get_connections_for_building(building)
+	# Remove connections
+	if connection_manager:
+		connection_manager.remove_connections_for(building, building.grid_cell)
+	# Apply rotation
+	building.direction = new_dir
+	building.queue_redraw()
+	# Push undo
+	if undo_manager and not undo_manager.is_undoing:
+		undo_manager.push_command({
+			type = "rotate",
+			cell = building.grid_cell,
+			old_direction = old_dir,
+			new_direction = new_dir,
+			connections = saved_conns,
+		})
+	print("[BuildingManager] Rotated — %s direction %d" % [building.definition.building_name, new_dir])
+
+
 ## Programmatic API (AutoPlayManager ve test sistemleri icin)
 
 func place_building_at(def: BuildingDefinition, cell: Vector2i, skip_source_check: bool = false) -> Node2D:
@@ -682,7 +720,7 @@ func _start_moving(building: Node2D) -> void:
 	# Setup ghost preview with same definition
 	ghost_preview.visible = true
 	ghost_preview._is_ghost = true
-	ghost_preview.setup(building.definition, Vector2i.ZERO)
+	ghost_preview.setup(building.definition, Vector2i.ZERO, building.direction)
 	# Hide the actual building while moving
 	_moving_building.visible = false
 	# Clear hover

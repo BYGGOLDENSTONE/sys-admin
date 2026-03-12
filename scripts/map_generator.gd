@@ -13,6 +13,7 @@ const MAX_PLACEMENT_ATTEMPTS := 60
 const NEAR_RADIUS := 70        ## Medium source guaranteed within this range
 const MAP_RADIUS := 220        ## Max placement radius from center
 const SECTOR_VARIANCE := 0.4   ## ±radians (~23°) angle spread per sector
+const CT_EXCLUSION_RADIUS := 12 ## No sources within this distance of center (CT 3x3 + 10 cell buffer)
 
 var _pools: Dictionary = {
 	"easy": ["isp_backbone", "public_database", "atm", "smart_lock", "traffic_camera"],
@@ -70,13 +71,16 @@ func generate_map(seed_value: int, source_manager: Node) -> void:
 
 
 func _place_guaranteed(seed_value: int, source_manager: Node) -> void:
-	# 1. ISP Backbone at center (always) — Gig 1 safe start
+	# 1. ISP Backbone near center but outside CT exclusion zone — Gig 1 safe start
 	var center_def := _load_source_def("isp_backbone")
 	if center_def:
-		source_manager.place_source(center_def, MAP_CENTER, seed_value, true)
-		_placed_origins.append(MAP_CENTER)
+		var isp_pos := _find_position_in_sector(PI * 0.25, float(CT_EXCLUSION_RADIUS), float(CT_EXCLUSION_RADIUS) + 6.0)
+		if isp_pos == Vector2i(-1, -1):
+			isp_pos = Vector2i(MAP_CENTER.x + CT_EXCLUSION_RADIUS + 2, MAP_CENTER.y - CT_EXCLUSION_RADIUS - 2)
+		source_manager.place_source(center_def, isp_pos, seed_value, true)
+		_placed_origins.append(isp_pos)
 		_placed_names.append("isp_backbone")
-		guaranteed_origins.append(MAP_CENTER)
+		guaranteed_origins.append(isp_pos)
 
 	# 2. Tutorial sources in fixed sectors (all discovered from start)
 	for entry in _tutorial_guarantees:
@@ -137,7 +141,7 @@ func _find_position_in_sector(center_angle: float, r_min: float, r_max: float) -
 func _find_random_position() -> Vector2i:
 	for _attempt in range(MAX_PLACEMENT_ATTEMPTS):
 		var angle: float = _rng.randf() * TAU
-		var radius: float = _rng.randf_range(15.0, float(MAP_RADIUS))
+		var radius: float = _rng.randf_range(float(CT_EXCLUSION_RADIUS), float(MAP_RADIUS))
 		var offset := Vector2(cos(angle) * radius, sin(angle) * radius)
 		var pos := Vector2i(MAP_CENTER.x + int(offset.x), MAP_CENTER.y + int(offset.y))
 

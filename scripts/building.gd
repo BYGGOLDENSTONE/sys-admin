@@ -18,6 +18,7 @@ const GLOW_PULSE_AMOUNT: float = 0.06
 
 var definition: BuildingDefinition
 var grid_cell: Vector2i = Vector2i.ZERO
+var direction: int = 0  ## 0=default, 1=90°CW, 2=180°, 3=270°CW
 var fill_ratio: float = 0.0
 var _glow_time: float = 0.0
 var _is_ghost: bool = false
@@ -153,9 +154,10 @@ func _process(delta: float) -> void:
 	queue_redraw()
 
 
-func setup(def: BuildingDefinition, cell: Vector2i) -> void:
+func setup(def: BuildingDefinition, cell: Vector2i, dir: int = 0) -> void:
 	definition = def
 	grid_cell = cell
+	direction = dir
 	queue_redraw()
 
 
@@ -175,17 +177,97 @@ func play_remove_animation() -> void:
 	tw.chain().tween_callback(queue_free)
 
 
+func _get_physical_side(logical_port: String) -> String:
+	## Maps a logical port name to its physical side based on building rotation.
+	if direction == 0:
+		return logical_port
+	var base_side: String
+	var suffix: String = ""
+	var us_pos: int = logical_port.find("_")
+	if us_pos >= 0:
+		base_side = logical_port.substr(0, us_pos)
+		suffix = logical_port.substr(us_pos)
+	else:
+		base_side = logical_port
+	var sides := ["left", "top", "right", "bottom"]
+	var idx: int = sides.find(base_side)
+	if idx < 0:
+		return logical_port
+	return sides[(idx + direction) % 4] + suffix
+
+
+func _count_ports_on_logical_side(logical_base: String) -> int:
+	var count: int = 0
+	for p in definition.input_ports:
+		if p == logical_base or p.begins_with(logical_base + "_"):
+			count += 1
+	for p in definition.output_ports:
+		if p == logical_base or p.begins_with(logical_base + "_"):
+			count += 1
+	return count
+
+
+func _rotate_polygon(poly: PackedVector2Array, center: Vector2) -> PackedVector2Array:
+	if direction == 0:
+		return poly
+	var angle: float = direction * PI / 2.0
+	var cos_a: float = cos(angle)
+	var sin_a: float = sin(angle)
+	var rotated := PackedVector2Array()
+	for p in poly:
+		var offset: Vector2 = p - center
+		rotated.append(center + Vector2(
+			offset.x * cos_a - offset.y * sin_a,
+			offset.x * sin_a + offset.y * cos_a))
+	return rotated
+
+
 func get_port_local_position(port_side: String) -> Vector2:
+	var physical: String = _get_physical_side(port_side)
+	var base_side: String
+	var port_idx: int = -1
+	var us_pos: int = physical.find("_")
+	if us_pos >= 0:
+		base_side = physical.substr(0, us_pos)
+		port_idx = int(physical.substr(us_pos + 1))
+	else:
+		base_side = physical
+
 	var size := Vector2(definition.grid_size.x * TILE_SIZE, definition.grid_size.y * TILE_SIZE)
-	match port_side:
+
+	# Count ports sharing this logical side
+	var logical_base: String
+	var logical_us: int = port_side.find("_")
+	if logical_us >= 0:
+		logical_base = port_side.substr(0, logical_us)
+	else:
+		logical_base = port_side
+	var count: int = _count_ports_on_logical_side(logical_base)
+
+	# Side length
+	var side_len: float
+	match base_side:
+		"left", "right":
+			side_len = size.y
+		_:
+			side_len = size.x
+
+	# Offset along the side
+	var offset: float
+	if port_idx >= 0 and count > 1:
+		offset = side_len * float(port_idx + 1) / float(count + 1)
+	else:
+		offset = side_len / 2.0
+
+	match base_side:
 		"right":
-			return Vector2(size.x, size.y / 2.0)
+			return Vector2(size.x, offset)
 		"left":
-			return Vector2(0, size.y / 2.0)
+			return Vector2(0, offset)
 		"top":
-			return Vector2(size.x / 2.0, 0)
+			return Vector2(offset, 0)
 		"bottom":
-			return Vector2(size.x / 2.0, size.y)
+			return Vector2(offset, size.y)
 	return size / 2.0
 
 
@@ -402,12 +484,16 @@ func _draw() -> void:
 	# Building silhouette polygon
 	var vtype: String = definition.visual_type if definition else "default"
 	var base_poly := _get_building_polygon(rect, vtype)
+	if direction != 0:
+		base_poly = _rotate_polygon(base_poly, center)
 	# Breathing effect — working buildings gently pulse size
 	var body_poly := base_poly
 	if is_working and active:
 		var breathe: float = sin(_glow_time * 3.0) * 1.5
 		var breathe_rect := Rect2(Vector2(-breathe, -breathe), size + Vector2(breathe * 2, breathe * 2))
 		body_poly = _get_building_polygon(breathe_rect, vtype)
+		if direction != 0:
+			body_poly = _rotate_polygon(body_poly, center)
 	draw_colored_polygon(body_poly, body_color)
 
 	# Neon border (thicker at lower zoom + when selected)
@@ -448,9 +534,14 @@ func _draw() -> void:
 		draw_line(Vector2(0, size.y * 0.3), Vector2(size.x, size.y * 0.3), line_color, 1.0)
 		draw_line(Vector2(size.x * 0.3, 0), Vector2(size.x * 0.3, size.y * 0.3), line_color, 1.0)
 
-	# Icon (skip at medium zoom)
+	# Icon (skip at medium zoom) — rotate icon with building direction
 	if not is_medium:
-		_draw_icon(center, size, accent)
+		if direction != 0:
+			draw_set_transform(center, direction * PI / 2.0, Vector2.ONE)
+			_draw_icon(Vector2.ZERO, size, accent)
+			draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+		else:
+			_draw_icon(center, size, accent)
 
 	# Building name (skip at medium zoom)
 	if not is_medium:
@@ -532,6 +623,8 @@ func _draw_pcb_mode(size: Vector2, rect: Rect2, accent: Color, pulse: float) -> 
 		BODY_COLOR.g + accent.g * 0.12,
 		BODY_COLOR.b + accent.b * 0.12, 1.0)
 	var pcb_poly := _get_building_polygon(rect, vtype)
+	if direction != 0:
+		pcb_poly = _rotate_polygon(pcb_poly, center)
 	draw_colored_polygon(pcb_poly, chip_body)
 
 	# Thick bright border — silhouette shape

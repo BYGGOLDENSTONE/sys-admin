@@ -57,12 +57,19 @@ func _execute_reverse(cmd: Dictionary) -> void:
 			# Restore cables that existed before the original move
 			for conn_data in cmd.get("connections", []):
 				_add_connection_by_cells(conn_data.from_cell, conn_data.from_port, conn_data.to_cell, conn_data.to_port, conn_data.get("path", []))
+		"rotate":
+			_set_building_direction(cmd.cell, cmd.old_direction)
+			for conn_data in cmd.get("connections", []):
+				_add_connection_by_cells(conn_data.from_cell, conn_data.from_port, conn_data.to_cell, conn_data.to_port, conn_data.get("path", []))
 
 
 func _execute_forward(cmd: Dictionary) -> void:
 	match cmd.type:
 		"place":
-			building_manager.place_building_at(cmd.definition, cmd.cell)
+			var b = building_manager.place_building_at(cmd.definition, cmd.cell)
+			if b:
+				b.direction = cmd.get("direction", 0)
+				b.queue_redraw()
 		"remove":
 			building_manager.remove_building_at(cmd.cell)
 		"add_connection":
@@ -71,17 +78,21 @@ func _execute_forward(cmd: Dictionary) -> void:
 			_remove_connection_by_cells(cmd.from_cell, cmd.from_port, cmd.to_cell, cmd.to_port)
 		"move":
 			_move_building(cmd.old_cell, cmd.new_cell, cmd.definition)
+		"rotate":
+			_set_building_direction(cmd.cell, cmd.new_direction)
 
 
 func _restore_building(cmd: Dictionary) -> void:
 	var building: Node2D = building_manager.place_building_at(cmd.definition, cmd.cell)
 	if building == null:
 		return
+	building.direction = cmd.get("direction", 0)
 	building.upgrade_level = cmd.get("upgrade_level", 0)
 	building.classifier_filter_content = cmd.get("classifier_filter_content", 0)
 	building.separator_mode = cmd.get("separator_mode", "state")
 	building.separator_filter_value = cmd.get("separator_filter_value", 0)
 	building.selected_tier = cmd.get("selected_tier", 1)
+	building.queue_redraw()
 	# Restore connections (path is stored as vertex array)
 	for conn_data in cmd.get("connections", []):
 		_add_connection_by_cells(conn_data.from_cell, conn_data.from_port, conn_data.to_cell, conn_data.to_port, conn_data.get("path", []))
@@ -125,6 +136,15 @@ func _move_building(from_cell: Vector2i, to_cell: Vector2i, definition: Building
 	if building.definition.generator != null:
 		source_manager.on_building_removed(building, from_cell)
 		source_manager.on_building_placed(building, to_cell)
+
+
+func _set_building_direction(cell: Vector2i, dir: int) -> void:
+	var building: Node2D = grid_system.get_building_at(cell)
+	if building == null:
+		return
+	connection_manager.remove_connections_for(building, cell)
+	building.direction = dir
+	building.queue_redraw()
 
 
 func get_connections_for_building(building: Node2D) -> Array[Dictionary]:

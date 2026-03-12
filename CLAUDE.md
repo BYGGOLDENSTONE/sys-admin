@@ -51,6 +51,8 @@ Asagidaki kararlar artik **scope lock** kabul edilir. Claude Code bu kararlarla 
 - [x] Source bandwidth, sadece tooltip verisi degil, gameplay'de gercek limit olacak
 - [x] Recoverer deterministic + fuel tabanli kalacak
 - [x] Grid kablo routing ve Bridge oyunun ana layout bulmacasi olmaya devam edecek
+- [x] **Bina rotasyonu** — R tusuyla 4 yone dondurme, portlar da doner
+- [x] **Contract Terminal 3x3** — 8 input port (her kenarda 2), merkez etrafinda 10+ cell kaynak exclusion zone
 
 ### Art / Audio Kararlari
 - [x] Ana sanat yonu: **procedural-first**

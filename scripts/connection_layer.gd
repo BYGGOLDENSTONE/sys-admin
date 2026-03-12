@@ -168,8 +168,9 @@ func _build_polyline(conn: Dictionary) -> PackedVector2Array:
 	var from_pos: Vector2 = to_local(conn.from_building.get_port_world_position(conn.from_port))
 	var first_v: Vector2 = _vertex_pos(path[0])
 	points.append(from_pos)
-	# Add stub for clean exit angle from source port
-	var from_stub := _port_stub(from_pos, first_v, conn.from_port)
+	# Add stub for clean exit angle from source port (use physical side for direction)
+	var from_physical: String = conn.from_building._get_physical_side(conn.from_port)
+	var from_stub := _port_stub(from_pos, first_v, from_physical)
 	if from_stub != from_pos and from_stub != first_v:
 		points.append(from_stub)
 	# Add vertex positions (grid intersection points)
@@ -179,7 +180,8 @@ func _build_polyline(conn: Dictionary) -> PackedVector2Array:
 	# Target stub: go straight to building face first, then short turn into port
 	var to_pos: Vector2 = to_local(conn.to_building.get_port_world_position(conn.to_port))
 	var last_v: Vector2 = _vertex_pos(path[path.size() - 1])
-	var to_stub := _port_stub_entry(to_pos, last_v, conn.to_port)
+	var to_physical: String = conn.to_building._get_physical_side(conn.to_port)
+	var to_stub := _port_stub_entry(to_pos, last_v, to_physical)
 	if to_stub != last_v and to_stub != to_pos:
 		points.append(to_stub)
 	points.append(to_pos)
@@ -190,7 +192,11 @@ func _port_stub(port_pos: Vector2, vertex_pos: Vector2, port_side: String) -> Ve
 	## Returns an intermediate point that ensures the cable enters/exits the port
 	## at a right angle (perpendicular to the building face).
 	## For 1x1 buildings (32px offset), skip stub to avoid zigzag artifacts.
-	match port_side:
+	var base_side: String = port_side
+	var us_pos: int = port_side.find("_")
+	if us_pos >= 0:
+		base_side = port_side.substr(0, us_pos)
+	match base_side:
 		"left", "right":
 			var offset := absf(port_pos.y - vertex_pos.y)
 			if offset < 1.0 or offset <= TILE_SIZE * 0.55:
@@ -209,7 +215,11 @@ func _port_stub_entry(port_pos: Vector2, vertex_pos: Vector2, port_side: String)
 	## For 1x1 buildings (32px offset), skip stub to avoid zigzag artifacts.
 	if port_pos.distance_to(vertex_pos) > TILE_SIZE * 2.0:
 		return port_pos
-	match port_side:
+	var base_side: String = port_side
+	var us_pos: int = port_side.find("_")
+	if us_pos >= 0:
+		base_side = port_side.substr(0, us_pos)
+	match base_side:
 		"left", "right":
 			var offset := absf(port_pos.y - vertex_pos.y)
 			if offset < 1.0 or offset <= TILE_SIZE * 0.55:
