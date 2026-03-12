@@ -15,6 +15,7 @@ const DIM := Color(0.45, 0.5, 0.55, 1.0)
 const BRIGHT := Color(0.85, 0.9, 0.95, 1.0)
 const CARD_BG := Color(0.06, 0.08, 0.12, 0.8)
 const TRACKED_GLOW := Color(0.0, 0.6, 0.8, 0.12)
+const CLIENT_CLR := Color(0.6, 0.75, 0.85, 0.9)
 const STALL_CLR := Color(0.8, 0.45, 0.15, 1.0)
 const STALL_TIME := 30.0  ## seconds without progress before showing stall hint
 
@@ -162,14 +163,29 @@ func _add_card(gig) -> void:
 	name_l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	hdr.add_child(name_l)
 
-	# Description
+	# Description — split client flavor line from instruction text
 	if gig.description != "":
-		var desc := Label.new()
-		desc.text = gig.description
-		desc.add_theme_font_size_override("font_size", 10)
-		desc.add_theme_color_override("font_color", DIM)
-		desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		cv.add_child(desc)
+		var parts: PackedStringArray = gig.description.split("\n\n", true, 1)
+		if parts.size() == 2:
+			var client_l := Label.new()
+			client_l.text = parts[0]
+			client_l.add_theme_font_size_override("font_size", 10)
+			client_l.add_theme_color_override("font_color", CLIENT_CLR)
+			client_l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			cv.add_child(client_l)
+			var desc := Label.new()
+			desc.text = parts[1]
+			desc.add_theme_font_size_override("font_size", 10)
+			desc.add_theme_color_override("font_color", DIM)
+			desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			cv.add_child(desc)
+		else:
+			var desc := Label.new()
+			desc.text = gig.description
+			desc.add_theme_font_size_override("font_size", 10)
+			desc.add_theme_color_override("font_color", DIM)
+			desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			cv.add_child(desc)
 
 	# Requirements with progress bars
 	var bars: Array = []

@@ -14,7 +14,7 @@ label = "Research Decrypted"
 [resource]
 script = ExtResource("1")
 gig_name = "Decryption Run"
-description = "Encrypted data needs Keys to unlock. Build a Research Lab to produce Keys, then feed both into a Decryptor."
+description = "CIPHER_QUEEN: Locked data is my specialty. Build a key forge and crack those files open — I need what's inside.\n\nEncrypted data needs Keys to unlock. Build a Research Lab to produce Keys, then feed both into a Decryptor."
 order_index = 5
 is_tutorial = true
 requirements = Array[Resource]([SubResource("req1")])

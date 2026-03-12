@@ -14,7 +14,7 @@ label = "Blueprint Recovered"
 [resource]
 script = ExtResource("1")
 gig_name = "Deep Recovery"
-description = "Recover damaged Blueprint data. The toughest corrupted files need processed fuel — you may need to decrypt data first to use as recovery fuel."
+description = "DR_PATCH: The deep web is full of damaged Blueprint files. Recover them — but you'll need better fuel for the worst ones.\n\nRecover damaged Blueprint data. The toughest corrupted files need processed fuel — you may need to decrypt data first to use as recovery fuel."
 order_index = 9
 is_tutorial = false
 requirements = Array[Resource]([SubResource("req1")])

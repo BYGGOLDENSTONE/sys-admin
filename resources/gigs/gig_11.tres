@@ -12,7 +12,7 @@ packet_key = "P_1_4_3_0"
 [resource]
 script = ExtResource("1")
 gig_name = "Assembly Contract"
-description = "Package encrypted Financial data with raw Blueprint data. Encrypt Financial first, then feed it with Blueprint into the Compiler."
+description = "FIXER_NULL: Final job. Encrypted Financial plus raw Blueprint — compiled into one package. Get it done.\n\nPackage encrypted Financial data with raw Blueprint data. Encrypt Financial first, then feed it with Blueprint into the Compiler."
 order_index = 11
 is_tutorial = false
 requirements = Array[Resource]([SubResource("req1")])

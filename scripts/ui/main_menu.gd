@@ -6,6 +6,8 @@ extends Control
 const SAVE_FILE: String = "user://saves/savegame.json"
 const AUTOSAVE_FILE: String = "user://saves/autosave.json"
 const GAME_SCENE: String = "res://scenes/main.tscn"
+const TITLE_COLOR := Color(0.0, 0.85, 0.9, 1.0)
+const GLITCH_CHARS: String = "█▓░▒#@$%&*"
 
 var _continue_btn: Button = null
 var _new_game_btn: Button = null
@@ -13,6 +15,13 @@ var _options_btn: Button = null
 var _quit_btn: Button = null
 var _button_vbox: VBoxContainer = null
 var _options_panel: VBoxContainer = null
+var _title: Label = null
+
+# Glitch state
+var _glitch_timer: float = 0.0
+var _next_glitch: float = 3.0
+var _glitch_active: bool = false
+var _glitch_end: float = 0.0
 
 
 func _ready() -> void:
@@ -21,10 +30,15 @@ func _ready() -> void:
 
 	_build_ui()
 	_update_continue_state()
+	_next_glitch = randf_range(2.0, 5.0)
 	# Fade in
 	modulate = Color(1, 1, 1, 0)
 	var tw := create_tween()
 	tw.tween_property(self, "modulate:a", 1.0, 0.6)
+
+
+func _process(delta: float) -> void:
+	_update_glitch(delta)
 
 
 func _build_ui() -> void:
@@ -33,6 +47,12 @@ func _build_ui() -> void:
 	bg.color = Color(0.02, 0.03, 0.05, 1.0)
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
+
+	# Data rain background
+	var DataRainScript = preload("res://scripts/ui/data_rain.gd")
+	var rain := Control.new()
+	rain.set_script(DataRainScript)
+	add_child(rain)
 
 	# Main container (centered)
 	var center := CenterContainer.new()
@@ -45,12 +65,12 @@ func _build_ui() -> void:
 	center.add_child(main_box)
 
 	# Title
-	var title := Label.new()
-	title.text = "SYS_ADMIN"
-	title.add_theme_font_size_override("font_size", 64)
-	title.add_theme_color_override("font_color", Color(0.0, 0.85, 0.9, 1.0))
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	main_box.add_child(title)
+	_title = Label.new()
+	_title.text = "SYS_ADMIN"
+	_title.add_theme_font_size_override("font_size", 64)
+	_title.add_theme_color_override("font_color", TITLE_COLOR)
+	_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	main_box.add_child(_title)
 
 	# Subtitle
 	var subtitle := Label.new()
@@ -152,6 +172,43 @@ func _update_continue_state() -> void:
 	else:
 		_continue_btn.tooltip_text = "No saved game found"
 
+
+# ── Glitch Effect ─────────────────────────────────────────────
+
+func _update_glitch(delta: float) -> void:
+	if _title == null:
+		return
+	_glitch_timer += delta
+	if _glitch_active:
+		if _glitch_timer >= _glitch_end:
+			# End glitch
+			_glitch_active = false
+			_title.text = "SYS_ADMIN"
+			_title.add_theme_color_override("font_color", TITLE_COLOR)
+			_title.position.x = 0.0
+			_glitch_timer = 0.0
+			_next_glitch = randf_range(3.0, 8.0)
+	else:
+		if _glitch_timer >= _next_glitch:
+			# Start glitch burst
+			_glitch_active = true
+			_glitch_timer = 0.0
+			_glitch_end = randf_range(0.06, 0.18)
+			# Corrupt 1-2 characters
+			var original := "SYS_ADMIN"
+			var result := original
+			var corrupt_count := randi_range(1, 2)
+			for _i in range(corrupt_count):
+				var idx := randi_range(0, original.length() - 1)
+				var gc: String = GLITCH_CHARS[randi() % GLITCH_CHARS.length()]
+				result = result.substr(0, idx) + gc + result.substr(idx + 1)
+			_title.text = result
+			# Color flash + horizontal offset
+			_title.add_theme_color_override("font_color", Color(1.0, 0.15, 0.25, 0.9))
+			_title.position.x = randf_range(-6.0, 6.0)
+
+
+# ── Navigation ────────────────────────────────────────────────
 
 func _on_continue() -> void:
 	# Try save file first, then autosave

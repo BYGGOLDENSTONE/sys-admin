@@ -129,15 +129,15 @@ Asagidaki durumlarda dur ve kullaniciya don:
 ### Sprint 2: Ses + Tema Kimligi (Hafta 3-4: 26 Mart - 8 Nisan)
 **Amac:** Cyberpunk temasini isim/metin seviyesinden gorsel+ses+atmosfere tasimak.
 
-- [ ] **A6. Cyberpunk ambient muzik** — En az 1 loop (2-3 dk). Secenekler: freesound.org/itch.io CC0, veya mevcut `_start_ambient()` genisletme (daha fazla katman, pad synth, filtered noise).
-- [ ] **A7. Kritik SFX iyilestirme** — Gig complete, building unlock, source discovery, cable connect — bu 4 ses "tatmin ani". Daha zengin, katmanli prosedürel sesler veya ucretsiz ses kutuphanelerinden al.
-- [ ] **A8. Contract'lara client/faction hissi** — Gig aciklamalarina kimlikli cumleler ekle. Ornek: "FIXER_NULL: I need clean Standard data. No questions." Sadece metin degisikligi, sifir yeni sistem.
-- [ ] **A9. Main menu atmosferi** — Arka plana yavas akan veri akisi animasyonu veya hafif particle efekti. "SYS_ADMIN" yazisina glitch/flicker efekti.
+- [x] **A6. Cyberpunk ambient muzik** — 10sn loop: deep drone + pad sweep + filtered noise + data pulses + high shimmer. Tamamen prosedürel.
+- [x] **A7. Kritik SFX iyilestirme** — Gig complete (7-nota, 4 harmonik, reverb tail), unlock fanfare (bass + 5 nota), discovery chime (4 nota + shimmer), cable connect (snap + resonance + sub-bass). Yeni `_gen_rich_chime()` fonksiyonu.
+- [x] **A8. Contract'lara client/faction hissi** — 6 client kimlik: FIXER_NULL, BROKER_7, GHOST_SIGNAL, DR_PATCH, CIPHER_QUEEN, ARCHIVE_X. Gig panelde client satiri ayri renkte (CLIENT_CLR).
+- [x] **A9. Main menu atmosferi** — Data rain arka plan (duser hex/binary karakterler) + "SYS_ADMIN" basliginda glitch/flicker efekti (rastgele karakter bozulma + renk flash + pozisyon offset).
 
 **Definition of Done:**
-- [ ] Oyun acildiginda cyberpunk atmosferi hissediliyor
-- [ ] Gig complete ani "tatmin edici" duyuluyor
-- [ ] Contract metinleri "hacker dunyasi" hissi veriyor
+- [x] Oyun acildiginda cyberpunk atmosferi hissediliyor
+- [x] Gig complete ani "tatmin edici" duyuluyor
+- [x] Contract metinleri "hacker dunyasi" hissi veriyor
 
 ---
 
@@ -216,8 +216,8 @@ Demo "hazir" sayilabilmesi icin su maddelerin hepsi saglanmali:
 - [x] Goal clarity guclu
 - [x] Demo source havuzu curate edilmis
 - [x] Gorsel kimlik — PCB arka plan, bina siluetleri, kablo kalinligi, CRT efekti
-- [ ] Ses kimligi — ambient muzik, iyilestirilmis SFX
-- [ ] Cyberpunk tema — client/faction hissi, monospace font, menu atmosferi
+- [x] Ses kimligi — ambient muzik, iyilestirilmis SFX
+- [x] Cyberpunk tema — client/faction hissi, monospace font, menu atmosferi
 - [ ] Temel bug bash tamam
 - [ ] Building-level root cause feedback var
 - [ ] Demo bitis deneyimi + Wishlist CTA var

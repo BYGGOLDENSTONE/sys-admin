@@ -12,7 +12,7 @@ packet_key = "P_3_0_4_0"
 [resource]
 script = ExtResource("1")
 gig_name = "Package Deal"
-description = "Bundle two data types into one product. Use your new Compiler — feed Blueprint from the left and Research from the top to create Packets."
+description = "BROKER_7: Big client wants bundled data — Blueprint and Research in one package. Time to use the Compiler.\n\nBundle two data types into one product. Use your new Compiler — feed Blueprint from the left and Research from the top to create Packets."
 order_index = 7
 is_tutorial = true
 requirements = Array[Resource]([SubResource("req1")])

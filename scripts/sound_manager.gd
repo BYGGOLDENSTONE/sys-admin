@@ -48,7 +48,8 @@ func play_building_remove() -> void:
 
 func play_cable_connect() -> void:
 	play("cable_snap", -10.0)
-	play("cable_resonance", -14.0)
+	play("cable_resonance", -12.0)
+	play("cable_sub", -14.0)
 
 
 func play_cable_remove() -> void:
@@ -135,13 +136,14 @@ func _generate_sounds() -> void:
 	_sounds["remove_whoosh"] = _gen(800.0, 0.15, 0.3, "sine", 150.0)
 	# Cable
 	_sounds["cable_snap"] = _gen(1800.0, 0.05, 0.25, "square")
-	_sounds["cable_resonance"] = _gen(350.0, 0.3, 0.15, "sine")
+	_sounds["cable_resonance"] = _gen(350.0, 0.4, 0.18, "sine")
+	_sounds["cable_sub"] = _gen(110.0, 0.25, 0.15, "sine", 80.0)
 	_sounds["cable_pop"] = _gen(500.0, 0.08, 0.2, "sine", 200.0)
-	# Discovery / Unlock
-	_sounds["discovery_chime"] = _gen_chime([523.0, 659.0, 784.0], 0.12, 0.3)
-	_sounds["unlock_fanfare"] = _gen_chime([262.0, 330.0, 392.0, 523.0], 0.12, 0.35)
-	# Gig complete (5-note triumphant arpeggio)
-	_sounds["gig_complete"] = _gen_chime([330.0, 392.0, 494.0, 587.0, 659.0], 0.10, 0.35)
+	# Discovery / Unlock / Gig complete — rich layered versions
+	_sounds["discovery_chime"] = _gen_rich_chime([523.0, 659.0, 784.0, 1047.0], 0.15, 0.28, 4, 0.4)
+	_sounds["unlock_fanfare"] = _gen_rich_chime([131.0, 262.0, 330.0, 392.0, 523.0], 0.14, 0.32, 3, 0.35)
+	# Gig complete (7-note triumphant arpeggio with shimmer)
+	_sounds["gig_complete"] = _gen_rich_chime([262.0, 330.0, 392.0, 494.0, 587.0, 659.0, 784.0], 0.12, 0.30, 4, 0.5)
 	# Delivery confirmation blip
 	_sounds["delivery_blip"] = _gen(880.0, 0.06, 0.2, "sine", 1320.0)
 	# Processing — per-building type
@@ -223,20 +225,85 @@ func _gen_chime(freqs: Array, note_dur: float, vol: float) -> AudioStreamWAV:
 	return stream
 
 
+func _gen_rich_chime(freqs: Array, note_dur: float, vol: float, harmonics: int = 3, tail: float = 0.3) -> AudioStreamWAV:
+	## Layered chime with harmonics and reverb-like tail. Notes overlap for fullness.
+	var note_samples: int = int(SAMPLE_RATE * note_dur)
+	var tail_samples: int = int(SAMPLE_RATE * tail)
+	var total: int = note_samples * freqs.size() + tail_samples
+	var buffer := PackedFloat32Array()
+	buffer.resize(total)
+	buffer.fill(0.0)
+	for ni in range(freqs.size()):
+		var freq: float = freqs[ni]
+		var start: int = ni * note_samples
+		var ring_len: int = mini(note_samples + tail_samples, total - start)
+		for i in range(ring_len):
+			var t: float = float(i) / SAMPLE_RATE
+			var total_dur: float = note_dur + tail
+			var progress: float = t / total_dur
+			var env: float = 1.0
+			if t < 0.008:
+				env = t / 0.008
+			env *= pow(1.0 - clampf(progress, 0.0, 1.0), 1.6)
+			var sample: float = 0.0
+			for h in range(harmonics):
+				var harm_freq: float = freq * (h + 1)
+				var harm_vol: float = 1.0 / pow(h + 1, 1.3)
+				sample += sin(t * harm_freq * TAU) * harm_vol
+			sample *= vol * env / float(harmonics)
+			buffer[start + i] += sample
+	var data := PackedByteArray()
+	data.resize(total * 2)
+	for i in range(total):
+		var s16: int = clampi(int(buffer[i] * 32767.0), -32768, 32767)
+		data[i * 2] = s16 & 0xFF
+		data[i * 2 + 1] = (s16 >> 8) & 0xFF
+	var stream := AudioStreamWAV.new()
+	stream.format = AudioStreamWAV.FORMAT_16_BITS
+	stream.mix_rate = SAMPLE_RATE
+	stream.stereo = false
+	stream.data = data
+	return stream
+
+
 func _start_ambient() -> void:
-	var dur: float = 3.0
+	## Cyberpunk ambient — deep drone + pad sweep + filtered noise + data pulses + shimmer.
+	var dur: float = 10.0
 	var samples: int = int(SAMPLE_RATE * dur)
 	var data := PackedByteArray()
 	data.resize(samples * 2)
 	for i in range(samples):
 		var t: float = float(i) / SAMPLE_RATE
 		var sample: float = 0.0
-		sample += sin(t * 55.0 * TAU) * 0.25
-		sample += sin(t * 82.5 * TAU) * 0.12
-		sample += sin(t * 110.0 * TAU) * 0.08
-		sample += sin(t * 165.0 * TAU) * 0.04
-		sample *= 0.8 + sin(t * 0.3 * TAU) * 0.2
-		sample *= 0.12
+		# Layer 1: Deep drone with slow breathing
+		var drone_mod: float = 0.85 + sin(t * 0.15 * TAU) * 0.15
+		sample += sin(t * 55.0 * TAU) * 0.20 * drone_mod
+		sample += sin(t * 82.5 * TAU) * 0.10 * drone_mod
+		# Layer 2: Mid pad with sweep
+		var pad_sweep: float = 0.5 + sin(t * 0.08 * TAU) * 0.5
+		sample += sin(t * 110.0 * TAU) * 0.06 * pad_sweep
+		sample += sin(t * 165.0 * TAU) * 0.04 * pad_sweep
+		sample += sin(t * 220.0 * TAU) * 0.025 * pad_sweep * pad_sweep
+		# Layer 3: Filtered noise (deterministic pseudo-noise)
+		var noise: float = sin(t * 7919.0) * sin(t * 6961.0) * sin(t * 5381.0)
+		var noise_env: float = 0.3 + sin(t * 0.2 * TAU) * 0.2 + sin(t * 0.07 * TAU) * 0.15
+		sample += noise * 0.025 * noise_env
+		# Layer 4: Data pulses — subtle pings
+		var pulse_t: float = fmod(t, 2.5) / 2.5
+		if pulse_t < 0.02:
+			var pe: float = 1.0 - pulse_t / 0.02
+			sample += sin(t * 880.0 * TAU) * 0.035 * pe * pe
+		var pulse_t2: float = fmod(t + 1.25, 2.5) / 2.5
+		if pulse_t2 < 0.015:
+			var pe2: float = 1.0 - pulse_t2 / 0.015
+			sample += sin(t * 660.0 * TAU) * 0.02 * pe2 * pe2
+		# Layer 5: High shimmer
+		var shimmer_env: float = maxf(0.0, sin(t * 0.12 * TAU)) * 0.5
+		sample += sin(t * 1320.0 * TAU) * 0.01 * shimmer_env
+		sample += sin(t * 1760.0 * TAU) * 0.005 * shimmer_env
+		# Global breathing
+		sample *= 0.7 + sin(t * 0.25 * TAU) * 0.15 + sin(t * 0.4 * TAU) * 0.08
+		sample *= 0.14
 		var s16: int = clampi(int(sample * 32767.0), -32768, 32767)
 		data[i * 2] = s16 & 0xFF
 		data[i * 2 + 1] = (s16 >> 8) & 0xFF

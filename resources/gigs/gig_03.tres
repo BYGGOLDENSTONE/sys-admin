@@ -13,7 +13,7 @@ label = "Financial Public"
 [resource]
 script = ExtResource("1")
 gig_name = "Public Extraction"
-description = "This source mixes Public and Corrupted data. Use your new Separator to filter by state — keep Public, discard the rest."
+description = "GHOST_SIGNAL: Some of these sources are messy — Corrupted junk mixed with clean data. I only want the clean stuff.\n\nThis source mixes Public and Corrupted data. Use your new Separator to filter by state — keep Public, discard the rest."
 order_index = 3
 is_tutorial = true
 requirements = Array[Resource]([SubResource("req1")])

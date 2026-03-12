@@ -14,7 +14,7 @@ label = "Financial Decrypted·Encrypted"
 [resource]
 script = ExtResource("1")
 gig_name = "Secure Transmission"
-description = "Re-encrypt Financial data for secure transfer. Decrypt it first, then run it back through the Encryptor. Higher-tier encryption requires better Keys."
+description = "CIPHER_QUEEN: Financial data needs military-grade wrapping. Decrypt, then re-encrypt with the best Keys you can forge.\n\nRe-encrypt Financial data for secure transfer. Decrypt it first, then run it back through the Encryptor. Higher-tier encryption requires better Keys."
 order_index = 10
 is_tutorial = false
 requirements = Array[Resource]([SubResource("req1")])
