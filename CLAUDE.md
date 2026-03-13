@@ -261,8 +261,39 @@ _(Tum aktif buglar cozuldu — Sprint 3 kapsaminda)_
 4. ~~**Save v1 uyumsuzlugu**~~ — Eski v1 save dosyalari artik migrate ediliyor (Uplink/Bridge temizligi, eksik alanlar ekleniyor).
 
 ### Full Game Backlog (Phase 2-3)
-4. **Particle delivery delay** — Su an veri tick aninda hedefe yaziliyor, partikuller sadece gorsel. Ileride connection-level in-flight queue veya delivery delay eklenebilir (sim, back-pressure, save/load etkiler — demo icin riskli).
 5. **Bandwidth authoritative yapma** — `bandwidth` alani suan sadece tooltip'te gorunuyor, gameplay'de `generation_rate` kullaniliyor. Ileride bandwidth'i sim'de authoritative yapip generation_rate'i ona baglamak gerekebilir.
+
+---
+
+## Transit-Based Data Flow Sistemi (Aktif Gelistirme)
+
+**Amac:** Veri aninda hedefe ulasmak yerine kablo uzerinde gercekten hareket etsin. Parcacigin hedefe varisi = verinin teslimi. "Gordugun = olan" prensibi.
+
+### Tasarim Kararlari
+- Veri kabloya girer (t=0), kablo boyunca ilerler, hedefe varinca (t>=1.0) teslim edilir
+- Parcaciklar kozmetik degil, gercek veriyi temsil eder
+- Back-pressure: hedef dolu → on item teslim edilemez → arkadakiler durur → kablo stalled → kaynak gondermeyi keser
+- Hiz: `TRANSIT_GRIDS_PER_SEC = 3.0` (ayarlanabilir), game speed ile orantili
+- Kablo silindiginde / undo-redo'da ucustaki veri kaybolur (Shapez modeli, individual data onemli degil)
+- Save/load'da transit kaydedilmez, kablolar bos baslar
+- Port Purity kontrolu veri kabloya girerken yapilir (anlik feedback)
+
+### Faz 1: Transit Altyapisi + Push Refactor (simulation_manager.gd)
+- [x] Transit veri yapisi: conn["transit"] Array (her item: {key, content, state, tier, tags, amount, t})
+- [x] `_push_data_from()` refactor: direkt stored_data yerine transit kuyruğuna t=0'da ekle
+- [x] `_push_packet_from()` refactor: ayni sekilde transit'e ekle
+- [x] `_advance_transit(delta)`: her frame cagirilir, t ilerletir (smooth hareket)
+- [x] `_deliver_arrived()`: her tick, t>=1.0 olan verileri hedef binaya teslim et (partial delivery destekli)
+- [x] Back-pressure: kabloda bekleyen item varsa (_is_transit_stalled) yeni veri girmesin
+- [x] `connection_flow_data` / `connection_last_flow` → transit'ten turet (gecis uyumu icin)
+- [x] Tick sirasi: deliver_arrived → rebuild_flow → generate → forward → process → status → stall → display
+
+### Faz 2: connection_layer.gd Refactor (sonraki session)
+- [ ] Kozmetik parcacik sistemi kaldir (`_conn_particles`, `_conn_spawn_accum`)
+- [ ] Transit verisini dogrudan render et (her transit item = 1 parcacik)
+- [ ] Stalled kablo gorselligi (donmus parcaciklar)
+- [ ] Eski flow data bagimliliklarini temizle
+- [ ] Cable state → transit durumundan turet (FLOWING/STALLED/INACTIVE)
 
 ---
 

@@ -6,6 +6,8 @@ signal state_discovered(state: int)
 signal speed_changed(multiplier: int, paused: bool)
 
 const TILE_SIZE: int = 64
+const TRANSIT_GRIDS_PER_SEC: float = 3.0  ## Data transit speed: 3 grid cells per second
+
 var _tick_count: int = 0
 var speed_multiplier: int = 1
 var is_paused: bool = false
@@ -15,7 +17,7 @@ var connection_manager: Node = null
 var building_container: Node2D = null
 var source_manager: Node = null
 var sound_manager: Node = null
-var connection_flow_data: Dictionary = {}  # conn_index → [{content, state, amount}]
+var connection_flow_data: Dictionary = {}  # conn_index → [{content, state, amount}] — compat layer for connection_layer
 var connection_stalled: Dictionary = {}  # conn_idx → true if stalled
 var connection_last_flow: Dictionary = {}  # conn_idx → last known flow data for stalled visuals
 var _splitter_next_port: Dictionary = {}  # building instance_id → next output port index
@@ -25,7 +27,13 @@ var _splitter_next_port: Dictionary = {}  # building instance_id → next output
 
 func _ready() -> void:
 	_sim_timer.timeout.connect(_on_sim_tick)
-	print("[Simulation] Manager initialized — tick: %.1fs" % _sim_timer.wait_time)
+	print("[Simulation] Manager initialized — tick: %.1fs, transit speed: %.1f grids/s" % [_sim_timer.wait_time, TRANSIT_GRIDS_PER_SEC])
+
+
+func _process(delta: float) -> void:
+	if is_paused or connection_manager == null:
+		return
+	_advance_transit(delta)
 
 
 func set_speed(multiplier: int) -> void:
@@ -54,21 +62,133 @@ func _on_sim_tick() -> void:
 	if buildings.is_empty():
 		tick_completed.emit(_tick_count)
 		return
-	# Save current flow as last-known before clearing (for stalled particle visuals)
-	for _fi in connection_flow_data:
-		if not connection_flow_data[_fi].is_empty():
-			connection_last_flow[_fi] = connection_flow_data[_fi].duplicate(true)
-	# Reset work flags and flow tracking
-	connection_flow_data.clear()
+	# Reset work flags
 	for b in buildings:
 		b.is_working = false
+	# 1. Deliver arrived transit items to target buildings
+	_deliver_arrived()
+	# 2. Rebuild flow data from transit (compat layer for connection_layer particles)
+	_rebuild_flow_data_from_transit()
+	# 3. Normal simulation: generate → forward → process
 	_update_generation(buildings)
 	_update_storage_forward(buildings)
 	_update_processing(buildings)
+	# 4. Status, stall tracking, visuals
 	_update_status_reasons(buildings)
 	_update_stall_tracking()
 	_update_displays(buildings)
 	tick_completed.emit(_tick_count)
+
+
+# --- TRANSIT SYSTEM ---
+# Data travels along cables in real-time. Each connection dict stores a "transit" array.
+# Transit item: {key, content, state, tier, tags, amount, t} where t goes from 0.0 (source) to 1.0 (destination).
+# Items are ordered oldest-first: index 0 = closest to destination (highest t).
+
+func _advance_transit(delta: float) -> void:
+	## Advance all in-flight transit items each frame for smooth visual movement.
+	## If front item is stuck at destination (t >= 1.0), entire cable freezes.
+	var conns: Array[Dictionary] = connection_manager.get_connections()
+	for conn in conns:
+		if not conn.has("transit") or conn["transit"].is_empty():
+			continue
+		var transit: Array = conn["transit"]
+		# If front item is stuck at destination, freeze entire cable
+		if transit[0].t >= 1.0:
+			continue
+		var cable_grids: float = _get_cable_length_grids(conn)
+		var t_advance: float = (TRANSIT_GRIDS_PER_SEC * float(speed_multiplier) * delta) / cable_grids
+		for item in transit:
+			item.t = minf(item.t + t_advance, 1.0)
+
+
+func _deliver_arrived() -> void:
+	## Deliver transit items that reached destination (t >= 1.0).
+	## Supports partial delivery when target capacity is limited.
+	var conns: Array[Dictionary] = connection_manager.get_connections()
+	for conn in conns:
+		if not conn.has("transit") or conn["transit"].is_empty():
+			continue
+		var transit: Array = conn["transit"]
+		var target: Node2D = conn.to_building
+		if not is_instance_valid(target) or not target.has_method("can_accept_data"):
+			transit.clear()
+			continue
+		# Deliver front items that have arrived (t >= 1.0)
+		while not transit.is_empty() and transit[0].t >= 1.0:
+			var item: Dictionary = transit[0]
+			# Check if target has any room
+			if not target.can_accept_data(1):
+				break  # Target full — item stays, cable freezes
+			# Calculate deliverable amount (partial delivery if needed)
+			var deliver: int = item.amount
+			if not target.can_accept_data(deliver):
+				if target.definition != null and target.definition.storage != null:
+					var room: int = int(target.get_effective_value("capacity")) - target.get_total_stored()
+					deliver = clampi(room, 1, item.amount)
+				else:
+					deliver = 1
+			# Deliver to target building
+			target.stored_data[item.key] = target.stored_data.get(item.key, 0) + deliver
+			item.amount -= deliver
+			if item.amount <= 0:
+				transit.remove_at(0)
+			else:
+				break  # Remaining amount stays in transit for next tick
+
+
+func _rebuild_flow_data_from_transit() -> void:
+	## Build connection_flow_data from transit items — compat layer for connection_layer.
+	# Save current flow as last-known before clearing (for stalled particle visuals)
+	for fi in connection_flow_data:
+		if not connection_flow_data[fi].is_empty():
+			connection_last_flow[fi] = connection_flow_data[fi].duplicate(true)
+	connection_flow_data.clear()
+	var conns: Array[Dictionary] = connection_manager.get_connections()
+	# Clean up stale last_flow entries
+	for fi in connection_last_flow.keys():
+		if fi >= conns.size():
+			connection_last_flow.erase(fi)
+	for i in range(conns.size()):
+		if not conns[i].has("transit") or conns[i]["transit"].is_empty():
+			continue
+		var flow: Array = []
+		for item in conns[i]["transit"]:
+			flow.append({"content": item.content, "state": item.state, "amount": item.amount})
+		if not flow.is_empty():
+			connection_flow_data[i] = flow
+
+
+func _is_transit_stalled(conn: Dictionary) -> bool:
+	## Returns true if cable has items waiting at destination (t >= 1.0).
+	if not conn.has("transit") or conn["transit"].is_empty():
+		return false
+	return conn["transit"][0].t >= 1.0
+
+
+func _get_cable_length_grids(conn: Dictionary) -> float:
+	## Calculate cable length in grid cells from vertex path (Manhattan distance).
+	var path: Array = conn.path
+	if path.size() < 2:
+		return 1.0
+	var total: float = 0.0
+	for i in range(1, path.size()):
+		var dx: float = absf(path[i].x - path[i - 1].x)
+		var dy: float = absf(path[i].y - path[i - 1].y)
+		total += dx + dy
+	return maxf(total, 1.0)
+
+
+func clear_all_transit() -> void:
+	## Clear all transit data on all connections. Used by undo/redo.
+	if connection_manager == null:
+		return
+	var conns: Array[Dictionary] = connection_manager.get_connections()
+	for conn in conns:
+		if conn.has("transit"):
+			conn["transit"] = []
+	connection_flow_data.clear()
+	connection_last_flow.clear()
 
 
 # --- STALL TRACKING (back-pressure visual) ---
@@ -82,7 +202,7 @@ func _update_stall_tracking() -> void:
 
 	connection_stalled.clear()
 
-	# Pass 1: Direct stalls — target can't accept data
+	# Pass 1: Direct stalls — transit front item stuck OR target full
 	for i in range(conns.size()):
 		var conn: Dictionary = conns[i]
 		var from_b: Node2D = conn.from_building
@@ -92,6 +212,11 @@ func _update_stall_tracking() -> void:
 			continue
 		if from_b.has_method("is_active") and not from_b.is_active():
 			continue
+		# Transit-based stall: front item waiting at destination
+		if _is_transit_stalled(conn):
+			connection_stalled[i] = true
+			continue
+		# Traditional capacity stall (for cables with no transit yet)
 		if to_b.has_method("can_accept_data") and not to_b.can_accept_data(1):
 			connection_stalled[i] = true
 
@@ -173,7 +298,7 @@ func _check_discovery(content: int, state: int) -> void:
 		print("[Discovery] New state discovered: %s" % DataEnums.state_name(state))
 
 
-# --- DATA PUSH ---
+# --- DATA PUSH (now pushes to transit instead of direct delivery) ---
 func _push_data_from(source: Node2D, content: int, state: int, amount: int, from_port: String = "", tier: int = 0, tags: int = 0) -> int:
 	var conns: Array[Dictionary] = connection_manager.get_connections()
 	var targets: Array[Dictionary] = []
@@ -186,7 +311,6 @@ func _push_data_from(source: Node2D, content: int, state: int, amount: int, from
 	var key: String = DataEnums.make_key(content, state, tier, tags)
 	var per_target: int = maxi(1, amount / targets.size())
 	var total_sent: int = 0
-	var all_conns: Array[Dictionary] = conns
 	for conn in targets:
 		var target: Node2D = conn.to_building
 		if not target.has_method("can_accept_data"):
@@ -194,40 +318,43 @@ func _push_data_from(source: Node2D, content: int, state: int, amount: int, from
 		var to_send: int = mini(per_target, amount)
 		if to_send <= 0:
 			break
+		# Skip stalled cables (front item waiting at destination)
+		if _is_transit_stalled(conn):
+			continue
+		# Static type filter (building definition check)
 		if not target.accepts_data(content, state):
 			continue
-		if target.can_accept_data(to_send, state, content):
-			# Port Purity: record cable data type + check at push time
-			if target.definition.category == "terminal":
-				var port: String = conn.to_port
-				if target.blocked_ports.has(port):
+		# Port Purity: record cable data type + check at push time (CT only)
+		if target.definition.category == "terminal":
+			var port: String = conn.to_port
+			if target.blocked_ports.has(port):
+				continue
+			# Record this data type on the cable
+			if not target.port_carried_types.has(port):
+				target.port_carried_types[port] = {}
+			var type_key: String = "%d_%d" % [content, state]
+			target.port_carried_types[port][type_key] = true
+			# Check purity: if ANY recorded type doesn't match gig → block
+			if target.purity_checker.is_valid():
+				var contaminated := false
+				for tk in target.port_carried_types[port]:
+					var parts: PackedStringArray = tk.split("_")
+					if not target.purity_checker.call(int(parts[0]), int(parts[1])):
+						contaminated = true
+						break
+				if contaminated:
+					target.blocked_ports[port] = true
+					print("[PortPurity] CT port '%s' blocked — cable carries non-matching data" % port)
 					continue
-				# Record this data type on the cable
-				if not target.port_carried_types.has(port):
-					target.port_carried_types[port] = {}
-				var type_key: String = "%d_%d" % [content, state]
-				target.port_carried_types[port][type_key] = true
-				# Check purity: if ANY recorded type doesn't match gig → block
-				if target.purity_checker.is_valid():
-					var contaminated := false
-					for tk in target.port_carried_types[port]:
-						var parts: PackedStringArray = tk.split("_")
-						if not target.purity_checker.call(int(parts[0]), int(parts[1])):
-							contaminated = true
-							break
-					if contaminated:
-						target.blocked_ports[port] = true
-						print("[PortPurity] CT port '%s' blocked — cable carries non-matching data" % port)
-						continue
-			target.stored_data[key] = target.stored_data.get(key, 0) + to_send
-			amount -= to_send
-			total_sent += to_send
-			# Track flow data for particle visuals
-			var conn_idx: int = all_conns.find(conn)
-			if conn_idx >= 0:
-				if not connection_flow_data.has(conn_idx):
-					connection_flow_data[conn_idx] = []
-				connection_flow_data[conn_idx].append({"content": content, "state": state, "amount": to_send})
+		# Push to transit queue at t=0
+		if not conn.has("transit"):
+			conn["transit"] = []
+		conn["transit"].append({
+			"key": key, "content": content, "state": state,
+			"tier": tier, "tags": tags, "amount": to_send, "t": 0.0
+		})
+		amount -= to_send
+		total_sent += to_send
 	return total_sent
 
 
@@ -540,7 +667,7 @@ func _process_compiler(b: Node2D, _max_process: int) -> int:
 			var to_craft: int = mini(mini(a.amount, bb.amount), _max_process - crafted)
 			if to_craft <= 0:
 				continue
-			# Create packet and push to targets FIRST
+			# Create packet and push to transit FIRST
 			var pkt_key: String = DataEnums.make_packet_key(a.content, a.tags, bb.content, bb.tags)
 			var sent: int = _push_packet_from(b, pkt_key, to_craft)
 			if sent <= 0:
@@ -575,21 +702,21 @@ func _push_packet_from(source: Node2D, pkt_key: String, amount: int) -> int:
 		var to_send: int = mini(per_target, amount)
 		if to_send <= 0:
 			break
+		# Skip stalled cables
+		if _is_transit_stalled(conn):
+			continue
 		# Port Purity: skip blocked CT ports
 		if target.blocked_ports.has(conn.to_port):
 			continue
-		target.stored_data[pkt_key] = target.stored_data.get(pkt_key, 0) + to_send
+		# Push to transit queue
+		if not conn.has("transit"):
+			conn["transit"] = []
+		conn["transit"].append({
+			"key": pkt_key, "content": -1, "state": DataEnums.DataState.PUBLIC,
+			"tier": 0, "tags": 0, "amount": to_send, "t": 0.0
+		})
 		amount -= to_send
 		total_sent += to_send
-		# Track flow data for particle visuals
-		var conn_idx: int = conns.find(conn)
-		if conn_idx >= 0:
-			if not connection_flow_data.has(conn_idx):
-				connection_flow_data[conn_idx] = []
-			connection_flow_data[conn_idx].append({
-				"content": -1, "state": DataEnums.DataState.PUBLIC,
-				"amount": to_send, "tier": 0, "tags": 0
-			})
 	return total_sent
 
 
