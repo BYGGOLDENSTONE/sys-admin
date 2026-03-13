@@ -24,7 +24,7 @@ var _shown_hints: Dictionary = {}  ## hint_id -> true (prevents repeats)
 var _gig_hints: Dictionary = {
 	1: {
 		"id": "gig1_intro",
-		"text": "Find a [color=#00ddff]data source[/color] nearby and place an [color=#ffcc44]Uplink[/color] next to it.\nConnect the Uplink to the [color=#00ddff]Contract Terminal[/color] with a cable.",
+		"text": "Find a [color=#00ddff]data source[/color] nearby and draw a cable from its [color=#ffcc44]output port[/color] to the [color=#00ddff]Contract Terminal[/color].",
 		"duration": 12.0,
 	},
 	2: {

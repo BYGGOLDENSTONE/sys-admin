@@ -284,13 +284,16 @@ func _get_preview_from_port() -> String:
 func _get_cable_state(conn: Dictionary, conn_index: int) -> int:
 	var from_b: Node2D = conn.from_building
 	var to_b: Node2D = conn.to_building
-	# Source must be active
+	# Source must be active (buildings only — data sources are always active)
 	if from_b.has_method("is_active") and not from_b.is_active():
 		return CABLE_INACTIVE
 	# Check simulation stalled tracking
 	if simulation_manager and simulation_manager.connection_stalled.get(conn_index, false):
 		return CABLE_STALLED
-	# Source working → flowing
+	# Check flow data — authoritative for both buildings and data sources
+	if simulation_manager and not simulation_manager.connection_flow_data.get(conn_index, []).is_empty():
+		return CABLE_FLOWING
+	# Source working → flowing (building-only fallback)
 	if "is_working" in from_b and from_b.is_working:
 		return CABLE_FLOWING
 	# Target full → stalled (fallback check)

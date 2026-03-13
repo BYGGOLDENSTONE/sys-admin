@@ -69,6 +69,7 @@ func _ready() -> void:
 	# Wire up simulation
 	simulation_manager.connection_manager = connection_manager
 	simulation_manager.building_container = $BuildingContainer
+	simulation_manager.source_manager = source_manager
 	building_manager.building_placed.connect(simulation_manager._on_building_placed)
 	building_manager.building_removed.connect(simulation_manager._on_building_removed)
 	simulation_manager.content_discovered.connect(_on_content_discovered)
@@ -385,7 +386,7 @@ func _place_contract_terminal() -> void:
 	# Center the building at MAP_CENTER (offset by half grid size)
 	var center := Vector2i(256 - terminal_def.grid_size.x / 2, 256 - terminal_def.grid_size.y / 2)
 	var cell := _find_clear_cell(center, terminal_def.grid_size)
-	_contract_terminal = building_manager.place_building_at(terminal_def, cell, true)
+	_contract_terminal = building_manager.place_building_at(terminal_def, cell)
 	if _contract_terminal != null and _gig_manager != null:
 		_gig_manager.set_contract_terminal(_contract_terminal)
 		print("[Main] Contract Terminal placed at (%d,%d)" % [cell.x, cell.y])

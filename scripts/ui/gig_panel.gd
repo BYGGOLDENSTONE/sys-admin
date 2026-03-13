@@ -416,7 +416,7 @@ func _lbl(text: String, color: Color, font_size: int) -> Label:
 
 ## Gig-specific stall hints for tutorial gigs
 const STALL_HINTS: Dictionary = {
-	1: ["Connect an Uplink to a source, then cable it to the Contract Terminal"],
+	1: ["Draw a cable from a source's output port to the Contract Terminal"],
 	2: ["Use a Separator (set to Public with TAB) to filter out Corrupted data — only Public goes to the Terminal"],
 	3: ["Use a Classifier (set to Financial with TAB) to sort content — Financial exits right, Standard exits bottom"],
 	4: ["Chain Separator (Public) → Classifier (Financial) → CT. Biometric Public exits Classifier bottom to a second CT port", "Both Financial Public and Biometric Public need to reach the Terminal on separate ports"],

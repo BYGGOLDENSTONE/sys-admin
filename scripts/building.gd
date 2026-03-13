@@ -39,10 +39,6 @@ var classifier_filter_content: int = 0  ## Filter value for classifier (content 
 var selected_tier: int = 1  ## For producer: which tier to produce (1-3)
 var upgrade_level: int = 0  ## Current upgrade level (0 = base)
 
-# Source link (set by SourceManager when Uplink is near a data source)
-var linked_source: Node2D = null  ## The data source this Uplink is tapped into
-var runtime_content_weights: Dictionary = {}  ## Overrides generator content_weights when linked
-var runtime_state_weights: Dictionary = {}    ## Overrides generator state_weights when linked
 
 
 func _get_building_polygon(r: Rect2, vtype: String) -> PackedVector2Array:
@@ -119,11 +115,6 @@ func _get_building_polygon(r: Rect2, vtype: String) -> PackedVector2Array:
 				Vector2(x + w, y + h),
 				Vector2(x, y + h),
 				Vector2(x, y + peak)])
-		"uplink":  # Trapezoid — wide top (antenna dish), narrower base
-			var inset := w * 0.15
-			return PackedVector2Array([
-				Vector2(x, y), Vector2(x + w, y),
-				Vector2(x + w - inset, y + h), Vector2(x + inset, y + h)])
 		"separator":  # Chamfered rectangle — angled top-left and bottom-right
 			var ch := w * 0.14
 			return PackedVector2Array([
@@ -321,9 +312,6 @@ func accepts_data(content: int, state: int) -> bool:
 
 
 func is_active() -> bool:
-	# Generators (Uplink) require a linked source to function
-	if definition != null and definition.generator != null:
-		return linked_source != null
 	return true
 
 
@@ -580,19 +568,6 @@ func _draw() -> void:
 			draw_colored_polygon(base_poly, Color(0.8, 0.0, 0.3, malware_alpha))
 			draw_polyline(_get_closed_polyline(base_poly), Color(0.8, 0.0, 0.3, 0.5), 2.0)
 
-	# Inactive generator overlay
-	if not _is_ghost and not active and definition.generator != null:
-		if not is_medium:
-			var warn_color := Color(1.0, 0.4, 0.2)
-			draw_colored_polygon(base_poly, Color(warn_color, 0.06))
-			var warn_font := _MONO_FONT
-			var warn_text := "No Source"
-			var warn_size := 10
-			var text_dims := warn_font.get_string_size(warn_text, HORIZONTAL_ALIGNMENT_CENTER, -1, warn_size)
-			var warn_pos := Vector2((size.x - text_dims.x) / 2.0, size.y - 8)
-			draw_string(warn_font, warn_pos + Vector2(1, 1), warn_text, HORIZONTAL_ALIGNMENT_LEFT, -1, warn_size, Color(0, 0, 0, 0.6))
-			draw_string(warn_font, warn_pos, warn_text, HORIZONTAL_ALIGNMENT_LEFT, -1, warn_size, Color(warn_color, 0.8))
-
 	# Status reason for idle buildings (root cause feedback)
 	if not _is_ghost and active and not is_working and status_reason != "" and not is_medium:
 		var reason_clr := Color(1.0, 0.75, 0.2, 0.85)
@@ -659,8 +634,6 @@ func _draw_icon(center: Vector2, size: Vector2, accent: Color) -> void:
 	var icon_center := Vector2(center.x, center.y + 6)
 
 	match vtype:
-		"uplink":
-			_draw_icon_uplink(icon_center, size, accent)
 		"classifier":
 			_draw_icon_classifier(icon_center, size, accent)
 		"separator":
@@ -687,36 +660,6 @@ func _draw_icon(center: Vector2, size: Vector2, accent: Color) -> void:
 			_draw_icon_terminal(icon_center, size, accent)
 		_:
 			_draw_icon_default(icon_center, size, accent)
-
-
-# --- UPLINK: Antenna dish + signal waves ---
-func _draw_icon_uplink(center: Vector2, size: Vector2, accent: Color) -> void:
-	var s: float = minf(size.x, size.y) * 0.3
-	var glow := Color(accent, ICON_GLOW_ALPHA)
-
-	# Antenna base (vertical line)
-	var base_bottom := center + Vector2(0, s * 0.6)
-	var base_top := center + Vector2(0, -s * 0.2)
-	draw_line(base_bottom, base_top, glow, ICON_GLOW_WIDTH)
-	draw_line(base_bottom, base_top, accent, 2.0)
-
-	# Dish (triangle/V shape)
-	var dish_left := base_top + Vector2(-s * 0.5, -s * 0.1)
-	var dish_right := base_top + Vector2(s * 0.5, -s * 0.1)
-	draw_line(base_top, dish_left, glow, ICON_GLOW_WIDTH)
-	draw_line(base_top, dish_right, glow, ICON_GLOW_WIDTH)
-	draw_line(base_top, dish_left, accent, 2.0)
-	draw_line(base_top, dish_right, accent, 2.0)
-	draw_line(dish_left, dish_right, glow, ICON_GLOW_WIDTH)
-	draw_line(dish_left, dish_right, accent, 1.5)
-
-	# Signal waves (arcs)
-	var wave_origin := center + Vector2(0, -s * 0.5)
-	for i in range(3):
-		var radius: float = s * 0.3 + i * s * 0.25
-		var wave_alpha: float = 0.6 - i * 0.15
-		var wave_color := Color(accent, wave_alpha)
-		_draw_arc_segment(wave_origin, radius, -PI * 0.35, PI * 0.35, wave_color, 1.5)
 
 
 # --- CLASSIFIER: Binary content filter (selected → right, rest → bottom) ---

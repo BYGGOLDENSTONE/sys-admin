@@ -13,7 +13,6 @@ extends Resource
 @export var input_ports: Array[String] = []
 
 @export_group("Components")
-@export var generator: GeneratorComponent
 @export var storage: StorageComponent
 @export var processor: ProcessorComponent
 @export var classifier: ClassifierComponent

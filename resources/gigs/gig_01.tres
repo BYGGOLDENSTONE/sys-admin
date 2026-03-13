@@ -13,7 +13,7 @@ label = "Standard Public"
 [resource]
 script = ExtResource("1")
 gig_name = "First Extraction"
-description = "FIXER_NULL: Got a buyer waiting on Standard data. Nothing fancy — just get it flowing.\n\nPlace an Uplink next to a data source and connect it to the Contract Terminal with a cable. Deliver 20 Standard Public data."
+description = "FIXER_NULL: Got a buyer waiting on Standard data. Nothing fancy — just get it flowing.\n\nDraw a cable from a data source's output port to the Contract Terminal. Deliver 20 Standard Public data."
 order_index = 1
 is_tutorial = true
 requirements = Array[Resource]([SubResource("req1")])

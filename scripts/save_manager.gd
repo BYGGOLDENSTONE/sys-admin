@@ -160,10 +160,12 @@ func _capture_connections() -> Array:
 		var path_arr: Array = []
 		for v in conn.path:
 			path_arr.append([v.x, v.y])
+		var is_source: bool = conn.from_building.definition is DataSourceDefinition
 		result.append({
 			"from_x": conn.from_building.grid_cell.x,
 			"from_y": conn.from_building.grid_cell.y,
 			"from_port": conn.from_port,
+			"from_source": is_source,
 			"to_x": conn.to_building.grid_cell.x,
 			"to_y": conn.to_building.grid_cell.y,
 			"to_port": conn.to_port,
@@ -286,7 +288,7 @@ func _restore_buildings(buildings_data: Array) -> Dictionary:
 			continue
 
 		# Place building using BuildingManager API
-		var building: Node2D = bm.place_building_at(def, cell, true)
+		var building: Node2D = bm.place_building_at(def, cell)
 		if building == null:
 			push_warning("[SaveManager] Failed to place %s at (%d,%d)" % [def_name, cell.x, cell.y])
 			continue
@@ -315,13 +317,19 @@ func _restore_connections(connections_data: Array, building_map: Dictionary) -> 
 	if connection_manager == null:
 		return
 
+	var grid_system: Node2D = building_map.values()[0].get_parent().get_parent().get_node("GridSystem") if not building_map.is_empty() else null
+
 	for entry in connections_data:
 		var from_key: String = "%d_%d" % [int(entry.get("from_x", 0)), int(entry.get("from_y", 0))]
 		var to_key: String = "%d_%d" % [int(entry.get("to_x", 0)), int(entry.get("to_y", 0))]
 		var from_building: Node2D = building_map.get(from_key, null)
+		# If from_building not found, try looking up as a data source
+		if from_building == null and grid_system != null:
+			var from_cell := Vector2i(int(entry.get("from_x", 0)), int(entry.get("from_y", 0)))
+			from_building = grid_system.get_source_at(from_cell)
 		var to_building: Node2D = building_map.get(to_key, null)
 		if from_building == null or to_building == null:
-			push_warning("[SaveManager] Connection skipped — building not found: %s → %s" % [from_key, to_key])
+			push_warning("[SaveManager] Connection skipped — node not found: %s → %s" % [from_key, to_key])
 			continue
 		var from_port: String = entry.get("from_port", "right")
 		var to_port: String = entry.get("to_port", "left")

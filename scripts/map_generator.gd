@@ -88,12 +88,12 @@ func _place_guaranteed(seed_value: int, source_manager: Node) -> void:
 
 	# 2. Sector-based guarantees (Biotech Lab etc.)
 	for entry in _sector_guarantees:
-		var pos := _find_position_in_sector(entry.angle, entry.r_min, entry.r_max)
-		if pos == Vector2i(-1, -1):
-			push_warning("[MapGenerator] Failed sector placement for %s" % entry.name)
-			continue
 		var def := _load_source_def(entry.name)
 		if def == null:
+			continue
+		var pos := _find_position_in_sector(entry.angle, entry.r_min, entry.r_max, def.grid_size)
+		if pos == Vector2i(-1, -1):
+			push_warning("[MapGenerator] Failed sector placement for %s" % entry.name)
 			continue
 		var sub_seed: int = seed_value + _placed_origins.size() * 7919
 		source_manager.place_source(def, pos, sub_seed, true)
@@ -120,7 +120,7 @@ func _place_random_fill(seed_value: int, source_manager: Node) -> void:
 			if def == null:
 				continue
 
-			var pos: Vector2i = _find_random_position()
+			var pos: Vector2i = _find_random_position(def.grid_size)
 			if pos == Vector2i(-1, -1):
 				continue
 
@@ -131,25 +131,25 @@ func _place_random_fill(seed_value: int, source_manager: Node) -> void:
 			source_index += 1
 
 
-func _find_position_in_sector(center_angle: float, r_min: float, r_max: float) -> Vector2i:
+func _find_position_in_sector(center_angle: float, r_min: float, r_max: float, grid_size: Vector2i = Vector2i(2, 2)) -> Vector2i:
 	for _attempt in range(MAX_PLACEMENT_ATTEMPTS):
 		var angle: float = center_angle + _rng.randf_range(-SECTOR_VARIANCE, SECTOR_VARIANCE)
 		var radius: float = _rng.randf_range(r_min, r_max)
 		var offset := Vector2(cos(angle) * radius, sin(angle) * radius)
 		var pos := Vector2i(MAP_CENTER.x + int(offset.x), MAP_CENTER.y + int(offset.y))
-		if _is_valid_position(pos) and not _is_too_close(pos):
+		if _is_valid_position(pos, grid_size) and not _is_too_close(pos):
 			return pos
 	return Vector2i(-1, -1)
 
 
-func _find_random_position() -> Vector2i:
+func _find_random_position(grid_size: Vector2i = Vector2i(2, 2)) -> Vector2i:
 	for _attempt in range(MAX_PLACEMENT_ATTEMPTS):
 		var angle: float = _rng.randf() * TAU
 		var radius: float = _rng.randf_range(float(CT_EXCLUSION_RADIUS), float(MAP_RADIUS))
 		var offset := Vector2(cos(angle) * radius, sin(angle) * radius)
 		var pos := Vector2i(MAP_CENTER.x + int(offset.x), MAP_CENTER.y + int(offset.y))
 
-		if not _is_valid_position(pos):
+		if not _is_valid_position(pos, grid_size):
 			continue
 		if _is_too_close(pos):
 			continue
@@ -158,8 +158,9 @@ func _find_random_position() -> Vector2i:
 	return Vector2i(-1, -1)
 
 
-func _is_valid_position(pos: Vector2i) -> bool:
-	return pos.x >= GRID_MARGIN and pos.x <= GRID_MAX and pos.y >= GRID_MARGIN and pos.y <= GRID_MAX
+func _is_valid_position(pos: Vector2i, grid_size: Vector2i = Vector2i(2, 2)) -> bool:
+	return pos.x >= GRID_MARGIN and pos.x + grid_size.x <= GRID_MAX \
+		and pos.y >= GRID_MARGIN and pos.y + grid_size.y <= GRID_MAX
 
 
 func _is_too_close(pos: Vector2i) -> bool:

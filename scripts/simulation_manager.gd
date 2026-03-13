@@ -13,6 +13,7 @@ var discovered_content: Dictionary = {0: true, 1: false, 2: false, 3: false, 4: 
 var discovered_states: Dictionary = {0: true, 1: false, 2: false, 3: false}
 var connection_manager: Node = null
 var building_container: Node2D = null
+var source_manager: Node = null
 var sound_manager: Node = null
 var connection_flow_data: Dictionary = {}  # conn_index → [{content, state, amount}]
 var connection_stalled: Dictionary = {}  # conn_idx → true if stalled
@@ -230,33 +231,29 @@ func _push_data_from(source: Node2D, content: int, state: int, amount: int, from
 	return total_sent
 
 
-# --- DATA GENERATION (Uplink) ---
-func _update_generation(buildings: Array[Node]) -> void:
-	for b in buildings:
-		if b.definition.generator == null or not b.is_active():
-			continue
-		var gen: GeneratorComponent = b.definition.generator
-		var amount: int = int(gen.generation_rate)
-		# Use runtime weights from linked source if available, otherwise definition weights
-		var c_weights: Dictionary = b.runtime_content_weights if not b.runtime_content_weights.is_empty() else gen.content_weights
-		var s_weights: Dictionary = b.runtime_state_weights if not b.runtime_state_weights.is_empty() else gen.state_weights
-		# Get tier limits and enforce bandwidth from linked source
-		var src_def = b.linked_source.definition if b.linked_source else null
-		if src_def:
-			var shared: int = maxi(1, b.linked_source._linked_uplinks)
-			var bw_share: int = maxi(1, int(src_def.bandwidth) / shared)
-			amount = mini(amount, bw_share)
-		var enc_max: int = src_def.encrypted_max_tier if src_def else 1
-		var cor_max: int = src_def.corrupted_max_tier if src_def else 1
-		var total_pushed: int = 0
-		for i in range(amount):
-			var content: int = _roll_content(c_weights)
-			var state: int = _roll_state(s_weights)
-			var tier: int = _roll_tier(state, enc_max, cor_max)
-			_check_discovery(content, state)
-			total_pushed += _push_data_from(b, content, state, 1, "", tier)
-		if total_pushed > 0:
-			b.is_working = true
+# --- DATA GENERATION (Sources) ---
+func _update_generation(_buildings: Array[Node]) -> void:
+	if source_manager == null or connection_manager == null:
+		return
+	var conns: Array[Dictionary] = connection_manager.get_connections()
+	for source in source_manager.get_discovered_sources():
+		var src_def: DataSourceDefinition = source.definition
+		var amount: int = int(src_def.generation_rate)
+		# Each connected port generates independently at full rate
+		for port in source.output_ports:
+			var has_connection: bool = false
+			for conn in conns:
+				if conn.from_building == source and conn.from_port == port:
+					has_connection = true
+					break
+			if not has_connection:
+				continue
+			for _i in range(amount):
+				var content: int = _roll_content(src_def.content_weights)
+				var state: int = _roll_state(src_def.state_weights)
+				var tier: int = _roll_tier(state, src_def.encrypted_max_tier, src_def.corrupted_max_tier)
+				_check_discovery(content, state)
+				_push_data_from(source, content, state, 1, port, tier)
 
 
 # --- STORAGE FORWARD ---
@@ -266,7 +263,7 @@ func _update_storage_forward(buildings: Array[Node]) -> void:
 			continue
 		if b.definition.processor != null or b.definition.splitter != null or b.definition.merger != null \
 				or b.definition.producer != null or b.definition.dual_input != null \
-				or b.definition.compiler != null:
+				or b.definition.compiler != null or b.definition.classifier != null:
 			continue
 		if b.get_total_stored() <= 0:
 			continue
@@ -342,6 +339,9 @@ func _process_classifier(b: Node2D, max_process: int) -> int:
 		return 0
 	var primary_port: String = output_ports[0]   # right — selected content
 	var secondary_port: String = output_ports[1]  # bottom — everything else
+	# Both output ports must have connections — forces player to route rejected data
+	if not _has_output_connection(b, primary_port) or not _has_output_connection(b, secondary_port):
+		return 0
 	var filter_content: int = b.classifier_filter_content
 	for key in b.stored_data.keys():
 		if processed >= max_process:
@@ -596,6 +596,10 @@ func _push_packet_from(source: Node2D, pkt_key: String, amount: int) -> int:
 func _process_separator(b: Node2D, proc: ProcessorComponent, max_process: int) -> int:
 	var primary_port: String = b.definition.output_ports[0] if b.definition.output_ports.size() > 0 else ""
 	var secondary_port: String = b.definition.output_ports[1] if b.definition.output_ports.size() > 1 else ""
+	# Both output ports must have connections — forces player to route rejected data
+	if primary_port == "" or secondary_port == "" or \
+			not _has_output_connection(b, primary_port) or not _has_output_connection(b, secondary_port):
+		return 0
 	var processed: int = 0
 	var mode: String = proc.separator_mode
 	for key in b.stored_data.keys():
@@ -763,10 +767,6 @@ func _update_status_reasons(buildings: Array[Node]) -> void:
 		if b.is_working or b.definition == null:
 			b.status_reason = ""
 			continue
-		# Generator (Uplink) — "No Source" overlay handled by building._draw
-		if b.definition.generator != null:
-			b.status_reason = "" if not b.is_active() else "Output blocked"
-			continue
 		# Trash / Contract Terminal — no reason needed
 		if b.definition.visual_type == "terminal":
 			b.status_reason = ""
@@ -815,7 +815,21 @@ func _update_status_reasons(buildings: Array[Node]) -> void:
 						missing = DataEnums.content_name(prod.tier3_extra_content)
 				b.status_reason = ("Need %s" % missing) if missing != "" else "Output blocked"
 			continue
-		# All others (Classifier, Separator, Splitter, Merger, Bridge)
+		# Classifier — check both output connections
+		if b.definition.classifier != null:
+			if not _all_outputs_connected(b):
+				b.status_reason = "Connect all outputs"
+			else:
+				b.status_reason = "Output blocked"
+			continue
+		# Separator — check both output connections
+		if b.definition.processor != null and b.definition.processor.rule == "separator":
+			if not _all_outputs_connected(b):
+				b.status_reason = "Connect all outputs"
+			else:
+				b.status_reason = "Output blocked"
+			continue
+		# All others (Splitter, Merger, Bridge)
 		b.status_reason = "Output blocked"
 
 
@@ -858,3 +872,20 @@ func _reason_has_fuel(b: Node2D, dual: DualInputComponent) -> bool:
 		if p.state == DataEnums.DataState.PUBLIC and p.content != dual.key_content:
 			return true
 	return false
+
+
+# --- CONNECTION HELPERS ---
+
+func _has_output_connection(building: Node2D, port: String) -> bool:
+	var conns: Array[Dictionary] = connection_manager.get_connections()
+	for conn in conns:
+		if conn.from_building == building and conn.from_port == port:
+			return true
+	return false
+
+
+func _all_outputs_connected(b: Node2D) -> bool:
+	for port in b.definition.output_ports:
+		if not _has_output_connection(b, port):
+			return false
+	return true

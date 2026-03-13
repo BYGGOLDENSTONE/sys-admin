@@ -100,7 +100,11 @@ func _restore_building(cmd: Dictionary) -> void:
 
 func _add_connection_by_cells(from_cell: Vector2i, from_port: String, to_cell: Vector2i, to_port: String, path: Array[Vector2i] = []) -> void:
 	var from_building: Node2D = grid_system.get_building_at(from_cell)
+	if from_building == null:
+		from_building = grid_system.get_source_at(from_cell)
 	var to_building: Node2D = grid_system.get_building_at(to_cell)
+	if to_building == null:
+		to_building = grid_system.get_source_at(to_cell)
 	if from_building and to_building:
 		# Use stored path directly — no recalculation needed
 		if not path.is_empty():
@@ -132,10 +136,6 @@ func _move_building(from_cell: Vector2i, to_cell: Vector2i, definition: Building
 	grid_system.occupy(to_cell, definition.grid_size, building)
 	building.grid_cell = to_cell
 	building.position = grid_system.grid_to_world(to_cell)
-	# Re-check source link for Uplinks
-	if building.definition.generator != null:
-		source_manager.on_building_removed(building, from_cell)
-		source_manager.on_building_placed(building, to_cell)
 
 
 func _set_building_direction(cell: Vector2i, dir: int) -> void:

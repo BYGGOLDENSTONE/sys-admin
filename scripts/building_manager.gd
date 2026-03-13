@@ -227,7 +227,8 @@ func _start_connecting(building: Node2D, port_side: String) -> void:
 	if _hovered_building != null:
 		_hovered_building = null
 		building_unhovered.emit()
-	print("[BuildingManager] Connecting from %s.%s" % [building.definition.building_name, port_side])
+	var from_name: String = building.definition.building_name if building.definition is BuildingDefinition else building.definition.source_name
+	print("[BuildingManager] Connecting from %s.%s" % [from_name, port_side])
 
 
 func _complete_connection(to_building: Node2D, to_port: String) -> void:
@@ -479,6 +480,7 @@ func _compute_port_exempt_cells(building: Node2D, port_side: String) -> Dictiona
 
 
 func _find_port_at(world_pos: Vector2, output_only: bool) -> Dictionary:
+	# Check building ports
 	for building in building_container.get_children():
 		if not building.has_method("get_port_at"):
 			continue
@@ -491,6 +493,13 @@ func _find_port_at(world_pos: Vector2, output_only: bool) -> Dictionary:
 		if not output_only and port.is_output:
 			continue
 		return {"building": building, "side": port.side, "is_output": port.is_output}
+	# Check source output ports (sources only have outputs — for cable start)
+	if output_only and source_manager:
+		for source in source_manager.get_discovered_sources():
+			var local_pos: Vector2 = world_pos - source.global_position
+			var port: Dictionary = source.get_port_at(local_pos)
+			if not port.is_empty() and port.is_output:
+				return {"building": source, "side": port.side, "is_output": true}
 	return {}
 
 
@@ -500,9 +509,6 @@ func _update_ghost_position() -> void:
 	ghost_preview.position = grid_system.grid_to_world(_ghost_cell)
 	ghost_preview.grid_cell = _ghost_cell
 	_can_place_here = grid_system.can_place(_ghost_cell, _current_definition.grid_size)
-	# Generators (Uplink) require an adjacent discovered source
-	if _can_place_here and _current_definition.generator != null:
-		_can_place_here = _has_adjacent_source(_ghost_cell, _current_definition.grid_size)
 	ghost_preview.modulate = VALID_COLOR if _can_place_here else INVALID_COLOR
 
 
@@ -562,11 +568,6 @@ func _place_building() -> void:
 		cancel_placement()
 
 
-func _has_adjacent_source(cell: Vector2i, building_size: Vector2i) -> bool:
-	if source_manager == null:
-		return true  # No source_manager = skip check
-	var source: Node2D = source_manager.get_source_near(cell, building_size)
-	return source != null and source.discovered
 
 
 func _remove_building(building: Node2D) -> void:
@@ -683,12 +684,9 @@ func _rotate_selected_building() -> void:
 
 ## Programmatic API (AutoPlayManager ve test sistemleri icin)
 
-func place_building_at(def: BuildingDefinition, cell: Vector2i, skip_source_check: bool = false) -> Node2D:
+func place_building_at(def: BuildingDefinition, cell: Vector2i) -> Node2D:
 	if not grid_system.can_place(cell, def.grid_size):
 		push_warning("[BuildingManager] Cannot place %s at (%d,%d) — blocked" % [def.building_name, cell.x, cell.y])
-		return null
-	if not skip_source_check and def.generator != null and not _has_adjacent_source(cell, def.grid_size):
-		push_warning("[BuildingManager] Cannot place %s at (%d,%d) — no adjacent source" % [def.building_name, cell.x, cell.y])
 		return null
 	var building: Node2D = _building_scene.instantiate()
 	building.setup(def, cell)
@@ -768,10 +766,6 @@ func _complete_move() -> void:
 	building.position = grid_system.grid_to_world(_ghost_cell)
 	building.visible = true
 	ghost_preview.visible = false
-	# Update uplink source links (consistent with undo_manager._move_building)
-	if source_manager and building.definition.generator != null:
-		source_manager.on_building_removed(building, old_cell)
-		source_manager.on_building_placed(building, _ghost_cell)
 	if undo_manager and not undo_manager.is_undoing:
 		undo_manager.push_command({
 			type = "move",

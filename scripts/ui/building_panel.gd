@@ -16,7 +16,7 @@ const DEMO_MAX_LEVEL: int = 1
 
 ## Display order for buildings (consistent layout)
 const BUILDING_ORDER: PackedStringArray = [
-	"Uplink", "Trash", "Splitter", "Bridge",
+	"Trash", "Splitter", "Bridge",
 	"Separator", "Classifier", "Merger", "Recoverer",
 	"Research Lab", "Decryptor", "Encryptor", "Compiler",
 ]

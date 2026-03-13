@@ -36,7 +36,7 @@ Asagidaki kararlar artik **scope lock** kabul edilir. Claude Code bu kararlarla 
 
 ### Demo Scope Lock
 - [x] Demo, **T1-T2** odakli olacak
-- [x] Demo roster: Uplink, Classifier, Separator, Recoverer, Research Lab, Decryptor, Encryptor, Compiler, Splitter, Merger, Trash, Bridge, Contract Terminal
+- [x] Demo roster: Classifier, Separator, Recoverer, Research Lab, Decryptor, Encryptor, Compiler, Splitter, Merger, Trash, Bridge, Contract Terminal
 - [x] Demo'da **Malware gameplay YOK**
 - [x] Malware, sadece **teaser / ileride acilacak sey** olarak var olabilir
 - [x] T3-T4 mekanikleri demo'nun zorunlu parcasi olmayacak
@@ -53,7 +53,10 @@ Asagidaki kararlar artik **scope lock** kabul edilir. Claude Code bu kararlarla 
 - [x] Grid kablo routing ve Bridge oyunun ana layout bulmacasi olmaya devam edecek
 - [x] **Bina rotasyonu** — R tusuyla 4 yone dondurme, portlar da doner
 - [x] **Contract Terminal 3x3** — 8 input port (her kenarda 2), merkez etrafinda 10+ cell kaynak exclusion zone
-- [x] **CT Port Purity** — CT her port'un kablo tiplerini kumulatif kaydeder. Uplink baglandiginda kaynak kompozisyonu aninda yazilir (ilk tick'ten once blok). Non-matching tip tespit edilirse port kalici olarak bloklanir. Kablo cikarildiginda kayit sifirlanir. Oyuncuyu Classifier+Separator ile filtrelemeye zorlar.
+- [x] **CT Port Purity** — CT her port'un kablo tiplerini kumulatif kaydeder. Content bir gig requirement'ina uyuyorsa state da uymali (yoksa port bloklanir). Content hicbir gig'e uymuyorsa veri kabul edilip cope atilir (akis durmaz). Kablo cikarildiginda kayit sifirlanir.
+- [x] **Classifier/Separator Back-Pressure** — Her iki cikis portu (match + reject) bagli olmadan calismazlar. Oyuncuyu reject edilen veriyi Trash veya baska binaya yonlendirmeye zorlar.
+- [x] **Uplink kaldirildi** — Kaynaklar dogrudan output portlarina sahip, dikdortgen grid_size, oyuncu kaynak portundan kablo ceker.
+- [x] **Kaynak boyutlari** — Her kaynak sabit dikdortgen: easy 2x2, medium 2x3/3x2, hard 3x3, endgame 3x4/4x4.
 
 ### Art / Audio Kararlari
 - [x] Ana sanat yonu: **procedural-first**

@@ -129,15 +129,6 @@ func _update_stats() -> void:
 			lines.append(_stat("Status", "[color=#ffcc44]● Idle[/color]"))
 
 	# Type-specific stats (component-based)
-	if def.generator:
-		if b.linked_source != null:
-			var src_def = b.linked_source.definition
-			lines.append(_stat("Source", "[color=%s]%s[/color]" % [src_def.color.to_html(), src_def.source_name]))
-			lines.append(_stat("Flow", "%d MB/s" % int(def.generator.generation_rate)))
-			lines.append(_stat("Content", _format_content_weights(b.runtime_content_weights)))
-			lines.append(_stat("State", _format_state_weights(b.runtime_state_weights)))
-		else:
-			lines.append(_stat("Source", "[color=#ff8844]Not linked — place near a source[/color]"))
 	if def.classifier:
 		lines.append(_stat("Throughput", "%d MB/s" % int(b.get_effective_value("processing_rate"))))
 		var filter_name: String = DataEnums.content_name(b.classifier_filter_content)
@@ -310,11 +301,10 @@ func _update_source_stats() -> void:
 		lines.append(_stat("Encrypted Tier", "[color=#44aaff]T1%s[/color]" % ("-T%d" % def.encrypted_max_tier if def.encrypted_max_tier > 1 else "")))
 	if def.corrupted_max_tier > 0 and def.state_weights.has(DataEnums.DataState.CORRUPTED):
 		lines.append(_stat("Corrupted Tier", "[color=#ff8844]T1%s[/color]" % ("-T%d" % def.corrupted_max_tier if def.corrupted_max_tier > 1 else "")))
-	var linked: int = _target_source._linked_uplinks
-	if linked > 0:
-		lines.append(_stat("Linked Uplinks", "[color=#44ff88]%d[/color]" % linked))
-	else:
-		lines.append(_stat("Linked Uplinks", "[color=#ff8844]0 — Place an Uplink[/color]"))
+	# Port info
+	var port_count: int = _target_source.output_ports.size()
+	lines.append(_stat("Output Ports", "[color=#44ff88]%d[/color]" % port_count))
+	lines.append(_stat("Rate/Port", "%d MB/tick" % int(def.generation_rate)))
 	stats_label.text = "\n".join(lines)
 
 

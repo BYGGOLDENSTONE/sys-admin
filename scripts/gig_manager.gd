@@ -12,7 +12,7 @@ var _progress: Dictionary = {}  ## order_index → Array[int] (per-requirement c
 var _unlocked_buildings: Dictionary = {}  ## building_name → true
 
 ## Starting buildings (always available)
-var _starter_buildings: PackedStringArray = ["Uplink", "Trash", "Splitter", "Bridge"]
+var _starter_buildings: PackedStringArray = ["Trash", "Splitter", "Bridge"]
 
 var building_container: Node2D = null
 var _contract_terminal: Node2D = null
@@ -126,8 +126,8 @@ func evaluate_ct_connections() -> void:
 				break
 
 
-## Called when a connection to CT is added — pre-populate types for Uplinks.
-## Uplink source composition is fully known → block instantly before any tick.
+## Called when a connection to CT is added — pre-populate types for sources.
+## Source composition is fully known → block instantly before any tick.
 ## Other buildings have deterministic output → runtime check at first push handles them.
 func on_ct_connection_added(conn: Dictionary) -> void:
 	if _contract_terminal == null:
@@ -136,9 +136,9 @@ func on_ct_connection_added(conn: Dictionary) -> void:
 		return
 	var port: String = conn.to_port
 	var upstream: Node2D = conn.from_building
-	# Pre-populate for Uplinks (source composition fully known)
-	if upstream.definition.generator != null and upstream.linked_source != null:
-		var src_def = upstream.linked_source.definition
+	# Pre-populate for data sources (composition fully known)
+	if upstream.definition is DataSourceDefinition:
+		var src_def: DataSourceDefinition = upstream.definition
 		if not _contract_terminal.port_carried_types.has(port):
 			_contract_terminal.port_carried_types[port] = {}
 		for c_id in src_def.content_weights:
@@ -164,19 +164,27 @@ func on_ct_connection_removed(conn: Dictionary) -> void:
 	print("[PortPurity] CT port '%s' cleared — cable disconnected" % port)
 
 
-## Check if a (content, state) matches any active gig requirement.
+## Check if a (content, state) is acceptable at the Contract Terminal.
 ## Used as callable (purity_checker) by SimulationManager at push time.
+## Rules:
+##   - Content matches a gig requirement AND state matches → allow (counts toward gig)
+##   - Content matches a gig requirement BUT state is wrong → REJECT (force state filtering)
+##   - Content doesn't match any gig requirement → allow (irrelevant data, will be trashed)
 func _output_matches_any_requirement(content: int, state: int) -> bool:
+	var content_relevant: bool = false
 	for gig in _active_gigs:
 		for req in gig.requirements:
 			if req.packet_key != "":
 				continue
-			if req.content != content:
-				continue
-			if req.state >= 0 and req.state != state:
-				continue
-			return true
-	return false
+			if req.content == content:
+				content_relevant = true
+				if req.state < 0 or req.state == state:
+					return true  # Exact match — allow
+	# Content matched a requirement but state didn't → reject (force state filtering)
+	if content_relevant:
+		return false
+	# Content doesn't match any requirement → irrelevant, allow (will be trashed by CT)
+	return true
 
 
 func _count_packet_delivery(pkt_key: String, amount: int) -> void:

@@ -32,10 +32,10 @@ func add_connection(from_building: Node2D, from_port: String, to_building: Node2
 	for i in range(path.size() - 1):
 		grid_system.occupy_cable_edge(path[i], path[i + 1])
 	connection_added.emit(conn)
+	var from_name: String = from_building.definition.building_name if from_building.definition is BuildingDefinition else from_building.definition.source_name
+	var to_name: String = to_building.definition.building_name if to_building.definition is BuildingDefinition else to_building.definition.source_name
 	print("[Connection] Added — %s.%s → %s.%s (%d vertices)" % [
-		from_building.definition.building_name, from_port,
-		to_building.definition.building_name, to_port,
-		path.size()
+		from_name, from_port, to_name, to_port, path.size()
 	])
 	return true
 
@@ -49,9 +49,10 @@ func remove_connection(index: int) -> void:
 		grid_system.free_cable_edge(path[i], path[i + 1])
 	connections.remove_at(index)
 	connection_removed.emit(conn)
+	var from_name: String = conn.from_building.definition.building_name if conn.from_building.definition is BuildingDefinition else conn.from_building.definition.source_name
+	var to_name: String = conn.to_building.definition.building_name if conn.to_building.definition is BuildingDefinition else conn.to_building.definition.source_name
 	print("[Connection] Removed — %s.%s → %s.%s" % [
-		conn.from_building.definition.building_name, conn.from_port,
-		conn.to_building.definition.building_name, conn.to_port
+		from_name, conn.from_port, to_name, conn.to_port
 	])
 
 
