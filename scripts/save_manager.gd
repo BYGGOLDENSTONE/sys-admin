@@ -87,9 +87,9 @@ static func load_from_file(path: String) -> Dictionary:
 		push_error("[SaveManager] Invalid save file — missing version")
 		return {}
 	var file_version: int = int(data.version)
+	# Migrate older save versions forward instead of rejecting them
 	if file_version < SAVE_VERSION:
-		push_warning("[SaveManager] Incompatible save — version %d, expected %d" % [file_version, SAVE_VERSION])
-		return {"_incompatible": true, "version": file_version}
+		data = _migrate_save(data, file_version)
 	print("[SaveManager] Save loaded — version: %d, seed: %s" % [file_version, str(data.get("seed", "?"))])
 	return data
 
@@ -141,6 +141,7 @@ func _capture_buildings() -> Array:
 			"cell_x": building.grid_cell.x,
 			"cell_y": building.grid_cell.y,
 			"direction": building.direction,
+			"mirror_h": building.mirror_h,
 			"stored_data": building.stored_data.duplicate(),
 			"classifier_filter_content": building.classifier_filter_content,
 			"separator_mode": building.separator_mode,
@@ -295,6 +296,7 @@ func _restore_buildings(buildings_data: Array) -> Dictionary:
 
 		# Restore runtime state
 		building.direction = int(entry.get("direction", 0))
+		building.mirror_h = entry.get("mirror_h", false)
 		building.classifier_filter_content = int(entry.get("classifier_filter_content", 0))
 		building.separator_mode = entry.get("separator_mode", "state")
 		building.separator_filter_value = int(entry.get("separator_filter_value", 0))
@@ -418,6 +420,57 @@ func _restore_simulation(sim_data: Dictionary) -> void:
 	var ds: Dictionary = sim_data.get("discovered_states", {})
 	for k in ds:
 		simulation_manager.discovered_states[int(k)] = ds[k]
+
+
+## --- MIGRATION ---
+
+static func _migrate_save(data: Dictionary, from_version: int) -> Dictionary:
+	## Migrate older save formats forward to current SAVE_VERSION.
+	if from_version < 2:
+		# v1 → v2: add missing direction/mirror_h fields to buildings
+		var buildings: Array = data.get("buildings", [])
+		for entry in buildings:
+			if not entry.has("direction"):
+				entry["direction"] = 0
+			if not entry.has("mirror_h"):
+				entry["mirror_h"] = false
+			if not entry.has("upgrade_level"):
+				entry["upgrade_level"] = 0
+		# Filter out removed buildings (Uplink, Bridge)
+		var filtered: Array = []
+		for entry in buildings:
+			var bname: String = entry.get("name", "")
+			if bname == "Uplink" or bname == "Bridge":
+				continue
+			filtered.append(entry)
+		data["buildings"] = filtered
+		# Filter out connections referencing removed buildings
+		var removed_cells: Dictionary = {}
+		for entry in buildings:
+			var bname: String = entry.get("name", "")
+			if bname == "Uplink" or bname == "Bridge":
+				var key: String = "%d_%d" % [int(entry.get("cell_x", 0)), int(entry.get("cell_y", 0))]
+				removed_cells[key] = true
+		if not removed_cells.is_empty():
+			var filtered_conns: Array = []
+			for conn in data.get("connections", []):
+				var from_key: String = "%d_%d" % [int(conn.get("from_x", 0)), int(conn.get("from_y", 0))]
+				var to_key: String = "%d_%d" % [int(conn.get("to_x", 0)), int(conn.get("to_y", 0))]
+				if removed_cells.has(from_key) or removed_cells.has(to_key):
+					continue
+				filtered_conns.append(conn)
+			data["connections"] = filtered_conns
+		# Remove legacy unlocked buildings
+		var gigs: Dictionary = data.get("gigs", {})
+		if gigs.has("unlocked"):
+			var clean_unlocked: Array = []
+			for b_name in gigs["unlocked"]:
+				if b_name != "Uplink" and b_name != "Bridge":
+					clean_unlocked.append(b_name)
+			gigs["unlocked"] = clean_unlocked
+		data["version"] = 2
+		print("[SaveManager] Migrated save v1 → v2")
+	return data
 
 
 ## --- HELPERS ---

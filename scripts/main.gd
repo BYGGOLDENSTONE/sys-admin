@@ -363,11 +363,11 @@ func _setup_gig_panel() -> void:
 	_gig_panel.anchor_left = 0.0
 	_gig_panel.anchor_top = 0.0
 	_gig_panel.anchor_right = 0.0
-	_gig_panel.anchor_bottom = 1.0
+	_gig_panel.anchor_bottom = 0.65
 	_gig_panel.offset_left = 10.0
 	_gig_panel.offset_right = 290.0
 	_gig_panel.offset_top = 44.0
-	_gig_panel.offset_bottom = -200.0
+	_gig_panel.offset_bottom = 0.0
 	ui_layer.add_child(_gig_panel)
 	_gig_panel.setup(_gig_manager)
 	_gig_panel.play_slide_in()

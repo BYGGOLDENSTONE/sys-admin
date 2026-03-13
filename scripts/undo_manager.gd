@@ -61,6 +61,10 @@ func _execute_reverse(cmd: Dictionary) -> void:
 			_set_building_direction(cmd.cell, cmd.old_direction)
 			for conn_data in cmd.get("connections", []):
 				_add_connection_by_cells(conn_data.from_cell, conn_data.from_port, conn_data.to_cell, conn_data.to_port, conn_data.get("path", []))
+		"mirror":
+			_set_building_mirror(cmd.cell, cmd.old_mirror_h)
+			for conn_data in cmd.get("connections", []):
+				_add_connection_by_cells(conn_data.from_cell, conn_data.from_port, conn_data.to_cell, conn_data.to_port, conn_data.get("path", []))
 
 
 func _execute_forward(cmd: Dictionary) -> void:
@@ -69,6 +73,7 @@ func _execute_forward(cmd: Dictionary) -> void:
 			var b = building_manager.place_building_at(cmd.definition, cmd.cell)
 			if b:
 				b.direction = cmd.get("direction", 0)
+				b.mirror_h = cmd.get("mirror_h", false)
 				b.queue_redraw()
 		"remove":
 			building_manager.remove_building_at(cmd.cell)
@@ -80,6 +85,8 @@ func _execute_forward(cmd: Dictionary) -> void:
 			_move_building(cmd.old_cell, cmd.new_cell, cmd.definition)
 		"rotate":
 			_set_building_direction(cmd.cell, cmd.new_direction)
+		"mirror":
+			_set_building_mirror(cmd.cell, cmd.new_mirror_h)
 
 
 func _restore_building(cmd: Dictionary) -> void:
@@ -87,6 +94,7 @@ func _restore_building(cmd: Dictionary) -> void:
 	if building == null:
 		return
 	building.direction = cmd.get("direction", 0)
+	building.mirror_h = cmd.get("mirror_h", false)
 	building.upgrade_level = cmd.get("upgrade_level", 0)
 	building.classifier_filter_content = cmd.get("classifier_filter_content", 0)
 	building.separator_mode = cmd.get("separator_mode", "state")
@@ -144,6 +152,15 @@ func _set_building_direction(cell: Vector2i, dir: int) -> void:
 		return
 	connection_manager.remove_connections_for(building, cell)
 	building.direction = dir
+	building.queue_redraw()
+
+
+func _set_building_mirror(cell: Vector2i, mirrored: bool) -> void:
+	var building: Node2D = grid_system.get_building_at(cell)
+	if building == null:
+		return
+	connection_manager.remove_connections_for(building, cell)
+	building.mirror_h = mirrored
 	building.queue_redraw()
 
 

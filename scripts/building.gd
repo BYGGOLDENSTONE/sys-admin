@@ -19,6 +19,7 @@ const GLOW_PULSE_AMOUNT: float = 0.06
 var definition: BuildingDefinition
 var grid_cell: Vector2i = Vector2i.ZERO
 var direction: int = 0  ## 0=default, 1=90°CW, 2=180°, 3=270°CW
+var mirror_h: bool = false  ## Horizontal flip (left↔right)
 var fill_ratio: float = 0.0
 var _glow_time: float = 0.0
 var _is_ghost: bool = false
@@ -148,10 +149,11 @@ func _process(delta: float) -> void:
 	queue_redraw()
 
 
-func setup(def: BuildingDefinition, cell: Vector2i, dir: int = 0) -> void:
+func setup(def: BuildingDefinition, cell: Vector2i, dir: int = 0, mirrored: bool = false) -> void:
 	definition = def
 	grid_cell = cell
 	direction = dir
+	mirror_h = mirrored
 	queue_redraw()
 
 
@@ -172,8 +174,8 @@ func play_remove_animation() -> void:
 
 
 func _get_physical_side(logical_port: String) -> String:
-	## Maps a logical port name to its physical side based on building rotation.
-	if direction == 0:
+	## Maps a logical port name to its physical side based on building rotation and mirror.
+	if direction == 0 and not mirror_h:
 		return logical_port
 	var base_side: String
 	var suffix: String = ""
@@ -187,7 +189,15 @@ func _get_physical_side(logical_port: String) -> String:
 	var idx: int = sides.find(base_side)
 	if idx < 0:
 		return logical_port
-	return sides[(idx + direction) % 4] + suffix
+	# Apply rotation first
+	idx = (idx + direction) % 4
+	# Apply horizontal mirror (left↔right)
+	if mirror_h:
+		if sides[idx] == "left":
+			idx = 2  # right
+		elif sides[idx] == "right":
+			idx = 0  # left
+	return sides[idx] + suffix
 
 
 func _count_ports_on_logical_side(logical_base: String) -> int:
@@ -214,6 +224,13 @@ func _rotate_polygon(poly: PackedVector2Array, center: Vector2) -> PackedVector2
 			offset.x * cos_a - offset.y * sin_a,
 			offset.x * sin_a + offset.y * cos_a))
 	return rotated
+
+
+func _mirror_polygon(poly: PackedVector2Array, center: Vector2) -> PackedVector2Array:
+	var mirrored := PackedVector2Array()
+	for p in poly:
+		mirrored.append(Vector2(2.0 * center.x - p.x, p.y))
+	return mirrored
 
 
 func get_port_local_position(port_side: String) -> Vector2:
@@ -470,6 +487,8 @@ func _draw() -> void:
 	var base_poly := _get_building_polygon(rect, vtype)
 	if direction != 0:
 		base_poly = _rotate_polygon(base_poly, center)
+	if mirror_h:
+		base_poly = _mirror_polygon(base_poly, center)
 	# Breathing effect — working buildings gently pulse size
 	var body_poly := base_poly
 	if is_working and active:
@@ -478,6 +497,8 @@ func _draw() -> void:
 		body_poly = _get_building_polygon(breathe_rect, vtype)
 		if direction != 0:
 			body_poly = _rotate_polygon(body_poly, center)
+		if mirror_h:
+			body_poly = _mirror_polygon(body_poly, center)
 	draw_colored_polygon(body_poly, body_color)
 
 	# Neon border (thicker at lower zoom + when selected)
@@ -518,9 +539,11 @@ func _draw() -> void:
 		draw_line(Vector2(0, size.y * 0.3), Vector2(size.x, size.y * 0.3), line_color, 1.0)
 		draw_line(Vector2(size.x * 0.3, 0), Vector2(size.x * 0.3, size.y * 0.3), line_color, 1.0)
 
-	# Icon — rotate icon with building direction
-	if direction != 0:
-		draw_set_transform(center, direction * PI / 2.0, Vector2.ONE)
+	# Icon — rotate and/or mirror icon with building direction
+	var icon_angle: float = direction * PI / 2.0 if direction != 0 else 0.0
+	var icon_scale := Vector2(-1, 1) if mirror_h else Vector2.ONE
+	if direction != 0 or mirror_h:
+		draw_set_transform(center, icon_angle, icon_scale)
 		_draw_icon(Vector2.ZERO, size, accent)
 		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	else:
@@ -595,6 +618,8 @@ func _draw_pcb_mode(size: Vector2, rect: Rect2, accent: Color, pulse: float) -> 
 	var pcb_poly := _get_building_polygon(rect, vtype)
 	if direction != 0:
 		pcb_poly = _rotate_polygon(pcb_poly, center)
+	if mirror_h:
+		pcb_poly = _mirror_polygon(pcb_poly, center)
 	draw_colored_polygon(pcb_poly, chip_body)
 
 	# Thick bright border — silhouette shape

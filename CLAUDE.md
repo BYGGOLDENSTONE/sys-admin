@@ -240,7 +240,7 @@ Demo "hazir" sayilabilmesi icin su maddelerin hepsi saglanmali:
 - [x] Gorsel kimlik — PCB arka plan, bina siluetleri, kablo kalinligi, CRT efekti
 - [x] Ses kimligi — ambient muzik, iyilestirilmis SFX
 - [x] Cyberpunk tema — client/faction hissi, monospace font, menu atmosferi
-- [ ] Temel bug bash tamam
+- [x] Temel bug bash tamam
 - [x] Building-level root cause feedback var
 - [x] Demo bitis deneyimi + Wishlist CTA var
 - [ ] Screenshot/trailer capture icin gorsel kalite yeterli
@@ -252,9 +252,13 @@ Demo "hazir" sayilabilmesi icin su maddelerin hepsi saglanmali:
 ## Bilinen Sorunlar / Backlog
 
 ### Aktif Buglar
-1. **Bina mirroring eksik** — Sadece R ile rotate yetmiyor, bazi layout'larda yatay/dikey aynalama (T tusu) gerekli. Oyuncu portlari istenen tarafa ceviremiyor.
-2. **Contract panel mouse wheel zoom sorunu** — Gig panelde scroll yaparken mouse wheel ayni anda kamerayi zoom out yapiyor. Panel acikken wheel scroll'u yakalanmali, kameraya gecmemeli.
-3. **Gig requirement okunurlugu zayif** — Gig'lerin tam olarak hangi veriyi istedigini oyuncu direkt bakarak gorebilmeli. Su an metin agirlikli ve zor okunuyor; gorsel ikonlar veya renk kodlu etiketler gerekebilir.
+_(Tum aktif buglar cozuldu — Sprint 3 kapsaminda)_
+
+### Cozulen Buglar
+1. ~~**Bina mirroring eksik**~~ — T tusu ile yatay aynalama eklendi. Placement, idle, undo/redo, save/load destekli.
+2. ~~**Contract panel mouse wheel zoom sorunu**~~ — Panel seviyesinde `_gui_input` + `accept_event()` ile wheel yakalaniyor. Panel collapse/expand toggle eklendi (baslik tiklama veya G tusu). Collapsed'da seffaf arka plan, expanded'da koyu panel.
+3. ~~**Gig requirement okunurlugu zayif**~~ — RichTextLabel + BBCode ile renk kodlu content ikonu (`[$]`, `[@]`, `[#]`), state/tags renkleri eklendi. Packet'ler iki bilesenli renk kodlu.
+4. ~~**Save v1 uyumsuzlugu**~~ — Eski v1 save dosyalari artik migrate ediliyor (Uplink/Bridge temizligi, eksik alanlar ekleniyor).
 
 ### Full Game Backlog (Phase 2-3)
 4. **Particle delivery delay** — Su an veri tick aninda hedefe yaziliyor, partikuller sadece gorsel. Ileride connection-level in-flight queue veya delivery delay eklenebilir (sim, back-pressure, save/load etkiler — demo icin riskli).

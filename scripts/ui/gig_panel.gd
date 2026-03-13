@@ -26,6 +26,11 @@ var _no_gig_label: Label = null
 var _tracked_order: int = -1
 var _last_progress: Dictionary = {}  ## order_index -> Array[int] (snapshot of progress)
 var _stall_timers: Dictionary = {}   ## order_index -> Array[float] (seconds since last progress per req)
+var _body_container: VBoxContainer = null  ## Content below header — hidden when collapsed
+var _scroll: ScrollContainer = null
+var _divider: ColorRect = null
+var _expanded: bool = false  ## Panel starts collapsed
+var _title_btn: Button = null
 
 
 func _ready() -> void:
@@ -43,44 +48,39 @@ func setup(gig_manager: Node) -> void:
 		_add_card(gig)
 	_auto_track()
 	_update_empty()
+	# Auto-expand if there are already active gigs
+	if not _cards.is_empty() and not _expanded:
+		_toggle_expanded()
 
 
 func toggle() -> void:
-	if modulate.a > 0.5:
-		var tw := create_tween()
-		tw.tween_property(self, "modulate:a", 0.0, 0.15)
-		tw.tween_callback(func(): mouse_filter = Control.MOUSE_FILTER_IGNORE)
-	else:
-		mouse_filter = Control.MOUSE_FILTER_STOP
-		create_tween().tween_property(self, "modulate:a", 1.0, 0.25)
+	_toggle_expanded()
 
 
 func show_panel() -> void:
+	# Make panel visible and expand it
 	if modulate.a < 0.5:
-		toggle()
+		mouse_filter = Control.MOUSE_FILTER_STOP
+		create_tween().tween_property(self, "modulate:a", 1.0, 0.25)
+	if not _expanded:
+		_toggle_expanded()
 
 
 func play_slide_in() -> void:
+	mouse_filter = Control.MOUSE_FILTER_STOP
 	modulate = Color(1, 1, 1, 0)
-	var target_x := offset_left
-	offset_left -= 40.0
-	var tw := create_tween().set_parallel(true).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
-	tw.tween_property(self, "modulate:a", 1.0, 0.4).set_delay(0.4)
-	tw.tween_property(self, "offset_left", target_x, 0.5).set_delay(0.4)
+	create_tween().set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT) \
+		.tween_property(self, "modulate:a", 1.0, 0.3).set_delay(0.3)
 
 
 # ── Style ──────────────────────────────────────────────────────
 
 func _setup_style() -> void:
+	# Start with transparent bg (collapsed state)
 	var s := StyleBoxFlat.new()
-	s.bg_color = PANEL_BG
-	s.border_color = BORDER_CLR
-	s.border_width_right = 2
-	s.corner_radius_top_right = 4
-	s.corner_radius_bottom_right = 4
-	s.shadow_color = Color(0.0, 0.4, 0.6, 0.08)
-	s.shadow_size = 8
+	s.bg_color = Color(0, 0, 0, 0)
 	add_theme_stylebox_override("panel", s)
+	mouse_filter = Control.MOUSE_FILTER_STOP
 
 
 # ── Layout ─────────────────────────────────────────────────────
@@ -89,34 +89,49 @@ func _build_ui() -> void:
 	var margin := MarginContainer.new()
 	margin.add_theme_constant_override("margin_left", 10)
 	margin.add_theme_constant_override("margin_right", 10)
-	margin.add_theme_constant_override("margin_top", 10)
-	margin.add_theme_constant_override("margin_bottom", 10)
+	margin.add_theme_constant_override("margin_top", 6)
+	margin.add_theme_constant_override("margin_bottom", 6)
 	add_child(margin)
 
 	var vbox := VBoxContainer.new()
 	vbox.add_theme_constant_override("separation", 8)
 	margin.add_child(vbox)
 
-	var title := Label.new()
-	title.text = "// CONTRACTS"
-	title.add_theme_color_override("font_color", ACCENT)
-	title.add_theme_font_size_override("font_size", 14)
-	vbox.add_child(title)
+	# Clickable header — toggles panel expand/collapse
+	var title_btn := Button.new()
+	title_btn.text = "// CONTRACTS  ▸"
+	title_btn.flat = true
+	title_btn.add_theme_color_override("font_color", ACCENT)
+	title_btn.add_theme_color_override("font_hover_color", Color(ACCENT, 1.0).lightened(0.3))
+	title_btn.add_theme_color_override("font_pressed_color", ACCENT)
+	title_btn.add_theme_font_size_override("font_size", 14)
+	title_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	title_btn.mouse_filter = Control.MOUSE_FILTER_STOP
+	title_btn.pressed.connect(_toggle_expanded)
+	vbox.add_child(title_btn)
+	_title_btn = title_btn
 
-	var div := ColorRect.new()
-	div.color = Color(ACCENT, 0.25)
-	div.custom_minimum_size = Vector2(0, 1)
-	vbox.add_child(div)
+	# Body container — everything below header, hidden when collapsed
+	_body_container = VBoxContainer.new()
+	_body_container.add_theme_constant_override("separation", 8)
+	_body_container.visible = false  # Starts collapsed
+	vbox.add_child(_body_container)
 
-	var scroll := ScrollContainer.new()
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	vbox.add_child(scroll)
+	_divider = ColorRect.new()
+	_divider.color = Color(ACCENT, 0.25)
+	_divider.custom_minimum_size = Vector2(0, 1)
+	_body_container.add_child(_divider)
+
+	_scroll = ScrollContainer.new()
+	_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_scroll.custom_minimum_size = Vector2(0, 200)
+	_body_container.add_child(_scroll)
 
 	_gig_container = VBoxContainer.new()
 	_gig_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_gig_container.add_theme_constant_override("separation", 8)
-	scroll.add_child(_gig_container)
+	_scroll.add_child(_gig_container)
 
 	_no_gig_label = Label.new()
 	_no_gig_label.text = "No active contracts"
@@ -203,11 +218,14 @@ func _add_card(gig) -> void:
 		var lr := HBoxContainer.new()
 		row.add_child(lr)
 
-		var rl := Label.new()
-		rl.text = _req_text(req)
-		rl.add_theme_font_size_override("font_size", 11)
-		rl.add_theme_color_override("font_color", DONE_CLR if done else DIM)
+		var rl := RichTextLabel.new()
+		rl.bbcode_enabled = true
+		rl.fit_content = true
+		rl.scroll_active = false
+		rl.text = _req_bbcode(req, done)
+		rl.add_theme_font_size_override("normal_font_size", 11)
 		rl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		rl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		lr.add_child(rl)
 
 		var cl := Label.new()
@@ -242,7 +260,7 @@ func _add_card(gig) -> void:
 		stall_l.visible = false
 		row.add_child(stall_l)
 
-		bars.append({"rl": rl, "cl": cl, "fl": fl, "tgt": tgt, "stall_l": stall_l})
+		bars.append({"rl": rl, "cl": cl, "fl": fl, "tgt": tgt, "stall_l": stall_l, "req": req})
 
 	# Init stall tracking
 	_init_stall_tracking(order, gig.requirements.size())
@@ -291,6 +309,9 @@ func _on_gig_activated(gig) -> void:
 	_add_card(gig)
 	_auto_track()
 	_update_empty()
+	# Auto-expand when a new gig arrives
+	if not _expanded:
+		_toggle_expanded()
 
 
 func _on_gig_progress(gig, ri: int, cur: int, tgt: int) -> void:
@@ -303,7 +324,9 @@ func _on_gig_progress(gig, ri: int, cur: int, tgt: int) -> void:
 	# Update text
 	b.cl.text = "%d / %d" % [cur, tgt]
 	b.cl.add_theme_color_override("font_color", DONE_CLR if done else BRIGHT)
-	b.rl.add_theme_color_override("font_color", DONE_CLR if done else DIM)
+	# Update rich text with completion state
+	if b.has("req"):
+		b.rl.text = _req_bbcode(b.req, done)
 
 	# Reset stall timer on progress
 	if _stall_timers.has(gig.order_index):
@@ -391,6 +414,9 @@ func rebuild_from_state() -> void:
 			_add_card(gig)
 	_auto_track()
 	_update_empty()
+	# Auto-expand if there are active gigs
+	if not _cards.is_empty() and not _expanded:
+		_toggle_expanded()
 
 
 func _update_empty() -> void:
@@ -402,6 +428,84 @@ func _req_text(req) -> String:
 	if req.packet_key != "":
 		return DataEnums.packet_label(req.packet_key)
 	return req.label if req.label != "" else "Data"
+
+
+func _req_bbcode(req, done: bool) -> String:
+	## Build color-coded BBCode for a requirement — content icon + name + state/tags.
+	if done:
+		return "[color=#44ff88]%s[/color]" % _req_text(req)
+
+	if req.packet_key != "":
+		# Packet: show both components with their content colors
+		var p: Dictionary = DataEnums.parse_packet_key(req.packet_key)
+		var c_a: String = DataEnums.content_color_hex(p.content_a)
+		var c_b: String = DataEnums.content_color_hex(p.content_b)
+		var name_a: String = DataEnums.content_name(p.content_a)
+		var name_b: String = DataEnums.content_name(p.content_b)
+		if p.tags_a != 0:
+			name_a += " " + DataEnums.tags_label(p.tags_a)
+		if p.tags_b != 0:
+			name_b += " " + DataEnums.tags_label(p.tags_b)
+		return "[color=%s]%s[/color] + [color=%s]%s[/color] Packet" % [c_a, name_a, c_b, name_b]
+
+	# Normal requirement: content icon in content color + name + state/tags
+	var c_hex: String = DataEnums.content_color_hex(req.content)
+	var c_char: String = DataEnums.content_char(req.content)
+	# Use fixed char for Standard to avoid random flicker
+	if req.content == DataEnums.ContentType.STANDARD:
+		c_char = "0"
+	var c_name: String = DataEnums.content_name(req.content)
+	var result: String = "[color=%s][%s] %s[/color]" % [c_hex, c_char, c_name]
+
+	# State/tags suffix
+	if req.tags != 0:
+		var tag_parts: PackedStringArray = []
+		if req.tags & DataEnums.ProcessingTag.DECRYPTED:
+			tag_parts.append("[color=#22ccff]Decrypted[/color]")
+		if req.tags & DataEnums.ProcessingTag.RECOVERED:
+			tag_parts.append("[color=#66dd44]Recovered[/color]")
+		if req.tags & DataEnums.ProcessingTag.ENCRYPTED:
+			tag_parts.append("[color=#2288ff]Encrypted[/color]")
+		result += " " + "·".join(tag_parts)
+	elif req.state == DataEnums.DataState.PUBLIC:
+		result += " [color=#00ffaa]Public[/color]"
+	elif req.state >= 0:
+		var s_hex: String = DataEnums.state_color_hex(req.state)
+		result += " [color=%s]%s[/color]" % [s_hex, DataEnums.state_name(req.state)]
+
+	return result
+
+
+func _toggle_expanded() -> void:
+	_expanded = not _expanded
+	_body_container.visible = _expanded
+	_title_btn.text = "// CONTRACTS  ▾" if _expanded else "// CONTRACTS  ▸"
+	# Collapsed: transparent bg so game is visible; expanded: dark panel
+	if _expanded:
+		_apply_panel_style(PANEL_BG)
+	else:
+		_apply_panel_style(Color(0, 0, 0, 0))
+
+
+func _apply_panel_style(bg: Color) -> void:
+	var s := StyleBoxFlat.new()
+	s.bg_color = bg
+	if bg.a > 0.1:
+		s.border_color = BORDER_CLR
+		s.border_width_right = 2
+		s.corner_radius_top_right = 4
+		s.corner_radius_bottom_right = 4
+		s.shadow_color = Color(0.0, 0.4, 0.6, 0.08)
+		s.shadow_size = 8
+	add_theme_stylebox_override("panel", s)
+
+
+func _gui_input(event: InputEvent) -> void:
+	## Consume mouse wheel events on the panel so camera doesn't zoom (only when expanded).
+	if _expanded and event is InputEventMouseButton:
+		if event.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN,
+				MOUSE_BUTTON_WHEEL_LEFT, MOUSE_BUTTON_WHEEL_RIGHT]:
+			accept_event()
 
 
 func _lbl(text: String, color: Color, font_size: int) -> Label:
