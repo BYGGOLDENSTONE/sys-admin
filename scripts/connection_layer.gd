@@ -13,8 +13,11 @@ const PREVIEW_VALID_COLOR := Color(0.2, 1, 0.67, 0.5)
 const PREVIEW_INVALID_COLOR := Color(1, 0.13, 0.27, 0.5)
 
 ## Particle travel system — particles spawn at output, travel to input
-const PARTICLE_BASE_SPEED: float = 0.45   ## Base travel speed (0→1 per second)
-const PARTICLE_MAX_PER_CABLE: int = 14     ## Hard cap per connection
+## Speed is world-space constant: particles move at fixed grids/sec regardless of cable length
+## Longer cables = longer travel time. Throughput affects density, not speed.
+const PARTICLE_GRIDS_PER_SEC: float = 2.0  ## World-space speed: 2 grid cells per second
+const PARTICLE_DRAIN_MULT: float = 2.0     ## Drain mode multiplier (2x normal speed)
+const PARTICLE_MAX_PER_CABLE: int = 14      ## Hard cap per connection
 const PARTICLE_MIN_SPAWN_INTERVAL: float = 0.15  ## Minimum seconds between spawns
 
 var connection_manager: Node = null
@@ -70,12 +73,11 @@ func _process(delta: float) -> void:
 		var state: int = _get_cable_state(conns[i], i)
 		match state:
 			CABLE_FLOWING:
-				_update_particles_flowing(i, delta)
+				_update_particles_flowing(i, delta, conns[i])
 			CABLE_STALLED:
 				pass  # Particles freeze — don't advance or spawn
-			_:  # INACTIVE
-				_conn_particles.erase(i)
-				_conn_spawn_accum.erase(i)
+			_:  # INACTIVE — let existing particles drain to destination
+				_drain_particles(i, delta, conns[i])
 
 	# Clean up particles for connections that no longer exist
 	var max_idx: int = conns.size()
@@ -105,27 +107,28 @@ func _process(delta: float) -> void:
 	queue_redraw()
 
 
-func _update_particles_flowing(conn_idx: int, delta: float) -> void:
+func _update_particles_flowing(conn_idx: int, delta: float, conn: Dictionary) -> void:
 	if not _conn_particles.has(conn_idx):
 		_conn_particles[conn_idx] = []
 		_conn_spawn_accum[conn_idx] = 0.0
 
 	var particles: Array = _conn_particles[conn_idx]
 
-	# Get flow data for speed + spawn rate
+	# World-space speed: particles move at PARTICLE_GRIDS_PER_SEC grid cells/sec
+	# t_speed converts pixel speed to 0→1 range based on cable pixel length
+	var cable_len: float = _get_cable_pixel_length(conn)
+	var t_speed: float = (PARTICLE_GRIDS_PER_SEC * TILE_SIZE) / cable_len
+
+	# Spawn rate reflects throughput (more data = denser particles, not faster)
 	var flow: Array = _get_connection_flow(conn_idx)
 	var total_amount: int = 0
 	for entry in flow:
 		total_amount += entry.get("amount", 0)
 
-	# Travel speed scales with flow (more flow = faster visuals)
-	var speed_mult: float = clampf(float(total_amount) / 3.0, 0.3, 2.0)
-	var travel_speed: float = PARTICLE_BASE_SPEED * speed_mult
-
 	# Advance existing particles toward input (t: 0→1)
 	var pi: int = particles.size() - 1
 	while pi >= 0:
-		particles[pi].t += delta * travel_speed
+		particles[pi].t += delta * t_speed
 		if particles[pi].t >= 1.0:
 			particles.remove_at(pi)
 		pi -= 1
@@ -141,6 +144,27 @@ func _update_particles_flowing(conn_idx: int, delta: float) -> void:
 		_conn_spawn_accum[conn_idx] -= 1.0
 		var ptype: Dictionary = _pick_random_type(flow, total_amount)
 		particles.append({"t": 0.0, "color": ptype.color, "char": ptype.char})
+
+
+func _drain_particles(conn_idx: int, delta: float, conn: Dictionary) -> void:
+	## Let existing particles finish their journey when cable goes inactive.
+	## No new particles spawn — only advance + remove finished ones.
+	## Drain runs at 2x normal speed so particles clear quickly.
+	if not _conn_particles.has(conn_idx):
+		return
+	var cable_len: float = _get_cable_pixel_length(conn)
+	var t_speed: float = (PARTICLE_GRIDS_PER_SEC * PARTICLE_DRAIN_MULT * TILE_SIZE) / cable_len
+	var particles: Array = _conn_particles[conn_idx]
+	var pi: int = particles.size() - 1
+	while pi >= 0:
+		particles[pi].t += delta * t_speed
+		if particles[pi].t >= 1.0:
+			particles.remove_at(pi)
+		pi -= 1
+	# All drained — clean up
+	if particles.is_empty():
+		_conn_particles.erase(conn_idx)
+		_conn_spawn_accum.erase(conn_idx)
 
 
 func _pick_random_type(flow: Array, total_amount: int) -> Dictionary:
@@ -434,10 +458,24 @@ func _get_point_along_path(points: PackedVector2Array, seg_lengths: Array[float]
 	return points[points.size() - 1]
 
 
+func _get_cable_pixel_length(conn: Dictionary) -> float:
+	## Calculate the total pixel length of a cable's polyline path.
+	var points: PackedVector2Array = _build_polyline(conn)
+	var total: float = 0.0
+	for i in range(1, points.size()):
+		total += points[i - 1].distance_to(points[i])
+	return maxf(total, float(TILE_SIZE))  # At least 1 grid cell
+
+
 func _get_connection_flow(conn_index: int) -> Array:
+	## Returns current tick flow data, falling back to last tick's flow
+	## so particles keep spawning smoothly between ticks.
 	if simulation_manager == null:
 		return []
-	return simulation_manager.connection_flow_data.get(conn_index, [])
+	var flow: Array = simulation_manager.connection_flow_data.get(conn_index, [])
+	if flow.is_empty():
+		return simulation_manager.connection_last_flow.get(conn_index, [])
+	return flow
 
 
 func _get_stalled_flow(conn_index: int) -> Array:
