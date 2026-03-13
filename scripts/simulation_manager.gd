@@ -127,11 +127,14 @@ func _deliver_arrived() -> void:
 			if _try_passthrough(target, item, conns):
 				transit.remove_at(0)
 				continue
-			# Routing buildings: if pass-through failed, stall (no storage fallback)
+			# Routing buildings: if ports not connected → hard stall.
+			# If port exists but cable temporarily stalled → allow storage buffer for tick-based routing.
+			# This prevents FIFO blocking: items for non-stalled ports can still be forwarded from storage.
 			if target.definition != null and (target.definition.classifier != null \
 					or target.definition.splitter != null or target.definition.merger != null \
 					or (target.definition.processor != null and target.definition.processor.rule == "separator")):
-				break
+				if _get_passthrough_port(target, item) == "":
+					break  # Required ports not connected — hard stall
 			# Trash: instant destroy — no storage needed
 			if target.definition != null and target.definition.processor != null \
 					and target.definition.processor.rule == "trash":

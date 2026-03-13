@@ -312,7 +312,7 @@ Oyuncu her parcacigi kaynaktan CT'ye kadar takip edebilir. "Gordugun = olan" tam
 #### Implementasyon Ozeti
 - **Inline isleyiciler (Decryptor/Encryptor/Recoverer):** Veri storage'a yazilmiyor, kablo ucunda (t=1.0) bekliyor. `_process_inline_rendezvous()` her frame calisir, primary+secondary ikisi hazirsa tuketir ve output kablosuna koyar.
 - **Trash:** `_deliver_arrived()` icerisinde t=1.0'da aninda imha — storage gecisi yok.
-- **Routing binalari (Separator/Classifier/Splitter/Merger):** Pass-through basarisiz olursa storage fallback yok, veri kabloda kalir (back-pressure).
+- **Routing binalari (Separator/Classifier/Splitter/Merger):** Pass-through basarisiz olursa iki katmanli back-pressure: (1) Hedef port bagli degilse hard stall — veri kabloda kalir. (2) Port bagli ama gecici stall varsa storage buffer'a duser, tick-based isleme FIFO bloklama olmadan yonlendirir. Downstream storage (ornegin Research Lab 30MB) basinci kademeli emer — normal fabrika oyunu davranisi.
 - **Accumulator binalar (Research Lab/Compiler):** Mevcut storage + tick-based model korunuyor.
 - **Status reasons:** Transit-aware — "No input", "Waiting for Key/fuel", "Output blocked" kablo durumundan turetiliyor.
 
@@ -324,6 +324,7 @@ Oyuncu her parcacigi kaynaktan CT'ye kadar takip edebilir. "Gordugun = olan" tam
 - [x] Trash aninda yok ediyor (storage gecisi yok)
 - [x] Deadlock imkansiz — storage dolup Key/fuel'i bloklamak yok
 - [x] Routing binalari pass-through fail → kabloda stall (storage fallback yok)
+- [x] Routing buffer: port bagli ama gecici stall → storage fallback ile FIFO bloklama onlenir
 
 ---
 
