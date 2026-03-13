@@ -29,18 +29,18 @@ var _gig_hints: Dictionary = {
 	},
 	2: {
 		"id": "gig2_intro",
-		"text": "Your new [color=#ffcc44]Classifier[/color] filters data by [color=#00ddff]content type[/color].\nSelected type exits [color=#00ddff]right[/color], everything else exits [color=#00ddff]bottom[/color]. Press [color=#ffcc44]TAB[/color] to change filter.",
+		"text": "The ATM mixes Public and Corrupted data. Your new [color=#ffcc44]Separator[/color] filters by [color=#00ddff]state[/color].\nSet it to [color=#00ddff]Public[/color] with [color=#ffcc44]TAB[/color] — clean data exits [color=#00ddff]right[/color], Corrupted exits [color=#00ddff]bottom[/color].",
 		"duration": 14.0,
 	},
 	3: {
 		"id": "gig3_intro",
-		"text": "The [color=#ffcc44]Separator[/color] filters by [color=#00ddff]data state[/color] instead of content.\nUse it to split [color=#00ddff]Public[/color] from [color=#00ddff]Corrupted[/color] data. Press [color=#ffcc44]TAB[/color] to change filter.",
+		"text": "The Data Kiosk mixes Standard and Financial. Your new [color=#ffcc44]Classifier[/color] filters by [color=#00ddff]content type[/color].\nSet it to [color=#00ddff]Financial[/color] with [color=#ffcc44]TAB[/color] — Financial exits [color=#00ddff]right[/color], Standard exits [color=#00ddff]bottom[/color].",
 		"duration": 14.0,
 	},
 	4: {
 		"id": "gig4_intro",
-		"text": "The [color=#ffcc44]Recoverer[/color] repairs Corrupted data using [color=#00ddff]fuel[/color].\nFeed [color=#00ddff]data[/color] from the left, [color=#00ddff]Public fuel[/color] from the top. Both inputs needed!",
-		"duration": 14.0,
+		"text": "The Bank Terminal has [color=#00ddff]two problems[/color]: mixed content AND mixed state.\nChain [color=#ffcc44]Separator[/color] (remove Corrupted) → [color=#ffcc44]Classifier[/color] (split Financial/Biometric). Deliver each to a [color=#00ddff]separate CT port[/color].",
+		"duration": 16.0,
 	},
 	5: {
 		"id": "gig5_intro",
@@ -49,11 +49,21 @@ var _gig_hints: Dictionary = {
 	},
 	6: {
 		"id": "gig6_intro",
-		"text": "The [color=#ffcc44]Encryptor[/color] re-encrypts processed data using a [color=#00ddff]Key[/color].\nFirst [color=#00ddff]decrypt[/color], then run through [color=#ffcc44]Encryptor[/color] — same Key supply as Decryptor.",
+		"text": "Your ISP Backbone and ATM pipelines are already running. Use your new [color=#ffcc44]Merger[/color] to combine flows.\n[color=#00ddff]Merger[/color] takes two inputs and outputs one stream — saves ports and cables.",
 		"duration": 14.0,
 	},
 	7: {
 		"id": "gig7_intro",
+		"text": "The [color=#ffcc44]Recoverer[/color] repairs Corrupted data using [color=#00ddff]fuel[/color].\nFeed [color=#00ddff]data[/color] from the left, [color=#00ddff]Public fuel[/color] from the top. Both inputs needed!",
+		"duration": 14.0,
+	},
+	8: {
+		"id": "gig8_intro",
+		"text": "The [color=#ffcc44]Encryptor[/color] re-encrypts processed data using a [color=#00ddff]Key[/color].\nFirst [color=#00ddff]decrypt[/color], then run through [color=#ffcc44]Encryptor[/color] — same Key supply as Decryptor.",
+		"duration": 14.0,
+	},
+	9: {
+		"id": "gig9_intro",
 		"text": "The [color=#ffcc44]Compiler[/color] combines [color=#00ddff]two different data types[/color] into one [color=#00ddff]Packet[/color].\nFeed one type from [color=#00ddff]left[/color], another from [color=#00ddff]top[/color].",
 		"duration": 14.0,
 	},
@@ -61,14 +71,19 @@ var _gig_hints: Dictionary = {
 
 ## Building unlock descriptions — shown when a building unlocks
 var _building_hints: Dictionary = {
+	"Separator": {
+		"id": "unlock_separator",
+		"text": "[color=#ffcc44]SEPARATOR[/color] unlocked — filters data by [color=#00ddff]state[/color] (Public, Encrypted, Corrupted).\nInput: [color=#00ddff]left[/color]  |  Filtered: [color=#00ddff]right[/color]  |  Rest: [color=#00ddff]bottom[/color]",
+		"duration": 8.0,
+	},
 	"Classifier": {
 		"id": "unlock_classifier",
 		"text": "[color=#ffcc44]CLASSIFIER[/color] unlocked — filters data by [color=#00ddff]content type[/color].\nInput: [color=#00ddff]left[/color]  |  Filtered: [color=#00ddff]right[/color]  |  Rest: [color=#00ddff]bottom[/color]",
 		"duration": 8.0,
 	},
-	"Separator": {
-		"id": "unlock_separator",
-		"text": "[color=#ffcc44]SEPARATOR[/color] unlocked — filters data by [color=#00ddff]state[/color] (Public, Encrypted, Corrupted).\nInput: [color=#00ddff]left[/color]  |  Filtered: [color=#00ddff]right[/color]  |  Rest: [color=#00ddff]bottom[/color]",
+	"Merger": {
+		"id": "unlock_merger",
+		"text": "[color=#ffcc44]MERGER[/color] unlocked — combines two data streams into one.\nInput A: [color=#00ddff]left[/color]  |  Input B: [color=#00ddff]top[/color]  |  Output: [color=#00ddff]right[/color]",
 		"duration": 8.0,
 	},
 	"Recoverer": {
@@ -259,13 +274,15 @@ func on_gig_activated(gig) -> void:
 
 ## Completion messages per tutorial gig
 var _completion_hints: Dictionary = {
-	1: "Good — you've got data flowing! Next: learn to sort it.",
-	2: "Content filtering mastered! Next: learn to filter by state.",
-	3: "State filtering done! Next: repair corrupted data.",
-	4: "Recovery pipeline built! Next: unlock encryption.",
-	5: "Decryption online! Next: learn re-encryption.",
-	6: "Full encrypt/decrypt chain! Last step: package data.",
-	7: "All core mechanics learned! New contracts available.",
+	1: "Good — you've got data flowing! Next: learn to filter by state.",
+	2: "State filtering mastered! Next: learn to sort by content type.",
+	3: "Content sorting done! Next: chain both filters together.",
+	4: "Full filter chain built! Next: unlock decryption.",
+	5: "Decryption online! Next: streamline your deliveries.",
+	6: "Merger learned! Next: repair corrupted data.",
+	7: "Recovery pipeline built! Next: learn re-encryption.",
+	8: "Full encrypt/decrypt chain! Last step: package data.",
+	9: "All core mechanics learned! New contracts available.",
 }
 
 

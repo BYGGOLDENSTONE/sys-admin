@@ -5,16 +5,17 @@
 
 [sub_resource type="Resource" id="req1"]
 script = ExtResource("2")
-content = 3
+content = 2
 state = 0
-amount = 15
-label = "Blueprint Public"
+tags = 5
+amount = 10
+label = "Biometric Decrypted·Encrypted"
 
 [resource]
 script = ExtResource("1")
-gig_name = "Blueprint Cache"
-description = "ARCHIVE_X: I'm building a collection — a new branch on your network. Raw Blueprint data, untouched. Find me sources that carry it.\n\nBlueprint appears in Biotech Labs and harder targets. Your Package Deal touched Blueprint before — now tap the raw stream."
+gig_name = "Encryption Job"
+description = "GHOST_SIGNAL: My buyer wants re-encrypted data. Decrypt it, then lock it back up with fresh encryption. Don't ask why.\n\nDecrypt first, then run it through your new Encryptor — it needs a Key from top, just like the Decryptor."
 order_index = 8
-is_tutorial = false
+is_tutorial = true
 requirements = Array[Resource]([SubResource("req1")])
-reward_buildings = Array[String]([])
+reward_buildings = Array[String](["Encryptor"])

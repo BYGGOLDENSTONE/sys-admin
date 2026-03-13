@@ -1,20 +1,31 @@
-[gd_resource type="Resource" load_steps=3 format=3]
+[gd_resource type="Resource" load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://resources/gigs/gig_definition.gd" id="1"]
 [ext_resource type="Script" path="res://resources/gigs/gig_requirement.gd" id="2"]
 
 [sub_resource type="Resource" id="req1"]
 script = ExtResource("2")
-amount = 5
-label = "[Financial Recovered · Research Decrypted] Packet"
-packet_key = "P_1_2_4_1"
+content = 2
+state = 0
+tags = 1
+amount = 10
+label = "Biometric Decrypted"
+
+[sub_resource type="Resource" id="req2"]
+script = ExtResource("2")
+content = 1
+state = 0
+tags = 1
+min_tier = 2
+amount = 10
+label = "Financial Decrypted (T2)"
 
 [resource]
 script = ExtResource("1")
-gig_name = "Hybrid Package"
-description = "DR_PATCH: Two mature pipelines, one packet. A recovered Financial record fused with a decrypted Research file — the combinatorics alone... yes.\n\nYour Financial recovery line and Research decrypt setup converge here. Recover Financial, Decrypt Research, then Compile both."
+gig_name = "Twin Decryption"
+description = "BROKER_7: Two buyers, two encrypted streams. Your Biometric decrypt setup still matters — now pair it with a stronger Financial line.\n\nBiometric needs a T1 Key. Financial needs a T2 Key — set your Research Lab to T2 with TAB. If your Key forge is already running, just upgrade it."
 order_index = 15
 is_tutorial = false
-prerequisite_gigs = Array[int]([8, 9, 10, 11])
-requirements = Array[Resource]([SubResource("req1")])
+prerequisite_gigs = Array[int]([10, 11, 12, 13])
+requirements = Array[Resource]([SubResource("req1"), SubResource("req2")])
 reward_buildings = Array[String]([])

@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="DataSourceDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://resources/sources/data_source_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+source_name = "Bank Terminal"
+description = "Banking kiosk processing financial and biometric data. Some records are corrupted."
+color = Color(0.9, 0.55, 0.65, 1.0)
+content_weights = {1: 0.5, 2: 0.5}
+state_weights = {0: 0.7, 2: 0.3}
+bandwidth = 5.0
+cell_count_range = Vector2i(7, 10)
+difficulty = "easy"
+encrypted_max_tier = 0
+corrupted_max_tier = 1

@@ -16,20 +16,21 @@ const DEMO_MAX_LEVEL: int = 1
 
 ## Display order for buildings (consistent layout)
 const BUILDING_ORDER: PackedStringArray = [
-	"Uplink", "Trash", "Splitter", "Merger", "Bridge",
-	"Classifier", "Separator", "Recoverer",
+	"Uplink", "Trash", "Splitter", "Bridge",
+	"Separator", "Classifier", "Merger", "Recoverer",
 	"Research Lab", "Decryptor", "Encryptor", "Compiler",
 ]
 
 ## Which gig unlocks each building (for locked tooltip)
 const UNLOCK_GIG: Dictionary = {
-	"Classifier": "Gig 2: Data Sorting",
-	"Separator": "Gig 3: Public Extraction",
-	"Recoverer": "Gig 4: Data Recovery",
+	"Separator": "Gig 2: Clean Data Only",
+	"Classifier": "Gig 3: Sorting by Type",
+	"Merger": "Gig 6: Streamlined Delivery",
+	"Recoverer": "Gig 7: Data Recovery",
 	"Research Lab": "Gig 5: Decryption Run",
 	"Decryptor": "Gig 5: Decryption Run",
-	"Encryptor": "Gig 6: Encryption Job",
-	"Compiler": "Gig 7: Package Deal",
+	"Encryptor": "Gig 8: Encryption Job",
+	"Compiler": "Gig 9: Package Deal",
 }
 
 var _definitions: Array[BuildingDefinition] = []

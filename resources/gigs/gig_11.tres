@@ -5,14 +5,16 @@
 
 [sub_resource type="Resource" id="req1"]
 script = ExtResource("2")
-amount = 5
-label = "[Financial·Encrypted + Blueprint] Packet"
-packet_key = "P_1_4_3_0"
+content = 3
+state = 0
+tags = 2
+amount = 10
+label = "Blueprint Recovered"
 
 [resource]
 script = ExtResource("1")
-gig_name = "Assembly Contract"
-description = "FIXER_NULL: Your Financial line and Blueprint branch — bring them together. Encrypted Financial plus raw Blueprint, one package.\n\nYour encryption work and Blueprint sourcing converge here. Encrypt Financial first, then feed it with Blueprint into the Compiler."
+gig_name = "Deep Recovery"
+description = "DR_PATCH: Damaged Blueprint files in the stream — same recovery principles, new content family. Repair them.\n\nYou already know recovery from Financial. Apply it to Blueprint — the Recoverer works the same way. Tougher corrupted files may need processed fuel."
 order_index = 11
 is_tutorial = false
 requirements = Array[Resource]([SubResource("req1")])

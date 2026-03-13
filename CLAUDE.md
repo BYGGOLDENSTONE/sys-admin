@@ -40,14 +40,14 @@ Asagidaki kararlar artik **scope lock** kabul edilir. Claude Code bu kararlarla 
 - [x] Demo'da **Malware gameplay YOK**
 - [x] Malware, sadece **teaser / ileride acilacak sey** olarak var olabilir
 - [x] T3-T4 mekanikleri demo'nun zorunlu parcasi olmayacak
-- [x] Demo hedefi: 7 tutorial gig + 4 paralel orta + 3 ileri + 1 yan kontrat + 1 finale = 16 gig
+- [x] Demo hedefi: 9 tutorial gig + 4 paralel orta + 3 ileri + 1 yan kontrat + 1 finale = 18 gig
 - [x] Demo hedefi: 12-15 kaynaklik oynanabilir havuz
 
 ### Mekanik Kararlari
 - [x] **Packet gercek urun** olacak; Compiler ciktisi iki ayri teslim gibi sayilmayacak
 - [x] **Encryptor demo icinde zorunlu** olacak; acilip kullanilmayan bina olmayacak
-- [x] Gig 6+, Encryptor'u gercekten kullanacak
-- [x] Gig 7+, Compiler'i gercekten kullanacak
+- [x] Gig 8+, Encryptor'u gercekten kullanacak
+- [x] Gig 9+, Compiler'i gercekten kullanacak
 - [x] Source bandwidth, sadece tooltip verisi degil, gameplay'de gercek limit olacak
 - [x] Recoverer deterministic + fuel tabanli kalacak
 - [x] Grid kablo routing ve Bridge oyunun ana layout bulmacasi olmaya devam edecek
@@ -163,14 +163,14 @@ Asagidaki durumlarda dur ve kullaniciya don:
 ### Sprint 3.5: Demo Content Expansion (Hafta 5-6 arasi)
 **Amac:** Tutorial sonrasi icerik derinligini artirmak — dalga sistemi + 5 yeni gig.
 
-- [x] **A13b. Wave/prerequisite sistemi** — `gig_definition.gd`'ye `prerequisite_gigs` alani eklendi, `gig_manager.gd`'de dalga aktivasyonu: tutorial sonrasi Wave 1 (8-11+14), Wave 1 bittikten sonra Wave 2 (12,13,15), Wave 2 bittikten sonra Finale (16).
-- [x] **A13c. 5 yeni gig** — Gig 12 Data Laundering (derin zincir: Recover→Encrypt), Gig 13 Twin Decryption (paylasimli Key darbogazı, T2 Key ogretimi), Gig 14 Bulk Harvest (hacim + filtreleme yan kontratin), Gig 15 Hybrid Package (iki farkli islem yolu Compiler'da bulusuyor), Gig 16 The Net Heist (3 paralel mega-pipeline finale, tum client'lar).
-- [x] **A13d. Demo sonu tetiklemesi** — Gig 16 (finale) tamamlaninca demo complete ekrani gosterilir. Gig 14 opsiyonel yan kontrat.
+- [x] **A13b. Wave/prerequisite sistemi** — `gig_definition.gd`'ye `prerequisite_gigs` alani eklendi, `gig_manager.gd`'de dalga aktivasyonu: tutorial sonrasi Wave 1 (10-13+16), Wave 1 bittikten sonra Wave 2 (14,15,17), Wave 2 bittikten sonra Finale (18).
+- [x] **A13c. 5 yeni gig** — Gig 14 Data Laundering (derin zincir: Recover→Encrypt), Gig 15 Twin Decryption (paylasimli Key darbogazı, T2 Key ogretimi), Gig 16 Bulk Harvest (hacim + filtreleme yan kontratin), Gig 17 Hybrid Package (iki farkli islem yolu Compiler'da bulusuyor), Gig 18 The Net Heist (3 paralel mega-pipeline finale, tum client'lar).
+- [x] **A13d. Demo sonu tetiklemesi** — Gig 18 (finale) tamamlaninca demo complete ekrani gosterilir. Gig 16 opsiyonel yan kontrat.
 - [x] **A13e. Stall hint'leri** — Yeni gig'ler icin stall detection hint text'leri eklendi.
 
 **Definition of Done:**
-- [x] Dalga yapisi calisiyor: Tutorial → Wave 1 → Wave 2 → Finale
-- [x] 16 gig toplam, her dalga farkli problem tipi sunuyor
+- [x] Dalga yapisi calisiyor: Tutorial (9) → Wave 1 → Wave 2 → Finale
+- [x] 18 gig toplam, her dalga farkli problem tipi sunuyor
 - [x] Demo sonu finale gig'e bagli, yan kontrat bloklamıyor
 
 ---
@@ -225,8 +225,8 @@ Asagidaki durumlarda dur ve kullaniciya don:
 ## Demo Ready Cikisi Icin Zorunlu Son Kriterler
 Demo "hazir" sayilabilmesi icin su maddelerin hepsi saglanmali:
 
-- [x] 7 tutorial gig tam ve temiz
-- [x] Dalga sistemi: 4 Wave 1 + 1 yan kontrat + 3 Wave 2 + 1 finale = 16 gig
+- [x] 9 tutorial gig tam ve temiz (her konsept ayri gig'de ogretiliyor)
+- [x] Dalga sistemi: 4 Wave 1 + 1 yan kontrat + 3 Wave 2 + 1 finale = 18 gig
 - [x] Encryptor ve Compiler zorunlu kullanim goruyor
 - [x] Packet gercek urun olarak calisiyor
 - [x] Malware gameplay demo'da yok

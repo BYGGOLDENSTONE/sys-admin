@@ -1,4 +1,4 @@
-[gd_resource type="Resource" load_steps=3 format=3]
+[gd_resource type="Resource" load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://resources/gigs/gig_definition.gd" id="1"]
 [ext_resource type="Script" path="res://resources/gigs/gig_requirement.gd" id="2"]
@@ -7,15 +7,21 @@
 script = ExtResource("2")
 content = 1
 state = 0
-tags = 2
-amount = 10
-label = "Financial Recovered"
+amount = 8
+label = "Financial Public"
+
+[sub_resource type="Resource" id="req2"]
+script = ExtResource("2")
+content = 2
+state = 0
+amount = 8
+label = "Biometric Public"
 
 [resource]
 script = ExtResource("1")
-gig_name = "Data Recovery"
-description = "DR_PATCH: Corrupted files aren't trash — they're opportunities. Repair them and I'll make it worth your time.\n\nCorrupted data can be repaired! Use your new Recoverer — feed Corrupted data from the left and Public fuel from the top."
+gig_name = "Full Filter Chain"
+description = "DR_PATCH: The Bank Terminal has Financial and Biometric, but some of it is Corrupted. I need both types — clean only.\n\nChain your tools: Separator first to remove Corrupted, then Classifier to split Financial and Biometric. Deliver each to a separate CT port."
 order_index = 4
 is_tutorial = true
-requirements = Array[Resource]([SubResource("req1")])
-reward_buildings = Array[String](["Recoverer"])
+requirements = Array[Resource]([SubResource("req1"), SubResource("req2")])
+reward_buildings = Array[String]([])

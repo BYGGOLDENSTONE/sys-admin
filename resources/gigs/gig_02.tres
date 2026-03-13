@@ -1,4 +1,4 @@
-[gd_resource type="Resource" load_steps=4 format=3]
+[gd_resource type="Resource" load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://resources/gigs/gig_definition.gd" id="1"]
 [ext_resource type="Script" path="res://resources/gigs/gig_requirement.gd" id="2"]
@@ -10,18 +10,11 @@ state = 0
 amount = 10
 label = "Financial Public"
 
-[sub_resource type="Resource" id="req2"]
-script = ExtResource("2")
-content = 2
-state = 0
-amount = 10
-label = "Biometric Public"
-
 [resource]
 script = ExtResource("1")
-gig_name = "Data Sorting"
-description = "BROKER_7: I need Financial and Biometric separated clean. Mixed data is worthless to my clients.\n\nUse your new Classifier to split a mixed source. Set the filter with TAB — send Financial one way, Biometric the other."
+gig_name = "Clean Data Only"
+description = "BROKER_7: The ATM line is dirty — Corrupted junk mixed with clean Financial data. I only want the clean stuff.\n\nUse your new Separator to filter by state. Set it to Public with TAB — clean data exits right, Corrupted exits bottom."
 order_index = 2
 is_tutorial = true
-requirements = Array[Resource]([SubResource("req1"), SubResource("req2")])
-reward_buildings = Array[String](["Classifier"])
+requirements = Array[Resource]([SubResource("req1")])
+reward_buildings = Array[String](["Separator"])

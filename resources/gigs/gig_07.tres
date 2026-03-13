@@ -5,15 +5,17 @@
 
 [sub_resource type="Resource" id="req1"]
 script = ExtResource("2")
-amount = 5
-label = "[Blueprint · Research] Packet"
-packet_key = "P_3_0_4_0"
+content = 1
+state = 0
+tags = 2
+amount = 10
+label = "Financial Recovered"
 
 [resource]
 script = ExtResource("1")
-gig_name = "Package Deal"
-description = "BROKER_7: Big client wants bundled data — Blueprint and Research in one package. Time to use the Compiler.\n\nBundle two data types into one product. Use your new Compiler — feed Blueprint from the left and Research from the top to create Packets."
+gig_name = "Data Recovery"
+description = "DR_PATCH: Corrupted files aren't trash — they're opportunities. Repair them and I'll make it worth your time.\n\nCorrupted data can be repaired! Use your new Recoverer — feed Corrupted data from the left and Public fuel from the top."
 order_index = 7
 is_tutorial = true
 requirements = Array[Resource]([SubResource("req1")])
-reward_buildings = Array[String](["Compiler"])
+reward_buildings = Array[String](["Recoverer"])

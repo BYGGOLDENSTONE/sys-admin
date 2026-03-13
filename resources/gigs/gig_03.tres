@@ -7,14 +7,14 @@
 script = ExtResource("2")
 content = 1
 state = 0
-amount = 15
+amount = 10
 label = "Financial Public"
 
 [resource]
 script = ExtResource("1")
-gig_name = "Public Extraction"
-description = "GHOST_SIGNAL: Some of these sources are messy — Corrupted junk mixed with clean data. I only want the clean stuff.\n\nThis source mixes Public and Corrupted data. Use your new Separator to filter by state — keep Public, discard the rest."
+gig_name = "Sorting by Type"
+description = "GHOST_SIGNAL: The Data Kiosk mixes Standard and Financial. I need only Financial — sort it out.\n\nUse your new Classifier to filter by content type. Set it to Financial with TAB — Financial exits right, Standard exits bottom."
 order_index = 3
 is_tutorial = true
 requirements = Array[Resource]([SubResource("req1")])
-reward_buildings = Array[String](["Separator"])
+reward_buildings = Array[String](["Classifier"])

@@ -1,8 +1,8 @@
 extends RefCounted
 
 ## Factorio-style random source placement with tutorial-safe guarantees.
-## Tutorial-critical sources are placed in fixed sectors from center,
-## ensuring every gig 1-7 has the resources it needs within reach.
+## Tutorial-critical sources are placed at fixed coordinates near CT center,
+## ensuring every gig has the resources it needs within reach.
 ## Difficulty comes from source TYPE, not position.
 
 const MAP_CENTER := Vector2i(256, 256)
@@ -16,7 +16,7 @@ const SECTOR_VARIANCE := 0.4   ## ±radians (~23°) angle spread per sector
 const CT_EXCLUSION_RADIUS := 12 ## No sources within this distance of center (CT 3x3 + 10 cell buffer)
 
 var _pools: Dictionary = {
-	"easy": ["isp_backbone", "public_database", "atm", "smart_lock", "traffic_camera"],
+	"easy": ["isp_backbone", "public_database", "atm", "smart_lock", "traffic_camera", "data_kiosk", "bank_terminal"],
 	"medium": ["hospital_terminal", "public_library", "shop_server", "biotech_lab"],
 	"hard": ["corporate_server", "government_archive"],
 	"endgame": ["military_network", "dark_web_node"],
@@ -30,16 +30,18 @@ var _count_ranges: Dictionary = {
 	"endgame": Vector2i(1, 2),
 }
 
-## Tutorial-critical sources: sector-based placement + force discovered.
-## Each gets a fixed direction from center with seed-based variance.
-var _tutorial_guarantees := [
-	# North: Public Database (Standard/Biometric/Research) — Gig 2-4
-	{"name": "public_database", "angle": PI * 1.5, "r_min": 18.0, "r_max": 30.0},
-	# East: ATM (Financial) — Gig 2-3
-	{"name": "atm", "angle": 0.0, "r_min": 18.0, "r_max": 30.0},
-	# South: Hospital Terminal (Biometric/Research, Encrypted) — Gig 5-6
-	{"name": "hospital_terminal", "angle": PI * 0.5, "r_min": 30.0, "r_max": 50.0},
-	# West: Biotech Lab (Blueprint/Research/Biometric) — Gig 7
+## Tutorial-critical sources: fixed coordinates near CT center.
+## All are discovered from start (force_discovered = true).
+var _tutorial_sources := [
+	{"name": "isp_backbone", "pos": Vector2i(270, 242)},    # NE — Gig 1
+	{"name": "atm", "pos": Vector2i(274, 256)},              # E  — Gig 2
+	{"name": "data_kiosk", "pos": Vector2i(238, 256)},       # W  — Gig 3
+	{"name": "bank_terminal", "pos": Vector2i(256, 274)},    # S  — Gig 4
+	{"name": "hospital_terminal", "pos": Vector2i(256, 296)},# far S — Gig 5
+]
+
+## Sector-based guarantees for non-tutorial sources (e.g. Biotech Lab for Gig 9)
+var _sector_guarantees := [
 	{"name": "biotech_lab", "angle": PI, "r_min": 30.0, "r_max": 50.0},
 ]
 
@@ -57,7 +59,7 @@ func generate_map(seed_value: int, source_manager: Node) -> void:
 	_placed_names.clear()
 	guaranteed_origins.clear()
 
-	# Phase 1: Tutorial-safe sector-based guarantees
+	# Phase 1: Tutorial-safe fixed-coordinate guarantees
 	_place_guaranteed(seed_value, source_manager)
 
 	# Phase 2: Fill remaining pools randomly
@@ -71,19 +73,21 @@ func generate_map(seed_value: int, source_manager: Node) -> void:
 
 
 func _place_guaranteed(seed_value: int, source_manager: Node) -> void:
-	# 1. ISP Backbone near center but outside CT exclusion zone — Gig 1 safe start
-	var center_def := _load_source_def("isp_backbone")
-	if center_def:
-		var isp_pos := _find_position_in_sector(PI * 0.25, float(CT_EXCLUSION_RADIUS), float(CT_EXCLUSION_RADIUS) + 6.0)
-		if isp_pos == Vector2i(-1, -1):
-			isp_pos = Vector2i(MAP_CENTER.x + CT_EXCLUSION_RADIUS + 2, MAP_CENTER.y - CT_EXCLUSION_RADIUS - 2)
-		source_manager.place_source(center_def, isp_pos, seed_value, true)
-		_placed_origins.append(isp_pos)
-		_placed_names.append("isp_backbone")
-		guaranteed_origins.append(isp_pos)
+	# 1. Tutorial sources at fixed coordinates (all discovered from start)
+	for entry in _tutorial_sources:
+		var def := _load_source_def(entry.name)
+		if def == null:
+			push_warning("[MapGenerator] Tutorial source definition not found: %s" % entry.name)
+			continue
+		var pos: Vector2i = entry.pos
+		var sub_seed: int = seed_value + _placed_origins.size() * 7919
+		source_manager.place_source(def, pos, sub_seed, true)
+		_placed_origins.append(pos)
+		_placed_names.append(entry.name)
+		guaranteed_origins.append(pos)
 
-	# 2. Tutorial sources in fixed sectors (all discovered from start)
-	for entry in _tutorial_guarantees:
+	# 2. Sector-based guarantees (Biotech Lab etc.)
+	for entry in _sector_guarantees:
 		var pos := _find_position_in_sector(entry.angle, entry.r_min, entry.r_max)
 		if pos == Vector2i(-1, -1):
 			push_warning("[MapGenerator] Failed sector placement for %s" % entry.name)
