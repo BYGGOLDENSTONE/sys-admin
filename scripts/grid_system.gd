@@ -4,14 +4,14 @@ const TILE_SIZE: int = 64
 const GRID_WIDTH: int = 512
 const GRID_HEIGHT: int = 512
 
-const BG_COLOR := Color("#060a10")
-const GRID_LINE_COLOR := Color("#0f1520")
+const BG_COLOR := Color("#081420")              # Cyan-tinted dark blue
+const GRID_LINE_COLOR := Color(0.28, 0.06, 0.18) # Cyberpunk magenta-red grid
 const MAP_CENTER := Vector2(256 * 64, 256 * 64)  ## Center in pixels (256,256 grid * 64px)
 
-# PCB background pattern
-const PCB_TRACE_COLOR := Color(0.06, 0.28, 0.22)
-const PCB_VIA_COLOR := Color(0.1, 0.4, 0.3)
-const PCB_PAD_COLOR := Color(0.05, 0.22, 0.16)
+# PCB background pattern — cyberpunk magenta-red
+const PCB_TRACE_COLOR := Color(0.35, 0.08, 0.20)
+const PCB_VIA_COLOR := Color(0.50, 0.12, 0.30)
+const PCB_PAD_COLOR := Color(0.28, 0.06, 0.16)
 const PCB_TRACE_WIDTH: float = 2.0
 
 var _occupied_cells: Dictionary = {}
@@ -366,40 +366,52 @@ func _draw() -> void:
 		var p2 := Vector2(edge_key.x * TILE_SIZE, (edge_key.y + 1) * TILE_SIZE)
 		draw_line(p1, p2, cable_ug, cable_w)
 
-	# Fade out grid lines when zoomed out to prevent flickering/moire
-	# Fully visible above 0.5, fully hidden below 0.2
-	if zoom_level < 0.2:
-		return
-	var grid_alpha: float = clampf((zoom_level - 0.2) / 0.3, 0.0, 1.0)
-	var line_color := Color(GRID_LINE_COLOR, GRID_LINE_COLOR.a * grid_alpha)
+	# Adaptive grid — cells merge at lower zoom: 1x1 → 2x2 → 4x4 → 8x8 → 16x16
+	# Grid never disappears, just gets coarser
+	var grid_step: int
+	if zoom_level >= 0.8:
+		grid_step = 1
+	elif zoom_level >= 0.4:
+		grid_step = 2
+	elif zoom_level >= 0.2:
+		grid_step = 4
+	elif zoom_level >= 0.1:
+		grid_step = 8
+	else:
+		grid_step = 16
 
-	# Skip lines at very low zoom — draw every Nth line
-	var step: int = 1
-	if zoom_level < 0.35:
-		step = 4  # draw every 4th line
-	elif zoom_level < 0.5:
-		step = 2  # draw every 2nd line
+	# Zoom-compensated width — always ~1.5 screen pixels regardless of zoom
+	var grid_width: float = clampf(1.5 / zoom_level, 1.0, 50.0)
+	# Alpha — slightly stronger at low zoom for visibility
+	var grid_a: float = clampf(0.3 + (1.0 - zoom_level) * 0.15, 0.3, 0.55)
+	var line_color := Color(GRID_LINE_COLOR, grid_a)
 
 	var vp_size: Vector2 = get_viewport_rect().size / cam.zoom
 	var cam_pos: Vector2 = cam.global_position - vp_size / 2.0
-	var start_x: int = maxi(0, int(cam_pos.x / TILE_SIZE))
-	var end_x: int = mini(GRID_WIDTH, int((cam_pos.x + vp_size.x) / TILE_SIZE) + 1)
-	var start_y: int = maxi(0, int(cam_pos.y / TILE_SIZE))
-	var end_y: int = mini(GRID_HEIGHT, int((cam_pos.y + vp_size.y) / TILE_SIZE) + 1)
+	var start_x: int = maxi(0, floori(cam_pos.x / TILE_SIZE))
+	var end_x: int = mini(GRID_WIDTH, ceili((cam_pos.x + vp_size.x) / TILE_SIZE))
+	var start_y: int = maxi(0, floori(cam_pos.y / TILE_SIZE))
+	var end_y: int = mini(GRID_HEIGHT, ceili((cam_pos.y + vp_size.y) / TILE_SIZE))
 
-	# Align start to step for consistent grid pattern
-	start_x = start_x - (start_x % step)
-	start_y = start_y - (start_y % step)
+	# Align start DOWN and end UP to grid_step for perfect tiling
+	start_x = start_x - (start_x % grid_step)
+	start_y = start_y - (start_y % grid_step)
+	if end_x % grid_step != 0:
+		end_x = end_x + grid_step - (end_x % grid_step)
+	if end_y % grid_step != 0:
+		end_y = end_y + grid_step - (end_y % grid_step)
+	end_x = mini(end_x, GRID_WIDTH)
+	end_y = mini(end_y, GRID_HEIGHT)
 
-	for x in range(start_x, end_x + 1, step):
+	for x in range(start_x, end_x + 1, grid_step):
 		draw_line(
 			Vector2(x * TILE_SIZE, start_y * TILE_SIZE),
 			Vector2(x * TILE_SIZE, end_y * TILE_SIZE),
-			line_color, -1.0, true
+			line_color, grid_width, true
 		)
-	for y in range(start_y, end_y + 1, step):
+	for y in range(start_y, end_y + 1, grid_step):
 		draw_line(
 			Vector2(start_x * TILE_SIZE, y * TILE_SIZE),
 			Vector2(end_x * TILE_SIZE, y * TILE_SIZE),
-			line_color, -1.0, true
+			line_color, grid_width, true
 		)
