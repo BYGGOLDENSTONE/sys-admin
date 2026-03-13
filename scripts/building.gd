@@ -542,14 +542,15 @@ func _draw() -> void:
 	else:
 		_draw_icon(center, size, accent)
 
-	# Building name
+	# Building name — scale with zoom like source names
 	var font := _MONO_FONT
-	var font_size := 11
+	var inv_scale: float = clampf(1.0 / zoom, 1.0, 3.0)
+	var font_size: int = int(11.0 * inv_scale)
 	var text := definition.building_name
 	var text_size := font.get_string_size(text, HORIZONTAL_ALIGNMENT_CENTER, -1, font_size)
 	var text_pos := Vector2(
 		(size.x - text_size.x) / 2.0,
-		font_size + 4
+		font_size + 4 * inv_scale
 	)
 	# Stronger shadow + outline for readability
 	draw_string(font, text_pos + Vector2(1, 1), text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(0, 0, 0, 0.85))
