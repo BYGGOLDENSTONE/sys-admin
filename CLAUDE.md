@@ -262,6 +262,7 @@ _(Tum aktif buglar cozuldu — Sprint 3 kapsaminda)_
 
 ### Full Game Backlog (Phase 2-3)
 5. **Bandwidth authoritative yapma** — `bandwidth` alani suan sadece tooltip'te gorunuyor, gameplay'de `generation_rate` kullaniliyor. Ileride bandwidth'i sim'de authoritative yapip generation_rate'i ona baglamak gerekebilir.
+6. **PCB pattern'i GPU shader'a tasima** — Su an CPU'da per-cell hash + draw_line/draw_circle. Fragment shader'a tasinirsa CPU maliyeti sifir olur, sonsuz haritada bile bedava. Oncelik: orta (performans darbogazina duserse yukselt).
 
 ---
 

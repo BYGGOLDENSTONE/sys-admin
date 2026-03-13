@@ -1,8 +1,6 @@
 extends Node2D
 
 const TILE_SIZE: int = 64
-const GRID_WIDTH: int = 512
-const GRID_HEIGHT: int = 512
 
 const BG_COLOR := Color("#081420")              # Cyan-tinted dark blue
 const GRID_LINE_COLOR := Color(0.28, 0.06, 0.18) # Cyberpunk magenta-red grid
@@ -45,8 +43,6 @@ func can_place(grid_pos: Vector2i, building_size: Vector2i) -> bool:
 	for x in range(building_size.x):
 		for y in range(building_size.y):
 			var cell := Vector2i(grid_pos.x + x, grid_pos.y + y)
-			if cell.x < 0 or cell.x >= GRID_WIDTH or cell.y < 0 or cell.y >= GRID_HEIGHT:
-				return false
 			if _occupied_cells.has(cell):
 				return false
 			if _source_cells.has(cell):
@@ -106,11 +102,6 @@ func _get_edge_data(v1: Vector2i, v2: Vector2i) -> Array:
 
 
 func can_place_cable_edge(v1: Vector2i, v2: Vector2i, exempt_cells: Dictionary = {}) -> bool:
-	# Bounds check (vertices can be 0..GRID_WIDTH, 0..GRID_HEIGHT)
-	if v1.x < 0 or v1.x > GRID_WIDTH or v1.y < 0 or v1.y > GRID_HEIGHT:
-		return false
-	if v2.x < 0 or v2.x > GRID_WIDTH or v2.y < 0 or v2.y > GRID_HEIGHT:
-		return false
 	# Must be adjacent (differ by 1 in exactly one axis)
 	var diff := v2 - v1
 	if absi(diff.x) + absi(diff.y) != 1:
@@ -254,8 +245,8 @@ func _draw_pcb_pattern(sx: int, ex: int, sy: int, ey: int, zoom_level: float) ->
 	elif zoom_level < 0.5:
 		step = 2
 
-	var asx: int = sx - (sx % step)
-	var asy: int = sy - (sy % step)
+	var asx: int = sx - posmod(sx, step)
+	var asy: int = sy - posmod(sy, step)
 
 	# --- Horizontal traces ---
 	for y in range(asy, ey + 1, step):
@@ -316,22 +307,21 @@ func _process(_delta: float) -> void:
 
 
 func _draw() -> void:
-	var grid_pixel_size := Vector2(GRID_WIDTH * TILE_SIZE, GRID_HEIGHT * TILE_SIZE)
-	draw_rect(Rect2(Vector2.ZERO, grid_pixel_size), BG_COLOR, true)
-
-	# Only draw visible grid lines for performance
 	var cam: Camera2D = get_viewport().get_camera_2d()
 	if cam == null:
 		return
 	var zoom_level: float = cam.zoom.x
 
-	# Cell underglow (only visible cells for performance)
-	var vp := get_viewport_rect().size / cam.zoom
-	var cp := cam.global_position - vp / 2.0
-	var sx: int = maxi(0, int(cp.x / TILE_SIZE) - 1)
-	var ex: int = mini(GRID_WIDTH, int((cp.x + vp.x) / TILE_SIZE) + 2)
-	var sy: int = maxi(0, int(cp.y / TILE_SIZE) - 1)
-	var ey: int = mini(GRID_HEIGHT, int((cp.y + vp.y) / TILE_SIZE) + 2)
+	# Infinite background — draw viewport-sized rect
+	var vp_size := get_viewport_rect().size / cam.zoom
+	var cam_pos := cam.global_position - vp_size / 2.0
+	draw_rect(Rect2(cam_pos, vp_size), BG_COLOR, true)
+
+	# Viewport cell range (no bounds clamping — infinite grid)
+	var sx: int = int(cam_pos.x / TILE_SIZE) - 1
+	var ex: int = int((cam_pos.x + vp_size.x) / TILE_SIZE) + 2
+	var sy: int = int(cam_pos.y / TILE_SIZE) - 1
+	var ey: int = int((cam_pos.y + vp_size.y) / TILE_SIZE) + 2
 
 	# Underglow intensity scales with zoom (brighter when zoomed out)
 	var ug_scale: float = clampf(1.0 / zoom_level, 1.0, 3.0) if zoom_level < 1.0 else 1.0
@@ -367,7 +357,6 @@ func _draw() -> void:
 		draw_line(p1, p2, cable_ug, cable_w)
 
 	# Adaptive grid — cells merge at lower zoom: 1x1 → 2x2 → 4x4 → 8x8 → 16x16
-	# Grid never disappears, just gets coarser
 	var grid_step: int
 	if zoom_level >= 0.8:
 		grid_step = 1
@@ -382,26 +371,24 @@ func _draw() -> void:
 
 	# Zoom-compensated width — always ~1.5 screen pixels regardless of zoom
 	var grid_width: float = clampf(1.5 / zoom_level, 1.0, 50.0)
-	# Alpha — slightly stronger at low zoom for visibility
 	var grid_a: float = clampf(0.3 + (1.0 - zoom_level) * 0.15, 0.3, 0.55)
 	var line_color := Color(GRID_LINE_COLOR, grid_a)
 
-	var vp_size: Vector2 = get_viewport_rect().size / cam.zoom
-	var cam_pos: Vector2 = cam.global_position - vp_size / 2.0
-	var start_x: int = maxi(0, floori(cam_pos.x / TILE_SIZE))
-	var end_x: int = mini(GRID_WIDTH, ceili((cam_pos.x + vp_size.x) / TILE_SIZE))
-	var start_y: int = maxi(0, floori(cam_pos.y / TILE_SIZE))
-	var end_y: int = mini(GRID_HEIGHT, ceili((cam_pos.y + vp_size.y) / TILE_SIZE))
+	# Grid line range (no bounds clamping — infinite)
+	var start_x: int = floori(cam_pos.x / TILE_SIZE)
+	var end_x: int = ceili((cam_pos.x + vp_size.x) / TILE_SIZE)
+	var start_y: int = floori(cam_pos.y / TILE_SIZE)
+	var end_y: int = ceili((cam_pos.y + vp_size.y) / TILE_SIZE)
 
-	# Align start DOWN and end UP to grid_step for perfect tiling
-	start_x = start_x - (start_x % grid_step)
-	start_y = start_y - (start_y % grid_step)
-	if end_x % grid_step != 0:
-		end_x = end_x + grid_step - (end_x % grid_step)
-	if end_y % grid_step != 0:
-		end_y = end_y + grid_step - (end_y % grid_step)
-	end_x = mini(end_x, GRID_WIDTH)
-	end_y = mini(end_y, GRID_HEIGHT)
+	# Align to grid_step for perfect tiling (posmod handles negative coords)
+	start_x = start_x - posmod(start_x, grid_step)
+	start_y = start_y - posmod(start_y, grid_step)
+	var rx: int = posmod(end_x, grid_step)
+	if rx != 0:
+		end_x = end_x + grid_step - rx
+	var ry: int = posmod(end_y, grid_step)
+	if ry != 0:
+		end_y = end_y + grid_step - ry
 
 	for x in range(start_x, end_x + 1, grid_step):
 		draw_line(

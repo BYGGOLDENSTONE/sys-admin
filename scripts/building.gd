@@ -151,8 +151,25 @@ func _process(delta: float) -> void:
 	_prev_working = is_working
 	if _process_flash > 0.0:
 		_process_flash = maxf(_process_flash - delta * 4.0, 0.0)
-	# fill_ratio still computed for internal back-pressure; visual bar removed
+	# Viewport culling — skip redraw for off-screen buildings
+	if not _is_in_viewport():
+		return
 	queue_redraw()
+
+
+func _is_in_viewport() -> bool:
+	var cam := get_viewport().get_camera_2d()
+	if cam == null:
+		return true
+	var vp_half := get_viewport_rect().size / cam.zoom / 2.0
+	var cam_pos := cam.global_position
+	var my_pos := global_position
+	var size_px := Vector2(definition.grid_size.x * TILE_SIZE, definition.grid_size.y * TILE_SIZE)
+	var margin := 128.0
+	return (my_pos.x + size_px.x + margin > cam_pos.x - vp_half.x
+		and my_pos.x - margin < cam_pos.x + vp_half.x
+		and my_pos.y + size_px.y + margin > cam_pos.y - vp_half.y
+		and my_pos.y - margin < cam_pos.y + vp_half.y)
 
 
 func setup(def: BuildingDefinition, cell: Vector2i, dir: int = 0, mirrored: bool = false) -> void:

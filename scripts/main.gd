@@ -33,6 +33,7 @@ var _pause_options: VBoxContainer = null
 var _is_pause_menu_open: bool = false
 var _was_paused_before_menu: bool = false
 var _demo_complete_shown: bool = false
+var _last_cam_pos: Vector2 = Vector2.ZERO
 
 const WISHLIST_URL: String = "https://store.steampowered.com/app/PLACEHOLDER_APP_ID/SYS_ADMIN/"
 const FEEDBACK_URL: String = "https://store.steampowered.com/app/PLACEHOLDER_APP_ID/SYS_ADMIN/discussions/"
@@ -117,9 +118,10 @@ func _ready() -> void:
 	else:
 		_current_seed = _get_seed_from_args()
 
-	# Seed-based procedural map generation
+	# Seed-based procedural map generation (infinite chunk-based)
 	_map_generator = _MapGeneratorScript.new()
 	_map_generator.generate_map(_current_seed, source_manager)
+	_last_cam_pos = camera.position
 
 	# Setup save manager (before loading state)
 	_setup_save_manager()
@@ -127,8 +129,11 @@ func _ready() -> void:
 	# Setup tutorial manager BEFORE gig initialization (so Gig 1 hint is received)
 	_setup_tutorial_manager()
 
+	# Give save manager access to map generator for chunk save/load
+	_save_manager.map_generator = _map_generator
+
 	if is_loading:
-		# LOAD PATH: restore saved state
+		# LOAD PATH: restore saved state (includes chunk regeneration)
 		_save_manager.apply_state(load_save_data)
 		# Find Contract Terminal from loaded buildings
 		for child in $BuildingContainer.get_children():
@@ -193,6 +198,16 @@ func _ready() -> void:
 	get_tree().set_auto_accept_quit(false)
 
 	print("[Main] SYS_ADMIN initialized — %s" % ("loaded save" if is_loading else "new game"))
+
+
+func _process(_delta: float) -> void:
+	# Lazy chunk generation — generate sources as camera reveals new areas
+	if _map_generator and camera:
+		var cam_pos: Vector2 = camera.global_position
+		if cam_pos.distance_squared_to(_last_cam_pos) > 4096.0:  # ~1 tile movement threshold
+			_last_cam_pos = cam_pos
+			var vp_size: Vector2 = get_viewport_rect().size / camera.zoom
+			_map_generator.try_generate_visible_chunks(cam_pos, vp_size)
 
 
 func _notification(what: int) -> void:

@@ -3,7 +3,7 @@ extends Node
 ## Save/Load system for SYS_ADMIN demo.
 ## JSON-based save format with autosave and backup support.
 
-const SAVE_VERSION: int = 2
+const SAVE_VERSION: int = 3
 const SAVE_DIR: String = "user://saves/"
 const SAVE_FILE: String = "user://saves/savegame.json"
 const AUTOSAVE_FILE: String = "user://saves/autosave.json"
@@ -20,6 +20,7 @@ var source_manager: Node = null
 var gig_manager: Node = null
 var simulation_manager: Node = null
 var current_seed: int = 0
+var map_generator: RefCounted = null  ## For chunk save/load
 
 var _autosave_timer: Timer = null
 
@@ -105,6 +106,8 @@ func capture_state() -> Dictionary:
 	data["buildings"] = _capture_buildings()
 	data["connections"] = _capture_connections()
 	data["gigs"] = _capture_gigs()
+	if map_generator:
+		data["generated_chunks"] = map_generator.get_generated_chunk_keys()
 	return data
 
 
@@ -201,6 +204,10 @@ func apply_state(data: Dictionary) -> bool:
 	if data.is_empty() or not data.has("version"):
 		push_error("[SaveManager] Invalid save data")
 		return false
+
+	# 0. Restore generated chunks (regenerates sources from seed)
+	if map_generator and data.has("generated_chunks"):
+		map_generator.restore_chunks(data["generated_chunks"])
 
 	# 1. Place saved buildings
 	var building_map: Dictionary = _restore_buildings(data.get("buildings", []))
@@ -421,6 +428,11 @@ static func _migrate_save(data: Dictionary, from_version: int) -> Dictionary:
 			gigs["unlocked"] = clean_unlocked
 		data["version"] = 2
 		print("[SaveManager] Migrated save v1 → v2")
+	if from_version < 3:
+		# v2 → v3: infinite map with chunk-based generation
+		# No generated_chunks in old saves — they'll be regenerated from initial area + camera
+		data["version"] = 3
+		print("[SaveManager] Migrated save v2 → v3")
 	return data
 
 
