@@ -288,12 +288,42 @@ _(Tum aktif buglar cozuldu — Sprint 3 kapsaminda)_
 - [x] `connection_flow_data` / `connection_last_flow` → transit'ten turet (gecis uyumu icin)
 - [x] Tick sirasi: deliver_arrived → rebuild_flow → generate → forward → process → status → stall → display
 
-### Faz 2: connection_layer.gd Refactor (sonraki session)
-- [ ] Kozmetik parcacik sistemi kaldir (`_conn_particles`, `_conn_spawn_accum`)
-- [ ] Transit verisini dogrudan render et (her transit item = 1 parcacik)
-- [ ] Stalled kablo gorselligi (donmus parcaciklar)
-- [ ] Eski flow data bagimliliklarini temizle
-- [ ] Cable state → transit durumundan turet (FLOWING/STALLED/INACTIVE)
+### Faz 2: connection_layer.gd Refactor — TAMAMLANDI
+- [x] Kozmetik parcacik sistemi kaldirildi (`_conn_particles`, `_conn_spawn_accum`, spawn/drain/pick logic)
+- [x] Transit verisini dogrudan render et (her transit item = 1 parcacik, `_draw_transit_items()`)
+- [x] Stalled kablo gorselligi (transit stalled → parcaciklar donuk, kablo STALLED rengi)
+- [x] Eski flow data bagimliliklari temizlendi (`connection_flow_data`, `connection_last_flow`, `_rebuild_flow_data_from_transit` kaldirildi)
+- [x] Cable state → transit durumundan turetiliyor (conn["transit"] non-empty → FLOWING)
+
+### Faz 2.5: Pass-Through + Gorsel Tutarlilik — TAMAMLANDI
+- [x] Routing binalari (Separator, Classifier, Splitter, Merger) icin gercek zamanli pass-through
+- [x] Item kimligi korunuyor: giren key/content/state/tier/tags ile ayni item cikiyor
+- [x] Minimum spacing (1.5 grid cell) — itemlar kablo uzerinde ust uste binmiyor
+- [x] Kaynak portunda yigilma yok — t < 1_grid_cell olan itemlar render edilmiyor
+- [x] "No input" yanip sonmesi fix — incoming transit varsa status bos kaliyor
+- [x] Kablo rengi stabil — kaynak binaya veri geliyorsa cikis kablolari aktif kaliyor
+- [x] Her frame delivery — _deliver_arrived() _process()'te de calisiyor (tick'e bagimli degil)
+- [x] Dual-input kapasite rezervasyonu — primary veri %75 cap, %25 Key/fuel icin ayrilir
+
+### Faz 3: Storageless Inline Processing — TAMAMLANDI
+**Amac:** Processing binalari veri depolamaz. Veri her zaman kablo uzerindedir — ya hareket eder ya da bekler.
+Oyuncu her parcacigi kaynaktan CT'ye kadar takip edebilir. "Gordugun = olan" tam anlamiyla gerceklesir.
+
+#### Implementasyon Ozeti
+- **Inline isleyiciler (Decryptor/Encryptor/Recoverer):** Veri storage'a yazilmiyor, kablo ucunda (t=1.0) bekliyor. `_process_inline_rendezvous()` her frame calisir, primary+secondary ikisi hazirsa tuketir ve output kablosuna koyar.
+- **Trash:** `_deliver_arrived()` icerisinde t=1.0'da aninda imha — storage gecisi yok.
+- **Routing binalari (Separator/Classifier/Splitter/Merger):** Pass-through basarisiz olursa storage fallback yok, veri kabloda kalir (back-pressure).
+- **Accumulator binalar (Research Lab/Compiler):** Mevcut storage + tick-based model korunuyor.
+- **Status reasons:** Transit-aware — "No input", "Waiting for Key/fuel", "Output blocked" kablo durumundan turetiliyor.
+
+#### Basari Kriterleri
+- [x] Decryptor/Encryptor/Recoverer storage kullanmiyor
+- [x] Randevu mantigi calisiyor: ikisi hazir → isle, biri eksik → ikisi de bekle
+- [x] Stall durumunda itemlar kablo uzerinde spacing ile duruyor (yigilma yok)
+- [x] Research Lab ve Compiler accumulator modelde calismaya devam ediyor
+- [x] Trash aninda yok ediyor (storage gecisi yok)
+- [x] Deadlock imkansiz — storage dolup Key/fuel'i bloklamak yok
+- [x] Routing binalari pass-through fail → kabloda stall (storage fallback yok)
 
 ---
 

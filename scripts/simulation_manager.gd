@@ -17,9 +17,7 @@ var connection_manager: Node = null
 var building_container: Node2D = null
 var source_manager: Node = null
 var sound_manager: Node = null
-var connection_flow_data: Dictionary = {}  # conn_index → [{content, state, amount}] — compat layer for connection_layer
 var connection_stalled: Dictionary = {}  # conn_idx → true if stalled
-var connection_last_flow: Dictionary = {}  # conn_idx → last known flow data for stalled visuals
 var _splitter_next_port: Dictionary = {}  # building instance_id → next output port index
 
 @onready var _sim_timer: Timer = $SimTimer
@@ -34,6 +32,7 @@ func _process(delta: float) -> void:
 	if is_paused or connection_manager == null:
 		return
 	_advance_transit(delta)
+	_deliver_arrived()
 
 
 func set_speed(multiplier: int) -> void:
@@ -67,9 +66,7 @@ func _on_sim_tick() -> void:
 		b.is_working = false
 	# 1. Deliver arrived transit items to target buildings
 	_deliver_arrived()
-	# 2. Rebuild flow data from transit (compat layer for connection_layer particles)
-	_rebuild_flow_data_from_transit()
-	# 3. Normal simulation: generate → forward → process
+	# 2. Normal simulation: generate → forward → process
 	_update_generation(buildings)
 	_update_storage_forward(buildings)
 	_update_processing(buildings)
@@ -85,9 +82,12 @@ func _on_sim_tick() -> void:
 # Transit item: {key, content, state, tier, tags, amount, t} where t goes from 0.0 (source) to 1.0 (destination).
 # Items are ordered oldest-first: index 0 = closest to destination (highest t).
 
+const TRANSIT_MIN_SPACING_GRIDS: float = 1.5  ## Minimum grid cells between transit items on a cable
+
 func _advance_transit(delta: float) -> void:
 	## Advance all in-flight transit items each frame for smooth visual movement.
 	## If front item is stuck at destination (t >= 1.0), entire cable freezes.
+	## Enforces minimum spacing so items don't overlap visually — each particle is trackable.
 	var conns: Array[Dictionary] = connection_manager.get_connections()
 	for conn in conns:
 		if not conn.has("transit") or conn["transit"].is_empty():
@@ -98,13 +98,19 @@ func _advance_transit(delta: float) -> void:
 			continue
 		var cable_grids: float = _get_cable_length_grids(conn)
 		var t_advance: float = (TRANSIT_GRIDS_PER_SEC * float(speed_multiplier) * delta) / cable_grids
-		for item in transit:
-			item.t = minf(item.t + t_advance, 1.0)
+		var min_spacing: float = TRANSIT_MIN_SPACING_GRIDS / cable_grids
+		# Advance front-to-back: each item can't get closer than min_spacing to the one ahead
+		for i in range(transit.size()):
+			var new_t: float = minf(transit[i].t + t_advance, 1.0)
+			if i > 0:
+				new_t = minf(new_t, transit[i - 1].t - min_spacing)
+			transit[i].t = maxf(transit[i].t, new_t)  # Never move backwards
 
 
 func _deliver_arrived() -> void:
 	## Deliver transit items that reached destination (t >= 1.0).
-	## Supports partial delivery when target capacity is limited.
+	## Trash: instant destroy. Inline processors: rendezvous matching.
+	## Storage buildings: partial delivery when target capacity is limited.
 	var conns: Array[Dictionary] = connection_manager.get_connections()
 	for conn in conns:
 		if not conn.has("transit") or conn["transit"].is_empty():
@@ -117,6 +123,27 @@ func _deliver_arrived() -> void:
 		# Deliver front items that have arrived (t >= 1.0)
 		while not transit.is_empty() and transit[0].t >= 1.0:
 			var item: Dictionary = transit[0]
+			# Real-time pass-through for routing buildings (preserves visual identity)
+			if _try_passthrough(target, item, conns):
+				transit.remove_at(0)
+				continue
+			# Routing buildings: if pass-through failed, stall (no storage fallback)
+			if target.definition != null and (target.definition.classifier != null \
+					or target.definition.splitter != null or target.definition.merger != null \
+					or (target.definition.processor != null and target.definition.processor.rule == "separator")):
+				break
+			# Trash: instant destroy — no storage needed
+			if target.definition != null and target.definition.processor != null \
+					and target.definition.processor.rule == "trash":
+				transit.remove_at(0)
+				target.is_working = true
+				continue
+			# Inline processor (Decryptor/Encryptor/Recoverer): leave in transit for rendezvous
+			if _is_inline_processor(target):
+				break
+			# Reserve capacity in dual-input buildings for secondary input (keys/fuel)
+			if not _dual_input_can_accept(target, item):
+				break  # Primary data stopped — reserve space for keys/fuel
 			# Check if target has any room
 			if not target.can_accept_data(1):
 				break  # Target full — item stays, cable freezes
@@ -135,28 +162,98 @@ func _deliver_arrived() -> void:
 				transit.remove_at(0)
 			else:
 				break  # Remaining amount stays in transit for next tick
+	# Storageless inline processing: match primary + secondary inputs on cables
+	_process_inline_rendezvous(conns)
 
 
-func _rebuild_flow_data_from_transit() -> void:
-	## Build connection_flow_data from transit items — compat layer for connection_layer.
-	# Save current flow as last-known before clearing (for stalled particle visuals)
-	for fi in connection_flow_data:
-		if not connection_flow_data[fi].is_empty():
-			connection_last_flow[fi] = connection_flow_data[fi].duplicate(true)
-	connection_flow_data.clear()
-	var conns: Array[Dictionary] = connection_manager.get_connections()
-	# Clean up stale last_flow entries
-	for fi in connection_last_flow.keys():
-		if fi >= conns.size():
-			connection_last_flow.erase(fi)
-	for i in range(conns.size()):
-		if not conns[i].has("transit") or conns[i]["transit"].is_empty():
+func _dual_input_can_accept(target: Node2D, item: Dictionary) -> bool:
+	## For dual-input buildings (Decryptor, Encryptor, Recoverer), reserve capacity
+	## for secondary input (keys/fuel). Primary data stops at 75% to prevent deadlock.
+	if target.definition == null or target.definition.dual_input == null:
+		return true  # Not a dual-input building — no restriction
+	var dual: DualInputComponent = target.definition.dual_input
+	var is_secondary: bool
+	if dual.fuel_matches_content:
+		# Recoverer: fuel = Public state, tier 0
+		is_secondary = (item.state == DataEnums.DataState.PUBLIC and item.tier == 0)
+	else:
+		# Decryptor/Encryptor: fuel = Key content type
+		is_secondary = (item.content == dual.key_content)
+	if is_secondary:
+		return true  # Secondary input always allowed up to full capacity
+	var cap: int = int(target.get_effective_value("capacity"))
+	var reserve: int = maxi(3, cap / 4)
+	return target.get_total_stored() < cap - reserve
+
+
+func _try_passthrough(building: Node2D, item: Dictionary, all_conns: Array[Dictionary]) -> bool:
+	## For routing buildings (Separator, Classifier, Splitter, Merger),
+	## immediately forward the transit item to the correct output cable.
+	## Preserves item identity — what goes in comes out with same key/content/state.
+	## Returns true if item was forwarded, false to fall back to normal storage delivery.
+	var output_port: String = _get_passthrough_port(building, item)
+	if output_port == "":
+		return false
+	# Find a non-stalled output connection for this port
+	for out_conn in all_conns:
+		if out_conn.from_building != building or out_conn.from_port != output_port:
 			continue
-		var flow: Array = []
-		for item in conns[i]["transit"]:
-			flow.append({"content": item.content, "state": item.state, "amount": item.amount})
-		if not flow.is_empty():
-			connection_flow_data[i] = flow
+		if _is_transit_stalled(out_conn):
+			continue
+		# Forward the transit item to output cable at t=0
+		if not out_conn.has("transit"):
+			out_conn["transit"] = []
+		out_conn["transit"].append({
+			"key": item.key, "content": item.content, "state": item.state,
+			"tier": item.tier, "tags": item.tags, "amount": item.amount, "t": 0.0
+		})
+		building.is_working = true
+		return true
+	return false  # All output cables stalled or no connection found
+
+
+func _get_passthrough_port(building: Node2D, item: Dictionary) -> String:
+	## Determine output port for real-time pass-through routing.
+	## Returns "" if building is not a routing type or required ports aren't connected.
+	var def = building.definition
+	if def == null:
+		return ""
+	# Classifier: route by content
+	if def.classifier != null:
+		var ports: Array[String] = def.output_ports
+		if ports.size() < 2:
+			return ""
+		if not _has_output_connection(building, ports[0]) or not _has_output_connection(building, ports[1]):
+			return ""
+		return ports[0] if item.content == building.classifier_filter_content else ports[1]
+	# Separator: route by content or state
+	if def.processor != null and def.processor.rule == "separator":
+		var ports: Array[String] = def.output_ports
+		if ports.size() < 2:
+			return ""
+		if not _has_output_connection(building, ports[0]) or not _has_output_connection(building, ports[1]):
+			return ""
+		var mode: String = def.processor.separator_mode
+		var matches: bool
+		if mode == "content":
+			matches = (item.content == building.separator_filter_value)
+		else:
+			matches = (item.state == building.separator_filter_value)
+		return ports[0] if matches else ports[1]
+	# Splitter: round-robin
+	if def.splitter != null:
+		var port_count: int = def.output_ports.size()
+		if port_count == 0:
+			return ""
+		var bid: int = building.get_instance_id()
+		var next_idx: int = _splitter_next_port.get(bid, 0) % port_count
+		var port: String = def.output_ports[next_idx]
+		_splitter_next_port[bid] = (next_idx + 1) % port_count
+		return port
+	# Merger: single output
+	if def.merger != null:
+		return def.output_ports[0] if def.output_ports.size() > 0 else ""
+	return ""  # Not a routing building
 
 
 func _is_transit_stalled(conn: Dictionary) -> bool:
@@ -164,6 +261,162 @@ func _is_transit_stalled(conn: Dictionary) -> bool:
 	if not conn.has("transit") or conn["transit"].is_empty():
 		return false
 	return conn["transit"][0].t >= 1.0
+
+
+# --- INLINE PROCESSING (storageless dual-input: Decryptor, Encryptor, Recoverer) ---
+
+func _is_inline_processor(building: Node2D) -> bool:
+	## Returns true for dual-input buildings that process via cable rendezvous (no storage).
+	if building.definition == null:
+		return false
+	return building.definition.dual_input != null
+
+
+func _process_inline_rendezvous(conns: Array[Dictionary]) -> void:
+	## Try rendezvous matching for all inline buildings with arrived transit items.
+	var checked: Dictionary = {}
+	for conn in conns:
+		var target: Node2D = conn.to_building
+		if not is_instance_valid(target) or checked.has(target):
+			continue
+		if not _is_inline_processor(target):
+			continue
+		checked[target] = true
+		_try_rendezvous(target, conns)
+
+
+func _try_rendezvous(building: Node2D, conns: Array[Dictionary]) -> void:
+	## Match primary + secondary inputs on cables for an inline dual-input building.
+	## Both must have items arrived (t>=1.0). If matched, consume both and push output.
+	var dual: DualInputComponent = building.definition.dual_input
+	var max_process: int = int(building.get_effective_value("processing_rate"))
+	var processed: int = 0
+
+	for _attempt in range(max_process):
+		var primary_conn: Dictionary = {}
+		var secondary_conn: Dictionary = {}
+
+		for conn in conns:
+			if conn.to_building != building:
+				continue
+			if not conn.has("transit") or conn["transit"].is_empty():
+				continue
+			if conn["transit"][0].t < 1.0:
+				continue
+			var item: Dictionary = conn["transit"][0]
+			if primary_conn.is_empty() and _is_inline_primary(dual, item):
+				primary_conn = conn
+			elif secondary_conn.is_empty() and _is_inline_secondary(dual, item):
+				secondary_conn = conn
+
+		if primary_conn.is_empty() or secondary_conn.is_empty():
+			break
+
+		var p_item: Dictionary = primary_conn["transit"][0]
+		var s_item: Dictionary = secondary_conn["transit"][0]
+
+		# Verify secondary matches primary (content/tier/tags)
+		if not _inline_secondary_matches(dual, p_item, s_item):
+			break
+
+		# Calculate key/fuel cost
+		var tier: int = p_item.tier
+		var key_cost: int = dual.key_cost
+		if tier > 0 and tier <= dual.tier_key_costs.size():
+			key_cost = dual.tier_key_costs[tier - 1]
+		if s_item.amount < key_cost:
+			break
+
+		# Push output to transit
+		var out_tags: int = p_item.tags | dual.output_tag
+		var sent: int = _push_data_from(building, p_item.content, dual.output_state, 1, "", tier, out_tags)
+		if sent <= 0:
+			break  # Output cable stalled
+
+		# Consume primary
+		p_item.amount -= 1
+		if p_item.amount <= 0:
+			primary_conn["transit"].remove_at(0)
+		# Consume secondary
+		s_item.amount -= key_cost
+		if s_item.amount <= 0:
+			secondary_conn["transit"].remove_at(0)
+
+		processed += 1
+		building.is_working = true
+		_spawn_floating_text(building, "+%d %s" % [1, DataEnums.tags_label(out_tags)], Color("#44ff88"))
+		if sound_manager:
+			sound_manager.play_process_event(building.definition.visual_type)
+
+	if processed > 0:
+		var label: String = "Key" if not dual.fuel_matches_content else "fuel"
+		print("[InlineProcess] %s: %d MB via rendezvous (-%d %s)" % [
+			building.definition.building_name, processed, processed, label])
+
+
+func _is_inline_primary(dual: DualInputComponent, item: Dictionary) -> bool:
+	## Check if transit item is primary input for inline dual-input processing.
+	if dual.fuel_matches_content:
+		if item.state == DataEnums.DataState.PUBLIC and item.tier == 0:
+			return false  # This is fuel, not primary
+	else:
+		if item.content == dual.key_content:
+			return false  # This is a Key, not primary
+	if not dual.primary_input_states.is_empty() and item.state not in dual.primary_input_states:
+		return false
+	return true
+
+
+func _is_inline_secondary(dual: DualInputComponent, item: Dictionary) -> bool:
+	## Check if transit item is secondary input (key/fuel) for inline processing.
+	if dual.fuel_matches_content:
+		return item.state == DataEnums.DataState.PUBLIC and item.tier == 0
+	else:
+		return item.content == dual.key_content
+
+
+func _inline_secondary_matches(dual: DualInputComponent, primary: Dictionary, secondary: Dictionary) -> bool:
+	## Verify that a specific secondary item matches the primary for processing.
+	if dual.fuel_matches_content:
+		# Recoverer: fuel must match primary content + required tags
+		if secondary.content != primary.content:
+			return false
+		var required_tags: int = 0
+		var tier: int = primary.tier
+		if tier > 0 and tier <= dual.required_fuel_tags.size():
+			required_tags = dual.required_fuel_tags[tier - 1]
+		return secondary.tags == required_tags
+	else:
+		# Decryptor/Encryptor: key tier must match data tier (min T1)
+		var key_tier: int = maxi(primary.tier, 1)
+		return secondary.tier == key_tier
+
+
+func _inline_input_status(building: Node2D, dual: DualInputComponent, check_primary: bool) -> int:
+	## Returns 0=none, 1=in transit, 2=arrived (t>=1.0) for inline building inputs.
+	var conns: Array[Dictionary] = connection_manager.get_connections()
+	var best: int = 0
+	for conn in conns:
+		if conn.to_building != building:
+			continue
+		if not conn.has("transit") or conn["transit"].is_empty():
+			continue
+		for item in conn["transit"]:
+			var matches: bool = _is_inline_primary(dual, item) if check_primary else _is_inline_secondary(dual, item)
+			if matches:
+				if item.t >= 1.0:
+					return 2
+				best = 1
+	# Fallback: check stored_data (legacy saves)
+	if building.get_total_stored() > 0:
+		if check_primary and _reason_has_primary(building, dual):
+			return 2
+		elif not check_primary:
+			if dual.fuel_matches_content and _reason_has_fuel(building, dual):
+				return 2
+			elif not dual.fuel_matches_content and _reason_has_keys(building, dual):
+				return 2
+	return best
 
 
 func _get_cable_length_grids(conn: Dictionary) -> float:
@@ -187,8 +440,6 @@ func clear_all_transit() -> void:
 	for conn in conns:
 		if conn.has("transit"):
 			conn["transit"] = []
-	connection_flow_data.clear()
-	connection_last_flow.clear()
 
 
 # --- STALL TRACKING (back-pressure visual) ---
@@ -901,9 +1152,26 @@ func _update_status_reasons(buildings: Array[Node]) -> void:
 		if b.definition.processor != null and b.definition.processor.rule == "trash":
 			b.status_reason = ""
 			continue
-		# No data at all
+		# Inline dual-input (Decryptor/Encryptor/Recoverer) — check transit, not storage
+		if b.definition.dual_input != null:
+			var dual: DualInputComponent = b.definition.dual_input
+			var pri_status: int = _inline_input_status(b, dual, true)
+			var sec_status: int = _inline_input_status(b, dual, false)
+			if pri_status == 0:
+				b.status_reason = "No input"
+			elif sec_status == 0:
+				b.status_reason = "Waiting for Key" if not dual.fuel_matches_content else "Waiting for fuel"
+			elif pri_status == 2 and sec_status == 2:
+				b.status_reason = "Output blocked"
+			else:
+				b.status_reason = ""
+			continue
+		# No data at all — but check for data in transit heading here
 		if b.get_total_stored() <= 0:
-			b.status_reason = "No input"
+			if _has_incoming_transit(b):
+				b.status_reason = ""
+			else:
+				b.status_reason = "No input"
 			continue
 		# Compiler
 		if b.definition.compiler != null:
@@ -912,17 +1180,6 @@ func _update_status_reasons(buildings: Array[Node]) -> void:
 				if not DataEnums.is_packet(key) and b.stored_data[key] > 0:
 					types += 1
 			b.status_reason = "Need 2+ types" if types < 2 else "Output blocked"
-			continue
-		# Dual input (Decryptor/Encryptor/Recoverer)
-		if b.definition.dual_input != null:
-			var dual: DualInputComponent = b.definition.dual_input
-			var has_primary: bool = _reason_has_primary(b, dual)
-			if not has_primary:
-				b.status_reason = "No input"
-			elif dual.fuel_matches_content:
-				b.status_reason = "Waiting for fuel" if not _reason_has_fuel(b, dual) else "Output blocked"
-			else:
-				b.status_reason = "Waiting for Key" if not _reason_has_keys(b, dual) else "Output blocked"
 			continue
 		# Producer (Research Lab)
 		if b.definition.producer != null:
@@ -1002,6 +1259,15 @@ func _reason_has_fuel(b: Node2D, dual: DualInputComponent) -> bool:
 
 
 # --- CONNECTION HELPERS ---
+
+func _has_incoming_transit(building: Node2D) -> bool:
+	## Returns true if any input cable has transit items heading toward this building.
+	var conns: Array[Dictionary] = connection_manager.get_connections()
+	for conn in conns:
+		if conn.to_building == building and conn.has("transit") and not conn["transit"].is_empty():
+			return true
+	return false
+
 
 func _has_output_connection(building: Node2D, port: String) -> bool:
 	var conns: Array[Dictionary] = connection_manager.get_connections()
