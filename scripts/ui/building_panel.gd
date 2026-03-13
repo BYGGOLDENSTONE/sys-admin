@@ -2,6 +2,8 @@ extends PanelContainer
 
 signal building_selected(definition: BuildingDefinition)
 
+const BuildingIcon := preload("res://scripts/ui/building_icon.gd")
+
 const PANEL_BG_COLOR := Color(0.04, 0.06, 0.09, 0.93)
 const BORDER_COLOR := Color(0.13, 0.67, 0.87, 0.38)
 const BUTTON_NORMAL_COLOR := Color(0.08, 0.1, 0.14, 0.7)
@@ -13,6 +15,7 @@ const LOCKED_TEXT_COLOR := Color(0.35, 0.38, 0.42, 0.7)
 const TITLE_COLOR := Color("#00bbee")
 const ACCENT_COLOR := Color(0.9, 0.6, 0.25)
 const DEMO_MAX_LEVEL: int = 1
+const CELL_ICON_SIZE: float = 48.0
 
 ## Display order for buildings (consistent layout)
 const BUILDING_ORDER: PackedStringArray = [
@@ -102,6 +105,7 @@ func _load_definitions() -> void:
 
 func _create_buttons() -> void:
 	_button_container_ref = $MarginContainer/VBoxContainer/ScrollContainer/ButtonContainer
+	_scroll_container_ref.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_rebuild_buttons()
 
 
@@ -112,7 +116,7 @@ func refresh_buttons() -> void:
 func _rebuild_buttons() -> void:
 	if _button_container_ref == null:
 		return
-	# Clear old buttons
+	# Clear old children
 	for child in _button_container_ref.get_children():
 		child.queue_free()
 
@@ -121,44 +125,98 @@ func _rebuild_buttons() -> void:
 	for def in _definitions:
 		def_map[def.building_name] = def
 
-	# Re-create buttons in fixed order with staggered fade-in
-	var idx := 0
+	# Collect valid buildings in order
+	var items: Array[Dictionary] = []
 	for bname in BUILDING_ORDER:
 		var def: BuildingDefinition = def_map.get(bname)
 		if def == null or not def.is_placeable:
 			continue
 		var unlocked: bool = not _gig_manager or _gig_manager.is_building_unlocked(bname)
+		items.append({"def": def, "unlocked": unlocked})
 
-		var button := Button.new()
-		button.custom_minimum_size = Vector2(180, 48)
+	# Create rows of 2 cells each
+	var idx := 0
+	while idx < items.size():
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 6)
+		_button_container_ref.add_child(row)
 
-		if unlocked:
-			button.text = def.building_name
-			button.tooltip_text = def.description
-			_style_button(button, def.color)
-			button.pressed.connect(_on_building_button_pressed.bind(def))
-		else:
-			var unlock_info: String = UNLOCK_GIG.get(bname, "a gig")
-			button.text = "🔒 %s" % def.building_name
-			button.tooltip_text = "Unlocks after %s" % unlock_info
-			button.disabled = true
-			_style_locked_button(button)
+		# Add 1-2 cells to this row
+		for col in range(2):
+			if idx >= items.size():
+				# Filler for odd count — empty spacer
+				var spacer := Control.new()
+				spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+				row.add_child(spacer)
+				break
 
-		_button_container_ref.add_child(button)
+			var item: Dictionary = items[idx]
+			var def: BuildingDefinition = item["def"]
+			var unlocked: bool = item["unlocked"]
 
-		# Staggered fade-in animation
-		button.modulate = Color(1, 1, 1, 0)
-		button.position.x = 20.0
-		var tw := create_tween().set_parallel(true).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-		tw.tween_interval(idx * 0.05)
-		tw.tween_property(button, "modulate:a", 1.0, 0.3).set_delay(idx * 0.05)
-		tw.tween_property(button, "position:x", 0.0, 0.3).set_delay(idx * 0.05)
-		idx += 1
+			var cell := _create_cell(def, unlocked)
+			row.add_child(cell)
+
+			# Staggered fade-in
+			cell.modulate = Color(1, 1, 1, 0)
+			var tw := create_tween().set_parallel(true).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+			tw.tween_property(cell, "modulate:a", 1.0, 0.3).set_delay(idx * 0.05)
+			idx += 1
 
 
-func _on_building_button_pressed(def: BuildingDefinition) -> void:
-	building_selected.emit(def)
-	print("[BuildingPanel] Building selected — %s" % def.building_name)
+func _create_cell(def: BuildingDefinition, unlocked: bool) -> PanelContainer:
+	var cell := PanelContainer.new()
+	cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	cell.clip_contents = true
+	cell.tooltip_text = def.description if unlocked else "Unlocks after %s" % UNLOCK_GIG.get(def.building_name, "a gig")
+	cell.mouse_filter = Control.MOUSE_FILTER_STOP
+
+	# VBox: icon on top, name below
+	var vbox := VBoxContainer.new()
+	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	vbox.add_theme_constant_override("separation", 2)
+	vbox.mouse_filter = Control.MOUSE_FILTER_PASS
+	cell.add_child(vbox)
+
+	# Icon
+	var icon := Control.new()
+	icon.set_script(BuildingIcon)
+	icon.custom_minimum_size = Vector2(CELL_ICON_SIZE, CELL_ICON_SIZE)
+	icon.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	icon.mouse_filter = Control.MOUSE_FILTER_PASS
+	if unlocked:
+		icon.setup(def.visual_type, def.color)
+	else:
+		icon.setup(def.visual_type, Color(0.35, 0.4, 0.5, 0.7))
+	vbox.add_child(icon)
+
+	# Name label
+	var label := Label.new()
+	label.text = def.building_name if unlocked else "???"
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.add_theme_font_size_override("font_size", 10)
+	label.mouse_filter = Control.MOUSE_FILTER_PASS
+	if unlocked:
+		label.add_theme_color_override("font_color", Color(0.8, 0.85, 0.9, 0.9))
+	else:
+		label.add_theme_color_override("font_color", Color(0.45, 0.5, 0.58, 0.8))
+	vbox.add_child(label)
+
+	# Style the cell
+	if unlocked:
+		_style_cell(cell, def.color)
+		cell.gui_input.connect(_on_cell_input.bind(def))
+	else:
+		_style_locked_cell(cell)
+
+	return cell
+
+
+func _on_cell_input(event: InputEvent, def: BuildingDefinition) -> void:
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		building_selected.emit(def)
+		print("[BuildingPanel] Building selected — %s" % def.building_name)
 
 
 # --- DETAIL VIEW ---
@@ -425,52 +483,43 @@ func _setup_panel_style() -> void:
 	add_theme_stylebox_override("panel", style)
 
 
-func _style_locked_button(button: Button) -> void:
+func _style_locked_cell(cell: PanelContainer) -> void:
 	var style := StyleBoxFlat.new()
-	style.bg_color = LOCKED_BG_COLOR
-	style.border_color = LOCKED_BORDER_COLOR
-	style.border_width_left = 3
-	style.corner_radius_top_left = 3
-	style.corner_radius_bottom_left = 3
-	style.corner_radius_top_right = 1
-	style.corner_radius_bottom_right = 1
-	style.content_margin_left = 14
-	style.content_margin_top = 8
-	style.content_margin_bottom = 8
-	button.add_theme_stylebox_override("normal", style)
-	button.add_theme_stylebox_override("disabled", style)
-	button.add_theme_color_override("font_color", LOCKED_TEXT_COLOR)
-	button.add_theme_color_override("font_disabled_color", LOCKED_TEXT_COLOR)
+	style.bg_color = Color(0.1, 0.11, 0.15, 0.8)
+	style.border_color = Color(0.3, 0.33, 0.4, 0.6)
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(3)
+	style.content_margin_left = 4
+	style.content_margin_right = 4
+	style.content_margin_top = 6
+	style.content_margin_bottom = 4
+	cell.add_theme_stylebox_override("panel", style)
 
 
-func _style_button(button: Button, accent_color: Color) -> void:
+func _style_cell(cell: PanelContainer, accent_color: Color) -> void:
 	var style := StyleBoxFlat.new()
 	style.bg_color = BUTTON_NORMAL_COLOR
-	style.border_color = accent_color
-	style.border_width_left = 3
-	style.corner_radius_top_left = 3
-	style.corner_radius_bottom_left = 3
-	style.corner_radius_top_right = 1
-	style.corner_radius_bottom_right = 1
-	style.content_margin_left = 14
-	style.content_margin_top = 8
-	style.content_margin_bottom = 8
-	button.add_theme_stylebox_override("normal", style)
+	style.border_color = Color(accent_color, 0.5)
+	style.set_border_width_all(1)
+	style.border_width_bottom = 2
+	style.set_corner_radius_all(3)
+	style.content_margin_left = 4
+	style.content_margin_right = 4
+	style.content_margin_top = 6
+	style.content_margin_bottom = 4
+	cell.add_theme_stylebox_override("panel", style)
 
+	# Hover/press feedback via mouse_entered/exited
+	var normal_style := style
 	var hover_style: StyleBoxFlat = style.duplicate()
 	hover_style.bg_color = BUTTON_HOVER_COLOR
-	hover_style.border_width_left = 5
+	hover_style.border_color = accent_color
 	hover_style.shadow_color = Color(accent_color, 0.15)
 	hover_style.shadow_size = 4
-	button.add_theme_stylebox_override("hover", hover_style)
 
-	var pressed_style: StyleBoxFlat = style.duplicate()
-	pressed_style.bg_color = BUTTON_PRESSED_COLOR
-	pressed_style.border_width_left = 5
-	pressed_style.shadow_color = Color(accent_color, 0.2)
-	pressed_style.shadow_size = 6
-	button.add_theme_stylebox_override("pressed", pressed_style)
-
-	button.add_theme_color_override("font_color", Color.WHITE)
-	button.add_theme_color_override("font_hover_color", accent_color)
-	button.add_theme_color_override("font_pressed_color", accent_color)
+	cell.mouse_entered.connect(func() -> void:
+		cell.add_theme_stylebox_override("panel", hover_style)
+	)
+	cell.mouse_exited.connect(func() -> void:
+		cell.add_theme_stylebox_override("panel", normal_style)
+	)
