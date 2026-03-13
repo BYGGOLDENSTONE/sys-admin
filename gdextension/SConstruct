@@ -1,0 +1,18 @@
+#!/usr/bin/env python
+import os
+
+env = SConscript("godot-cpp/SConstruct")
+
+# Add our source directory
+env.Append(CPPPATH=["src/"])
+
+# Gather all .cpp files in src/
+sources = Glob("src/*.cpp")
+
+# Build shared library
+library = env.SharedLibrary(
+    "../bin/sysadmin{}{}".format(env["suffix"], env["SHLIBSUFFIX"]),
+    source=sources,
+)
+
+Default(library)

@@ -20,6 +20,10 @@ var sound_manager: Node = null
 var connection_stalled: Dictionary = {}  # conn_idx → true if stalled
 var _splitter_next_port: Dictionary = {}  # building instance_id → next output port index
 
+# --- C++ NATIVE ACCELERATORS (fallback to GDScript if DLL not loaded) ---
+var _transit_sim: RefCounted = null
+var _stall_prop: RefCounted = null
+
 # --- CONNECTION CACHE (rebuilt once per frame for O(1) lookups) ---
 var _cached_conns: Array[Dictionary] = []
 var _conn_from: Dictionary = {}    # building_instance_id → Array[int] conn indices
@@ -31,6 +35,16 @@ var _output_ports: Dictionary = {} # building_instance_id → {port_name → con
 
 func _ready() -> void:
 	_sim_timer.timeout.connect(_on_sim_tick)
+	if ClassDB.class_exists("TransitSimulator"):
+		_transit_sim = ClassDB.instantiate("TransitSimulator")
+		print("[Simulation] C++ TransitSimulator loaded")
+	else:
+		print("[Simulation] TransitSimulator — GDScript fallback")
+	if ClassDB.class_exists("StallPropagator"):
+		_stall_prop = ClassDB.instantiate("StallPropagator")
+		print("[Simulation] C++ StallPropagator loaded")
+	else:
+		print("[Simulation] StallPropagator — GDScript fallback")
 	print("[Simulation] Manager initialized — tick: %.1fs, transit speed: %.1f grids/s" % [_sim_timer.wait_time, TRANSIT_GRIDS_PER_SEC])
 
 
@@ -113,9 +127,14 @@ func _on_sim_tick() -> void:
 const TRANSIT_MIN_SPACING_GRIDS: float = 1.5  ## Minimum grid cells between transit items on a cable
 
 func _advance_transit(delta: float) -> void:
-	## Advance all in-flight transit items each frame for smooth visual movement.
-	## If front item is stuck at destination (t >= 1.0), entire cable freezes.
-	## Enforces minimum spacing so items don't overlap visually — each particle is trackable.
+	if _transit_sim:
+		_transit_sim.advance_transit(_cached_conns, delta, speed_multiplier)
+		return
+	_advance_transit_gdscript(delta)
+
+
+func _advance_transit_gdscript(delta: float) -> void:
+	## GDScript fallback for transit advancement.
 	for conn in _cached_conns:
 		if not conn.has("transit") or conn["transit"].is_empty():
 			continue
@@ -504,25 +523,26 @@ func _update_stall_tracking() -> void:
 		if to_b.has_method("can_accept_data") and not to_b.can_accept_data(1):
 			connection_stalled[i] = true
 
-	# Pass 2-4: Back-pressure propagation using adjacency cache (O(E) per pass)
-	for _pass in range(3):
-		var newly_stalled: Dictionary = {}
-		for bid in _conn_from:
-			var out_indices: Array = _conn_from[bid]
-			# Check if ALL outputs of this building are stalled
-			var all_blocked: bool = true
-			for oi in out_indices:
-				if not connection_stalled.has(oi) and not newly_stalled.has(oi):
-					all_blocked = false
-					break
-			if all_blocked and _conn_to.has(bid):
-				# Mark all INPUT connections to this building as stalled
-				for ii in _conn_to[bid]:
-					if not connection_stalled.has(ii):
-						newly_stalled[ii] = true
-		if newly_stalled.is_empty():
-			break
-		connection_stalled.merge(newly_stalled)
+	# Pass 2-4: Back-pressure propagation (C++ or GDScript fallback)
+	if _stall_prop:
+		connection_stalled = _stall_prop.propagate_stalls(connection_stalled, _conn_from, _conn_to, 3)
+	else:
+		for _pass in range(3):
+			var newly_stalled: Dictionary = {}
+			for bid in _conn_from:
+				var out_indices: Array = _conn_from[bid]
+				var all_blocked: bool = true
+				for oi in out_indices:
+					if not connection_stalled.has(oi) and not newly_stalled.has(oi):
+						all_blocked = false
+						break
+				if all_blocked and _conn_to.has(bid):
+					for ii in _conn_to[bid]:
+						if not connection_stalled.has(ii):
+							newly_stalled[ii] = true
+			if newly_stalled.is_empty():
+				break
+			connection_stalled.merge(newly_stalled)
 
 
 # --- ROLL HELPERS ---

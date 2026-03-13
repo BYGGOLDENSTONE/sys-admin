@@ -347,25 +347,60 @@ Oyuncu her parcacigi kaynaktan CT'ye kadar takip edebilir. "Gordugun = olan" tam
 - [x] **P1.4. Building polygon caching** — `_cached_base_poly` ve `_cached_closed_poly`, direction/mirror degismedikce yeniden hesaplanmaz. PCB mode dahil.
 - [x] **P1.5. Stall tracking tek gecis** — `_conn_from`/`_conn_to` adjacency cache ile O(n²) × 3 → O(E) × 3.
 - [x] **P1.6. Bloom shader 5x5 → 3x3** — 25 texture sample → 9. GPU yuku ~%60 azalir.
-- [ ] **P1.7. Point-along-path binary search** — Cumulative distance array + binary search, O(n) → O(log n). (Faz 2 ile birlikte yapilabilir)
+- [x] **P1.7. Point-along-path binary search** — Cumulative distance array + binary search, O(n) → O(log n). C++ PolylineHelper ile birlikte yapildi.
 
 **Faz 1 Beklenen Etki:** %50-70 CPU + %30 GPU iyilesmesi. Demo icin yeterli olmali.
 
-### Faz 2: GDExtension C++ (Hot Path Migration)
-- [ ] **P2.1. Transit sistemi C++ modulu** — `_advance_transit()`, `_deliver_arrived()`, back-pressure hesaplamalari native C++ ile.
-- [ ] **P2.2. Connection graph C++ tarafinda** — Tum baglanti grafi, lookup cache, adjacency map C++ struct olarak tutulur.
-- [ ] **P2.3. Point-along-path + polyline C++** — Cumulative distance, binary search, polyline build native.
+### Faz 2: GDExtension C++ (Hot Path Migration) — TAMAMLANDI
+- [x] **P2.1. TransitSimulator** — `_advance_transit()` C++'a tasindi. Her frame cagrilan transit ilerleme dongusu native.
+- [x] **P2.2. StallPropagator** — Back-pressure yayilimi (Pass 2-4) C++'a tasindi. Pass 1 GDScript'te (Godot node method cagrilari gerekli).
+- [x] **P2.3. PolylineHelper** — Binary search + batch pozisyon hesaplama C++'a tasindi. `batch_transit_positions()` ile tek C++ cagrisinda tum item pozisyonlari hesaplaniyor.
+- [x] **GDScript fallback** — DLL yuklenemezse `ClassDB.class_exists()` kontrolu ile otomatik GDScript'e duser.
+
+**Faz 2 Dosya Yapisi:**
+```
+gdextension/
+  src/                         # C++ kaynak dosyalari
+    register_types.cpp/h       # Extension entry point
+    transit_simulator.cpp/h    # _advance_transit() native
+    polyline_helper.cpp/h      # Binary search + batch positions
+    stall_propagator.cpp/h     # Back-pressure propagation
+  godot-cpp/                   # Git submodule (master branch)
+  SConstruct                   # SCons build dosyasi
+  .gdignore                    # Godot'un C++ dosyalarini taramamasi icin
+bin/
+  sysadmin.gdextension         # DLL tanimlari
+  sysadmin.windows.*.dll       # Build ciktisi (.gitignore'da)
+```
+
+**Build komutu:** `cd gdextension && scons platform=windows target=template_debug -j4`
 
 **Faz 2 Beklenen Etki:** 200+ kablo + 1000+ transit item ile 60 FPS. Full release icin gerekli.
 
 ### Basari Kriterleri
-- [ ] 50 kablo + 100 transit item'da 60 FPS (Faz 1 sonrasi)
-- [ ] 200 kablo + 500 transit item'da 60 FPS (Faz 2 sonrasi)
-- [ ] Save/load ve gameplay davranisi degismemis (regresyon yok)
+- [x] 50 kablo + 100 transit item'da 60 FPS (Faz 1 sonrasi)
+- [ ] 200 kablo + 500 transit item'da 60 FPS (Faz 2 sonrasi — benchmark bekliyor)
+- [x] Save/load ve gameplay davranisi degismemis (regresyon yok)
 
 ---
 
 ## Altyapi
+
+### GDExtension C++ Modulu
+- **Yol:** `gdextension/` — godot-cpp submodule + src/ klasoru
+- **Build:** `cd gdextension && scons platform=windows target=template_debug -j4`
+- **Cikti:** `bin/sysadmin.windows.template_debug.x86_64.dll`
+- **Siniflar:** `TransitSimulator`, `PolylineHelper`, `StallPropagator`
+- **Fallback:** DLL yoksa GDScript otomatik devreye girer (`ClassDB.class_exists()` kontrolu)
+- **Ilk build** godot-cpp'yi derler (~5-10dk), sonraki build'ler sadece src/ degisikliklerini derler (~5sn)
+
+### Performans-Kritik Kod Kurali
+Hot path'lerde (her frame veya her tick cagrilan donguler) performans sorunu yasanirsa:
+1. **Once** GDScript'te algoritmik optimizasyon dene (cache, O(n²)→O(n), lazy eval)
+2. **Yetmezse** ilgili fonksiyonu GDExtension C++'a tasi (`gdextension/src/` altina)
+3. C++ sinifi `RefCounted` extend etmeli, `ClassDB::register_class<>()` ile kaydedilmeli
+4. GDScript tarafinda **her zaman fallback** olmali — DLL olmadan oyun calismali
+5. C++ tarafinda Godot node method'lari (is_active, can_accept_data vs.) **cagirma** — bu logic GDScript'te kalmali
 
 ### MCP: tomyud1/godot-mcp (32 arac)
 WebSocket port 6505 | Godot editorde "MCP Connected" (yesil) olmali

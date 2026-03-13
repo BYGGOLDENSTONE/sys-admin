@@ -1,3 +1,17 @@
 # Godot 4+ specific ignores
 .godot/
 /android/
+
+# GDExtension build artifacts
+bin/*.dll
+bin/*.so
+bin/*.dylib
+bin/*.wasm
+bin/*.exp
+bin/*.lib
+bin/*.pdb
+bin/*.TMP
+gdextension/godot-cpp/
+gdextension/.sconsign.dblite
+gdextension/build.bat
+gdextension/src/*.obj

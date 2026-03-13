@@ -18,6 +18,7 @@ var hovered_cable_index: int = -1
 var _camera: Camera2D = null
 # Per-frame cache: buildings that have transit items heading toward them
 var _has_incoming: Dictionary = {}  # building → true
+var _polyline_helper: RefCounted = null
 
 # Cable state constants
 const CABLE_FLOWING: int = 0
@@ -48,6 +49,11 @@ const REMOVAL_FLASH_DURATION: float = 0.4
 
 func _ready() -> void:
 	_camera = get_node_or_null("../GameCamera")
+	if ClassDB.class_exists("PolylineHelper"):
+		_polyline_helper = ClassDB.instantiate("PolylineHelper")
+		print("[ConnectionLayer] C++ PolylineHelper loaded")
+	else:
+		print("[ConnectionLayer] PolylineHelper — GDScript fallback")
 
 
 func _process(delta: float) -> void:
@@ -141,6 +147,8 @@ func _get_cached_polyline(conn: Dictionary) -> PackedVector2Array:
 			total += seg_len
 		conn["_cached_seg_lengths"] = seg_lengths
 		conn["_cached_total_length"] = total
+		if _polyline_helper:
+			conn["_cached_cumulative_dists"] = _polyline_helper.build_cumulative_distances(seg_lengths)
 	return conn["_cached_polyline"]
 
 
@@ -349,11 +357,22 @@ func _draw_transit_items(conn: Dictionary, _conn_index: int) -> void:
 	var font := _MONO_FONT
 	var half_fs: float = PARTICLE_FONT_SIZE * 0.5
 
+	var batch_positions: PackedVector2Array
+	var use_batch: bool = _polyline_helper != null and conn.has("_cached_cumulative_dists")
+	if use_batch:
+		batch_positions = _polyline_helper.batch_transit_positions(points, conn["_cached_cumulative_dists"], total_length, transit, min_render_t)
+
 	for pi in range(item_count):
 		var item: Dictionary = transit[pi]
-		if item.t < min_render_t:
-			continue  # Still emerging from source — don't render yet
-		var pos: Vector2 = _get_point_along_path(points, seg_lengths, total_length, item.t)
+		var pos: Vector2
+		if use_batch:
+			pos = batch_positions[pi]
+			if is_nan(pos.x):
+				continue
+		else:
+			if item.t < min_render_t:
+				continue
+			pos = _get_point_along_path(points, seg_lengths, total_length, item.t)
 
 		# Derive visual from actual data type
 		var base_color: Color

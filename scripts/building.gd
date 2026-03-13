@@ -489,9 +489,9 @@ func _draw() -> void:
 		BODY_COLOR.g + accent.g * 0.05,
 		BODY_COLOR.b + accent.b * 0.05, 1.0)
 	# Building silhouette polygon (cached — only recomputed on direction/mirror change)
+	var vtype: String = definition.visual_type if definition else "default"
 	if _cached_base_poly.is_empty() or _cached_poly_dir != direction \
 			or _cached_poly_mirror != mirror_h or _cached_poly_size != size:
-		var vtype: String = definition.visual_type if definition else "default"
 		_cached_base_poly = _get_building_polygon(rect, vtype)
 		if direction != 0:
 			_cached_base_poly = _rotate_polygon(_cached_base_poly, center)
@@ -655,7 +655,7 @@ func _draw_pcb_mode(size: Vector2, rect: Rect2, accent: Color, pulse: float) -> 
 
 	# Working indicator: brighter fill
 	if is_working:
-		draw_colored_polygon(pcb_poly, Color(accent, 0.12))
+		draw_colored_polygon(_cached_base_poly, Color(accent, 0.12))
 
 	# Contract Terminal beacon at PCB zoom
 	if vtype == "terminal":
@@ -665,7 +665,7 @@ func _draw_pcb_mode(size: Vector2, rect: Rect2, accent: Color, pulse: float) -> 
 	# Malware overlay (still visible at distance — skip for Trash)
 	if not _is_ghost and _has_malware():
 		if not (definition.processor != null and definition.processor.rule == "trash"):
-			draw_colored_polygon(pcb_poly, Color(0.8, 0.0, 0.3, 0.15 + sin(_glow_time * 6.0) * 0.08))
+			draw_colored_polygon(_cached_base_poly, Color(0.8, 0.0, 0.3, 0.15 + sin(_glow_time * 6.0) * 0.08))
 
 
 func _draw_icon(center: Vector2, size: Vector2, accent: Color) -> void:
