@@ -36,7 +36,7 @@ Asagidaki kararlar artik **scope lock** kabul edilir. Claude Code bu kararlarla 
 
 ### Demo Scope Lock
 - [x] Demo, **T1-T2** odakli olacak
-- [x] Demo roster: Classifier, Separator, Recoverer, Research Lab, Decryptor, Encryptor, Compiler, Splitter, Merger, Trash, Bridge, Contract Terminal
+- [x] Demo roster: Classifier, Separator, Recoverer, Research Lab, Decryptor, Encryptor, Compiler, Splitter, Merger, Trash, Contract Terminal
 - [x] Demo'da **Malware gameplay YOK**
 - [x] Malware, sadece **teaser / ileride acilacak sey** olarak var olabilir
 - [x] T3-T4 mekanikleri demo'nun zorunlu parcasi olmayacak
@@ -50,7 +50,7 @@ Asagidaki kararlar artik **scope lock** kabul edilir. Claude Code bu kararlarla 
 - [x] Gig 9+, Compiler'i gercekten kullanacak
 - [x] Source bandwidth, sadece tooltip verisi degil, gameplay'de gercek limit olacak
 - [x] Recoverer deterministic + fuel tabanli kalacak
-- [x] Grid kablo routing ve Bridge oyunun ana layout bulmacasi olmaya devam edecek
+- [x] Grid kablo routing oyunun ana layout bulmacasi olmaya devam edecek (dik kesisim serbest, Bridge kaldirildi)
 - [x] **Bina rotasyonu** — R tusuyla 4 yone dondurme, portlar da doner
 - [x] **Contract Terminal 3x3** — 8 input port (her kenarda 2), merkez etrafinda 10+ cell kaynak exclusion zone
 - [x] **CT Port Purity** — CT her port'un kablo tiplerini kumulatif kaydeder. Content bir gig requirement'ina uyuyorsa state da uymali (yoksa port bloklanir). Content hicbir gig'e uymuyorsa veri kabul edilip cope atilir (akis durmaz). Kablo cikarildiginda kayit sifirlanir.

@@ -628,7 +628,7 @@ func _process_separator(b: Node2D, proc: ProcessorComponent, max_process: int) -
 
 
 func _process_trash(b: Node2D) -> int:
-	var total: int = b.get_total_stored_raw()
+	var total: int = b.get_total_stored()
 	if total > 0:
 		b.stored_data.clear()
 	return total
@@ -775,7 +775,7 @@ func _update_status_reasons(buildings: Array[Node]) -> void:
 			b.status_reason = ""
 			continue
 		# No data at all
-		if b.get_total_stored_raw() <= 0:
+		if b.get_total_stored() <= 0:
 			b.status_reason = "No input"
 			continue
 		# Compiler
@@ -829,7 +829,7 @@ func _update_status_reasons(buildings: Array[Node]) -> void:
 			else:
 				b.status_reason = "Output blocked"
 			continue
-		# All others (Splitter, Merger, Bridge)
+		# All others (Splitter, Merger)
 		b.status_reason = "Output blocked"
 
 

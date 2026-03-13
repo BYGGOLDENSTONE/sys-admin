@@ -137,16 +137,10 @@ Kablolar noktadan noktaya cizgi olursa, yerlesim onemsizlesir. Oyun "akis semasi
 - Her kablo segmenti bir grid hucresi kaplar
 - 4 yon: yukari, asagi, sol, sag + koseler
 - **IKI KABLO AYNI HUCREYI PAYLASAMAZ**
-- Kesisme icin **Bridge** binasi gerekli
+- Dik acili kablolar serbestce kesisebilir
 - Binalarin port pozisyonlari sabit (giris sol, cikis sag vb.)
 - Veri kablo boyunca akar (aninda degil, gorulebilir sekilde)
 - Veri surekli akar, depolanmaz (Shapez conveyor modeli)
-
-### Bridge (Kopru) Binasi
-- Iki kablonun kesismesi gerektiginde araya konur
-- Isleme yapmaz — saf altyapi
-- Bir kablo yatay, digeri dikey gecer
-- Iyi tasarim = az kopru = verimli layout
 
 ### Kablo Yerlestirme UX
 
@@ -191,11 +185,10 @@ Her bina tek bir basit is yapar. Zorluk bireysel binalardan degil, birlesimlerin
 | **Compiler** | Paketle | Donusum | Cift girdi: A + B → Paket [A·B] |
 | **Splitter** | Bol | Routing | 1 akis → 2 akis (esit dagitim) |
 | **Merger** | Birlestir | Routing | 2 akis → 1 akis |
-| **Bridge** | Gecir | Altyapi | Kablo kesisme noktasi |
 | **Trash** | Yok et | Altyapi | Istenmeyen veriyi imha eder |
 | **Contract Terminal** | Teslim al | Merkez | Gig'leri gosterir + veri teslim noktasi |
 
-**13 bina. Bina maliyeti YOK — bulmaca zorlugu yeter. Binalar gig ilerlemesiyle acilir.**
+**12 bina. Bina maliyeti YOK — bulmaca zorlugu yeter. Binalar gig ilerlemesiyle acilir.**
 
 ---
 
@@ -659,7 +652,7 @@ Ilk gig'ler SIRALI (tutorial islevi gorur). Sonra PARALEL acilir.
 
 | # | Gig | Ne Ogretiyor | Acilan Bina |
 |---|-----|-------------|-------------|
-| 1 | "20 Standard Public teslim et" | Uplink + kablo + teslim | Uplink, Trash, Splitter, Merger, Bridge (baslangic) |
+| 1 | "20 Standard Public teslim et" | Uplink + kablo + teslim | Trash, Splitter (baslangic) |
 | 2 | "Biometric ve Financial'i AYRI teslim et" | Classifier (binary filtre) | Classifier |
 | 3 | "15 Financial Public teslim et" (kaynakta Corrupted var) | Separator (state ayirma) | Separator |
 | 4 | "10 Financial Recovered teslim et" | Recovery + pozitif geri besleme | Recoverer |
@@ -698,7 +691,7 @@ Binalar gig tamamlayarak acilir. Bina maliyeti YOK — bulmaca zorlugu yeter.
 
 | Asama | Acilan Binalar | Tetikleyici |
 |-------|---------------|-------------|
-| **Oyun Basi** | Uplink, Trash, Splitter, Merger, Bridge | — |
+| **Oyun Basi** | Trash, Splitter | — |
 | **Gig 2** | Classifier | Ilk content ayirma gig'i |
 | **Gig 3** | Separator | Ilk state ayirma gig'i |
 | **Gig 4** | Recoverer | Ilk recovery gig'i |
@@ -855,8 +848,8 @@ Content Renkleri:
 ## 17. Kapsam ve Yol Haritasi
 
 ### Demo Kapsami (Next Fest) — 4-6 saat
-- Grid kablo routing + Bridge
-- 11 bina: Uplink, Classifier, Separator, Recoverer, Decryptor, Research Lab, Encryptor, Compiler, Splitter, Merger, Trash
+- Grid kablo routing (dik kesisim serbest)
+- 10 bina: Classifier, Separator, Recoverer, Decryptor, Research Lab, Encryptor, Compiler, Splitter, Merger, Trash
 - Contract Terminal (sabit, harita merkezinde)
 - ~12-15 kaynak (kolay + orta + birkac zor teaser)
 - 5 content: Standard, Financial, Biometric, Research, Blueprint

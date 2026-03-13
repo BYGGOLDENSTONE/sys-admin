@@ -120,12 +120,7 @@ func can_place_cable_edge(v1: Vector2i, v2: Vector2i, exempt_cells: Dictionary =
 	var dict: Dictionary = data[0]
 	var key: Vector2i = data[1]
 	if dict.has(key):
-		# Check for bridge: if both adjacent cells have a bridge building, allow up to 2
-		if dict[key] >= 2:
-			return false
-		if _edge_has_bridge(v1, v2):
-			return dict[key] < 2
-		return false
+		return false  # Edge already has a cable
 	# Block if edge touches any occupied cell (building or source)
 	if _edge_touches_occupied(v1, v2, exempt_cells):
 		return false
@@ -172,25 +167,6 @@ func is_turn_corner_occupied(v: Vector2i, prev_v: Vector2i, next_v: Vector2i, ex
 	var cell := Vector2i(v.x + dx, v.y + dy)
 	return (_occupied_cells.has(cell) or _source_cells.has(cell)) and not exempt_cells.has(cell)
 
-
-func _edge_has_bridge(v1: Vector2i, v2: Vector2i) -> bool:
-	## Check if any cell adjacent to this edge has a bridge building
-	var cell_a: Vector2i
-	var cell_b: Vector2i
-	if v1.y == v2.y:
-		var min_x := mini(v1.x, v2.x)
-		cell_a = Vector2i(min_x, v1.y - 1)
-		cell_b = Vector2i(min_x, v1.y)
-	else:
-		var min_y := mini(v1.y, v2.y)
-		cell_a = Vector2i(v1.x - 1, min_y)
-		cell_b = Vector2i(v1.x, min_y)
-	for cell in [cell_a, cell_b]:
-		if _occupied_cells.has(cell):
-			var building = _occupied_cells[cell]
-			if building and building.definition and building.definition.allows_cable_crossing:
-				return true
-	return false
 
 
 

@@ -189,7 +189,7 @@ func _update_stats() -> void:
 		lines.append(_stat("Left Port ←", "Data A (any type)"))
 		lines.append(_stat("Top Port ←", "Data B (any type)"))
 		lines.append(_stat("Output →", "[color=#66ffcc]Packet [A·B][/color]"))
-		var total: int = b.get_total_stored_raw()
+		var total: int = b.get_total_stored()
 		if total > 0:
 			lines.append(_stat("Stock", _format_stored_data(b.stored_data)))
 	if def.storage and def.processor == null and def.classifier == null and def.producer == null and def.dual_input == null and def.compiler == null:

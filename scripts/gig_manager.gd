@@ -12,7 +12,7 @@ var _progress: Dictionary = {}  ## order_index → Array[int] (per-requirement c
 var _unlocked_buildings: Dictionary = {}  ## building_name → true
 
 ## Starting buildings (always available)
-var _starter_buildings: PackedStringArray = ["Trash", "Splitter", "Bridge"]
+var _starter_buildings: PackedStringArray = ["Trash", "Splitter"]
 
 var building_container: Node2D = null
 var _contract_terminal: Node2D = null

@@ -83,14 +83,6 @@ static func state_color_hex(s: int) -> String:
 		DataState.MALWARE: return "#ff1133"
 	return "#778899"
 
-static func state_storage_cost(s: int) -> int:
-	match s:
-		DataState.PUBLIC: return 1
-		DataState.ENCRYPTED: return 2
-		DataState.CORRUPTED: return 3
-		DataState.MALWARE: return 0  # Cannot be stored
-	return 1
-
 
 static func tags_label(tags: int) -> String:
 	if tags == 0:

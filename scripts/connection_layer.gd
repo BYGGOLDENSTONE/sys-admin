@@ -6,24 +6,32 @@ const CABLE_WIDTH: float = 5.0
 const CABLE_GLOW_WIDTH: float = 11.0
 const CABLE_GLOW_ALPHA: float = 0.2
 const CABLE_INACTIVE_ALPHA: float = 0.12
-const PARTICLE_SPEED: float = 0.4
-const PARTICLES_PER_CABLE: int = 6
 const PARTICLE_FONT_SIZE: int = 20
 const HOVER_COLOR := Color(1.0, 0.3, 0.3, 0.6)
 const HOVER_WIDTH: float = 14.0
 const PREVIEW_VALID_COLOR := Color(0.2, 1, 0.67, 0.5)
 const PREVIEW_INVALID_COLOR := Color(1, 0.13, 0.27, 0.5)
 
+## Particle travel system — particles spawn at output, travel to input
+const PARTICLE_BASE_SPEED: float = 0.45   ## Base travel speed (0→1 per second)
+const PARTICLE_MAX_PER_CABLE: int = 14     ## Hard cap per connection
+const PARTICLE_MIN_SPAWN_INTERVAL: float = 0.15  ## Minimum seconds between spawns
+
 var connection_manager: Node = null
 var simulation_manager: Node = null
 var hovered_cable_index: int = -1
-var _particle_time: float = 0.0
 var _camera: Camera2D = null
 
 # Cable state constants
 const CABLE_FLOWING: int = 0
 const CABLE_STALLED: int = 1
 const CABLE_INACTIVE: int = 2
+
+# Per-connection particle tracking
+# conn_idx → Array of {t: float, color: Color, char: String}
+var _conn_particles: Dictionary = {}
+# conn_idx → float (spawn timer accumulator)
+var _conn_spawn_accum: Dictionary = {}
 
 # Preview state (set by BuildingManager during CONNECTING)
 var preview_path: Array[Vector2i] = []
@@ -52,18 +60,39 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-	_particle_time += delta * PARTICLE_SPEED
-	if _particle_time > 1.0:
-		_particle_time -= 1.0
+	if connection_manager == null:
+		queue_redraw()
+		return
+
+	var conns: Array[Dictionary] = connection_manager.get_connections()
+	# Update per-connection particles
+	for i in range(conns.size()):
+		var state: int = _get_cable_state(conns[i], i)
+		match state:
+			CABLE_FLOWING:
+				_update_particles_flowing(i, delta)
+			CABLE_STALLED:
+				pass  # Particles freeze — don't advance or spawn
+			_:  # INACTIVE
+				_conn_particles.erase(i)
+				_conn_spawn_accum.erase(i)
+
+	# Clean up particles for connections that no longer exist
+	var max_idx: int = conns.size()
+	for key in _conn_particles.keys():
+		if key >= max_idx:
+			_conn_particles.erase(key)
+			_conn_spawn_accum.erase(key)
+
 	# Update flash timers
-	var i: int = _flash_times.size() - 1
-	while i >= 0:
-		_flash_times[i] -= delta
-		if _flash_times[i] <= 0:
-			_flash_times.remove_at(i)
-			_flash_positions.remove_at(i)
-			_flash_colors.remove_at(i)
-		i -= 1
+	var fi: int = _flash_times.size() - 1
+	while fi >= 0:
+		_flash_times[fi] -= delta
+		if _flash_times[fi] <= 0:
+			_flash_times.remove_at(fi)
+			_flash_positions.remove_at(fi)
+			_flash_colors.remove_at(fi)
+		fi -= 1
 	# Update removal flash timers
 	var ri: int = _removal_flash_times.size() - 1
 	while ri >= 0:
@@ -74,6 +103,57 @@ func _process(delta: float) -> void:
 			_removal_flash_colors.remove_at(ri)
 		ri -= 1
 	queue_redraw()
+
+
+func _update_particles_flowing(conn_idx: int, delta: float) -> void:
+	if not _conn_particles.has(conn_idx):
+		_conn_particles[conn_idx] = []
+		_conn_spawn_accum[conn_idx] = 0.0
+
+	var particles: Array = _conn_particles[conn_idx]
+
+	# Get flow data for speed + spawn rate
+	var flow: Array = _get_connection_flow(conn_idx)
+	var total_amount: int = 0
+	for entry in flow:
+		total_amount += entry.get("amount", 0)
+
+	# Travel speed scales with flow (more flow = faster visuals)
+	var speed_mult: float = clampf(float(total_amount) / 3.0, 0.3, 2.0)
+	var travel_speed: float = PARTICLE_BASE_SPEED * speed_mult
+
+	# Advance existing particles toward input (t: 0→1)
+	var pi: int = particles.size() - 1
+	while pi >= 0:
+		particles[pi].t += delta * travel_speed
+		if particles[pi].t >= 1.0:
+			particles.remove_at(pi)
+		pi -= 1
+
+	# Spawn new particles at output (t=0) based on flow rate
+	if flow.is_empty() or total_amount <= 0:
+		return
+
+	var spawn_rate: float = clampf(float(total_amount) * 0.8, 0.5, 6.0)
+	_conn_spawn_accum[conn_idx] += delta * spawn_rate
+
+	while _conn_spawn_accum[conn_idx] >= 1.0 and particles.size() < PARTICLE_MAX_PER_CABLE:
+		_conn_spawn_accum[conn_idx] -= 1.0
+		var ptype: Dictionary = _pick_random_type(flow, total_amount)
+		particles.append({"t": 0.0, "color": ptype.color, "char": ptype.char})
+
+
+func _pick_random_type(flow: Array, total_amount: int) -> Dictionary:
+	## Pick a random particle type weighted by flow amounts
+	var roll: int = randi() % total_amount
+	var cumulative: int = 0
+	for entry in flow:
+		cumulative += entry.get("amount", 0)
+		if roll < cumulative:
+			var col: Color = DataEnums.state_color(entry.get("state", 0))
+			var ch: String = DataEnums.content_char(entry.get("content", 0))
+			return {"color": col, "char": ch}
+	return {"color": Color("#00ff88"), "char": "0"}
 
 
 func _draw() -> void:
@@ -87,11 +167,8 @@ func _draw() -> void:
 		var cable_state: int = _get_cable_state(conn, i)
 		var hovered: bool = (i == hovered_cable_index)
 		_draw_connection(conn, cable_state != CABLE_INACTIVE, hovered)
-		if zoom > 0.25:
-			if cable_state == CABLE_FLOWING:
-				_draw_particles(conn, i, false)
-			elif cable_state == CABLE_STALLED:
-				_draw_particles(conn, i, true)
+		if zoom > 0.25 and _conn_particles.has(i):
+			_draw_particles(conn, i)
 
 	if preview_active and not preview_path.is_empty():
 		_draw_preview()
@@ -302,21 +379,11 @@ func _get_cable_state(conn: Dictionary, conn_index: int) -> int:
 	return CABLE_INACTIVE
 
 
-func _is_connection_active(conn: Dictionary) -> bool:
-	var from_b: Node2D = conn.from_building
-	var to_b: Node2D = conn.to_building
-	if from_b.has_method("is_active") and not from_b.is_active():
-		return false
-	if "is_working" in from_b and not from_b.is_working:
-		return false
-	if to_b.has_method("is_active") and not to_b.is_active():
-		return false
-	if to_b.has_method("can_accept_data") and not to_b.can_accept_data(1):
-		return false
-	return true
+func _draw_particles(conn: Dictionary, conn_index: int) -> void:
+	var particles: Array = _conn_particles.get(conn_index, [])
+	if particles.is_empty():
+		return
 
-
-func _draw_particles(conn: Dictionary, conn_index: int, stalled: bool = false) -> void:
 	var points: PackedVector2Array = _build_polyline(conn)
 	if points.size() < 2:
 		return
@@ -327,43 +394,20 @@ func _draw_particles(conn: Dictionary, conn_index: int, stalled: bool = false) -
 		var seg_len: float = points[i - 1].distance_to(points[i])
 		seg_lengths.append(seg_len)
 		total_length += seg_len
-
 	if total_length <= 0:
 		return
 
 	var font := _MONO_FONT
-	var count: int = _get_visible_particle_count()
 	var half_fs: float = PARTICLE_FONT_SIZE * 0.5
 
-	# Get flow data — current for flowing, last-known for stalled
-	var flow: Array
-	if stalled:
-		flow = _get_stalled_flow(conn_index)
-	else:
-		flow = _get_connection_flow(conn_index)
-	var ptypes: Array = _build_particle_types(flow, count)
+	for pi in range(particles.size()):
+		var p: Dictionary = particles[pi]
+		var pos: Vector2 = _get_point_along_path(points, seg_lengths, total_length, p.t)
+		var base_color: Color = p.color
 
-	for i in range(count):
-		var p_offset: float = float(i) / float(count)
-		# Stalled: particles frozen in place; Flowing: particles move
-		var t: float
-		if stalled:
-			t = p_offset
-		else:
-			t = fmod(_particle_time + p_offset, 1.0)
+		var glow_pulse: float = sin(Time.get_ticks_msec() / 120.0 + float(pi) * 1.7) * 0.5 + 0.5
 
-		var pos: Vector2 = _get_point_along_path(points, seg_lengths, total_length, t)
-		var ptype: Dictionary = ptypes[i] if i < ptypes.size() else {"color": Color("#00ff88"), "char": "0"}
-		var base_color: Color = ptype.color
-
-		# Pulse — stalled particles pulse slower and dimmer
-		var glow_pulse: float
-		if stalled:
-			glow_pulse = sin(Time.get_ticks_msec() / 600.0 + float(i) * 1.7) * 0.25 + 0.5
-		else:
-			glow_pulse = sin(Time.get_ticks_msec() / 120.0 + float(i) * 1.7) * 0.5 + 0.5
-
-		# Outer glow halo (larger for readability + screenshot pop)
+		# Outer glow halo
 		draw_circle(pos, 12.0 + glow_pulse * 5.0, Color(base_color, 0.1 + glow_pulse * 0.08))
 		# Inner glow
 		draw_circle(pos, 6.0, Color(base_color, 0.35))
@@ -374,9 +418,9 @@ func _draw_particles(conn: Dictionary, conn_index: int, stalled: bool = false) -
 
 		# Character — bright colored on dark bg
 		var draw_pos := pos + Vector2(-half_fs * 0.3, half_fs * 0.3)
-		draw_string(font, draw_pos, ptype.char, HORIZONTAL_ALIGNMENT_LEFT, -1, PARTICLE_FONT_SIZE, Color(base_color, 0.95))
+		draw_string(font, draw_pos, p.char, HORIZONTAL_ALIGNMENT_LEFT, -1, PARTICLE_FONT_SIZE, Color(base_color, 0.95))
 		# White overlay for extra brightness
-		draw_string(font, draw_pos, ptype.char, HORIZONTAL_ALIGNMENT_LEFT, -1, PARTICLE_FONT_SIZE, Color(1, 1, 1, 0.35))
+		draw_string(font, draw_pos, p.char, HORIZONTAL_ALIGNMENT_LEFT, -1, PARTICLE_FONT_SIZE, Color(1, 1, 1, 0.35))
 
 
 func _get_point_along_path(points: PackedVector2Array, seg_lengths: Array[float], total: float, t: float) -> Vector2:
@@ -388,13 +432,6 @@ func _get_point_along_path(points: PackedVector2Array, seg_lengths: Array[float]
 			return points[i].lerp(points[i + 1], local_t)
 		accumulated += seg_lengths[i]
 	return points[points.size() - 1]
-
-
-func _get_visible_particle_count() -> int:
-	if _camera == null:
-		return PARTICLES_PER_CABLE
-	var zoom_level: float = _camera.zoom.x
-	return maxi(2, int(PARTICLES_PER_CABLE * clampf(zoom_level, 0.3, 1.5)))
 
 
 func _get_connection_flow(conn_index: int) -> Array:
@@ -424,32 +461,3 @@ func play_removal_flash(points: PackedVector2Array, color: Color) -> void:
 	_removal_flash_paths.append(points)
 	_removal_flash_times.append(REMOVAL_FLASH_DURATION)
 	_removal_flash_colors.append(color)
-
-
-func _build_particle_types(flow: Array, count: int) -> Array:
-	var result: Array = []
-	if flow.is_empty():
-		for i in range(count):
-			result.append({"color": Color("#00ff88"), "char": "0" if randi() % 2 == 0 else "1"})
-		return result
-	var total: int = 0
-	for entry in flow:
-		total += entry.amount if "amount" in entry else 0
-	if total <= 0:
-		for i in range(count):
-			result.append({"color": Color("#00ff88"), "char": "0" if randi() % 2 == 0 else "1"})
-		return result
-	var assigned: int = 0
-	for ei in range(flow.size()):
-		var entry: Dictionary = flow[ei]
-		var share: int
-		if ei == flow.size() - 1:
-			share = count - assigned
-		else:
-			share = maxi(1, roundi(float(entry.amount) / float(total) * count))
-			share = mini(share, count - assigned)
-		var col: Color = DataEnums.state_color(entry.state)
-		for _j in range(share):
-			result.append({"color": col, "char": DataEnums.content_char(entry.content)})
-		assigned += share
-	return result

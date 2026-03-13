@@ -121,7 +121,7 @@ func _get_building_polygon(r: Rect2, vtype: String) -> PackedVector2Array:
 				Vector2(x + ch, y), Vector2(x + w, y),
 				Vector2(x + w, y + h - ch), Vector2(x + w - ch, y + h),
 				Vector2(x, y + h), Vector2(x, y + ch)])
-		_:  # Default rect for splitter, merger, bridge, trash
+		_:  # Default rect for splitter, merger, trash
 			return PackedVector2Array([
 				Vector2(x, y), Vector2(x + w, y),
 				Vector2(x + w, y + h), Vector2(x, y + h)])
@@ -271,21 +271,10 @@ func get_port_world_position(port_side: String) -> Vector2:
 
 func get_total_stored() -> int:
 	var total: int = 0
-	for key in stored_data:
-		if DataEnums.is_packet(key):
-			total += stored_data[key]
-			continue
-		var parsed: Dictionary = DataEnums.parse_key(key)
-		var cost: int = DataEnums.state_storage_cost(parsed.state)
-		total += stored_data[key] * cost
-	return total
-
-
-func get_total_stored_raw() -> int:
-	var total: int = 0
 	for amount in stored_data.values():
 		total += amount
 	return total
+
 
 
 func can_accept_data(amount: int = 1, state: int = DataEnums.DataState.PUBLIC, content: int = -1) -> bool:
@@ -294,6 +283,11 @@ func can_accept_data(amount: int = 1, state: int = DataEnums.DataState.PUBLIC, c
 		return true
 	if state == DataEnums.DataState.MALWARE:
 		return false
+	# Routing/filter buildings: always accept (they forward each tick, no capacity bottleneck)
+	if definition.classifier != null or definition.splitter != null or definition.merger != null:
+		return true
+	if definition.processor != null and definition.processor.rule == "separator":
+		return true
 	# Fuel/keys always accepted by dual_input buildings (bypass capacity)
 	if definition.dual_input:
 		if definition.dual_input.fuel_matches_content and state == DataEnums.DataState.PUBLIC:
@@ -303,8 +297,7 @@ func can_accept_data(amount: int = 1, state: int = DataEnums.DataState.PUBLIC, c
 	var cap: int = int(get_effective_value("capacity")) if definition.storage else 0
 	if cap <= 0:
 		return true
-	var cost: int = DataEnums.state_storage_cost(state)
-	return get_total_stored() + (amount * cost) <= cap
+	return get_total_stored() + amount <= cap
 
 
 func accepts_data(content: int, state: int) -> bool:
@@ -652,8 +645,6 @@ func _draw_icon(center: Vector2, size: Vector2, accent: Color) -> void:
 			_draw_icon_splitter(icon_center, size, accent)
 		"merger":
 			_draw_icon_merger(icon_center, size, accent)
-		"bridge":
-			_draw_icon_bridge(icon_center, size, accent)
 		"compiler":
 			_draw_icon_compiler(icon_center, size, accent)
 		"terminal":
@@ -877,32 +868,6 @@ func _draw_icon_merger(center: Vector2, size: Vector2, accent: Color) -> void:
 
 	# Center dot
 	draw_circle(center, 3.0, accent)
-
-
-# --- BRIDGE: Crossing cables symbol ---
-func _draw_icon_bridge(center: Vector2, size: Vector2, accent: Color) -> void:
-	var s: float = minf(size.x, size.y) * 0.3
-	var glow := Color(accent, ICON_GLOW_ALPHA)
-
-	# Horizontal line
-	var h_left := center + Vector2(-s * 0.6, 0)
-	var h_right := center + Vector2(s * 0.6, 0)
-	draw_line(h_left, h_right, glow, ICON_GLOW_WIDTH)
-	draw_line(h_left, h_right, accent, 2.0)
-
-	# Vertical line
-	var v_top := center + Vector2(0, -s * 0.6)
-	var v_bottom := center + Vector2(0, s * 0.6)
-	draw_line(v_top, v_bottom, glow, ICON_GLOW_WIDTH)
-	draw_line(v_top, v_bottom, accent, 2.0)
-
-	# Center dot (crossing point)
-	draw_circle(center, 3.0, Color(accent, 0.4))
-	draw_circle(center, 2.0, accent)
-
-	# Corner dots (endpoints)
-	for endpoint in [h_left, h_right, v_top, v_bottom]:
-		draw_circle(endpoint, 2.0, accent)
 
 
 # --- COMPILER: Two inputs merging into one (crafting) ---

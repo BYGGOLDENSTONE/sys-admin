@@ -8,7 +8,6 @@ extends Resource
 @export var category: String = ""
 @export var visual_type: String = "default"
 @export var is_placeable: bool = true
-@export var allows_cable_crossing: bool = false
 @export var output_ports: Array[String] = []
 @export var input_ports: Array[String] = []
 
