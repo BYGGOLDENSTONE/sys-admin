@@ -31,7 +31,6 @@ var _count_ranges: Dictionary = {
 }
 
 ## Tutorial-critical sources: fixed coordinates near CT center.
-## All are discovered from start (force_discovered = true).
 var _tutorial_sources := [
 	{"name": "isp_backbone", "pos": Vector2i(270, 242)},    # NE — Gig 1
 	{"name": "atm", "pos": Vector2i(274, 256)},              # E  — Gig 2
@@ -49,15 +48,10 @@ var _rng := RandomNumberGenerator.new()
 var _placed_origins: Array[Vector2i] = []
 var _placed_names: Array[String] = []
 
-## Positions of tutorial-guaranteed sources (for fog reveal by main.gd)
-var guaranteed_origins: Array[Vector2i] = []
-
-
 func generate_map(seed_value: int, source_manager: Node) -> void:
 	_rng.seed = seed_value
 	_placed_origins.clear()
 	_placed_names.clear()
-	guaranteed_origins.clear()
 
 	# Phase 1: Tutorial-safe fixed-coordinate guarantees
 	_place_guaranteed(seed_value, source_manager)
@@ -65,15 +59,12 @@ func generate_map(seed_value: int, source_manager: Node) -> void:
 	# Phase 2: Fill remaining pools randomly
 	_place_random_fill(seed_value, source_manager)
 
-	# Phase 3: Reveal hard/endgame sources near spawn ("see but can't process" hook)
-	source_manager.reveal_hard_sources_near_spawn(MAP_CENTER, NEAR_RADIUS)
-
-	print("[MapGenerator] Generated map — seed: %d, sources: %d, guaranteed: %d" % [
-		seed_value, _placed_origins.size(), guaranteed_origins.size()])
+	print("[MapGenerator] Generated map — seed: %d, sources: %d" % [
+		seed_value, _placed_origins.size()])
 
 
 func _place_guaranteed(seed_value: int, source_manager: Node) -> void:
-	# 1. Tutorial sources at fixed coordinates (all discovered from start)
+	# 1. Tutorial sources at fixed coordinates
 	for entry in _tutorial_sources:
 		var def := _load_source_def(entry.name)
 		if def == null:
@@ -81,10 +72,9 @@ func _place_guaranteed(seed_value: int, source_manager: Node) -> void:
 			continue
 		var pos: Vector2i = entry.pos
 		var sub_seed: int = seed_value + _placed_origins.size() * 7919
-		source_manager.place_source(def, pos, sub_seed, true)
+		source_manager.place_source(def, pos, sub_seed)
 		_placed_origins.append(pos)
 		_placed_names.append(entry.name)
-		guaranteed_origins.append(pos)
 
 	# 2. Sector-based guarantees (Biotech Lab etc.)
 	for entry in _sector_guarantees:
@@ -96,10 +86,9 @@ func _place_guaranteed(seed_value: int, source_manager: Node) -> void:
 			push_warning("[MapGenerator] Failed sector placement for %s" % entry.name)
 			continue
 		var sub_seed: int = seed_value + _placed_origins.size() * 7919
-		source_manager.place_source(def, pos, sub_seed, true)
+		source_manager.place_source(def, pos, sub_seed)
 		_placed_origins.append(pos)
 		_placed_names.append(entry.name)
-		guaranteed_origins.append(pos)
 
 
 func _place_random_fill(seed_value: int, source_manager: Node) -> void:

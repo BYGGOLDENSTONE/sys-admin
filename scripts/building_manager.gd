@@ -504,7 +504,7 @@ func _find_port_at(world_pos: Vector2, output_only: bool) -> Dictionary:
 		return {"building": building, "side": port.side, "is_output": port.is_output}
 	# Check source output ports (sources only have outputs — for cable start)
 	if output_only and source_manager:
-		for source in source_manager.get_discovered_sources():
+		for source in source_manager.get_all_sources():
 			var local_pos: Vector2 = world_pos - source.global_position
 			var port: Dictionary = source.get_port_at(local_pos)
 			if not port.is_empty() and port.is_output:

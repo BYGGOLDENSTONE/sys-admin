@@ -15,7 +15,6 @@ var _tooltip_scene: PackedScene = preload("res://scenes/ui/building_tooltip.tscn
 var _MapGeneratorScript = preload("res://scripts/map_generator.gd")
 var _tooltip: PanelContainer = null
 var _undo_manager: Node = null
-var _fog_layer: Node2D = null
 var _map_generator: RefCounted = null
 var _current_seed: int = 0
 var _dev_mode: bool = false
@@ -109,9 +108,7 @@ func _ready() -> void:
 	source_manager.grid_system = grid_system
 	source_manager.source_container = source_container
 	building_manager.source_manager = source_manager
-	building_manager.building_placed.connect(source_manager.on_building_placed)
 	building_manager.building_removed.connect(source_manager.on_building_removed)
-	source_manager.source_discovered.connect(_on_source_discovered)
 
 	# Determine seed: from save, command-line, or random
 	var is_loading: bool = not load_save_data.is_empty()
@@ -123,13 +120,6 @@ func _ready() -> void:
 	# Seed-based procedural map generation
 	_map_generator = _MapGeneratorScript.new()
 	_map_generator.generate_map(_current_seed, source_manager)
-
-	# Setup fog of war layer (above sources, below buildings)
-	_setup_fog_layer()
-
-	# Ensure tutorial-guaranteed sources are visible through fog
-	if _fog_layer and _map_generator:
-		_fog_layer.ensure_cells_explored(_map_generator.guaranteed_origins)
 
 	# Setup save manager (before loading state)
 	_setup_save_manager()
@@ -268,17 +258,6 @@ func _setup_top_bar() -> void:
 	_top_bar.anchors_preset = Control.PRESET_TOP_WIDE
 	_top_bar.offset_right = -224.0  # Leave space for building panel
 	ui_layer.add_child(_top_bar)
-
-
-func _setup_fog_layer() -> void:
-	var FogLayerScript = preload("res://scripts/fog_layer.gd")
-	_fog_layer = Node2D.new()
-	_fog_layer.set_script(FogLayerScript)
-	_fog_layer.name = "FogLayer"
-	add_child(_fog_layer)
-	# Position after SourceContainer (index 1) so fog covers grid+sources but not buildings/cables
-	move_child(_fog_layer, 2)
-	building_manager.building_placed.connect(_fog_layer.explore_around_building)
 
 
 func _setup_minimap() -> void:
@@ -540,11 +519,6 @@ func _show_discovery_notification(display_name: String, color: Color) -> void:
 		_sound_manager.play_discovery()
 
 
-func _on_source_discovered(source: Node2D) -> void:
-	var def = source.definition
-	_show_discovery_notification(def.source_name, def.color)
-
-
 func _setup_tutorial_manager() -> void:
 	var TutorialManagerScript = preload("res://scripts/tutorial_manager.gd")
 	_tutorial_manager = Node.new()
@@ -600,7 +574,6 @@ func _setup_save_manager() -> void:
 	_save_manager.source_manager = source_manager
 	_save_manager.gig_manager = _gig_manager
 	_save_manager.simulation_manager = simulation_manager
-	_save_manager.fog_layer = _fog_layer
 	_save_manager.current_seed = _current_seed
 	add_child(_save_manager)
 
@@ -614,7 +587,6 @@ func _toggle_dev_mode() -> void:
 	_dev_mode = not _dev_mode
 	source_manager.set_dev_mode(_dev_mode)
 	_top_bar.set_dev_visible(_dev_mode)
-	_fog_layer.visible = not _dev_mode
 	print("[Main] Dev mode: %s" % ("ON" if _dev_mode else "OFF"))
 
 

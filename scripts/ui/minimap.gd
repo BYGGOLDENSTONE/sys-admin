@@ -84,10 +84,8 @@ func _draw_sources() -> void:
 	if source_manager == null:
 		return
 	for src in source_manager.get_all_sources():
-		if not src.discovered and not source_manager.dev_mode:
-			continue
 		var pos := _world_to_mini(Vector2(src.grid_cell.x * TILE_PX, src.grid_cell.y * TILE_PX))
-		var col: Color = src.definition.color if src.discovered else Color(0.4, 0.4, 0.4, 0.4)
+		var col: Color = src.definition.color
 		# Glow halo
 		draw_circle(pos, 5.0, Color(col, 0.15))
 		draw_circle(pos, 3.0, col)

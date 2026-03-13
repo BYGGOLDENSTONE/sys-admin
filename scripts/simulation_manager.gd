@@ -617,7 +617,7 @@ func _update_generation(_buildings: Array[Node]) -> void:
 	if source_manager == null or connection_manager == null:
 		return
 	var conns: Array[Dictionary] = connection_manager.get_connections()
-	for source in source_manager.get_discovered_sources():
+	for source in source_manager.get_all_sources():
 		var src_def: DataSourceDefinition = source.definition
 		var amount: int = int(src_def.generation_rate)
 		# Each connected port generates independently at full rate

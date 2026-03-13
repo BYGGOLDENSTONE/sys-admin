@@ -16,10 +16,8 @@ const PORT_HIT_RADIUS: float = 24.0
 var definition: DataSourceDefinition
 var grid_cell: Vector2i = Vector2i.ZERO  ## Top-left origin cell
 var cells: Array[Vector2i] = []          ## All occupied cells (rectangular)
-var discovered: bool = false
 var dev_mode: bool = false
 var _glow_time: float = 0.0
-var _reveal_flash: float = 0.0  ## 1.0 = just revealed, fades to 0
 
 ## Output port system — generated from grid_size
 var output_ports: Array[String] = []
@@ -29,8 +27,6 @@ func _process(delta: float) -> void:
 	if definition == null:
 		return
 	_glow_time += delta
-	if _reveal_flash > 0:
-		_reveal_flash = max(0.0, _reveal_flash - delta * 2.0)
 	queue_redraw()
 
 
@@ -66,11 +62,6 @@ func _generate_output_ports() -> void:
 	# Left edge: (h - 1) ports
 	for i in range(h - 1):
 		output_ports.append("left_%d" % i)
-
-
-func reveal() -> void:
-	discovered = true
-	_reveal_flash = 1.0
 
 
 func get_center_world() -> Vector2:
@@ -163,11 +154,6 @@ func _draw() -> void:
 	var size := Vector2(definition.grid_size.x * TILE_SIZE, definition.grid_size.y * TILE_SIZE)
 	var rect := Rect2(Vector2.ZERO, size)
 
-	# Hidden state
-	if not discovered and not dev_mode:
-		_draw_hidden(zoom, size)
-		return
-
 	var accent: Color = definition.color
 	var pulse: float = sin(_glow_time * GLOW_PULSE_SPEED) * GLOW_PULSE_AMOUNT
 
@@ -199,19 +185,11 @@ func _draw() -> void:
 	var center := size / 2.0
 	_draw_signal_rings(center, accent, 1.0)
 
-	# Dev mode badge
-	if dev_mode and not discovered:
-		_draw_hidden_badge(center)
-
 	# Source name
 	_draw_source_name(center, accent)
 
 	# Output ports
 	_draw_ports(size, accent)
-
-	# Reveal flash
-	if _reveal_flash > 0:
-		_draw_reveal_flash(size)
 
 
 ## PCB mode: zoom-compensated glowing dots
@@ -228,9 +206,6 @@ func _draw_pcb_source(accent: Color, pulse: float, zoom: float, size: Vector2) -
 	# Bright core
 	draw_circle(center, maxf(6.0, glow_r * 0.08), Color(accent, 0.4 + pulse * 3.0))
 	draw_circle(center, maxf(2.5, glow_r * 0.03), Color(1.0, 1.0, 1.0, 0.5))
-
-	if _reveal_flash > 0:
-		_draw_reveal_flash(size)
 
 
 ## Medium zoom: simplified with soft glow halo
@@ -260,108 +235,6 @@ func _draw_medium_source(accent: Color, pulse: float, zoom: float, size: Vector2
 
 	# Source name
 	_draw_source_name(center, accent)
-
-	# Reveal flash
-	if _reveal_flash > 0:
-		_draw_reveal_flash(size)
-
-
-func _draw_hidden(zoom: float, size: Vector2) -> void:
-	var accent: Color = definition.color
-	var pulse: float = sin(_glow_time * 0.8) * 0.1
-	var alpha: float = 0.15 + pulse
-	var center := size / 2.0
-	var rect := Rect2(Vector2.ZERO, size)
-
-	# PCB mode hidden: faint glow dot
-	if zoom < 0.25:
-		var inv_zoom: float = clampf(1.0 / zoom, 2.0, 8.0)
-		var r: float = 20.0 * inv_zoom
-		draw_circle(center, r, Color(accent, 0.012 + pulse * 0.3))
-		draw_circle(center, r * 0.3, Color(accent, 0.025))
-		return
-
-	# Medium mode hidden: dim rect + question mark
-	if zoom < 0.45:
-		draw_rect(rect, Color(accent, 0.04), true)
-		draw_rect(rect, Color(accent, alpha * 0.4), false, 2.0)
-		var font := _MONO_FONT
-		var q_dims := font.get_string_size("?", HORIZONTAL_ALIGNMENT_CENTER, -1, 20)
-		var q_pos := Vector2(center.x - q_dims.x / 2.0, center.y + q_dims.y / 4.0)
-		draw_string(font, q_pos, "?", HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color(accent, alpha + 0.15))
-		return
-
-	# Full detail hidden
-	draw_rect(rect, Color(accent, 0.03), true)
-	draw_rect(rect, Color(accent, alpha * 0.3), false, 2.0)
-
-	# "?" icon at center
-	var font := _MONO_FONT
-	var q_size := 20
-	var q_text := "?"
-	var q_dims := font.get_string_size(q_text, HORIZONTAL_ALIGNMENT_CENTER, -1, q_size)
-	var q_pos := Vector2(center.x - q_dims.x / 2.0, center.y + q_dims.y / 4.0)
-	draw_string(font, q_pos + Vector2(1, 1), q_text, HORIZONTAL_ALIGNMENT_LEFT, -1, q_size, Color(0, 0, 0, 0.5))
-	draw_string(font, q_pos, q_text, HORIZONTAL_ALIGNMENT_LEFT, -1, q_size, Color(accent, alpha + 0.15))
-
-	# "Unknown Signal" text below
-	var sub_size := 9
-	var sub_text := "Unknown Signal"
-	var sub_dims := font.get_string_size(sub_text, HORIZONTAL_ALIGNMENT_CENTER, -1, sub_size)
-	var sub_pos := Vector2(center.x - sub_dims.x / 2.0, center.y + 16)
-	draw_string(font, sub_pos, sub_text, HORIZONTAL_ALIGNMENT_LEFT, -1, sub_size, Color(accent, alpha * 0.5))
-
-	# Single slow signal ring
-	var phase: float = fmod(_glow_time * 0.3, 1.0)
-	var radius: float = 15.0 + phase * 50.0
-	var ring_alpha: float = (1.0 - phase) * 0.12
-	if ring_alpha > 0.01:
-		var points := PackedVector2Array()
-		for j in range(33):
-			var angle: float = float(j) / 32.0 * TAU
-			points.append(center + Vector2(cos(angle), sin(angle)) * radius)
-		draw_polyline(points, Color(accent, ring_alpha), 1.0, true)
-
-
-func _draw_hidden_badge(center: Vector2) -> void:
-	var font := _MONO_FONT
-	var font_size := 10
-	var label := "HIDDEN"
-	var badge_color := Color(1.0, 0.4, 0.2)
-	var text_size := font.get_string_size(label, HORIZONTAL_ALIGNMENT_CENTER, -1, font_size)
-	var badge_pos := Vector2(center.x - text_size.x / 2.0, center.y - 42)
-
-	var bg_rect := Rect2(badge_pos.x - 4, badge_pos.y - font_size + 1, text_size.x + 8, font_size + 4)
-	draw_rect(bg_rect, Color(0, 0, 0, 0.7), true)
-	draw_rect(bg_rect, Color(badge_color, 0.6), false, 1.0)
-	draw_string(font, badge_pos, label, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(badge_color, 0.9))
-
-
-func _draw_reveal_flash(size: Vector2) -> void:
-	var accent: Color = definition.color
-	var flash_alpha: float = _reveal_flash * 0.6
-	var rect := Rect2(Vector2.ZERO, size)
-	draw_rect(rect, Color(accent, flash_alpha), true)
-	# Double expanding ring burst for impact
-	var center := size / 2.0
-	# Inner ring (fast)
-	var burst1_r: float = (1.0 - _reveal_flash) * 140.0
-	var burst1_a: float = _reveal_flash * 0.6
-	var points1 := PackedVector2Array()
-	for j in range(33):
-		var angle: float = float(j) / 32.0 * TAU
-		points1.append(center + Vector2(cos(angle), sin(angle)) * burst1_r)
-	draw_polyline(points1, Color(accent, burst1_a), 3.0, true)
-	# Outer ring (slower, wider)
-	var burst2_r: float = (1.0 - _reveal_flash) * 200.0
-	var burst2_a: float = _reveal_flash * 0.3
-	var points2 := PackedVector2Array()
-	for j in range(33):
-		var angle: float = float(j) / 32.0 * TAU
-		points2.append(center + Vector2(cos(angle), sin(angle)) * burst2_r)
-	draw_polyline(points2, Color(accent, burst2_a), 2.0, true)
-	# Center flash dot
-	draw_circle(center, 8.0 * _reveal_flash, Color(1.0, 1.0, 1.0, _reveal_flash * 0.5))
 
 
 func _draw_signal_rings(center: Vector2, accent: Color, scale: float = 1.0) -> void:
@@ -408,8 +281,6 @@ func _draw_territory_tint(accent: Color, size: Vector2, tint_alpha: float = 0.06
 
 
 func _draw_ports(size: Vector2, accent: Color) -> void:
-	if not discovered:
-		return
 	var port_pulse: float = sin(_glow_time * 3.0) * 0.5 + 0.5
 	for port_side in output_ports:
 		var pos := get_port_local_position(port_side)

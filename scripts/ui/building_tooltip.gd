@@ -58,16 +58,6 @@ func show_for_source(source: Node2D) -> void:
 		hide_tooltip()
 		return
 
-	# Hidden source — limited info
-	if not source.discovered and not source.dev_mode:
-		name_label.text = "Unknown Signal"
-		name_label.add_theme_color_override("font_color", Color(def.color, 0.6))
-		desc_label.text = "Approach to discover"
-		info_label.text = "??? | ??? MB/s"
-		stats_label.text = ""
-		_show_animated()
-		return
-
 	name_label.text = def.source_name
 	name_label.add_theme_color_override("font_color", def.color)
 	desc_label.text = def.description
@@ -279,9 +269,6 @@ func _format_stored_data(data: Dictionary) -> String:
 func _update_source_stats() -> void:
 	if _target_source == null or _target_source.definition == null:
 		stats_label.text = ""
-		return
-	# Hidden source — no stats update
-	if not _target_source.discovered and not _target_source.dev_mode:
 		return
 	var def = _target_source.definition
 	var lines: PackedStringArray = []

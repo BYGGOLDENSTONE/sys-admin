@@ -19,7 +19,6 @@ var connection_manager: Node = null
 var source_manager: Node = null
 var gig_manager: Node = null
 var simulation_manager: Node = null
-var fog_layer: Node2D = null
 var current_seed: int = 0
 
 var _autosave_timer: Timer = null
@@ -105,9 +104,7 @@ func capture_state() -> Dictionary:
 	data["simulation"] = _capture_simulation()
 	data["buildings"] = _capture_buildings()
 	data["connections"] = _capture_connections()
-	data["sources"] = _capture_sources()
 	data["gigs"] = _capture_gigs()
-	data["fog"] = _capture_fog()
 	return data
 
 
@@ -175,16 +172,6 @@ func _capture_connections() -> Array:
 	return result
 
 
-func _capture_sources() -> Dictionary:
-	if source_manager == null:
-		return {}
-	var result: Dictionary = {}
-	for source in source_manager.get_all_sources():
-		var key: String = "%d_%d" % [source.grid_cell.x, source.grid_cell.y]
-		result[key] = source.discovered
-	return result
-
-
 func _capture_gigs() -> Dictionary:
 	if gig_manager == null:
 		return {}
@@ -208,15 +195,6 @@ func _capture_gigs() -> Dictionary:
 	}
 
 
-func _capture_fog() -> Array:
-	if fog_layer == null:
-		return []
-	var result: Array = []
-	for chunk_key in fog_layer._explored:
-		result.append([chunk_key.x, chunk_key.y])
-	return result
-
-
 ## --- STATE RESTORE ---
 
 func apply_state(data: Dictionary) -> bool:
@@ -224,48 +202,21 @@ func apply_state(data: Dictionary) -> bool:
 		push_error("[SaveManager] Invalid save data")
 		return false
 
-	# 1. Restore source discovery (before buildings so auto-link works)
-	_restore_sources(data.get("sources", {}))
-
-	# 2. Restore fog (before buildings to avoid re-exploration flash)
-	_restore_fog(data.get("fog", []))
-
-	# 3. Place saved buildings
+	# 1. Place saved buildings
 	var building_map: Dictionary = _restore_buildings(data.get("buildings", []))
 
-	# 4. Restore connections
+	# 2. Restore connections
 	_restore_connections(data.get("connections", []), building_map)
 
-	# 5. Restore gig state
+	# 3. Restore gig state
 	_restore_gigs(data.get("gigs", {}))
 
-	# 6. Restore simulation state
+	# 4. Restore simulation state
 	_restore_simulation(data.get("simulation", {}))
 
 	game_loaded.emit()
 	print("[SaveManager] Game state restored")
 	return true
-
-
-func _restore_sources(source_data: Dictionary) -> void:
-	if source_manager == null:
-		return
-	for source in source_manager.get_all_sources():
-		var key: String = "%d_%d" % [source.grid_cell.x, source.grid_cell.y]
-		if source_data.has(key):
-			if source_data[key] and not source.discovered:
-				source.discovered = true
-			elif not source_data[key] and source.discovered:
-				source.discovered = false
-
-
-func _restore_fog(fog_data: Array) -> void:
-	if fog_layer == null:
-		return
-	fog_layer._explored.clear()
-	for entry in fog_data:
-		if entry is Array and entry.size() >= 2:
-			fog_layer._explored[Vector2i(int(entry[0]), int(entry[1]))] = true
 
 
 func _restore_buildings(buildings_data: Array) -> Dictionary:
