@@ -68,13 +68,13 @@ func _draw() -> void:
 	var accent: Color = definition.color
 	var pulse: float = sin(_glow_time * GLOW_PULSE_SPEED) * GLOW_PULSE_AMOUNT
 
-	# === PCB MODE (zoom < 0.45) — soft glowing dots ===
-	if zoom < 0.45:
+	# === PCB MODE (zoom < 0.25) — soft glowing dots ===
+	if zoom < 0.25:
 		_draw_pcb_source(accent, pulse, zoom)
 		return
 
-	# === MEDIUM MODE (zoom 0.45-0.7) — simplified with glow ===
-	if zoom < 0.7:
+	# === MEDIUM MODE (zoom 0.25-0.45) — simplified with glow ===
+	if zoom < 0.45:
 		_draw_medium_source(accent, pulse, zoom)
 		return
 
@@ -102,7 +102,6 @@ func _draw() -> void:
 	_draw_signal_rings(center, accent, 1.0)
 
 	# Zone badge
-	_draw_zone_badge(center)
 
 	# Dev mode badge
 	if dev_mode and not discovered:
@@ -111,8 +110,6 @@ func _draw() -> void:
 	# Source name
 	_draw_source_name(center, accent)
 
-	# Content composition bars
-	_draw_composition_bars(center, accent)
 
 	# Reveal flash
 	if _reveal_flash > 0:
@@ -181,7 +178,7 @@ func _draw_hidden(zoom: float) -> void:
 	var alpha: float = 0.15 + pulse
 
 	# PCB mode hidden: faint glow dot (zoom-compensated)
-	if zoom < 0.45:
+	if zoom < 0.25:
 		var center: Vector2 = get_center_world() - global_position
 		var inv_zoom: float = clampf(1.0 / zoom, 2.0, 8.0)
 		var r: float = 20.0 * inv_zoom
@@ -190,7 +187,7 @@ func _draw_hidden(zoom: float) -> void:
 		return
 
 	# Medium mode hidden: dim blob + question mark
-	if zoom < 0.7:
+	if zoom < 0.45:
 		for cell in cells:
 			var local_pos := Vector2(
 				(cell.x - grid_cell.x) * TILE_SIZE,
@@ -343,14 +340,16 @@ func _draw_signal_rings(center: Vector2, accent: Color, scale: float = 1.0) -> v
 
 func _draw_source_name(center: Vector2, accent: Color) -> void:
 	var font := _MONO_FONT
-	var font_size := 13
+	var zoom: float = _get_zoom_level()
+	# Scale font inversely with zoom, clamped so it stays readable but not huge
+	var inv_scale: float = clampf(1.0 / zoom, 1.0, 3.0)
+	var font_size: int = int(13.0 * inv_scale)
 	var text: String = definition.source_name
 	var text_size := font.get_string_size(text, HORIZONTAL_ALIGNMENT_CENTER, -1, font_size)
-	var text_pos := Vector2(center.x - text_size.x / 2.0, center.y - 12)
+	var y_offset: float = -12.0 * inv_scale
+	var text_pos := Vector2(center.x - text_size.x / 2.0, center.y + y_offset)
 	# Shadow
 	draw_string(font, text_pos + Vector2(1, 1), text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(0, 0, 0, 0.7))
-	# Glow
-	draw_string(font, text_pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(accent, 0.3))
 	# Text
 	draw_string(font, text_pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(accent, 0.9))
 
@@ -399,7 +398,7 @@ func _draw_territory_tint(accent: Color, tint_alpha: float = 0.06) -> void:
 
 
 func _draw_zone_badge(center: Vector2) -> void:
-	var diff_labels: Dictionary = {"easy": "EASY", "medium": "MEDIUM", "hard": "HARD", "endgame": "ENDGAME"}
+	var diff_labels: Dictionary = {"medium": "MEDIUM", "hard": "HARD", "endgame": "ENDGAME"}
 	var diff_colors: Dictionary = {
 		"easy": Color(0.2, 1.0, 0.67),
 		"medium": Color(1.0, 0.8, 0.2),

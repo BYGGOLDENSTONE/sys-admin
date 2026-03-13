@@ -440,13 +440,13 @@ func _draw() -> void:
 		else:
 			pulse = sin(_glow_time * GLOW_PULSE_SPEED) * GLOW_PULSE_AMOUNT * 0.5
 
-	# === PCB MODE (zoom < 0.45) — bright chips on dark board ===
-	if zoom < 0.45:
+	# === PCB MODE (zoom < 0.25) — bright chips on dark board ===
+	if zoom < 0.25:
 		_draw_pcb_mode(size, rect, accent, pulse)
 		return
 
-	# === MEDIUM MODE (zoom 0.35-0.7) — simplified ===
-	var is_medium := zoom < 0.7
+	# === MEDIUM MODE (zoom 0.25-0.45) — simplified ===
+	var is_medium := zoom < 0.45
 
 	# Wide outer glow (soft halo) — scaled up at lower zoom
 	var zoom_glow_scale: float = clampf(1.0 / zoom, 1.0, 2.5) if zoom < 1.0 else 1.0
@@ -534,30 +534,28 @@ func _draw() -> void:
 		draw_line(Vector2(0, size.y * 0.3), Vector2(size.x, size.y * 0.3), line_color, 1.0)
 		draw_line(Vector2(size.x * 0.3, 0), Vector2(size.x * 0.3, size.y * 0.3), line_color, 1.0)
 
-	# Icon (skip at medium zoom) — rotate icon with building direction
-	if not is_medium:
-		if direction != 0:
-			draw_set_transform(center, direction * PI / 2.0, Vector2.ONE)
-			_draw_icon(Vector2.ZERO, size, accent)
-			draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-		else:
-			_draw_icon(center, size, accent)
+	# Icon — rotate icon with building direction
+	if direction != 0:
+		draw_set_transform(center, direction * PI / 2.0, Vector2.ONE)
+		_draw_icon(Vector2.ZERO, size, accent)
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	else:
+		_draw_icon(center, size, accent)
 
-	# Building name (skip at medium zoom)
-	if not is_medium:
-		var font := _MONO_FONT
-		var font_size := 11
-		var text := definition.building_name
-		var text_size := font.get_string_size(text, HORIZONTAL_ALIGNMENT_CENTER, -1, font_size)
-		var text_pos := Vector2(
-			(size.x - text_size.x) / 2.0,
-			font_size + 4
-		)
-		# Stronger shadow + outline for readability
-		draw_string(font, text_pos + Vector2(1, 1), text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(0, 0, 0, 0.85))
-		draw_string(font, text_pos + Vector2(-1, -1), text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(0, 0, 0, 0.4))
-		draw_string(font, text_pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(accent, 0.35))
-		draw_string(font, text_pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(1, 1, 1, 0.95))
+	# Building name
+	var font := _MONO_FONT
+	var font_size := 11
+	var text := definition.building_name
+	var text_size := font.get_string_size(text, HORIZONTAL_ALIGNMENT_CENTER, -1, font_size)
+	var text_pos := Vector2(
+		(size.x - text_size.x) / 2.0,
+		font_size + 4
+	)
+	# Stronger shadow + outline for readability
+	draw_string(font, text_pos + Vector2(1, 1), text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(0, 0, 0, 0.85))
+	draw_string(font, text_pos + Vector2(-1, -1), text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(0, 0, 0, 0.4))
+	draw_string(font, text_pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(accent, 0.35))
+	draw_string(font, text_pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(1, 1, 1, 0.95))
 
 	# Ports (always draw, but scale at medium zoom)
 	_draw_ports(size, accent)

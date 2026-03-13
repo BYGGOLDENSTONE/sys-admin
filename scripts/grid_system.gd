@@ -318,8 +318,8 @@ func _draw_pcb_pattern(sx: int, ex: int, sy: int, ey: int, zoom_level: float) ->
 					draw_circle(pos, 3.5, via_col)
 					draw_arc(pos, 5.0, 0.0, TAU, 8, via_ring, 1.0)
 
-	# --- Component pads (zoom > 0.45) ---
-	if zoom_level > 0.45:
+	# --- Component pads (zoom > 0.25) ---
+	if zoom_level > 0.25:
 		var pad_a: float = 0.035 * alpha_scale
 		var pad_fill := Color(PCB_PAD_COLOR, pad_a)
 		var pad_border := Color(PCB_PAD_COLOR, pad_a * 1.5)
