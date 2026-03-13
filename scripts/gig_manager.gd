@@ -51,6 +51,7 @@ func _load_gigs() -> void:
 
 func set_contract_terminal(terminal: Node2D) -> void:
 	_contract_terminal = terminal
+	_contract_terminal.purity_checker = _output_matches_any_requirement
 	print("[GigManager] Contract Terminal linked")
 
 
@@ -86,7 +87,7 @@ func process_deliveries() -> void:
 	if _contract_terminal.stored_data.is_empty():
 		return
 
-	# Process each data item in Contract Terminal
+	# Count deliveries from accepted data (blocked ports never receive data)
 	for key in _contract_terminal.stored_data.keys():
 		var amount: int = _contract_terminal.stored_data[key]
 		if amount <= 0:
@@ -102,6 +103,80 @@ func process_deliveries() -> void:
 
 	# Check gig completion
 	_check_completions()
+
+
+# ─── PORT PURITY: Cable Type Checking ───
+# Each CT port tracks what data types have flowed through its cable (cumulative).
+# When a non-matching type is detected at push time, the port is instantly blocked.
+# Re-evaluated when gigs change (new requirements may accept previously blocked types).
+# Cleared when cable is disconnected.
+
+## Re-evaluate all CT ports based on their recorded carried types.
+## Called when gigs activate/complete (matching criteria changes).
+func evaluate_ct_connections() -> void:
+	if _contract_terminal == null:
+		return
+	_contract_terminal.blocked_ports.clear()
+	for port in _contract_terminal.port_carried_types:
+		var types: Dictionary = _contract_terminal.port_carried_types[port]
+		for type_key in types:
+			var parts: PackedStringArray = type_key.split("_")
+			if not _output_matches_any_requirement(int(parts[0]), int(parts[1])):
+				_contract_terminal.blocked_ports[port] = true
+				break
+
+
+## Called when a connection to CT is added — pre-populate types for Uplinks.
+## Uplink source composition is fully known → block instantly before any tick.
+## Other buildings have deterministic output → runtime check at first push handles them.
+func on_ct_connection_added(conn: Dictionary) -> void:
+	if _contract_terminal == null:
+		return
+	if conn.to_building != _contract_terminal:
+		return
+	var port: String = conn.to_port
+	var upstream: Node2D = conn.from_building
+	# Pre-populate for Uplinks (source composition fully known)
+	if upstream.definition.generator != null and upstream.linked_source != null:
+		var src_def = upstream.linked_source.definition
+		if not _contract_terminal.port_carried_types.has(port):
+			_contract_terminal.port_carried_types[port] = {}
+		for c_id in src_def.content_weights:
+			if src_def.content_weights[c_id] <= 0.0:
+				continue
+			for s_id in src_def.state_weights:
+				if src_def.state_weights[s_id] <= 0.0:
+					continue
+				_contract_terminal.port_carried_types[port]["%d_%d" % [int(c_id), int(s_id)]] = true
+		# Evaluate immediately — block before first tick
+		evaluate_ct_connections()
+
+
+## Called when a connection to CT is removed — clear that port's tracking.
+func on_ct_connection_removed(conn: Dictionary) -> void:
+	if _contract_terminal == null:
+		return
+	if conn.to_building != _contract_terminal:
+		return
+	var port: String = conn.to_port
+	_contract_terminal.port_carried_types.erase(port)
+	_contract_terminal.blocked_ports.erase(port)
+	print("[PortPurity] CT port '%s' cleared — cable disconnected" % port)
+
+
+## Check if a (content, state) matches any active gig requirement.
+## Used as callable (purity_checker) by SimulationManager at push time.
+func _output_matches_any_requirement(content: int, state: int) -> bool:
+	for gig in _active_gigs:
+		for req in gig.requirements:
+			if req.packet_key != "":
+				continue
+			if req.content != content:
+				continue
+			if req.state >= 0 and req.state != state:
+				continue
+			return true
+	return false
 
 
 func _count_packet_delivery(pkt_key: String, amount: int) -> void:
@@ -168,6 +243,8 @@ func _complete_gig(gig) -> void:
 	_completed_indices[gig.order_index] = true
 	print("[GigManager] Gig completed — %s" % gig.gig_name)
 	gig_completed.emit(gig)
+	# Re-evaluate CT ports — new gigs may accept different data
+	evaluate_ct_connections()
 
 	# Unlock reward buildings
 	for b_name in gig.reward_buildings:
@@ -235,3 +312,5 @@ func _activate_gig(gig) -> void:
 
 	gig_activated.emit(gig)
 	print("[GigManager] Gig activated — %s (order: %d)" % [gig.gig_name, gig.order_index])
+	# Re-evaluate CT ports — new gig requirements change what's accepted
+	evaluate_ct_connections()

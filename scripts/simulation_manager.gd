@@ -196,6 +196,28 @@ func _push_data_from(source: Node2D, content: int, state: int, amount: int, from
 		if not target.accepts_data(content, state):
 			continue
 		if target.can_accept_data(to_send, state, content):
+			# Port Purity: record cable data type + check at push time
+			if target.definition.category == "terminal":
+				var port: String = conn.to_port
+				if target.blocked_ports.has(port):
+					continue
+				# Record this data type on the cable
+				if not target.port_carried_types.has(port):
+					target.port_carried_types[port] = {}
+				var type_key: String = "%d_%d" % [content, state]
+				target.port_carried_types[port][type_key] = true
+				# Check purity: if ANY recorded type doesn't match gig → block
+				if target.purity_checker.is_valid():
+					var contaminated := false
+					for tk in target.port_carried_types[port]:
+						var parts: PackedStringArray = tk.split("_")
+						if not target.purity_checker.call(int(parts[0]), int(parts[1])):
+							contaminated = true
+							break
+					if contaminated:
+						target.blocked_ports[port] = true
+						print("[PortPurity] CT port '%s' blocked — cable carries non-matching data" % port)
+						continue
 			target.stored_data[key] = target.stored_data.get(key, 0) + to_send
 			amount -= to_send
 			total_sent += to_send
@@ -553,6 +575,9 @@ func _push_packet_from(source: Node2D, pkt_key: String, amount: int) -> int:
 		var to_send: int = mini(per_target, amount)
 		if to_send <= 0:
 			break
+		# Port Purity: skip blocked CT ports
+		if target.blocked_ports.has(conn.to_port):
+			continue
 		target.stored_data[pkt_key] = target.stored_data.get(pkt_key, 0) + to_send
 		amount -= to_send
 		total_sent += to_send

@@ -570,6 +570,10 @@ func _setup_sound_manager() -> void:
 	# Wire cable events
 	connection_manager.connection_added.connect(_on_cable_connected_sound)
 	connection_manager.connection_removed.connect(_on_cable_removed_sound)
+	# Port Purity: pre-populate cable types at connection time (blocks before first tick)
+	connection_manager.connection_added.connect(_gig_manager.on_ct_connection_added)
+	# Port Purity: clear port tracking when cable disconnected from CT
+	connection_manager.connection_removed.connect(_gig_manager.on_ct_connection_removed)
 
 
 func _on_building_placed_sound(_building: Node2D, _cell: Vector2i) -> void:

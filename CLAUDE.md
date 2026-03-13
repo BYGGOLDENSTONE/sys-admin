@@ -53,6 +53,7 @@ Asagidaki kararlar artik **scope lock** kabul edilir. Claude Code bu kararlarla 
 - [x] Grid kablo routing ve Bridge oyunun ana layout bulmacasi olmaya devam edecek
 - [x] **Bina rotasyonu** — R tusuyla 4 yone dondurme, portlar da doner
 - [x] **Contract Terminal 3x3** — 8 input port (her kenarda 2), merkez etrafinda 10+ cell kaynak exclusion zone
+- [x] **CT Port Purity** — CT her port'un kablo tiplerini kumulatif kaydeder. Uplink baglandiginda kaynak kompozisyonu aninda yazilir (ilk tick'ten once blok). Non-matching tip tespit edilirse port kalici olarak bloklanir. Kablo cikarildiginda kayit sifirlanir. Oyuncuyu Classifier+Separator ile filtrelemeye zorlar.
 
 ### Art / Audio Kararlari
 - [x] Ana sanat yonu: **procedural-first**

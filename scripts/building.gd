@@ -28,6 +28,9 @@ var _process_flash: float = 0.0
 
 # Runtime state (set by SimulationManager)
 var stored_data: Dictionary = {}  ## Key: "content_state_tier_tags" (e.g. "0_0_0_0"), Value: int MB
+var blocked_ports: Dictionary = {}  ## Port Purity: port_name → true
+var port_carried_types: Dictionary = {}  ## Port Purity: port_name → { "content_state" → true } — cumulative record
+var purity_checker: Callable  ## Set by GigManager: func(content, state) -> bool
 var is_working: bool = false  ## True when building did actual work this tick
 var status_reason: String = ""  ## Why the building is idle (set by SimulationManager)
 var separator_mode: String = "state"  ## For separator: "state" or "content"

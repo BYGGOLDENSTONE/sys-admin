@@ -529,6 +529,25 @@ Biometric Recovered ═══════╝
 - Gig tamamlaninca yeni bina acilir
 - Oyunun kalbi — tum pipeline'lar buraya akar
 
+#### Port Purity Kurali (Kablo Tipi Dogrulama)
+Contract Terminal **sadece saf (pure) veri akisi kabul eder.** Her input port'un kablosu kumulatif tip kaydı tutar:
+
+- **Kablo baglandiginda:** Uplink kaynaklari icin tum olasi veri tipleri (content × state) aninda kaydedilir — ilk tick'ten once kontrol yapilir
+- **Push aninda:** Diger binalardan gelen veri tipleri kabloya kaydedilir ve aninda degerlendirilir
+- Port'taki **tum** kayitli tipler aktif bir gig requirement'a eslesiyorsa → **kabul**, veri akar
+- Port'ta **tek bir non-matching tip** bile kaydedildiyse → **port kalici olarak bloklanir**, hicbir veri gecmez
+- **Kablo cikarildiginda:** Port kaydi sifirlanir, blok kalkar
+- **Gig degistiginde:** Tum portlar yeniden degerlendirilir (yeni requirement'lar farkli tipleri kabul edebilir)
+
+**Ornek:** Gig "20 MB Financial Public" istiyor.
+- Port'a sadece Financial Public geliyorsa → kabul ✓
+- Port'a Financial Public + Biometric Public geliyorsa (ikisi de aktif gig'e uyuyor) → kabul ✓
+- Uplink (ATM: 70% Financial Public + 30% Financial Corrupted) direkt baglanirsa → **kablo aninda bloklanir** ✗
+
+**Neden:** Bu kural oyunun puzzle cekirdegini korur. Oyuncu kaynaktan gelen karisik veriyi (content + state) filtrelemeden CT'ye teslim edemez. Classifier ile content ayirma, Separator ile state ayirma ZORUNLU hale gelir. Temiz hatlar Merger ile birlestirilebilir.
+
+**Kaynak tasarimi ile uyum:** Tum kaynaklar (tutorial Otomat haric) karisik state icerir (Public + Corrupted/Encrypted). Bu, direkt Uplink → CT baglantisinin hicbir zaman calismayacagini dogal olarak garanti eder.
+
 ---
 
 ## 10. Harita ve Kaynaklar
@@ -626,9 +645,11 @@ Gig sistemi oyunun KALBI. Opsiyonel degil, ana ilerleme mekanigi. Contract Termi
 1. Contract Terminal'de mevcut gig'ler goruntulenir
 2. Gig: "X miktar Y veri isle ve teslim et"
 3. Oyuncu pipeline kurar: kaynak → islem → Contract Terminal
-4. Veri akar → gig ilerleme sayaci artar
+4. Veri akar → **CT port purity kontrolu** → eslesiyorsa gig ilerleme sayaci artar
 5. Gig tamam → yeni bina acilir + yeni gig'ler belirir
 6. Veri teslimde TUKETILIR (Shapez modeli — Hub'a giren veri gider)
+
+> **Port Purity Kurali:** CT, her input port'una bagli kablonun tasidigi veri tiplerini kumulatif olarak kaydeder. Uplink'ler icin kaynak kompozisyonu kablo baglandiginda aninda yazilir (ilk tick'ten once blok). Diger binalar icin push aninda kaydedilir. Port'taki TUM kayitli tipler aktif bir gig requirement'a eslesiyorsa veri kabul edilir. Tek bir non-matching tip bile kaydedildiyse port kalici olarak bloklanir. Kablo cikarildiginda kayit sifirlanir. Gig degistiginde tum portlar yeniden degerlendirilir. Detay icin "CONTRACT TERMINAL — Mission Hub" bolumune bak.
 
 ### Gig Ilerleme Zinciri
 
