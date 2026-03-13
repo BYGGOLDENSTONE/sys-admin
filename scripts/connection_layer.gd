@@ -14,11 +14,16 @@ const PREVIEW_INVALID_COLOR := Color(1, 0.13, 0.27, 0.5)
 
 ## Particle travel system — particles spawn at output, travel to input
 ## Speed is world-space constant: particles move at fixed grids/sec regardless of cable length
-## Longer cables = longer travel time. Throughput affects density, not speed.
+## Longer cables = longer travel time. Particle cap and spawn rate scale with cable length
+## so that every active cable maintains a visually full "stream" of data.
 const PARTICLE_GRIDS_PER_SEC: float = 2.0  ## World-space speed: 2 grid cells per second
 const PARTICLE_DRAIN_MULT: float = 2.0     ## Drain mode multiplier (2x normal speed)
-const PARTICLE_MAX_PER_CABLE: int = 14      ## Hard cap per connection
 const PARTICLE_MIN_SPAWN_INTERVAL: float = 0.15  ## Minimum seconds between spawns
+
+## Length-aware occupancy: target particle density = 1 particle per OCCUPANCY_SPACING grids
+const PARTICLE_OCCUPANCY_SPACING: float = 1.8  ## Desired grid cells between particles
+const PARTICLE_CAP_MIN: int = 4                 ## Shortest cables still get at least this many
+const PARTICLE_CAP_MAX: int = 30                ## Safety ceiling for very long cables
 
 var connection_manager: Node = null
 var simulation_manager: Node = null
@@ -119,7 +124,13 @@ func _update_particles_flowing(conn_idx: int, delta: float, conn: Dictionary) ->
 	var cable_len: float = _get_cable_pixel_length(conn)
 	var t_speed: float = (PARTICLE_GRIDS_PER_SEC * TILE_SIZE) / cable_len
 
-	# Spawn rate reflects throughput (more data = denser particles, not faster)
+	# Length-aware particle cap: longer cables hold more particles
+	var cable_grids: float = cable_len / float(TILE_SIZE)
+	var target_cap: int = clampi(
+		int(ceil(cable_grids / PARTICLE_OCCUPANCY_SPACING)),
+		PARTICLE_CAP_MIN, PARTICLE_CAP_MAX)
+
+	# Flow data — used for spawn rate and particle type selection
 	var flow: Array = _get_connection_flow(conn_idx)
 	var total_amount: int = 0
 	for entry in flow:
@@ -133,14 +144,21 @@ func _update_particles_flowing(conn_idx: int, delta: float, conn: Dictionary) ->
 			particles.remove_at(pi)
 		pi -= 1
 
-	# Spawn new particles at output (t=0) based on flow rate
+	# Spawn new particles at output (t=0)
 	if flow.is_empty() or total_amount <= 0:
 		return
 
-	var spawn_rate: float = clampf(float(total_amount) * 0.8, 0.5, 6.0)
+	# Spawn rate = pure occupancy replacement: speed * target_cap
+	# keeps every active cable at the same visual density regardless of throughput.
+	# Throughput differences are communicated via glow intensity, not spacing.
+	var spawn_rate: float = t_speed * float(target_cap)
 	_conn_spawn_accum[conn_idx] += delta * spawn_rate
 
-	while _conn_spawn_accum[conn_idx] >= 1.0 and particles.size() < PARTICLE_MAX_PER_CABLE:
+	# Clamp accumulator to prevent debt buildup during stall/cap saturation.
+	# Max 2.0 allows a small burst (2 particles) on resume but no instant refill.
+	_conn_spawn_accum[conn_idx] = minf(_conn_spawn_accum[conn_idx], 2.0)
+
+	while _conn_spawn_accum[conn_idx] >= 1.0 and particles.size() < target_cap:
 		_conn_spawn_accum[conn_idx] -= 1.0
 		var ptype: Dictionary = _pick_random_type(flow, total_amount)
 		particles.append({"t": 0.0, "color": ptype.color, "char": ptype.char})
@@ -421,6 +439,13 @@ func _draw_particles(conn: Dictionary, conn_index: int) -> void:
 	if total_length <= 0:
 		return
 
+	# Throughput-based glow intensity: high flow = brighter, low flow = dimmer
+	var flow: Array = _get_connection_flow(conn_index)
+	var flow_amount: int = 0
+	for entry in flow:
+		flow_amount += entry.get("amount", 0)
+	var intensity: float = clampf(float(flow_amount) / 5.0, 0.5, 1.0)  # 1-2 units = dim, 5+ = full
+
 	var font := _MONO_FONT
 	var half_fs: float = PARTICLE_FONT_SIZE * 0.5
 
@@ -431,10 +456,11 @@ func _draw_particles(conn: Dictionary, conn_index: int) -> void:
 
 		var glow_pulse: float = sin(Time.get_ticks_msec() / 120.0 + float(pi) * 1.7) * 0.5 + 0.5
 
-		# Outer glow halo
-		draw_circle(pos, 12.0 + glow_pulse * 5.0, Color(base_color, 0.1 + glow_pulse * 0.08))
+		# Outer glow halo — scales with throughput intensity
+		var outer_r: float = (10.0 + glow_pulse * 4.0) * (0.8 + intensity * 0.4)
+		draw_circle(pos, outer_r, Color(base_color, (0.08 + glow_pulse * 0.06) * intensity))
 		# Inner glow
-		draw_circle(pos, 6.0, Color(base_color, 0.35))
+		draw_circle(pos, 6.0, Color(base_color, 0.25 + 0.15 * intensity))
 
 		# Dark background pill behind character for contrast
 		var bg_rect := Rect2(pos + Vector2(-half_fs * 0.45, -half_fs * 0.55), Vector2(half_fs * 0.9, half_fs * 1.1))

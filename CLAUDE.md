@@ -249,6 +249,19 @@ Demo "hazir" sayilabilmesi icin su maddelerin hepsi saglanmali:
 
 ---
 
+## Bilinen Sorunlar / Backlog
+
+### Aktif Buglar
+1. **Bina mirroring eksik** — Sadece R ile rotate yetmiyor, bazi layout'larda yatay/dikey aynalama (T tusu) gerekli. Oyuncu portlari istenen tarafa ceviremiyor.
+2. **Contract panel mouse wheel zoom sorunu** — Gig panelde scroll yaparken mouse wheel ayni anda kamerayi zoom out yapiyor. Panel acikken wheel scroll'u yakalanmali, kameraya gecmemeli.
+3. **Gig requirement okunurlugu zayif** — Gig'lerin tam olarak hangi veriyi istedigini oyuncu direkt bakarak gorebilmeli. Su an metin agirlikli ve zor okunuyor; gorsel ikonlar veya renk kodlu etiketler gerekebilir.
+
+### Full Game Backlog (Phase 2-3)
+4. **Particle delivery delay** — Su an veri tick aninda hedefe yaziliyor, partikuller sadece gorsel. Ileride connection-level in-flight queue veya delivery delay eklenebilir (sim, back-pressure, save/load etkiler — demo icin riskli).
+5. **Bandwidth authoritative yapma** — `bandwidth` alani suan sadece tooltip'te gorunuyor, gameplay'de `generation_rate` kullaniliyor. Ileride bandwidth'i sim'de authoritative yapip generation_rate'i ona baglamak gerekebilir.
+
+---
+
 ## Altyapi
 
 ### MCP: tomyud1/godot-mcp (32 arac)
