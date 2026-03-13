@@ -42,12 +42,12 @@ void fragment() {
 		original = texture(screen_texture, uv);
 	}
 
-	// Bloom (weighted 5x5)
+	// Bloom (weighted 3x3 — 9 samples instead of 25 for performance)
 	vec4 blur_bloom = vec4(0.0);
 	float total_weight = 0.0;
-	for (float x = -2.0; x <= 2.0; x++) {
-		for (float y = -2.0; y <= 2.0; y++) {
-			float weight = 1.0 - length(vec2(x, y)) / 3.5;
+	for (float x = -1.0; x <= 1.0; x++) {
+		for (float y = -1.0; y <= 1.0; y++) {
+			float weight = 1.0 - length(vec2(x, y)) / 2.0;
 			weight = max(weight, 0.0);
 			vec4 s = texture(screen_texture, uv + vec2(x, y) * ps * bloom_spread);
 			float lum = dot(s.rgb, vec3(0.299, 0.587, 0.114));

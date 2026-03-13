@@ -328,6 +328,43 @@ Oyuncu her parcacigi kaynaktan CT'ye kadar takip edebilir. "Gordugun = olan" tam
 
 ---
 
+## Performans Optimizasyon Plani (Aktif Gelistirme)
+
+**Amac:** Demo'da 50+ kablo + 200+ transit item ile 60 FPS garanti. Full release'de 200+ kablo destegi.
+**Strateji:**Once algoritmik fix'ler (GDScript), sonra hot path'leri GDExtension C++'a tasima.
+
+### Tespit Edilen Ana Darbogazlar
+1. **simulation_manager.gd** — O(n²) connection lookup'lar, frame basina 15+ `get_connections()` kopyasi, `_has_output_connection()` her cagride tum baglantilari tariyor
+2. **connection_layer.gd** — Polyline frame basina 2x rebuild, segment lengths her frame yeniden hesaplaniyor, O(n) point-along-path
+3. **building.gd** — Her bina her frame `queue_redraw()`, polygon/port/rotation her frame yeniden hesaplaniyor, dirty flag yok
+4. **grid_system.gd** — PCB + kablo underglow her frame, viewport culling eksik
+5. **bloom_vignette.gdshader** — Piksel basina 25 texture okuma (5x5 bloom)
+
+### Faz 1: Algoritmik Optimizasyonlar (GDScript)
+- [x] **P1.1. Connection lookup cache** — `_conn_from`, `_conn_to`, `_output_ports` Dictionary'leri, frame/tick basinda 1 kez olustur. `_has_output_connection()` O(n) → O(1).
+- [x] **P1.2. Frame-level get_connections() caching** — `_cached_conns` frame basinda 1 kez alinir. `_advance_transit`, `_deliver_arrived`, `_push_data_from`, `_update_generation`, `_update_stall_tracking`, `_inline_input_status`, `_try_rendezvous` hepsi cache kullanir.
+- [x] **P1.3. Polyline + segment length caching** — Connection dict'e `_cached_polyline`, `_cached_seg_lengths`, `_cached_total_length` kaydedildi. Cable length grids da cached. Frame basina 2x rebuild → 0.
+- [x] **P1.4. Building polygon caching** — `_cached_base_poly` ve `_cached_closed_poly`, direction/mirror degismedikce yeniden hesaplanmaz. PCB mode dahil.
+- [x] **P1.5. Stall tracking tek gecis** — `_conn_from`/`_conn_to` adjacency cache ile O(n²) × 3 → O(E) × 3.
+- [x] **P1.6. Bloom shader 5x5 → 3x3** — 25 texture sample → 9. GPU yuku ~%60 azalir.
+- [ ] **P1.7. Point-along-path binary search** — Cumulative distance array + binary search, O(n) → O(log n). (Faz 2 ile birlikte yapilabilir)
+
+**Faz 1 Beklenen Etki:** %50-70 CPU + %30 GPU iyilesmesi. Demo icin yeterli olmali.
+
+### Faz 2: GDExtension C++ (Hot Path Migration)
+- [ ] **P2.1. Transit sistemi C++ modulu** — `_advance_transit()`, `_deliver_arrived()`, back-pressure hesaplamalari native C++ ile.
+- [ ] **P2.2. Connection graph C++ tarafinda** — Tum baglanti grafi, lookup cache, adjacency map C++ struct olarak tutulur.
+- [ ] **P2.3. Point-along-path + polyline C++** — Cumulative distance, binary search, polyline build native.
+
+**Faz 2 Beklenen Etki:** 200+ kablo + 1000+ transit item ile 60 FPS. Full release icin gerekli.
+
+### Basari Kriterleri
+- [ ] 50 kablo + 100 transit item'da 60 FPS (Faz 1 sonrasi)
+- [ ] 200 kablo + 500 transit item'da 60 FPS (Faz 2 sonrasi)
+- [ ] Save/load ve gameplay davranisi degismemis (regresyon yok)
+
+---
+
 ## Altyapi
 
 ### MCP: tomyud1/godot-mcp (32 arac)

@@ -127,12 +127,29 @@ func _get_zoom_level() -> float:
 	return 1.0
 
 
+func _get_cached_polyline(conn: Dictionary) -> PackedVector2Array:
+	## Returns cached polyline + precomputed segment lengths for this connection.
+	## Cache is stored in the connection dict itself and computed once (path never changes).
+	if not conn.has("_cached_polyline"):
+		var points: PackedVector2Array = _build_polyline(conn)
+		conn["_cached_polyline"] = points
+		var seg_lengths: Array[float] = []
+		var total: float = 0.0
+		for i in range(1, points.size()):
+			var seg_len: float = points[i - 1].distance_to(points[i])
+			seg_lengths.append(seg_len)
+			total += seg_len
+		conn["_cached_seg_lengths"] = seg_lengths
+		conn["_cached_total_length"] = total
+	return conn["_cached_polyline"]
+
+
 func _draw_connection(conn: Dictionary, active: bool, hovered: bool) -> void:
 	var path: Array = conn.path
 	if path.size() < 2:
 		return
 	var accent: Color = conn.from_building.definition.color
-	var points: PackedVector2Array = _build_polyline(conn)
+	var points: PackedVector2Array = _get_cached_polyline(conn)
 	if points.size() < 2:
 		return
 
@@ -312,18 +329,14 @@ func _draw_transit_items(conn: Dictionary, _conn_index: int) -> void:
 	if not conn.has("transit") or conn["transit"].is_empty():
 		return
 
-	var points: PackedVector2Array = _build_polyline(conn)
+	var points: PackedVector2Array = _get_cached_polyline(conn)
 	if points.size() < 2:
 		return
 
-	var total_length: float = 0.0
-	var seg_lengths: Array[float] = []
-	for i in range(1, points.size()):
-		var seg_len: float = points[i - 1].distance_to(points[i])
-		seg_lengths.append(seg_len)
-		total_length += seg_len
+	var total_length: float = conn.get("_cached_total_length", 0.0)
 	if total_length <= 0:
 		return
+	var seg_lengths: Array[float] = conn["_cached_seg_lengths"]
 
 	var transit: Array = conn["transit"]
 	var item_count: int = transit.size()

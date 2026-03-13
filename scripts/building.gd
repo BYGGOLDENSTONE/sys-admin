@@ -40,6 +40,12 @@ var classifier_filter_content: int = 0  ## Filter value for classifier (content 
 var selected_tier: int = 1  ## For producer: which tier to produce (1-3)
 var upgrade_level: int = 0  ## Current upgrade level (0 = base)
 
+# --- POLYGON CACHE (rebuilt only when direction/mirror changes) ---
+var _cached_base_poly: PackedVector2Array = PackedVector2Array()
+var _cached_closed_poly: PackedVector2Array = PackedVector2Array()
+var _cached_poly_dir: int = -1
+var _cached_poly_mirror: bool = false
+var _cached_poly_size: Vector2 = Vector2.ZERO
 
 
 func _get_building_polygon(r: Rect2, vtype: String) -> PackedVector2Array:
@@ -482,13 +488,20 @@ func _draw() -> void:
 		BODY_COLOR.r + accent.r * 0.05,
 		BODY_COLOR.g + accent.g * 0.05,
 		BODY_COLOR.b + accent.b * 0.05, 1.0)
-	# Building silhouette polygon
-	var vtype: String = definition.visual_type if definition else "default"
-	var base_poly := _get_building_polygon(rect, vtype)
-	if direction != 0:
-		base_poly = _rotate_polygon(base_poly, center)
-	if mirror_h:
-		base_poly = _mirror_polygon(base_poly, center)
+	# Building silhouette polygon (cached — only recomputed on direction/mirror change)
+	if _cached_base_poly.is_empty() or _cached_poly_dir != direction \
+			or _cached_poly_mirror != mirror_h or _cached_poly_size != size:
+		var vtype: String = definition.visual_type if definition else "default"
+		_cached_base_poly = _get_building_polygon(rect, vtype)
+		if direction != 0:
+			_cached_base_poly = _rotate_polygon(_cached_base_poly, center)
+		if mirror_h:
+			_cached_base_poly = _mirror_polygon(_cached_base_poly, center)
+		_cached_closed_poly = _get_closed_polyline(_cached_base_poly)
+		_cached_poly_dir = direction
+		_cached_poly_mirror = mirror_h
+		_cached_poly_size = size
+	var base_poly := _cached_base_poly
 	# Breathing effect — working buildings gently pulse size
 	var body_poly := base_poly
 	if is_working and active:
@@ -505,7 +518,7 @@ func _draw() -> void:
 	var border_w: float = BORDER_WIDTH * zoom_glow_scale
 	if is_selected:
 		border_w *= 2.0
-	draw_polyline(_get_closed_polyline(base_poly), accent, border_w)
+	draw_polyline(_cached_closed_poly, accent, border_w)
 
 	# Selection highlight (only at close/medium zoom)
 	if is_selected:
@@ -575,14 +588,14 @@ func _draw() -> void:
 	# Processing flash overlay — bright burst when building starts working
 	if _process_flash > 0.0 and not is_medium:
 		draw_colored_polygon(base_poly, Color(accent.r, accent.g, accent.b, _process_flash * 0.35))
-		draw_polyline(_get_closed_polyline(base_poly), Color(accent, _process_flash * 0.5), 2.0)
+		draw_polyline(_cached_closed_poly, Color(accent, _process_flash * 0.5), 2.0)
 
 	# Malware overlay (skip for Trash — it destroys everything)
 	if not _is_ghost and _has_malware():
 		if not (definition.processor != null and definition.processor.rule == "trash"):
 			var malware_alpha: float = 0.12 + sin(_glow_time * 6.0) * 0.06
 			draw_colored_polygon(base_poly, Color(0.8, 0.0, 0.3, malware_alpha))
-			draw_polyline(_get_closed_polyline(base_poly), Color(0.8, 0.0, 0.3, 0.5), 2.0)
+			draw_polyline(_cached_closed_poly, Color(0.8, 0.0, 0.3, 0.5), 2.0)
 
 	# Status reason for idle buildings (root cause feedback)
 	if not _is_ghost and active and not is_working and status_reason != "" and not is_medium:
@@ -615,18 +628,26 @@ func _draw_pcb_mode(size: Vector2, rect: Rect2, accent: Color, pulse: float) -> 
 		BODY_COLOR.r + accent.r * 0.12,
 		BODY_COLOR.g + accent.g * 0.12,
 		BODY_COLOR.b + accent.b * 0.12, 1.0)
-	var pcb_poly := _get_building_polygon(rect, vtype)
-	if direction != 0:
-		pcb_poly = _rotate_polygon(pcb_poly, center)
-	if mirror_h:
-		pcb_poly = _mirror_polygon(pcb_poly, center)
-	draw_colored_polygon(pcb_poly, chip_body)
+	# Use cached polygon (same as main draw — direction/mirror haven't changed)
+	if _cached_base_poly.is_empty() or _cached_poly_dir != direction \
+			or _cached_poly_mirror != mirror_h or _cached_poly_size != size:
+		var vt: String = definition.visual_type if definition else "default"
+		_cached_base_poly = _get_building_polygon(rect, vt)
+		if direction != 0:
+			_cached_base_poly = _rotate_polygon(_cached_base_poly, center)
+		if mirror_h:
+			_cached_base_poly = _mirror_polygon(_cached_base_poly, center)
+		_cached_closed_poly = _get_closed_polyline(_cached_base_poly)
+		_cached_poly_dir = direction
+		_cached_poly_mirror = mirror_h
+		_cached_poly_size = size
+	draw_colored_polygon(_cached_base_poly, chip_body)
 
 	# Thick bright border — silhouette shape
 	var bw: float = 3.0
 	if is_selected:
 		bw = 5.0
-	draw_polyline(_get_closed_polyline(pcb_poly), accent, bw)
+	draw_polyline(_cached_closed_poly, accent, bw)
 
 	# Center dot/pip (visible identifier)
 	draw_circle(center, 5.0, Color(accent, 0.5 + pulse * 2.0))

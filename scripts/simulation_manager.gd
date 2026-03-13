@@ -20,6 +20,12 @@ var sound_manager: Node = null
 var connection_stalled: Dictionary = {}  # conn_idx → true if stalled
 var _splitter_next_port: Dictionary = {}  # building instance_id → next output port index
 
+# --- CONNECTION CACHE (rebuilt once per frame for O(1) lookups) ---
+var _cached_conns: Array[Dictionary] = []
+var _conn_from: Dictionary = {}    # building_instance_id → Array[int] conn indices
+var _conn_to: Dictionary = {}      # building_instance_id → Array[int] conn indices
+var _output_ports: Dictionary = {} # building_instance_id → {port_name → conn_index}
+
 @onready var _sim_timer: Timer = $SimTimer
 
 
@@ -28,9 +34,30 @@ func _ready() -> void:
 	print("[Simulation] Manager initialized — tick: %.1fs, transit speed: %.1f grids/s" % [_sim_timer.wait_time, TRANSIT_GRIDS_PER_SEC])
 
 
+func _rebuild_conn_cache() -> void:
+	_cached_conns = connection_manager.get_connections()
+	_conn_from.clear()
+	_conn_to.clear()
+	_output_ports.clear()
+	for i in range(_cached_conns.size()):
+		var conn: Dictionary = _cached_conns[i]
+		var from_id: int = conn.from_building.get_instance_id()
+		var to_id: int = conn.to_building.get_instance_id()
+		if not _conn_from.has(from_id):
+			_conn_from[from_id] = []
+		_conn_from[from_id].append(i)
+		if not _conn_to.has(to_id):
+			_conn_to[to_id] = []
+		_conn_to[to_id].append(i)
+		if not _output_ports.has(from_id):
+			_output_ports[from_id] = {}
+		_output_ports[from_id][conn.from_port] = i
+
+
 func _process(delta: float) -> void:
 	if is_paused or connection_manager == null:
 		return
+	_rebuild_conn_cache()
 	_advance_transit(delta)
 	_deliver_arrived()
 
@@ -53,6 +80,7 @@ func toggle_pause() -> void:
 
 
 func _on_sim_tick() -> void:
+	_rebuild_conn_cache()
 	var buildings: Array[Node] = []
 	for child in building_container.get_children():
 		if child.has_method("is_active"):
@@ -88,8 +116,7 @@ func _advance_transit(delta: float) -> void:
 	## Advance all in-flight transit items each frame for smooth visual movement.
 	## If front item is stuck at destination (t >= 1.0), entire cable freezes.
 	## Enforces minimum spacing so items don't overlap visually — each particle is trackable.
-	var conns: Array[Dictionary] = connection_manager.get_connections()
-	for conn in conns:
+	for conn in _cached_conns:
 		if not conn.has("transit") or conn["transit"].is_empty():
 			continue
 		var transit: Array = conn["transit"]
@@ -111,8 +138,7 @@ func _deliver_arrived() -> void:
 	## Deliver transit items that reached destination (t >= 1.0).
 	## Trash: instant destroy. Inline processors: rendezvous matching.
 	## Storage buildings: partial delivery when target capacity is limited.
-	var conns: Array[Dictionary] = connection_manager.get_connections()
-	for conn in conns:
+	for conn in _cached_conns:
 		if not conn.has("transit") or conn["transit"].is_empty():
 			continue
 		var transit: Array = conn["transit"]
@@ -124,7 +150,7 @@ func _deliver_arrived() -> void:
 		while not transit.is_empty() and transit[0].t >= 1.0:
 			var item: Dictionary = transit[0]
 			# Real-time pass-through for routing buildings (preserves visual identity)
-			if _try_passthrough(target, item, conns):
+			if _try_passthrough(target, item):
 				transit.remove_at(0)
 				continue
 			# Routing buildings: if ports not connected → hard stall.
@@ -166,7 +192,7 @@ func _deliver_arrived() -> void:
 			else:
 				break  # Remaining amount stays in transit for next tick
 	# Storageless inline processing: match primary + secondary inputs on cables
-	_process_inline_rendezvous(conns)
+	_process_inline_rendezvous()
 
 
 func _dual_input_can_accept(target: Node2D, item: Dictionary) -> bool:
@@ -189,7 +215,7 @@ func _dual_input_can_accept(target: Node2D, item: Dictionary) -> bool:
 	return target.get_total_stored() < cap - reserve
 
 
-func _try_passthrough(building: Node2D, item: Dictionary, all_conns: Array[Dictionary]) -> bool:
+func _try_passthrough(building: Node2D, item: Dictionary) -> bool:
 	## For routing buildings (Separator, Classifier, Splitter, Merger),
 	## immediately forward the transit item to the correct output cable.
 	## Preserves item identity — what goes in comes out with same key/content/state.
@@ -197,22 +223,22 @@ func _try_passthrough(building: Node2D, item: Dictionary, all_conns: Array[Dicti
 	var output_port: String = _get_passthrough_port(building, item)
 	if output_port == "":
 		return false
-	# Find a non-stalled output connection for this port
-	for out_conn in all_conns:
-		if out_conn.from_building != building or out_conn.from_port != output_port:
-			continue
-		if _is_transit_stalled(out_conn):
-			continue
-		# Forward the transit item to output cable at t=0
-		if not out_conn.has("transit"):
-			out_conn["transit"] = []
-		out_conn["transit"].append({
-			"key": item.key, "content": item.content, "state": item.state,
-			"tier": item.tier, "tags": item.tags, "amount": item.amount, "t": 0.0
-		})
-		building.is_working = true
-		return true
-	return false  # All output cables stalled or no connection found
+	# Find output connection for this port (O(1) cache lookup)
+	var bid: int = building.get_instance_id()
+	if not _output_ports.has(bid) or not _output_ports[bid].has(output_port):
+		return false
+	var out_conn: Dictionary = _cached_conns[_output_ports[bid][output_port]]
+	if _is_transit_stalled(out_conn):
+		return false
+	# Forward the transit item to output cable at t=0
+	if not out_conn.has("transit"):
+		out_conn["transit"] = []
+	out_conn["transit"].append({
+		"key": item.key, "content": item.content, "state": item.state,
+		"tier": item.tier, "tags": item.tags, "amount": item.amount, "t": 0.0
+	})
+	building.is_working = true
+	return true
 
 
 func _get_passthrough_port(building: Node2D, item: Dictionary) -> String:
@@ -275,33 +301,34 @@ func _is_inline_processor(building: Node2D) -> bool:
 	return building.definition.dual_input != null
 
 
-func _process_inline_rendezvous(conns: Array[Dictionary]) -> void:
+func _process_inline_rendezvous() -> void:
 	## Try rendezvous matching for all inline buildings with arrived transit items.
 	var checked: Dictionary = {}
-	for conn in conns:
+	for conn in _cached_conns:
 		var target: Node2D = conn.to_building
 		if not is_instance_valid(target) or checked.has(target):
 			continue
 		if not _is_inline_processor(target):
 			continue
 		checked[target] = true
-		_try_rendezvous(target, conns)
+		_try_rendezvous(target)
 
 
-func _try_rendezvous(building: Node2D, conns: Array[Dictionary]) -> void:
+func _try_rendezvous(building: Node2D) -> void:
 	## Match primary + secondary inputs on cables for an inline dual-input building.
 	## Both must have items arrived (t>=1.0). If matched, consume both and push output.
 	var dual: DualInputComponent = building.definition.dual_input
 	var max_process: int = int(building.get_effective_value("processing_rate"))
 	var processed: int = 0
+	var bid: int = building.get_instance_id()
+	var in_indices: Array = _conn_to.get(bid, [])
 
 	for _attempt in range(max_process):
 		var primary_conn: Dictionary = {}
 		var secondary_conn: Dictionary = {}
 
-		for conn in conns:
-			if conn.to_building != building:
-				continue
+		for ci in in_indices:
+			var conn: Dictionary = _cached_conns[ci]
 			if not conn.has("transit") or conn["transit"].is_empty():
 				continue
 			if conn["transit"][0].t < 1.0:
@@ -397,11 +424,11 @@ func _inline_secondary_matches(dual: DualInputComponent, primary: Dictionary, se
 
 func _inline_input_status(building: Node2D, dual: DualInputComponent, check_primary: bool) -> int:
 	## Returns 0=none, 1=in transit, 2=arrived (t>=1.0) for inline building inputs.
-	var conns: Array[Dictionary] = connection_manager.get_connections()
+	var bid: int = building.get_instance_id()
 	var best: int = 0
-	for conn in conns:
-		if conn.to_building != building:
-			continue
+	var in_indices: Array = _conn_to.get(bid, [])
+	for ci in in_indices:
+		var conn: Dictionary = _cached_conns[ci]
 		if not conn.has("transit") or conn["transit"].is_empty():
 			continue
 		for item in conn["transit"]:
@@ -424,15 +451,21 @@ func _inline_input_status(building: Node2D, dual: DualInputComponent, check_prim
 
 func _get_cable_length_grids(conn: Dictionary) -> float:
 	## Calculate cable length in grid cells from vertex path (Manhattan distance).
+	## Cached in connection dict — path never changes after placement.
+	if conn.has("_cached_length_grids"):
+		return conn["_cached_length_grids"]
 	var path: Array = conn.path
 	if path.size() < 2:
+		conn["_cached_length_grids"] = 1.0
 		return 1.0
 	var total: float = 0.0
 	for i in range(1, path.size()):
 		var dx: float = absf(path[i].x - path[i - 1].x)
 		var dy: float = absf(path[i].y - path[i - 1].y)
 		total += dx + dy
-	return maxf(total, 1.0)
+	var result: float = maxf(total, 1.0)
+	conn["_cached_length_grids"] = result
+	return result
 
 
 func clear_all_transit() -> void:
@@ -449,16 +482,15 @@ func clear_all_transit() -> void:
 func _update_stall_tracking() -> void:
 	if connection_manager == null:
 		return
-	var conns: Array[Dictionary] = connection_manager.get_connections()
-	if conns.is_empty():
+	if _cached_conns.is_empty():
 		connection_stalled.clear()
 		return
 
 	connection_stalled.clear()
 
 	# Pass 1: Direct stalls — transit front item stuck OR target full
-	for i in range(conns.size()):
-		var conn: Dictionary = conns[i]
+	for i in range(_cached_conns.size()):
+		var conn: Dictionary = _cached_conns[i]
 		var from_b: Node2D = conn.from_building
 		var to_b: Node2D = conn.to_building
 		if not is_instance_valid(from_b) or not is_instance_valid(to_b):
@@ -466,39 +498,28 @@ func _update_stall_tracking() -> void:
 			continue
 		if from_b.has_method("is_active") and not from_b.is_active():
 			continue
-		# Transit-based stall: front item waiting at destination
 		if _is_transit_stalled(conn):
 			connection_stalled[i] = true
 			continue
-		# Traditional capacity stall (for cables with no transit yet)
 		if to_b.has_method("can_accept_data") and not to_b.can_accept_data(1):
 			connection_stalled[i] = true
 
-	# Pass 2-4: Back-pressure propagation (cascade upstream)
+	# Pass 2-4: Back-pressure propagation using adjacency cache (O(E) per pass)
 	for _pass in range(3):
 		var newly_stalled: Dictionary = {}
-		var checked_buildings: Dictionary = {}
-		for i in range(conns.size()):
-			var from_b: Node2D = conns[i].from_building
-			if not is_instance_valid(from_b):
-				continue
-			if checked_buildings.has(from_b):
-				continue
-			checked_buildings[from_b] = true
+		for bid in _conn_from:
+			var out_indices: Array = _conn_from[bid]
 			# Check if ALL outputs of this building are stalled
-			var has_output: bool = false
 			var all_blocked: bool = true
-			for j in range(conns.size()):
-				if conns[j].from_building == from_b:
-					has_output = true
-					if not connection_stalled.has(j) and not newly_stalled.has(j):
-						all_blocked = false
-						break
-			if has_output and all_blocked:
+			for oi in out_indices:
+				if not connection_stalled.has(oi) and not newly_stalled.has(oi):
+					all_blocked = false
+					break
+			if all_blocked and _conn_to.has(bid):
 				# Mark all INPUT connections to this building as stalled
-				for j in range(conns.size()):
-					if conns[j].to_building == from_b and not connection_stalled.has(j):
-						newly_stalled[j] = true
+				for ii in _conn_to[bid]:
+					if not connection_stalled.has(ii):
+						newly_stalled[ii] = true
 		if newly_stalled.is_empty():
 			break
 		connection_stalled.merge(newly_stalled)
@@ -554,10 +575,11 @@ func _check_discovery(content: int, state: int) -> void:
 
 # --- DATA PUSH (now pushes to transit instead of direct delivery) ---
 func _push_data_from(source: Node2D, content: int, state: int, amount: int, from_port: String = "", tier: int = 0, tags: int = 0) -> int:
-	var conns: Array[Dictionary] = connection_manager.get_connections()
+	var bid: int = source.get_instance_id()
 	var targets: Array[Dictionary] = []
-	for conn in conns:
-		if conn.from_building == source:
+	if _conn_from.has(bid):
+		for ci in _conn_from[bid]:
+			var conn: Dictionary = _cached_conns[ci]
 			if from_port == "" or conn.from_port == from_port:
 				targets.append(conn)
 	if targets.is_empty():
@@ -616,18 +638,13 @@ func _push_data_from(source: Node2D, content: int, state: int, amount: int, from
 func _update_generation(_buildings: Array[Node]) -> void:
 	if source_manager == null or connection_manager == null:
 		return
-	var conns: Array[Dictionary] = connection_manager.get_connections()
 	for source in source_manager.get_all_sources():
 		var src_def: DataSourceDefinition = source.definition
 		var amount: int = int(src_def.generation_rate)
+		var src_id: int = source.get_instance_id()
 		# Each connected port generates independently at full rate
 		for port in source.output_ports:
-			var has_connection: bool = false
-			for conn in conns:
-				if conn.from_building == source and conn.from_port == port:
-					has_connection = true
-					break
-			if not has_connection:
+			if not _output_ports.has(src_id) or not _output_ports[src_id].has(port):
 				continue
 			for _i in range(amount):
 				var content: int = _roll_content(src_def.content_weights)
@@ -940,11 +957,11 @@ func _process_compiler(b: Node2D, _max_process: int) -> int:
 
 
 func _push_packet_from(source: Node2D, pkt_key: String, amount: int) -> int:
-	var conns: Array[Dictionary] = connection_manager.get_connections()
+	var bid: int = source.get_instance_id()
 	var targets: Array[Dictionary] = []
-	for conn in conns:
-		if conn.from_building == source:
-			targets.append(conn)
+	if _conn_from.has(bid):
+		for ci in _conn_from[bid]:
+			targets.append(_cached_conns[ci])
 	if targets.is_empty():
 		return 0
 	var per_target: int = maxi(1, amount / targets.size())
@@ -1265,19 +1282,19 @@ func _reason_has_fuel(b: Node2D, dual: DualInputComponent) -> bool:
 
 func _has_incoming_transit(building: Node2D) -> bool:
 	## Returns true if any input cable has transit items heading toward this building.
-	var conns: Array[Dictionary] = connection_manager.get_connections()
-	for conn in conns:
-		if conn.to_building == building and conn.has("transit") and not conn["transit"].is_empty():
+	var bid: int = building.get_instance_id()
+	if not _conn_to.has(bid):
+		return false
+	for ci in _conn_to[bid]:
+		var conn: Dictionary = _cached_conns[ci]
+		if conn.has("transit") and not conn["transit"].is_empty():
 			return true
 	return false
 
 
 func _has_output_connection(building: Node2D, port: String) -> bool:
-	var conns: Array[Dictionary] = connection_manager.get_connections()
-	for conn in conns:
-		if conn.from_building == building and conn.from_port == port:
-			return true
-	return false
+	var bid: int = building.get_instance_id()
+	return _output_ports.has(bid) and _output_ports[bid].has(port)
 
 
 func _all_outputs_connected(b: Node2D) -> bool:
