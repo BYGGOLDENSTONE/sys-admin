@@ -385,6 +385,90 @@ bin/
 
 ---
 
+## Late-Game Optimizasyon Plani (Aktif — Sonraki Sprint)
+
+**Hedef:** 2000+ kablo, 20000+ parcacik, 800+ bina, sonsuz harita — 60 FPS
+**Mimari:** GDScript UI/UX + C++ simulasyon kerneli + GPU shader render + streaming/LOD
+
+### Mimari Karar (Kilitli)
+- **GDScript kalacak:** UI, menu/panel, tutorial/gig akisi, save/load orkestrasyonu, placement UX
+- **C++ GDExtension:** Simulasyon kerneli (veri modeli, delivery, routing, processing, graph state)
+- **GPU Shader:** PCB/grid background, kablo render, parcacik instancing
+- **Streaming/LOD:** Chunk unload, viewport culling, zoom-based detay azaltma
+- **Kural:** Sadece C++ yetmez — batching + LOD + streaming + packed data model birlikte sart
+
+### Faz 0: Olcum Altyapisi — TAMAMLANDI
+- [x] Godot Profiler custom monitor'leri kur (frame time breakdown: sim tick, render, draw calls) — `perf_monitor.gd` (14 custom monitor), `simulation_manager.gd`, `connection_layer.gd`, `grid_system.gd`, `building.gd` instrumented
+- [x] Benchmark sahnesi: 200 kablo + 500 item test — `benchmark_runner.gd` (F7 veya `--benchmark` CLI), 20 chain × 10 building = 200 bina + ~180 kablo + ~591 transit item
+- [x] Release DLL build dogrulama (`scons target=template_release`) — `bin/sysadmin.windows.template_release.x86_64.dll` build basarili
+
+**Baseline Olcum (200 bina + 180 kablo + 591 transit, RTX 3070):**
+| Katman | Süre (us) | Frame % |
+|--------|-----------|---------|
+| Building draw | 36,689 | 62% |
+| Cable draw | 14,151 | 24% |
+| Grid draw | 6,837 | 12% |
+| Simulation | 1,425 | 2% |
+| **TOPLAM** | **~59,100** | **~17 FPS** |
+
+Demo (20-50 bina) sorunsuz calisir. Late-game (800+ bina) icin Faz 1+ gerekli.
+Oncelik sirasi: Building draw > Cable draw > Grid draw > Simulation.
+
+### Faz 1: Hizli GDScript Kazanimlari
+**Beklenen kazanc: %20-30 CPU, %40-60 draw call**
+- [ ] **O1. Dirty connection cache** — `_rebuild_conn_cache()` event-based (baglanti ekleme/silme signal'i ile)
+- [ ] **O2. Building list cache** — `get_children()` yerine runtime registry, bina ekleme/silme event'inde guncelle
+- [ ] **O3. Viewport frustum culling** — connection_layer.gd'de kamera sinirlari disindaki kablo/parcaciklari atla
+- [ ] **O4. Zoom-based LOD** — zoom<0.25: metin yok, zoom<0.5: basit daire, zoom>0.5: tam detay
+- [ ] **O5. Port spatial grid** — `_find_port_at()` O(n)→O(1), grid hucresine gore port index
+- [ ] **O6. Status reason dirty flag** — polling degil, event-based (durum degistiginde guncelle)
+- [ ] **O7. queue_redraw() dirty flag** — bina/source sadece durum degistiginde yeniden cizilsin
+
+### Faz 2: GPU Shader Migration
+**Beklenen kazanc: %15-20 CPU, %30-40 draw call**
+- [ ] **O8. PCB pattern → fragment shader** — `pcb_background.gdshader`, camera pos+zoom uniform, CPU maliyeti sifir
+- [ ] **O9. Grid cizgileri → ayni shader** — PCB shader'a dahil
+- [ ] **O10. Kablo underglow → shader** — background layer'da GPU ile
+
+### Faz 3: C++ Simulasyon Kernel
+**Beklenen kazanc: %30-40 CPU**
+- [ ] **O11. `_deliver_arrived()` → C++** — remove_at(0) O(m)→deque/ring buffer, nested condition native
+- [ ] **O12. `_try_passthrough()` → C++** — routing mantigi per-item native
+- [ ] **O13. Veri modeli refactoru** — Dictionary/String key→packed int/enum struct (transit item, stored_data)
+- [ ] **O14. Generation/processing/storage forward → C++** — tick-based islemler native
+- [ ] **O15. Graph state management → C++** — baglanti grafi, adjacency, stall state
+
+### Faz 4: Buyuk Render Overhaul
+**Beklenen kazanc: %80-90 draw call**
+- [ ] **O16. Parcacik instanced rendering** — 50K draw call→1-2, glyph texture atlas, shader ile renk/glow
+- [ ] **O17. Kablo mesh-based rendering** — 4-5 polyline/kablo→1 mesh strip + shader
+- [ ] **O18. Building batch rendering** — MultiMesh, 44 unique polygon, 500 bina→44 draw call
+
+### Faz 5: Streaming + Memory
+**Late-game surdurulebilirlik**
+- [ ] **O19. Chunk unloading** — kameradan uzak chunk'lari serbest birak, kaynak node'lari da unload
+- [ ] **O20. Far-object virtualization** — ekran disi binalari lightweight placeholder'a donustur
+- [ ] **O21. Node count yonetimi** — object pool (bina, kablo, parcacik), uzun oturum node birikimi onleme
+
+### Bilinen Riskler
+- Release DLL: `scons target=template_release` build sart, yoksa export'ta C++ devre disi kalir
+- Veri modeli refactoru save/load format degistirir — migration layer gerekli
+- Shader uyumluluk: eski GPU'larda instanced rendering icin GDScript fallback sart
+- Her faz sonrasi benchmark ile dogrulama — tahminler kesin olcum degil
+
+### Draw Call Hedef Tablosu
+| Katman | Demo (simdi) | Late-Game (raw) | Hedef (optimized) |
+|--------|-------------|-----------------|-------------------|
+| PCB + Grid | 100 | 100 | 0 (shader) |
+| Kablo underglow | 50 | 1,000 | 0 (shader) |
+| Kablo polyline | 200 | 5,000 | 1,000 (mesh) |
+| Parcaciklar | 600 | 50,000 | 1-2 (instanced) |
+| Binalar | 375 | 7,500 | 2,000 (dirty+batch) |
+| UI + Minimap | 100 | 100 | 50 (lazy) |
+| **TOPLAM** | **~1,400** | **~63,700** | **~3,050** |
+
+---
+
 ## Altyapi
 
 ### GDExtension C++ Modulu

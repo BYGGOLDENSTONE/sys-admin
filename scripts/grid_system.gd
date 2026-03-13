@@ -307,6 +307,7 @@ func _process(_delta: float) -> void:
 
 
 func _draw() -> void:
+	var _grid_t0: int = Time.get_ticks_usec()
 	var cam: Camera2D = get_viewport().get_camera_2d()
 	if cam == null:
 		return
@@ -327,7 +328,9 @@ func _draw() -> void:
 	var ug_scale: float = clampf(1.0 / zoom_level, 1.0, 3.0) if zoom_level < 1.0 else 1.0
 
 	# PCB trace pattern layer (below everything, above background)
+	var _pcb_t0: int = Time.get_ticks_usec()
 	_draw_pcb_pattern(sx, ex, sy, ey, zoom_level)
+	PerfMonitor.grid_pcb_us = Time.get_ticks_usec() - _pcb_t0
 
 	for cell in _occupied_cells:
 		if cell.x < sx or cell.x > ex or cell.y < sy or cell.y > ey:
@@ -402,3 +405,5 @@ func _draw() -> void:
 			Vector2(end_x * TILE_SIZE, y * TILE_SIZE),
 			line_color, grid_width, true
 		)
+
+	PerfMonitor.grid_draw_us = Time.get_ticks_usec() - _grid_t0

@@ -144,6 +144,7 @@ func _get_closed_polyline(poly: PackedVector2Array) -> PackedVector2Array:
 func _process(delta: float) -> void:
 	if _is_ghost or definition == null:
 		return
+	PerfMonitor.bldg_total_count += 1
 	_glow_time += delta
 	# Processing flash on working state transition
 	if is_working and not _prev_working:
@@ -444,6 +445,7 @@ func _get_zoom_level() -> float:
 func _draw() -> void:
 	if definition == null:
 		return
+	var _bldg_t0: int = Time.get_ticks_usec()
 
 	var size := Vector2(definition.grid_size.x * TILE_SIZE, definition.grid_size.y * TILE_SIZE)
 	var rect := Rect2(Vector2.ZERO, size)
@@ -623,6 +625,10 @@ func _draw() -> void:
 		var reason_pos := Vector2((size.x - reason_dims.x) / 2.0, size.y - 8)
 		draw_string(reason_font, reason_pos + Vector2(1, 1), status_reason, HORIZONTAL_ALIGNMENT_LEFT, -1, reason_fs, Color(0, 0, 0, 0.7))
 		draw_string(reason_font, reason_pos, status_reason, HORIZONTAL_ALIGNMENT_LEFT, -1, reason_fs, reason_clr)
+
+	# Performance monitoring (aggregate across all buildings)
+	PerfMonitor.bldg_draw_us += Time.get_ticks_usec() - _bldg_t0
+	PerfMonitor.bldg_draw_count += 1
 
 
 ## PCB mode: glowing microchips with distinctive silhouettes per building type

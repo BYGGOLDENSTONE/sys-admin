@@ -35,6 +35,7 @@ var _output_ports: Dictionary = {} # building_instance_id → {port_name → con
 
 func _ready() -> void:
 	_sim_timer.timeout.connect(_on_sim_tick)
+	PerfMonitor.register_monitors()
 	if ClassDB.class_exists("TransitSimulator"):
 		_transit_sim = ClassDB.instantiate("TransitSimulator")
 		print("[Simulation] C++ TransitSimulator loaded")
@@ -71,9 +72,27 @@ func _rebuild_conn_cache() -> void:
 func _process(delta: float) -> void:
 	if is_paused or connection_manager == null:
 		return
+	var _t0: int = Time.get_ticks_usec()
 	_rebuild_conn_cache()
+	var _t1: int = Time.get_ticks_usec()
+	PerfMonitor.sim_cache_us = _t1 - _t0
+
 	_advance_transit(delta)
+	var _t2: int = Time.get_ticks_usec()
+	PerfMonitor.sim_transit_us = _t2 - _t1
+
 	_deliver_arrived()
+	var _t3: int = Time.get_ticks_usec()
+	PerfMonitor.sim_deliver_us = _t3 - _t2
+	PerfMonitor.frame_sim_us = _t3 - _t0
+
+	# Update counts
+	PerfMonitor.sim_connections = _cached_conns.size()
+	var _item_count: int = 0
+	for c in _cached_conns:
+		if c.has("transit"):
+			_item_count += c["transit"].size()
+	PerfMonitor.sim_transit_items = _item_count
 
 
 func set_speed(multiplier: int) -> void:
@@ -94,6 +113,7 @@ func toggle_pause() -> void:
 
 
 func _on_sim_tick() -> void:
+	var _tick_t0: int = Time.get_ticks_usec()
 	_rebuild_conn_cache()
 	var buildings: Array[Node] = []
 	for child in building_container.get_children():
@@ -116,6 +136,7 @@ func _on_sim_tick() -> void:
 	_update_status_reasons(buildings)
 	_update_stall_tracking()
 	_update_displays(buildings)
+	PerfMonitor.sim_tick_us = Time.get_ticks_usec() - _tick_t0
 	tick_completed.emit(_tick_count)
 
 

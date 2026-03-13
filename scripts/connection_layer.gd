@@ -86,6 +86,7 @@ func _draw() -> void:
 	if connection_manager == null:
 		return
 
+	var _draw_t0: int = Time.get_ticks_usec()
 	var zoom: float = _get_zoom_level()
 	var conns: Array[Dictionary] = connection_manager.get_connections()
 	# Build per-frame cache of buildings with incoming transit
@@ -93,13 +94,18 @@ func _draw() -> void:
 	for c in conns:
 		if c.has("transit") and not c["transit"].is_empty():
 			_has_incoming[c.to_building] = true
+	var _items_us: int = 0
+	var _items_calls: int = 0
 	for i in range(conns.size()):
 		var conn: Dictionary = conns[i]
 		var cable_state: int = _get_cable_state(conn, i)
 		var hovered: bool = (i == hovered_cable_index)
 		_draw_connection(conn, cable_state != CABLE_INACTIVE, hovered)
 		if zoom > 0.25:
+			var _it0: int = Time.get_ticks_usec()
 			_draw_transit_items(conn, i)
+			_items_us += Time.get_ticks_usec() - _it0
+			_items_calls += 1
 
 	if preview_active and not preview_path.is_empty():
 		_draw_preview()
@@ -125,6 +131,11 @@ func _draw() -> void:
 			var rw: float = CABLE_WIDTH * 3.0 * rt
 			draw_polyline(rpoints, Color(rcol, rt * 0.6), maxf(1.0, rw), true)
 			draw_polyline(rpoints, Color(1.0, 1.0, 1.0, rt * 0.3), maxf(1.0, rw * 0.4), true)
+
+	# Performance monitoring
+	PerfMonitor.conn_draw_us = Time.get_ticks_usec() - _draw_t0
+	PerfMonitor.conn_draw_items_us = _items_us
+	PerfMonitor.conn_draw_calls = _items_calls
 
 
 func _get_zoom_level() -> float:

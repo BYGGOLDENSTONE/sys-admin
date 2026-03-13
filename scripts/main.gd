@@ -34,6 +34,7 @@ var _is_pause_menu_open: bool = false
 var _was_paused_before_menu: bool = false
 var _demo_complete_shown: bool = false
 var _last_cam_pos: Vector2 = Vector2.ZERO
+var _benchmark: BenchmarkRunner = null
 
 const WISHLIST_URL: String = "https://store.steampowered.com/app/PLACEHOLDER_APP_ID/SYS_ADMIN/"
 const FEEDBACK_URL: String = "https://store.steampowered.com/app/PLACEHOLDER_APP_ID/SYS_ADMIN/discussions/"
@@ -199,8 +200,14 @@ func _ready() -> void:
 
 	print("[Main] SYS_ADMIN initialized — %s" % ("loaded save" if is_loading else "new game"))
 
+	# Auto-run benchmark if --benchmark CLI arg is present
+	if "--benchmark" in OS.get_cmdline_user_args():
+		_run_benchmark()
+
 
 func _process(_delta: float) -> void:
+	# Reset per-frame aggregate stats
+	PerfMonitor.reset_building_stats()
 	# Lazy chunk generation — generate sources as camera reveals new areas
 	if _map_generator and camera:
 		var cam_pos: Vector2 = camera.global_position
@@ -251,11 +258,23 @@ func _unhandled_input(event: InputEvent) -> void:
 			simulation_manager.set_speed(3)
 		KEY_F9:
 			_toggle_dev_mode()
+		KEY_F7:
+			_run_benchmark()
 		KEY_H:
 			_toggle_shortcut_hints()
 		KEY_G:
 			if _gig_panel:
 				_gig_panel.toggle()
+
+
+func _run_benchmark(auto_report: bool = false) -> void:
+	if _benchmark != null:
+		print("[Benchmark] --- Live Stats ---")
+		print(_benchmark.get_summary())
+		return
+	_benchmark = BenchmarkRunner.new()
+	_benchmark.setup(building_manager, connection_manager, grid_system, simulation_manager)
+	_benchmark.run(auto_report)
 
 
 func _get_seed_from_args() -> int:
