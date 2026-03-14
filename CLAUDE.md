@@ -52,7 +52,7 @@ Asagidaki kararlar artik **scope lock** kabul edilir. Claude Code bu kararlarla 
 - [x] Recoverer deterministic + fuel tabanli kalacak
 - [x] Grid kablo routing oyunun ana layout bulmacasi olmaya devam edecek (dik kesisim serbest, Bridge kaldirildi)
 - [x] **Bina rotasyonu** — R tusuyla 4 yone dondurme, portlar da doner
-- [x] **Contract Terminal 3x3** — 8 input port (her kenarda 2), merkez etrafinda 10+ cell kaynak exclusion zone
+- [x] **Contract Terminal 3x3** — 8 input port (her kenarda 2), merkez etrafinda 8+ cell kaynak exclusion zone
 - [x] **CT Port Purity** — CT her port'un kablo tiplerini kumulatif kaydeder. Content bir gig requirement'ina uyuyorsa state da uymali (yoksa port bloklanir). Content hicbir gig'e uymuyorsa veri kabul edilip cope atilir (akis durmaz). Kablo cikarildiginda kayit sifirlanir.
 - [x] **Classifier/Separator Back-Pressure** — Her iki cikis portu (match + reject) bagli olmadan calismazlar. Oyuncuyu reject edilen veriyi Trash veya baska binaya yonlendirmeye zorlar.
 - [x] **Uplink kaldirildi** — Kaynaklar dogrudan output portlarina sahip, dikdortgen grid_size, oyuncu kaynak portundan kablo ceker.

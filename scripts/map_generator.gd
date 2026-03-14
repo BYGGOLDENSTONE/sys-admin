@@ -6,9 +6,9 @@ extends RefCounted
 
 const CHUNK_SIZE := 32           ## 32x32 cells per chunk
 const CT_CENTER := Vector2i(256, 256)
-const MIN_SOURCE_DISTANCE := 8
+const MIN_SOURCE_DISTANCE := 5
 const MAX_PLACEMENT_ATTEMPTS := 40
-const CT_EXCLUSION_RADIUS := 12  ## No sources within this of CT center
+const CT_EXCLUSION_RADIUS := 5   ## No sources within this of CT center
 const TILE_SIZE := 64
 
 var _pools: Dictionary = {
@@ -20,16 +20,16 @@ var _pools: Dictionary = {
 
 ## Tutorial-critical sources: fixed coordinates near CT center.
 var _tutorial_sources := [
-	{"name": "isp_backbone", "pos": Vector2i(270, 242)},    # NE — Gig 1
-	{"name": "atm", "pos": Vector2i(274, 256)},              # E  — Gig 2
-	{"name": "data_kiosk", "pos": Vector2i(238, 256)},       # W  — Gig 3
-	{"name": "bank_terminal", "pos": Vector2i(256, 274)},    # S  — Gig 4
-	{"name": "hospital_terminal", "pos": Vector2i(256, 296)},# far S — Gig 5
+	{"name": "isp_backbone", "pos": Vector2i(262, 250)},    # NE — Gig 1
+	{"name": "atm", "pos": Vector2i(263, 256)},              # E  — Gig 2
+	{"name": "data_kiosk", "pos": Vector2i(249, 256)},       # W  — Gig 3
+	{"name": "bank_terminal", "pos": Vector2i(256, 263)},    # S  — Gig 4
+	{"name": "hospital_terminal", "pos": Vector2i(256, 272)},# S  — Gig 5
 ]
 
 ## Sector-based guarantees for non-tutorial sources
 var _sector_guarantees := [
-	{"name": "biotech_lab", "angle": PI, "r_min": 30.0, "r_max": 50.0},
+	{"name": "biotech_lab", "angle": PI, "r_min": 12.0, "r_max": 25.0},
 ]
 
 var _world_seed: int = 0
@@ -138,8 +138,8 @@ func _generate_chunk(chunk_pos: Vector2i) -> void:
 	# Chebyshev distance from CT chunk
 	var dist: int = maxi(absi(chunk_pos.x - _ct_chunk.x), absi(chunk_pos.y - _ct_chunk.y))
 
-	# Skip CT's immediate area (tutorial sources handle this)
-	if dist <= 1:
+	# Skip only CT's own chunk (tutorial sources handle center)
+	if dist == 0:
 		return
 
 	# Deterministic RNG per chunk — same seed+chunk = same sources always
@@ -183,21 +183,21 @@ func _get_pool_for_distance(dist: int) -> Array:
 func _roll_count(dist: int, rng: RandomNumberGenerator) -> int:
 	var roll: float = rng.randf()
 	if dist <= 3:
-		# Inner ring: dense — ATMs and cameras everywhere
-		if roll < 0.50: return 1
-		if roll < 0.75: return 2
-		return 0
+		# Inner ring: dense — always at least 1 source
+		if roll < 0.45: return 2
+		if roll < 0.70: return 3
+		return 1
 	elif dist <= 6:
-		# Mid ring: moderate
-		if roll < 0.40: return 1
-		if roll < 0.55: return 2
+		# Mid ring: usually has sources
+		if roll < 0.50: return 1
+		if roll < 0.80: return 2
 		return 0
 	elif dist <= 10:
-		# Outer ring: sparse
-		return 1 if roll < 0.22 else 0
+		# Outer ring: moderate
+		return 1 if roll < 0.35 else 0
 	else:
-		# Far: very sparse — rare corp servers and endgame
-		return 1 if roll < 0.10 else 0
+		# Far: sparse — rare corp servers and endgame
+		return 1 if roll < 0.15 else 0
 
 
 func _find_position_in_chunk(chunk_pos: Vector2i, grid_size: Vector2i, rng: RandomNumberGenerator) -> Vector2i:
