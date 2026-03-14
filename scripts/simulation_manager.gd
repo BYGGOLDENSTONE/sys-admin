@@ -334,9 +334,12 @@ func _on_sim_tick() -> void:
 	if buildings.is_empty():
 		tick_completed.emit(_tick_count)
 		return
-	# Reset work flags
-	for b in buildings:
-		b.is_working = false
+	# Reset work flags (filter out freed buildings mid-tick)
+	for i in range(buildings.size() - 1, -1, -1):
+		if not is_instance_valid(buildings[i]):
+			buildings.remove_at(i)
+			continue
+		buildings[i].is_working = false
 	# 1. Deliver arrived transit items to target buildings
 	_deliver_arrived()
 	# 2. Normal simulation: generate → forward → process
@@ -1341,8 +1344,32 @@ func _push_packet_from(source: Node2D, pkt_key: int, amount: int) -> int:
 		# Skip stalled cables
 		if _is_transit_stalled(conn):
 			continue
-		# Port Purity: skip blocked CT ports
-		if target.blocked_ports.has(conn.to_port):
+		# Port Purity: record packet type + check at push time (CT only)
+		if target.definition.category == "terminal":
+			var port: String = conn.to_port
+			if target.blocked_ports.has(port):
+				continue
+			if not target.port_carried_types.has(port):
+				target.port_carried_types[port] = {}
+			# Record both packet components as separate type keys
+			var ca: int = DataEnums.unpack_packet_content_a(pkt_key)
+			var sa: int = DataEnums.unpack_packet_tags_a(pkt_key)
+			var cb: int = DataEnums.unpack_packet_content_b(pkt_key)
+			var sb: int = DataEnums.unpack_packet_tags_b(pkt_key)
+			target.port_carried_types[port][(ca << 4) | sa] = true
+			target.port_carried_types[port][(cb << 4) | sb] = true
+			# Check purity for all recorded types on this port
+			if target.purity_checker.is_valid():
+				var contaminated := false
+				for tk in target.port_carried_types[port]:
+					if not target.purity_checker.call(tk >> 4, tk & 0xF):
+						contaminated = true
+						break
+				if contaminated:
+					target.blocked_ports[port] = true
+					print("[PortPurity] CT port '%s' blocked — packet carries non-matching data" % port)
+					continue
+		elif target.blocked_ports.has(conn.to_port):
 			continue
 		# Push to transit queue
 		if not conn.has("transit"):

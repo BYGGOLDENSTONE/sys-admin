@@ -75,7 +75,7 @@ Kablolar grid uzerinde fiziksel yer kaplar, serbestce kesilemez. Yerlesim planla
         |
 [KESFET]             — Uygun kaynagi haritada bul
         |
-[CEK]                — Uplink kur, veri cekmeye basla
+[CEK]                — Kaynaga kablo cek, veri cekmeye basla
         |
 [AYIKLA]             — Classifier ile istedigin content'i ayir
         |
@@ -175,7 +175,6 @@ Her bina tek bir basit is yapar. Zorluk bireysel binalardan degil, birlesimlerin
 
 | Bina | Fiil | Kategori | Benzersiz Mekanik |
 |------|------|----------|-------------------|
-| **Uplink** | Cek | Uretim | Kaynaktan veri cikarir |
 | **Classifier** | Ayikla | Routing | Binary filtre: secilen content sag, kalan sol |
 | **Separator** | Ayir | Routing | Binary filtre: secilen state sag, kalan sol |
 | **Decryptor** | Coz | Isleme | Cift girdi: veri + Key → Decrypted |
@@ -188,7 +187,7 @@ Her bina tek bir basit is yapar. Zorluk bireysel binalardan degil, birlesimlerin
 | **Trash** | Yok et | Altyapi | Istenmeyen veriyi imha eder |
 | **Contract Terminal** | Teslim al | Merkez | Gig'leri gosterir + veri teslim noktasi |
 
-**12 bina. Bina maliyeti YOK — bulmaca zorlugu yeter. Binalar gig ilerlemesiyle acilir.**
+**11 bina. Bina maliyeti YOK — bulmaca zorlugu yeter. Binalar gig ilerlemesiyle acilir. Kaynaklar dogrudan output portlarina sahip (Uplink kaldirildi).**
 
 ---
 
@@ -525,7 +524,7 @@ Biometric Recovered ═══════╝
 #### Port Purity Kurali (Kablo Tipi Dogrulama)
 Contract Terminal **sadece saf (pure) veri akisi kabul eder.** Her input port'un kablosu kumulatif tip kaydı tutar:
 
-- **Kablo baglandiginda:** Uplink kaynaklari icin tum olasi veri tipleri (content × state) aninda kaydedilir — ilk tick'ten once kontrol yapilir
+- **Kablo baglandiginda:** Kaynak cikislari icin tum olasi veri tipleri (content × state) aninda kaydedilir — ilk tick'ten once kontrol yapilir
 - **Push aninda:** Diger binalardan gelen veri tipleri kabloya kaydedilir ve aninda degerlendirilir
 - Port'taki **tum** kayitli tipler aktif bir gig requirement'a eslesiyorsa → **kabul**, veri akar
 - Port'ta **tek bir non-matching tip** bile kaydedildiyse → **port kalici olarak bloklanir**, hicbir veri gecmez
@@ -535,11 +534,11 @@ Contract Terminal **sadece saf (pure) veri akisi kabul eder.** Her input port'un
 **Ornek:** Gig "20 MB Financial Public" istiyor.
 - Port'a sadece Financial Public geliyorsa → kabul ✓
 - Port'a Financial Public + Biometric Public geliyorsa (ikisi de aktif gig'e uyuyor) → kabul ✓
-- Uplink (ATM: 70% Financial Public + 30% Financial Corrupted) direkt baglanirsa → **kablo aninda bloklanir** ✗
+- ATM kaynagi (70% Financial Public + 30% Financial Corrupted) direkt baglanirsa → **kablo aninda bloklanir** ✗
 
 **Neden:** Bu kural oyunun puzzle cekirdegini korur. Oyuncu kaynaktan gelen karisik veriyi (content + state) filtrelemeden CT'ye teslim edemez. Classifier ile content ayirma, Separator ile state ayirma ZORUNLU hale gelir. Temiz hatlar Merger ile birlestirilebilir.
 
-**Kaynak tasarimi ile uyum:** Tum kaynaklar (tutorial Otomat haric) karisik state icerir (Public + Corrupted/Encrypted). Bu, direkt Uplink → CT baglantisinin hicbir zaman calismayacagini dogal olarak garanti eder.
+**Kaynak tasarimi ile uyum:** Tum kaynaklar (tutorial Otomat haric) karisik state icerir (Public + Corrupted/Encrypted). Bu, direkt Kaynak → CT baglantisinin hicbir zaman calismayacagini dogal olarak garanti eder.
 
 ---
 
@@ -642,7 +641,7 @@ Gig sistemi oyunun KALBI. Opsiyonel degil, ana ilerleme mekanigi. Contract Termi
 5. Gig tamam → yeni bina acilir + yeni gig'ler belirir
 6. Veri teslimde TUKETILIR (Shapez modeli — Hub'a giren veri gider)
 
-> **Port Purity Kurali:** CT, her input port'una bagli kablonun tasidigi veri tiplerini kumulatif olarak kaydeder. Uplink'ler icin kaynak kompozisyonu kablo baglandiginda aninda yazilir (ilk tick'ten once blok). Diger binalar icin push aninda kaydedilir. Port'taki TUM kayitli tipler aktif bir gig requirement'a eslesiyorsa veri kabul edilir. Tek bir non-matching tip bile kaydedildiyse port kalici olarak bloklanir. Kablo cikarildiginda kayit sifirlanir. Gig degistiginde tum portlar yeniden degerlendirilir. Detay icin "CONTRACT TERMINAL — Mission Hub" bolumune bak.
+> **Port Purity Kurali:** CT, her input port'una bagli kablonun tasidigi veri tiplerini kumulatif olarak kaydeder. Kaynaklar icin kompozisyon kablo baglandiginda aninda yazilir (ilk tick'ten once blok). Diger binalar icin push aninda kaydedilir — paketler dahil. Port'taki TUM kayitli tipler aktif bir gig requirement'a eslesiyorsa veri kabul edilir. Tek bir non-matching tip bile kaydedildiyse port kalici olarak bloklanir. Kablo cikarildiginda kayit sifirlanir. Gig degistiginde tum portlar yeniden degerlendirilir. Detay icin "CONTRACT TERMINAL — Mission Hub" bolumune bak.
 
 ### Gig Ilerleme Zinciri
 
@@ -652,7 +651,7 @@ Ilk gig'ler SIRALI (tutorial islevi gorur). Sonra PARALEL acilir.
 
 | # | Gig | Ne Ogretiyor | Acilan Bina |
 |---|-----|-------------|-------------|
-| 1 | "20 Standard Public teslim et" | Uplink + kablo + teslim | Trash, Splitter (baslangic) |
+| 1 | "20 Standard Public teslim et" | Kaynak + kablo + teslim | Trash, Splitter (baslangic) |
 | 2 | "Biometric ve Financial'i AYRI teslim et" | Classifier (binary filtre) | Classifier |
 | 3 | "15 Financial Public teslim et" (kaynakta Corrupted var) | Separator (state ayirma) | Separator |
 | 4 | "10 Financial Recovered teslim et" | Recovery + pozitif geri besleme | Recoverer |
@@ -791,7 +790,7 @@ Content Renkleri:
 - Zoom seviyesine gore ses degisir
 
 **Bina Sesleri (her bina benzersiz):**
-- Uplink: veri cekme/indirme pulse
+- Kaynak baglanti: veri cekme/indirme pulse
 - Classifier/Separator: routing "tik-tak"
 - Decryptor: dijital "crack" efekti
 - Recoverer: tarama/onarma sesi

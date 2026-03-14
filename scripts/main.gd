@@ -19,7 +19,6 @@ var _map_generator: RefCounted = null
 var _current_seed: int = 0
 var _dev_mode: bool = false
 var _top_bar: PanelContainer = null
-var _minimap: Control = null
 var _shortcut_hints: Label = null
 var _shortcut_bg: PanelContainer = null
 var _prev_hint_state: int = -1
@@ -307,21 +306,6 @@ func _setup_top_bar() -> void:
 	_top_bar.offset_right = -224.0  # Leave space for building panel
 	ui_layer.add_child(_top_bar)
 
-
-func _setup_minimap() -> void:
-	var MinimapScript = preload("res://scripts/ui/minimap.gd")
-	_minimap = Control.new()
-	_minimap.set_script(MinimapScript)
-	_minimap.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
-	_minimap.offset_left = 10.0
-	_minimap.offset_right = 190.0
-	_minimap.offset_top = -190.0
-	_minimap.offset_bottom = -10.0
-	_minimap.source_manager = source_manager
-	_minimap.building_container = $BuildingContainer
-	_minimap.camera_ref = camera
-	_minimap.connection_manager = connection_manager
-	ui_layer.add_child(_minimap)
 
 
 func _setup_shortcut_hints() -> void:

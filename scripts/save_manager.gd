@@ -148,9 +148,31 @@ func _capture_buildings() -> Array:
 			"separator_filter_value": building.separator_filter_value,
 			"selected_tier": building.selected_tier,
 			"upgrade_level": building.upgrade_level,
+			"blocked_ports": building.blocked_ports.duplicate(),
+			"port_carried_types": _serialize_port_carried_types(building.port_carried_types),
 		}
 		result.append(entry)
 	return result
+
+
+func _serialize_port_carried_types(pct: Dictionary) -> Dictionary:
+	var out: Dictionary = {}
+	for port in pct:
+		var inner: Dictionary = {}
+		for tk in pct[port]:
+			inner[str(tk)] = true
+		out[port] = inner
+	return out
+
+
+func _deserialize_port_carried_types(saved: Dictionary) -> Dictionary:
+	var out: Dictionary = {}
+	for port in saved:
+		var inner: Dictionary = {}
+		for tk_str in saved[port]:
+			inner[int(tk_str)] = true
+		out[port] = inner
+	return out
 
 
 func _capture_connections() -> Array:
@@ -266,6 +288,14 @@ func _restore_buildings(buildings_data: Array) -> Dictionary:
 		building.stored_data.clear()
 		for key in saved_data:
 			building.stored_data[int(key)] = int(saved_data[key])
+
+		# Restore CT port purity state
+		var saved_blocked: Dictionary = entry.get("blocked_ports", {})
+		if not saved_blocked.is_empty():
+			building.blocked_ports = saved_blocked.duplicate()
+		var saved_pct: Dictionary = entry.get("port_carried_types", {})
+		if not saved_pct.is_empty():
+			building.port_carried_types = _deserialize_port_carried_types(saved_pct)
 
 		var map_key: String = "%d_%d" % [cell.x, cell.y]
 		building_map[map_key] = building

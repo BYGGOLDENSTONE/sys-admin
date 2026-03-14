@@ -20,11 +20,11 @@ var _pools: Dictionary = {
 
 ## Tutorial-critical sources: fixed coordinates near CT center.
 var _tutorial_sources := [
-	{"name": "isp_backbone", "pos": Vector2i(262, 250)},    # NE — Gig 1
-	{"name": "atm", "pos": Vector2i(263, 256)},              # E  — Gig 2
-	{"name": "data_kiosk", "pos": Vector2i(249, 256)},       # W  — Gig 3
-	{"name": "bank_terminal", "pos": Vector2i(256, 263)},    # S  — Gig 4
-	{"name": "hospital_terminal", "pos": Vector2i(256, 272)},# S  — Gig 5
+	{"name": "isp_backbone", "pos": Vector2i(266, 246)},    # NE — Gig 1
+	{"name": "atm", "pos": Vector2i(268, 256)},              # E  — Gig 2
+	{"name": "data_kiosk", "pos": Vector2i(244, 256)},       # W  — Gig 3
+	{"name": "bank_terminal", "pos": Vector2i(256, 268)},    # S  — Gig 4
+	{"name": "hospital_terminal", "pos": Vector2i(256, 278)},# SS — Gig 5
 ]
 
 ## Sector-based guarantees for non-tutorial sources
