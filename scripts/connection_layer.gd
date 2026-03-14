@@ -79,7 +79,29 @@ func _process(delta: float) -> void:
 			_removal_flash_paths.remove_at(ri)
 			_removal_flash_colors.remove_at(ri)
 		ri -= 1
+	# Always redraw: cables have pulse animation and transit items move every frame
 	queue_redraw()
+
+
+func _get_viewport_bounds() -> Rect2:
+	## Returns camera viewport bounds in local coordinates for frustum culling.
+	if _camera == null:
+		return Rect2(-1e9, -1e9, 2e9, 2e9)
+	var vp_size := get_viewport_rect().size / _camera.zoom
+	var cam_pos := to_local(_camera.global_position)
+	var margin := 256.0  # Extra margin for glow/halo overshoot
+	return Rect2(cam_pos - vp_size / 2.0 - Vector2(margin, margin), vp_size + Vector2(margin * 2, margin * 2))
+
+
+func _is_conn_in_viewport(conn: Dictionary, vp: Rect2) -> bool:
+	## Fast AABB check: connection is visible if any of from/to buildings overlap viewport.
+	var from_pos: Vector2 = to_local(conn.from_building.global_position)
+	var to_pos: Vector2 = to_local(conn.to_building.global_position)
+	var min_x: float = minf(from_pos.x, to_pos.x)
+	var min_y: float = minf(from_pos.y, to_pos.y)
+	var max_x: float = maxf(from_pos.x, to_pos.x) + TILE_SIZE * 4.0
+	var max_y: float = maxf(from_pos.y, to_pos.y) + TILE_SIZE * 4.0
+	return vp.intersects(Rect2(min_x, min_y, max_x - min_x, max_y - min_y))
 
 
 func _draw() -> void:
@@ -89,6 +111,7 @@ func _draw() -> void:
 	var _draw_t0: int = Time.get_ticks_usec()
 	var zoom: float = _get_zoom_level()
 	var conns: Array[Dictionary] = connection_manager.get_connections()
+	var vp_bounds: Rect2 = _get_viewport_bounds()
 	# Build per-frame cache of buildings with incoming transit
 	_has_incoming.clear()
 	for c in conns:
@@ -98,6 +121,9 @@ func _draw() -> void:
 	var _items_calls: int = 0
 	for i in range(conns.size()):
 		var conn: Dictionary = conns[i]
+		# Viewport frustum culling — skip cables entirely off-screen
+		if not _is_conn_in_viewport(conn, vp_bounds):
+			continue
 		var cable_state: int = _get_cable_state(conn, i)
 		var hovered: bool = (i == hovered_cable_index)
 		_draw_connection(conn, cable_state != CABLE_INACTIVE, hovered)

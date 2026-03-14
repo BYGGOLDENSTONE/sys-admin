@@ -382,10 +382,11 @@ bin/
 - [x] 50 kablo + 100 transit item'da 60 FPS (Faz 1 sonrasi)
 - [ ] 200 kablo + 500 transit item'da 60 FPS (Faz 2 sonrasi — benchmark bekliyor)
 - [x] Save/load ve gameplay davranisi degismemis (regresyon yok)
+- [x] Late-game Faz 1: 999 bina + 998 kablo + 28K transit = 28 FPS (rendering cozuldu, sim darboğaz)
 
 ---
 
-## Late-Game Optimizasyon Plani (Aktif — Sonraki Sprint)
+## Late-Game Optimizasyon Plani (Aktif Gelistirme)
 
 **Hedef:** 2000+ kablo, 20000+ parcacik, 800+ bina, sonsuz harita — 60 FPS
 **Mimari:** GDScript UI/UX + C++ simulasyon kerneli + GPU shader render + streaming/LOD
@@ -399,7 +400,7 @@ bin/
 
 ### Faz 0: Olcum Altyapisi — TAMAMLANDI
 - [x] Godot Profiler custom monitor'leri kur (frame time breakdown: sim tick, render, draw calls) — `perf_monitor.gd` (14 custom monitor), `simulation_manager.gd`, `connection_layer.gd`, `grid_system.gd`, `building.gd` instrumented
-- [x] Benchmark sahnesi: 200 kablo + 500 item test — `benchmark_runner.gd` (F7 veya `--benchmark` CLI), 20 chain × 10 building = 200 bina + ~180 kablo + ~591 transit item
+- [x] Benchmark sahnesi — `benchmark_runner.gd` (F7 veya `--benchmark` CLI), 100 chain × 10 building + 100 ISP Backbone kaynak = 999 bina + 998 kablo + gercek veri akisi (28K+ transit item)
 - [x] Release DLL build dogrulama (`scons target=template_release`) — `bin/sysadmin.windows.template_release.x86_64.dll` build basarili
 
 **Baseline Olcum (200 bina + 180 kablo + 591 transit, RTX 3070):**
@@ -414,15 +415,26 @@ bin/
 Demo (20-50 bina) sorunsuz calisir. Late-game (800+ bina) icin Faz 1+ gerekli.
 Oncelik sirasi: Building draw > Cable draw > Grid draw > Simulation.
 
-### Faz 1: Hizli GDScript Kazanimlari
-**Beklenen kazanc: %20-30 CPU, %40-60 draw call**
-- [ ] **O1. Dirty connection cache** — `_rebuild_conn_cache()` event-based (baglanti ekleme/silme signal'i ile)
-- [ ] **O2. Building list cache** — `get_children()` yerine runtime registry, bina ekleme/silme event'inde guncelle
-- [ ] **O3. Viewport frustum culling** — connection_layer.gd'de kamera sinirlari disindaki kablo/parcaciklari atla
-- [ ] **O4. Zoom-based LOD** — zoom<0.25: metin yok, zoom<0.5: basit daire, zoom>0.5: tam detay
-- [ ] **O5. Port spatial grid** — `_find_port_at()` O(n)→O(1), grid hucresine gore port index
-- [ ] **O6. Status reason dirty flag** — polling degil, event-based (durum degistiginde guncelle)
-- [ ] **O7. queue_redraw() dirty flag** — bina/source sadece durum degistiginde yeniden cizilsin
+### Faz 1: Hizli GDScript Kazanimlari — TAMAMLANDI
+**Gercek kazanc: Building draw %99.6 azaldi, Cable draw %55 azaldi, Grid draw %65 azaldi**
+- [x] **O1. Dirty connection cache** — `_rebuild_conn_cache()` event-based: `connection_added`/`connection_removed` sinyalleri `_conn_cache_dirty` set eder, topoloji degismedikce rebuild atlanir
+- [x] **O2. Building list cache** — `_building_cache` + `_building_cache_dirty` flag, `building_placed`/`building_removed` event'lerinde invalidate
+- [x] **O3. Viewport frustum culling** — `_is_conn_in_viewport()` AABB check, ekran disindaki kablo + transit item render'i tamamen atlanir
+- [ ] **O4. Zoom-based LOD** — ertelendi (mevcut 3-tier LOD yeterli)
+- [ ] **O5. Port spatial grid** — ertelendi (sadece interaktif, minimal etki)
+- [ ] **O6. Status reason dirty flag** — ertelendi (karmasik bagimliliklar)
+- [x] **O7. queue_redraw() dirty flag** — `_draw_dirty` flag: idle binalar sadece durum degistiginde yeniden cizilir
+
+**Faz 1 Olcum (999 bina + 998 kablo + 28K transit, RTX 3070):**
+| Katman | Eski (200 bina) | Yeni (999 bina) | Degisim |
+|--------|-----------------|-----------------|---------|
+| Building draw | 36,689 us (62%) | 158 us (<1%) | -99.6% |
+| Cable draw | 14,151 us (24%) | 6,314 us (24%) | -55% |
+| Grid draw | 6,837 us (12%) | 2,388 us (9%) | -65% |
+| Simulation | 1,425 us (2%) | 17,426 us (66%) | Yeni darboğaz |
+| **FPS** | **~17** | **~28** | **+65% (5x buyuk test)** |
+
+**Sonuc:** Rendering darbogazı neredeyse tamamen cozuldu. Yeni darboğaz simulasyon (28K transit item GDScript'te). Sonraki adim: Faz 3 C++ Simulation Kernel.
 
 ### Faz 2: GPU Shader Migration
 **Beklenen kazanc: %15-20 CPU, %30-40 draw call**

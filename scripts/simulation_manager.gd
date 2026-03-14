@@ -20,15 +20,20 @@ var sound_manager: Node = null
 var connection_stalled: Dictionary = {}  # conn_idx → true if stalled
 var _splitter_next_port: Dictionary = {}  # building instance_id → next output port index
 
+# --- BUILDING CACHE (event-based, avoids get_children() every tick) ---
+var _building_cache: Array[Node] = []
+var _building_cache_dirty: bool = true
+
 # --- C++ NATIVE ACCELERATORS (fallback to GDScript if DLL not loaded) ---
 var _transit_sim: RefCounted = null
 var _stall_prop: RefCounted = null
 
-# --- CONNECTION CACHE (rebuilt once per frame for O(1) lookups) ---
+# --- CONNECTION CACHE (event-based dirty flag, rebuilt only when topology changes) ---
 var _cached_conns: Array[Dictionary] = []
 var _conn_from: Dictionary = {}    # building_instance_id → Array[int] conn indices
 var _conn_to: Dictionary = {}      # building_instance_id → Array[int] conn indices
 var _output_ports: Dictionary = {} # building_instance_id → {port_name → conn_index}
+var _conn_cache_dirty: bool = true
 
 @onready var _sim_timer: Timer = $SimTimer
 
@@ -50,6 +55,8 @@ func _ready() -> void:
 
 
 func _rebuild_conn_cache() -> void:
+	if not _conn_cache_dirty:
+		return
 	_cached_conns = connection_manager.get_connections()
 	_conn_from.clear()
 	_conn_to.clear()
@@ -67,6 +74,11 @@ func _rebuild_conn_cache() -> void:
 		if not _output_ports.has(from_id):
 			_output_ports[from_id] = {}
 		_output_ports[from_id][conn.from_port] = i
+	_conn_cache_dirty = false
+
+
+func _invalidate_conn_cache(_conn: Dictionary = {}) -> void:
+	_conn_cache_dirty = true
 
 
 func _process(delta: float) -> void:
@@ -112,13 +124,20 @@ func toggle_pause() -> void:
 	print("[Simulation] %s" % ("Paused" if is_paused else "Resumed at %dx" % speed_multiplier))
 
 
+func _get_buildings() -> Array[Node]:
+	if _building_cache_dirty:
+		_building_cache.clear()
+		for child in building_container.get_children():
+			if child.has_method("is_active"):
+				_building_cache.append(child)
+		_building_cache_dirty = false
+	return _building_cache
+
+
 func _on_sim_tick() -> void:
 	var _tick_t0: int = Time.get_ticks_usec()
 	_rebuild_conn_cache()
-	var buildings: Array[Node] = []
-	for child in building_container.get_children():
-		if child.has_method("is_active"):
-			buildings.append(child)
+	var buildings: Array[Node] = _get_buildings()
 	_tick_count += 1
 	if buildings.is_empty():
 		tick_completed.emit(_tick_count)
@@ -1194,10 +1213,14 @@ func _on_building_placed(building: Node2D, _cell: Vector2i) -> void:
 	if building.has_method("play_place_animation"):
 		building.play_place_animation()
 	_add_camera_trauma(0.15)
+	_building_cache_dirty = true
+	_conn_cache_dirty = true
 
 
 func _on_building_removed(_building: Node2D, _cell: Vector2i) -> void:
 	_add_camera_trauma(0.1)
+	_building_cache_dirty = true
+	_conn_cache_dirty = true
 
 
 # --- STATUS REASONS (root cause feedback for idle buildings) ---

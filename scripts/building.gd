@@ -40,6 +40,13 @@ var classifier_filter_content: int = 0  ## Filter value for classifier (content 
 var selected_tier: int = 1  ## For producer: which tier to produce (1-3)
 var upgrade_level: int = 0  ## Current upgrade level (0 = base)
 
+# --- DIRTY FLAG (skip redraw when nothing changed) ---
+var _draw_dirty: bool = true
+var _prev_status_reason: String = ""
+var _prev_stored_hash: int = 0
+var _prev_fill_ratio: float = -1.0
+var _prev_is_selected: bool = false
+
 # --- POLYGON CACHE (rebuilt only when direction/mirror changes) ---
 var _cached_base_poly: PackedVector2Array = PackedVector2Array()
 var _cached_closed_poly: PackedVector2Array = PackedVector2Array()
@@ -149,12 +156,33 @@ func _process(delta: float) -> void:
 	# Processing flash on working state transition
 	if is_working and not _prev_working:
 		_process_flash = 1.0
+		_draw_dirty = true
+	if _prev_working != is_working:
+		_draw_dirty = true
 	_prev_working = is_working
 	if _process_flash > 0.0:
 		_process_flash = maxf(_process_flash - delta * 4.0, 0.0)
+		_draw_dirty = true
+	# Detect state changes that require redraw
+	if status_reason != _prev_status_reason:
+		_prev_status_reason = status_reason
+		_draw_dirty = true
+	if is_selected != _prev_is_selected:
+		_prev_is_selected = is_selected
+		_draw_dirty = true
+	var cur_hash: int = stored_data.hash()
+	if cur_hash != _prev_stored_hash:
+		_prev_stored_hash = cur_hash
+		_draw_dirty = true
+	# Working/active buildings always redraw (animated glow/pulse/breathing)
+	if is_working or _process_flash > 0.0:
+		_draw_dirty = true
 	# Viewport culling — skip redraw for off-screen buildings
 	if not _is_in_viewport():
 		return
+	if not _draw_dirty:
+		return
+	_draw_dirty = false
 	queue_redraw()
 
 
@@ -178,6 +206,7 @@ func setup(def: BuildingDefinition, cell: Vector2i, dir: int = 0, mirrored: bool
 	grid_cell = cell
 	direction = dir
 	mirror_h = mirrored
+	_draw_dirty = true
 	queue_redraw()
 
 
@@ -415,10 +444,11 @@ func update_display() -> void:
 	if definition == null:
 		return
 	var cap: int = int(get_effective_value("capacity")) if definition.storage else 0
-	if cap > 0:
-		fill_ratio = float(get_total_stored()) / float(cap)
-	else:
-		fill_ratio = 0.0
+	var new_ratio: float = float(get_total_stored()) / float(cap) if cap > 0 else 0.0
+	if new_ratio != _prev_fill_ratio:
+		_prev_fill_ratio = new_ratio
+		_draw_dirty = true
+	fill_ratio = new_ratio
 
 
 func get_port_at(local_pos: Vector2) -> Dictionary:

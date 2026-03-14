@@ -21,6 +21,9 @@ var _dev_mode: bool = false
 var _top_bar: PanelContainer = null
 var _minimap: Control = null
 var _shortcut_hints: Label = null
+var _shortcut_bg: PanelContainer = null
+var _prev_hint_state: int = -1
+var _prev_hint_selected: bool = false
 var _sound_manager: Node = null
 var _gig_manager: Node = null
 var _gig_panel: PanelContainer = null
@@ -71,6 +74,9 @@ func _ready() -> void:
 	simulation_manager.connection_manager = connection_manager
 	simulation_manager.building_container = $BuildingContainer
 	simulation_manager.source_manager = source_manager
+	# Dirty-flag connection cache on topology changes
+	connection_manager.connection_added.connect(simulation_manager._invalidate_conn_cache)
+	connection_manager.connection_removed.connect(simulation_manager._invalidate_conn_cache)
 	building_manager.building_placed.connect(simulation_manager._on_building_placed)
 	building_manager.building_removed.connect(simulation_manager._on_building_removed)
 	simulation_manager.content_discovered.connect(_on_content_discovered)
@@ -208,6 +214,16 @@ func _ready() -> void:
 func _process(_delta: float) -> void:
 	# Reset per-frame aggregate stats
 	PerfMonitor.reset_building_stats()
+	# Update shortcut hints when context changes
+	if building_manager and _shortcut_bg and _shortcut_bg.visible:
+		var cur_state: int = building_manager._state
+		var cur_sel: bool = building_manager._selected_building != null
+		if cur_state != _prev_hint_state or cur_sel != _prev_hint_selected:
+			_prev_hint_state = cur_state
+			_prev_hint_selected = cur_sel
+			_update_shortcut_hints()
+		# Keep centered (panel auto-sizes to content)
+		_center_shortcut_panel()
 	# Lazy chunk generation — generate sources as camera reveals new areas
 	if _map_generator and camera:
 		var cam_pos: Vector2 = camera.global_position
@@ -256,8 +272,6 @@ func _unhandled_input(event: InputEvent) -> void:
 			simulation_manager.set_speed(2)
 		KEY_3:
 			simulation_manager.set_speed(3)
-		KEY_F9:
-			_toggle_dev_mode()
 		KEY_F7:
 			_run_benchmark()
 		KEY_H:
@@ -273,7 +287,7 @@ func _run_benchmark(auto_report: bool = false) -> void:
 		print(_benchmark.get_summary())
 		return
 	_benchmark = BenchmarkRunner.new()
-	_benchmark.setup(building_manager, connection_manager, grid_system, simulation_manager)
+	_benchmark.setup(building_manager, connection_manager, grid_system, simulation_manager, source_manager)
 	_benchmark.run(auto_report)
 
 
@@ -311,33 +325,69 @@ func _setup_minimap() -> void:
 
 
 func _setup_shortcut_hints() -> void:
+	# Background panel for readability
+	_shortcut_bg = PanelContainer.new()
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.02, 0.04, 0.08, 0.75)
+	style.border_color = Color(0.15, 0.35, 0.5, 0.4)
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(4)
+	style.content_margin_top = 4
+	style.content_margin_bottom = 4
+	style.content_margin_left = 14
+	style.content_margin_right = 14
+	_shortcut_bg.add_theme_stylebox_override("panel", style)
+	_shortcut_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ui_layer.add_child(_shortcut_bg)
+
 	_shortcut_hints = Label.new()
-	_shortcut_hints.text = "ESC Menu  //  SPACE Pause  //  1/2/3 Speed  //  G Contracts  //  Ctrl+S Save  //  Ctrl+Z Undo  //  H Hide"
-	_shortcut_hints.add_theme_font_size_override("font_size", 12)
-	_shortcut_hints.add_theme_color_override("font_color", Color(0.4, 0.6, 0.7, 0.6))
+	_shortcut_hints.add_theme_font_override("font", preload("res://assets/fonts/JetBrainsMono-Regular.ttf"))
+	_shortcut_hints.add_theme_font_size_override("font_size", 11)
+	_shortcut_hints.add_theme_color_override("font_color", Color(0.5, 0.7, 0.8, 0.85))
 	_shortcut_hints.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_shortcut_hints.anchors_preset = Control.PRESET_BOTTOM_WIDE
-	_shortcut_hints.offset_bottom = -10.0
-	_shortcut_hints.offset_top = -30.0
-	_shortcut_hints.offset_left = 200.0
-	_shortcut_hints.offset_right = -230.0
-	_shortcut_hints.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	_shortcut_hints.autowrap_mode = TextServer.AUTOWRAP_OFF
 	_shortcut_hints.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	ui_layer.add_child(_shortcut_hints)
-	# Fade in then auto-fade after 6 seconds
-	_shortcut_hints.modulate = Color(1, 1, 1, 0)
-	var tween := create_tween()
-	tween.tween_property(_shortcut_hints, "modulate:a", 1.0, 0.5).set_delay(0.5)
-	tween.tween_property(_shortcut_hints, "modulate:a", 0.0, 1.5).set_delay(6.0)
+	_shortcut_bg.add_child(_shortcut_hints)
+	_update_shortcut_hints()
+
+
+func _center_shortcut_panel() -> void:
+	if _shortcut_bg == null:
+		return
+	var vp_w: float = get_viewport().get_visible_rect().size.x
+	var panel_w: float = _shortcut_bg.size.x
+	_shortcut_bg.position = Vector2((vp_w - panel_w) / 2.0, 6.0)
+
+
+func _update_shortcut_hints() -> void:
+	if _shortcut_hints == null:
+		return
+	var ctx: String = ""
+	var bm_state: int = building_manager._state if building_manager else 0
+	match bm_state:
+		1:  # PLACING
+			ctx = "LMB Place | RMB Cancel | R Rotate | T Mirror"
+		2:  # CONNECTING
+			ctx = "LMB Connect | RMB Cancel"
+		3:  # MOVING
+			ctx = "LMB Place | RMB Cancel"
+		_:  # IDLE
+			var has_sel: bool = building_manager._selected_building != null if building_manager else false
+			if has_sel:
+				ctx = "R Rotate | T Mirror | Tab Filter | Ctrl+LMB Move | RMB Delete"
+			else:
+				ctx = "LMB Select | RMB Delete | Ctrl+LMB Move"
+	var line1: String = ctx
+	var line2: String = "Esc Menu | Space Pause | 1-3 Speed | G Contracts | Ctrl+S Save | Ctrl+Z Undo | F7 Bench | H Hide"
+	_shortcut_hints.text = line1 + "\n" + line2
+	# Re-center after text change
+	call_deferred("_center_shortcut_panel")
 
 
 func _toggle_shortcut_hints() -> void:
-	if _shortcut_hints.modulate.a < 0.1:
-		_shortcut_hints.modulate.a = 1.0
-		var tween := create_tween()
-		tween.tween_property(_shortcut_hints, "modulate:a", 0.0, 1.5).set_delay(8.0)
-	else:
-		_shortcut_hints.modulate.a = 0.0
+	if _shortcut_bg == null:
+		return
+	_shortcut_bg.visible = not _shortcut_bg.visible
 
 
 
@@ -621,6 +671,7 @@ func _toggle_dev_mode() -> void:
 	_dev_mode = not _dev_mode
 	source_manager.set_dev_mode(_dev_mode)
 	_top_bar.set_dev_visible(_dev_mode)
+	_update_shortcut_hints()
 	print("[Main] Dev mode: %s" % ("ON" if _dev_mode else "OFF"))
 
 
