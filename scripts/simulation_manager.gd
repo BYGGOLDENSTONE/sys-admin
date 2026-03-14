@@ -28,6 +28,7 @@ var _building_cache_dirty: bool = true
 var _transit_sim: RefCounted = null
 var _stall_prop: RefCounted = null
 var _delivery_engine: RefCounted = null
+var _sim_kernel: RefCounted = null
 
 # --- DELIVERY METADATA (rebuilt when conn cache changes, used by C++ DeliveryEngine) ---
 var _conn_target_types: PackedInt32Array = PackedInt32Array()
@@ -63,6 +64,11 @@ func _ready() -> void:
 		print("[Simulation] C++ DeliveryEngine loaded")
 	else:
 		print("[Simulation] DeliveryEngine — GDScript fallback")
+	if ClassDB.class_exists("SimKernel"):
+		_sim_kernel = ClassDB.instantiate("SimKernel")
+		print("[Simulation] C++ SimKernel loaded")
+	else:
+		print("[Simulation] SimKernel — GDScript fallback")
 	print("[Simulation] Manager initialized — tick: %.1fs, transit speed: %.1f grids/s" % [_sim_timer.wait_time, TRANSIT_GRIDS_PER_SEC])
 
 
@@ -89,6 +95,9 @@ func _rebuild_conn_cache() -> void:
 	_conn_cache_dirty = false
 	# Build delivery metadata for C++ DeliveryEngine
 	_rebuild_delivery_meta()
+	# Build SimKernel metadata
+	if _sim_kernel:
+		_rebuild_sim_kernel_meta()
 
 
 func _rebuild_delivery_meta() -> void:
@@ -143,6 +152,125 @@ func _rebuild_delivery_meta() -> void:
 
 func _invalidate_conn_cache(_conn: Dictionary = {}) -> void:
 	_conn_cache_dirty = true
+
+
+func _rebuild_sim_kernel_meta() -> void:
+	## Build metadata arrays for C++ SimKernel. Called on topology change.
+	if not _sim_kernel or source_manager == null:
+		return
+	# --- Source port entries ---
+	var source_entries: Array = []
+	for source in source_manager.get_all_sources():
+		var src_def: DataSourceDefinition = source.definition
+		var src_id: int = source.get_instance_id()
+		for port in source.output_ports:
+			if not _output_ports.has(src_id) or not _output_ports[src_id].has(port):
+				continue
+			source_entries.append({
+				"conn_idx": _output_ports[src_id][port],
+				"gen_rate": int(src_def.generation_rate),
+				"src_bid": src_id,
+				"from_port": port,
+				"src_id": src_id,
+				"content_weights": src_def.content_weights,
+				"state_weights": src_def.state_weights,
+				"enc_max_tier": src_def.encrypted_max_tier,
+				"cor_max_tier": src_def.corrupted_max_tier,
+			})
+	_sim_kernel.configure_sources(source_entries)
+
+	# --- Building entries ---
+	var building_entries: Array = []
+	for b in _get_buildings():
+		var def = b.definition
+		if def == null:
+			continue
+		var bid: int = b.get_instance_id()
+		var btype: int = 0  # BTYPE_NONE
+		if def.processor != null and def.processor.rule == "trash":
+			btype = 5  # BTYPE_TRASH
+		elif def.dual_input != null:
+			btype = 11  # BTYPE_INLINE (storageless cable rendezvous)
+		elif def.producer != null:
+			btype = 6  # BTYPE_PRODUCER
+		elif def.compiler != null:
+			btype = 8  # BTYPE_COMPILER
+		elif def.classifier != null:
+			btype = 1  # BTYPE_CLASSIFIER
+		elif def.processor != null and def.processor.rule == "separator":
+			btype = 2  # BTYPE_SEPARATOR
+		elif def.splitter != null:
+			btype = 3  # BTYPE_SPLITTER
+		elif def.merger != null:
+			btype = 4  # BTYPE_MERGER
+		elif def.storage != null:
+			# Pure storage (no processor) — forward only
+			if def.processor == null and def.producer == null and def.compiler == null \
+					and def.classifier == null and def.splitter == null and def.merger == null \
+					and def.dual_input == null:
+				btype = 9  # BTYPE_STORAGE
+		var entry: Dictionary = {
+			"bid": bid,
+			"type": btype,
+			"capacity": int(b.get_effective_value("capacity")) if def.storage else 0,
+			"processing_rate": int(b.get_effective_value("processing_rate")) if def.storage else 1,
+			"forward_rate": int(def.storage.forward_rate) if def.storage and def.storage.forward_rate > 0 else 0,
+			"stored_data": b.stored_data,  # reference — C++ modifies in place
+			"filter_value": b.classifier_filter_content if def.classifier else b.separator_filter_value,
+			"separator_mode": 1 if (def.processor != null and def.processor.rule == "separator" and b.separator_mode == "content") else 0,
+			"selected_tier": b.selected_tier,
+		}
+		# Producer fields
+		if def.producer != null:
+			var prod: ProducerComponent = def.producer
+			entry["prod_input_key"] = DataEnums.pack_key(prod.input_content, prod.input_state)
+			entry["prod_output_content"] = prod.output_content
+			entry["prod_output_state"] = prod.output_state
+			entry["prod_consume_amount"] = prod.consume_amount
+			entry["prod_t2_extra_content"] = prod.tier2_extra_content if prod.tier2_extra_content >= 0 else -1
+			entry["prod_t2_extra_amount"] = prod.tier2_extra_amount
+			entry["prod_t3_extra_content"] = prod.tier3_extra_content if prod.tier3_extra_content >= 0 else -1
+			entry["prod_t3_extra_amount"] = prod.tier3_extra_amount
+		# DualInput fields
+		if def.dual_input != null:
+			var dual: DualInputComponent = def.dual_input
+			entry["dual_fuel_matches"] = 1 if dual.fuel_matches_content else 0
+			entry["dual_key_content"] = dual.key_content
+			entry["dual_key_cost"] = dual.key_cost
+			entry["dual_output_state"] = dual.output_state
+			entry["dual_output_tag"] = dual.output_tag
+			entry["dual_primary_states"] = PackedInt32Array(dual.primary_input_states)
+			entry["dual_tier_key_costs"] = PackedInt32Array(dual.tier_key_costs)
+			entry["dual_required_fuel_tags"] = PackedInt32Array(dual.required_fuel_tags)
+		building_entries.append(entry)
+
+	_sim_kernel.configure_buildings(building_entries)
+
+	# --- Connection push metadata ---
+	var conn_push_meta: Array = []
+	for i in range(_cached_conns.size()):
+		var conn: Dictionary = _cached_conns[i]
+		var target: Node2D = conn.to_building
+		var tdef = target.definition if is_instance_valid(target) else null
+		var meta: Dictionary = {"target_bid": target.get_instance_id() if is_instance_valid(target) else 0}
+		meta["is_ct"] = tdef != null and tdef.category == "terminal"
+		# accepts_mask: 28-bit (7 content × 4 state)
+		var mask: int = 0
+		if is_instance_valid(target) and target.has_method("accepts_data"):
+			for c in range(7):
+				for s in range(4):
+					if target.accepts_data(c, s):
+						mask |= 1 << (c * 4 + s)
+		meta["accepts_mask"] = mask
+		# Routing/trash = unlimited accept (no capacity check)
+		meta["unlimited_accept"] = tdef != null and (
+			tdef.classifier != null or tdef.splitter != null or tdef.merger != null
+			or (tdef.processor != null and (tdef.processor.rule == "separator" or tdef.processor.rule == "trash"))
+			or tdef.dual_input != null)
+		meta["capacity"] = int(target.get_effective_value("capacity")) if tdef != null and tdef.storage != null else 0
+		conn_push_meta.append(meta)
+
+	_sim_kernel.configure_graph(_conn_from, _conn_to, _output_ports, conn_push_meta)
 
 
 func _process(delta: float) -> void:
@@ -212,9 +340,12 @@ func _on_sim_tick() -> void:
 	# 1. Deliver arrived transit items to target buildings
 	_deliver_arrived()
 	# 2. Normal simulation: generate → forward → process
-	_update_generation(buildings)
-	_update_storage_forward(buildings)
-	_update_processing(buildings)
+	if _sim_kernel:
+		_run_sim_kernel_tick(buildings)
+	else:
+		_update_generation(buildings)
+		_update_storage_forward(buildings)
+		_update_processing(buildings)
 	# 4. Status, stall tracking, visuals
 	_update_status_reasons(buildings)
 	_update_stall_tracking()
@@ -257,6 +388,59 @@ func _advance_transit_gdscript(delta: float) -> void:
 			transit[i].t = maxf(transit[i].t, new_t)  # Never move backwards
 
 
+func _run_sim_kernel_tick(buildings: Array[Node]) -> void:
+	## C++ SimKernel handles: generation + storage forward + trash + inline rendezvous.
+	## Processing for routing/producer/compiler/dual_input stays in GDScript for now.
+	var result: Dictionary = _sim_kernel.run_tick(_cached_conns, _splitter_next_port, {})
+	# Apply working building flags
+	for bid in result.get("working", []):
+		for b in buildings:
+			if b.get_instance_id() == bid:
+				b.is_working = true
+				break
+	# Apply CT pushes (deferred from C++ for purity check)
+	for push in result.get("ct_pushes", []):
+		var ci: int = int(push.conn_idx)
+		var pkey: int = int(push.packed_key)
+		var amt: int = int(push.amount)
+		if ci < 0 or ci >= _cached_conns.size():
+			continue
+		var conn: Dictionary = _cached_conns[ci]
+		var target: Node2D = conn.to_building
+		# Port purity check
+		if target.blocked_ports.has(conn.to_port):
+			continue
+		if target.definition.category == "terminal":
+			var port: String = conn.to_port
+			if not target.port_carried_types.has(port):
+				target.port_carried_types[port] = {}
+			var content: int = DataEnums.unpack_content(pkey) if not DataEnums.is_packed_packet(pkey) else -1
+			var state: int = DataEnums.unpack_state(pkey) if not DataEnums.is_packed_packet(pkey) else 0
+			var type_key: int = (content << 4) | state if content >= 0 else pkey
+			target.port_carried_types[port][type_key] = true
+			if target.purity_checker.is_valid():
+				var contaminated := false
+				for tk in target.port_carried_types[port]:
+					if not target.purity_checker.call(tk >> 4, tk & 0xF):
+						contaminated = true
+						break
+				if contaminated:
+					target.blocked_ports[port] = true
+					continue
+		if not conn.has("transit"):
+			conn["transit"] = []
+		conn["transit"].append({"key": pkey, "amount": amt, "t": 0.0})
+	# Apply discoveries
+	for disc in result.get("discoveries", []):
+		_check_discovery(int(disc.content), int(disc.state))
+	# Process sounds
+	for snd in result.get("sounds", []):
+		if sound_manager:
+			sound_manager.play_process_event(str(snd))
+	# Still run GDScript processing for buildings SimKernel doesn't handle
+	_update_processing(buildings)
+
+
 func _deliver_arrived() -> void:
 	## Deliver transit items that reached destination (t >= 1.0).
 	## C++ DeliveryEngine handles routing passthrough + trash.
@@ -266,7 +450,9 @@ func _deliver_arrived() -> void:
 	else:
 		_deliver_arrived_gdscript()
 	# Storageless inline processing: match primary + secondary inputs on cables
-	_process_inline_rendezvous()
+	# (skipped when SimKernel handles it in run_tick)
+	if not _sim_kernel:
+		_process_inline_rendezvous()
 
 
 func _deliver_arrived_cpp() -> void:
