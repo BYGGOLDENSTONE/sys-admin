@@ -46,6 +46,27 @@ var _removal_flash_times: Array[float] = []
 var _removal_flash_colors: Array[Color] = []
 const REMOVAL_FLASH_DURATION: float = 0.4
 
+# --- TRANSIT ITEM MULTIMESH (batch rendering) ---
+var _transit_mm: MultiMesh = null
+var _transit_mm_node: MultiMeshInstance2D = null
+var _glyph_atlas: Texture2D = null
+var _transit_shader_mat: ShaderMaterial = null
+var _atlas_ready: bool = false
+const MAX_TRANSIT_INSTANCES: int = 4096
+
+# Glyph mapping: content_type → atlas column index
+const GLYPH_CHARS: Array = ["1", "$", "@", "#", "?", "!", "K", "P", " ", " "]
+const GLYPH_MAP: Dictionary = {
+	0: 0,   # STANDARD → "1"
+	1: 1,   # FINANCIAL → "$"
+	2: 2,   # BIOMETRIC → "@"
+	3: 3,   # BLUEPRINT → "#"
+	4: 4,   # RESEARCH → "?"
+	5: 5,   # CLASSIFIED → "!"
+	6: 6,   # KEY → "K"
+	-1: 7,  # PACKET → "P"
+}
+
 
 func _ready() -> void:
 	_camera = get_node_or_null("../GameCamera")
@@ -54,6 +75,7 @@ func _ready() -> void:
 		print("[ConnectionLayer] C++ PolylineHelper loaded")
 	else:
 		print("[ConnectionLayer] PolylineHelper — GDScript fallback")
+	_init_transit_multimesh()
 
 
 func _process(delta: float) -> void:
@@ -79,6 +101,9 @@ func _process(delta: float) -> void:
 			_removal_flash_paths.remove_at(ri)
 			_removal_flash_colors.remove_at(ri)
 		ri -= 1
+	# Update transit MultiMesh positions (before redraw)
+	if _atlas_ready:
+		_update_transit_multimesh()
 	# Always redraw: cables have pulse animation and transit items move every frame
 	queue_redraw()
 
@@ -127,7 +152,8 @@ func _draw() -> void:
 		var cable_state: int = _get_cable_state(conn, i)
 		var hovered: bool = (i == hovered_cable_index)
 		_draw_connection(conn, cable_state != CABLE_INACTIVE, hovered)
-		if zoom > 0.25:
+		# Transit items: MultiMesh handles rendering when atlas is ready
+		if not _atlas_ready and zoom > 0.25:
 			var _it0: int = Time.get_ticks_usec()
 			_draw_transit_items(conn, i)
 			_items_us += Time.get_ticks_usec() - _it0
@@ -209,17 +235,25 @@ func _draw_connection(conn: Dictionary, active: bool, hovered: bool) -> void:
 
 	if active:
 		var pulse := sin(Time.get_ticks_msec() / 200.0) * 0.5 + 0.5
-		# Outer soft halo — wider for "glowing wire" feel
-		draw_polyline(points, Color(accent, (0.08 + pulse * 0.06) * zoom_scale), glow_w * 2.0, true)
-		# Mid glow
-		draw_polyline(points, Color(accent, minf((CABLE_GLOW_ALPHA + pulse * 0.12) * zoom_scale, 0.6)), glow_w, true)
-		# Core line
-		draw_polyline(points, accent, core_w, true)
-		# Bright center highlight — boosted for screenshot contrast
-		draw_polyline(points, Color(1.0, 1.0, 1.0, 0.2 + pulse * 0.1), maxf(1.0, core_w * 0.4), true)
+		if zoom > 0.5:
+			# Full quality (4 polylines): outer halo + mid glow + core + highlight
+			draw_polyline(points, Color(accent, (0.08 + pulse * 0.06) * zoom_scale), glow_w * 2.0, true)
+			draw_polyline(points, Color(accent, minf((CABLE_GLOW_ALPHA + pulse * 0.12) * zoom_scale, 0.6)), glow_w, true)
+			draw_polyline(points, accent, core_w, true)
+			draw_polyline(points, Color(1.0, 1.0, 1.0, 0.2 + pulse * 0.1), maxf(1.0, core_w * 0.4), true)
+		elif zoom > 0.25:
+			# Medium quality (2 polylines): glow + core
+			draw_polyline(points, Color(accent, minf((CABLE_GLOW_ALPHA + pulse * 0.12) * zoom_scale, 0.6)), glow_w, true)
+			draw_polyline(points, accent, core_w, true)
+		else:
+			# Far quality (1 polyline): thick core only
+			draw_polyline(points, accent, core_w * 1.5, true)
 	else:
-		draw_polyline(points, Color(accent, minf(CABLE_INACTIVE_ALPHA * 0.4 * zoom_scale, 0.25)), glow_w * 0.4, true)
-		draw_polyline(points, Color(accent, minf(CABLE_INACTIVE_ALPHA * 0.8 * zoom_scale, 0.35)), core_w, true)
+		if zoom > 0.25:
+			draw_polyline(points, Color(accent, minf(CABLE_INACTIVE_ALPHA * 0.4 * zoom_scale, 0.25)), glow_w * 0.4, true)
+			draw_polyline(points, Color(accent, minf(CABLE_INACTIVE_ALPHA * 0.8 * zoom_scale, 0.35)), core_w, true)
+		else:
+			draw_polyline(points, Color(accent, minf(CABLE_INACTIVE_ALPHA * 0.6 * zoom_scale, 0.3)), core_w, true)
 
 
 func _build_polyline(conn: Dictionary) -> PackedVector2Array:
@@ -471,3 +505,195 @@ func play_removal_flash(points: PackedVector2Array, color: Color) -> void:
 	_removal_flash_paths.append(points)
 	_removal_flash_times.append(REMOVAL_FLASH_DURATION)
 	_removal_flash_colors.append(color)
+
+
+# =============================================================================
+# TRANSIT ITEM MULTIMESH — batch rendering (Faz 2)
+# =============================================================================
+
+func _init_transit_multimesh() -> void:
+	## Set up MultiMesh for transit item rendering. Atlas built asynchronously.
+	var shader: Shader = load("res://shaders/transit_item.gdshader")
+	if shader == null:
+		push_warning("[ConnectionLayer] transit_item.gdshader not found — using fallback draw")
+		return
+
+	# Quad mesh — each transit item rendered as a quad
+	var quad := QuadMesh.new()
+	quad.size = Vector2(64.0, 64.0)
+
+	_transit_mm = MultiMesh.new()
+	_transit_mm.transform_format = MultiMesh.TRANSFORM_2D
+	_transit_mm.use_colors = true
+	_transit_mm.use_custom_data = true
+	_transit_mm.instance_count = 0
+	_transit_mm.mesh = quad
+
+	_transit_shader_mat = ShaderMaterial.new()
+	_transit_shader_mat.shader = shader
+
+	_transit_mm_node = MultiMeshInstance2D.new()
+	_transit_mm_node.multimesh = _transit_mm
+	_transit_mm_node.material = _transit_shader_mat
+	add_child(_transit_mm_node)
+
+	# Build glyph atlas asynchronously (takes 2 frames)
+	_build_glyph_atlas_async()
+
+
+func _build_glyph_atlas_async() -> void:
+	## Render glyph atlas via SubViewport — white characters on transparent bg.
+	var cell_size: int = 48
+	var atlas_w: int = cell_size * GLYPH_CHARS.size()
+
+	var vp := SubViewport.new()
+	vp.size = Vector2i(atlas_w, cell_size)
+	vp.transparent_bg = true
+	vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+
+	var container := Control.new()
+	container.size = Vector2(atlas_w, cell_size)
+	vp.add_child(container)
+
+	for i in range(GLYPH_CHARS.size()):
+		var lbl := Label.new()
+		lbl.text = GLYPH_CHARS[i]
+		lbl.add_theme_font_override("font", _MONO_FONT)
+		lbl.add_theme_font_size_override("font_size", 36)
+		lbl.add_theme_color_override("font_color", Color.WHITE)
+		lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		lbl.position = Vector2(i * cell_size, 0)
+		lbl.custom_minimum_size = Vector2(cell_size, cell_size)
+		lbl.size = Vector2(cell_size, cell_size)
+		container.add_child(lbl)
+
+	add_child(vp)
+
+	# Wait several frames for SubViewport to render properly
+	for _f in range(4):
+		await get_tree().process_frame
+
+	if not is_instance_valid(vp):
+		push_warning("[ConnectionLayer] SubViewport lost — glyph atlas failed")
+		return
+
+	var img: Image = vp.get_texture().get_image()
+
+	# Validate atlas has content (not all transparent)
+	var has_content: bool = false
+	for y in range(mini(cell_size, img.get_height())):
+		for x in range(mini(atlas_w, img.get_width())):
+			if img.get_pixel(x, y).a > 0.01:
+				has_content = true
+				break
+		if has_content:
+			break
+
+	if not has_content:
+		push_warning("[ConnectionLayer] Glyph atlas is empty — falling back to CPU transit draw")
+		vp.queue_free()
+		return
+
+	_glyph_atlas = ImageTexture.create_from_image(img)
+	_transit_shader_mat.set_shader_parameter("glyph_atlas", _glyph_atlas)
+	_transit_shader_mat.set_shader_parameter("atlas_cols", float(GLYPH_CHARS.size()))
+
+	vp.queue_free()
+	_atlas_ready = true
+	print("[ConnectionLayer] Transit MultiMesh ready — %d glyph atlas (%dx%d)" % [GLYPH_CHARS.size(), atlas_w, cell_size])
+
+
+func _update_transit_multimesh() -> void:
+	## Update MultiMesh instance transforms/colors from live transit data.
+	## Called every frame from _process() when atlas is ready.
+	if _transit_mm == null or connection_manager == null:
+		return
+
+	var conns: Array[Dictionary] = connection_manager.get_connections()
+	var vp_bounds: Rect2 = _get_viewport_bounds()
+	var zoom: float = _get_zoom_level()
+
+	# Hide transit items at extreme zoom-out (too small to see)
+	if zoom < 0.15:
+		if _transit_mm.visible_instance_count > 0:
+			_transit_mm.visible_instance_count = 0
+		return
+
+	# Scale: grows at zoom-out (max 2x), shrinks slightly at zoom-in (min 0.8x)
+	var inv_zoom: float = clampf(1.0 / zoom, 0.8, 2.0)
+	var instance_idx: int = 0
+
+	# Ensure enough capacity
+	if _transit_mm.instance_count < MAX_TRANSIT_INSTANCES:
+		_transit_mm.instance_count = MAX_TRANSIT_INSTANCES
+
+	for conn in conns:
+		if not conn.has("transit") or conn["transit"].is_empty():
+			continue
+		if not _is_conn_in_viewport(conn, vp_bounds):
+			continue
+
+		var points: PackedVector2Array = _get_cached_polyline(conn)
+		if points.size() < 2:
+			continue
+		var total_length: float = conn.get("_cached_total_length", 0.0)
+		if total_length <= 0.0:
+			continue
+
+		var transit: Array = conn["transit"]
+		var item_count: int = transit.size()
+		var intensity: float = clampf(float(item_count) / 5.0, 0.5, 1.0)
+		var cable_grids: float = total_length / float(TILE_SIZE)
+		var min_render_t: float = 1.0 / maxf(cable_grids, 1.0)
+
+		# Batch positions from C++
+		var batch_positions: PackedVector2Array = PackedVector2Array()
+		var use_batch: bool = _polyline_helper != null and conn.has("_cached_cumulative_dists")
+		if use_batch:
+			batch_positions = _polyline_helper.batch_transit_positions(
+				points, conn["_cached_cumulative_dists"], total_length, transit, min_render_t)
+
+		var seg_lengths: Array[float] = conn["_cached_seg_lengths"]
+
+		for pi in range(item_count):
+			if instance_idx >= MAX_TRANSIT_INSTANCES:
+				break
+
+			var item: Dictionary = transit[pi]
+			var pos: Vector2
+
+			if use_batch and batch_positions.size() > pi:
+				pos = batch_positions[pi]
+				if is_nan(pos.x):
+					continue
+			else:
+				if item.t < min_render_t:
+					continue
+				pos = _get_point_along_path(points, seg_lengths, total_length, item.t)
+
+			# Glyph index + state color
+			var glyph_idx: int = GLYPH_MAP.get(item.content, 0)
+			var base_color: Color
+			if item.content < 0:
+				base_color = Color(0.9, 0.3, 1.0)  # Packet: purple-pink
+			else:
+				base_color = DataEnums.state_color(item.state)
+
+			# Transform: position + zoom-adaptive scale
+			var xf := Transform2D(0.0, Vector2(inv_zoom, inv_zoom), 0.0, pos)
+			_transit_mm.set_instance_transform_2d(instance_idx, xf)
+			_transit_mm.set_instance_color(instance_idx, base_color)
+			# Custom data encoded in 0-1 range (Color clamps to 0-1!)
+			# x = glyph_index / 10.0 (0.0-0.9), z = fract(phase), w = intensity
+			var encoded_glyph: float = float(glyph_idx) / 10.0
+			var encoded_phase: float = fmod(float(pi) * 0.17, 1.0)
+			_transit_mm.set_instance_custom_data(instance_idx,
+				Color(encoded_glyph, 0.0, encoded_phase, intensity))
+
+			instance_idx += 1
+
+		if instance_idx >= MAX_TRANSIT_INSTANCES:
+			break
+
+	_transit_mm.visible_instance_count = instance_idx

@@ -6,6 +6,10 @@ uniform vec2 viewport_size;  // Viewport size in world pixels (already zoom-divi
 uniform float zoom_level;    // Camera zoom.x
 uniform float tile_size = 64.0;
 
+// Underglow texture — GPU-driven building/cable underglow (disabled for debugging)
+//uniform sampler2D underglow_tex : filter_nearest, hint_default_black;
+//uniform float underglow_tex_size = 512.0;
+
 // Colors
 const vec3 BG_COLOR = vec3(0.04, 0.12, 0.19);           // Cyan-tinted dark
 const vec3 GRID_COLOR = vec3(0.45, 0.10, 0.28);        // Brighter magenta-red
@@ -147,6 +151,8 @@ void fragment() {
         float t = 1.0 - smoothstep(0.0, line_width * 0.5, line_dist);
         col = mix(col, GRID_COLOR, t * 0.95);
     }
+
+    // GPU underglow disabled for debugging — will be re-enabled after stability confirmed
 
     COLOR = vec4(col, alpha_out);
 }

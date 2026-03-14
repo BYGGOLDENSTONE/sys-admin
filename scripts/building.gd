@@ -174,9 +174,12 @@ func _process(delta: float) -> void:
 	if cur_hash != _prev_stored_hash:
 		_prev_stored_hash = cur_hash
 		_draw_dirty = true
-	# Working/active buildings always redraw (animated glow/pulse/breathing)
+	# Working/active buildings redraw for animated glow/pulse/breathing
+	# Throttle: at far zoom, alternate frames per building to halve draw cost
 	if is_working or _process_flash > 0.0:
-		_draw_dirty = true
+		var _z := _get_zoom_level()
+		if _z > 0.5 or Engine.get_process_frames() % 2 == (get_instance_id() % 2):
+			_draw_dirty = true
 	# Viewport culling — skip redraw for off-screen buildings
 	if not _is_in_viewport():
 		return
@@ -551,17 +554,17 @@ func _draw() -> void:
 		_cached_poly_mirror = mirror_h
 		_cached_poly_size = size
 	var base_poly := _cached_base_poly
-	# Breathing effect — working buildings gently pulse size
-	var body_poly := base_poly
+	# Breathing effect — working buildings gently pulse size via transform (no polygon regen)
 	if is_working and active:
-		var breathe: float = sin(_glow_time * 3.0) * 1.5
-		var breathe_rect := Rect2(Vector2(-breathe, -breathe), size + Vector2(breathe * 2, breathe * 2))
-		body_poly = _get_building_polygon(breathe_rect, vtype)
-		if direction != 0:
-			body_poly = _rotate_polygon(body_poly, center)
-		if mirror_h:
-			body_poly = _mirror_polygon(body_poly, center)
-	draw_colored_polygon(body_poly, body_color)
+		var breathe_scale: float = 1.0 + sin(_glow_time * 3.0) * (1.5 / maxf(size.x, size.y))
+		# Scale around center: vertex v → center + (v - center) * scale
+		# Transform origin = center * (1 - scale), so draw_pos * scale + origin = correct
+		var offset := center * (1.0 - breathe_scale)
+		draw_set_transform(offset, 0.0, Vector2(breathe_scale, breathe_scale))
+		draw_colored_polygon(base_poly, body_color)
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	else:
+		draw_colored_polygon(base_poly, body_color)
 
 	# Neon border (thicker at lower zoom + when selected)
 	var border_w: float = BORDER_WIDTH * zoom_glow_scale
@@ -621,10 +624,8 @@ func _draw() -> void:
 		(size.x - text_size.x) / 2.0,
 		font_size + 4 * inv_scale
 	)
-	# Stronger shadow + outline for readability
+	# Shadow + bright text (2 calls instead of 4)
 	draw_string(font, text_pos + Vector2(1, 1), text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(0, 0, 0, 0.85))
-	draw_string(font, text_pos + Vector2(-1, -1), text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(0, 0, 0, 0.4))
-	draw_string(font, text_pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(accent, 0.35))
 	draw_string(font, text_pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(1, 1, 1, 0.95))
 
 	# Ports (always draw, but scale at medium zoom)
@@ -1047,6 +1048,7 @@ func _draw_ports(size: Vector2, accent: Color) -> void:
 	if definition == null:
 		return
 
+	var zoom: float = _get_zoom_level()
 	var port_pulse: float = 0.0
 	if is_active() and is_working:
 		port_pulse = sin(_glow_time * 5.0) * 0.5 + 0.5
@@ -1054,17 +1056,27 @@ func _draw_ports(size: Vector2, accent: Color) -> void:
 	# Output ports (accent color)
 	for port_side in definition.output_ports:
 		var pos := get_port_local_position(port_side)
-		var gr := PORT_GLOW_RADIUS + port_pulse * 4.0
-		draw_circle(pos, gr, Color(accent, 0.12 + port_pulse * 0.15))
-		draw_circle(pos, PORT_RADIUS, Color(accent, 0.8))
-		draw_circle(pos, PORT_RADIUS * 0.4, Color.WHITE)
+		if zoom > 0.5:
+			# Full detail: glow + solid + inner dot (3 circles)
+			var gr := PORT_GLOW_RADIUS + port_pulse * 4.0
+			draw_circle(pos, gr, Color(accent, 0.12 + port_pulse * 0.15))
+			draw_circle(pos, PORT_RADIUS, Color(accent, 0.8))
+			draw_circle(pos, PORT_RADIUS * 0.4, Color.WHITE)
+		else:
+			# Medium/far: solid + inner dot (2 circles)
+			draw_circle(pos, PORT_RADIUS, Color(accent, 0.8))
+			draw_circle(pos, PORT_RADIUS * 0.4, Color.WHITE)
 	# Input ports (white/dim)
 	for port_side in definition.input_ports:
 		var pos := get_port_local_position(port_side)
-		var gr := PORT_GLOW_RADIUS + port_pulse * 2.0
-		draw_circle(pos, gr, Color(1, 1, 1, 0.08 + port_pulse * 0.08))
-		draw_circle(pos, PORT_RADIUS, Color(0.6, 0.65, 0.7, 0.8))
-		draw_circle(pos, PORT_RADIUS * 0.4, Color.WHITE)
+		if zoom > 0.5:
+			var gr := PORT_GLOW_RADIUS + port_pulse * 2.0
+			draw_circle(pos, gr, Color(1, 1, 1, 0.08 + port_pulse * 0.08))
+			draw_circle(pos, PORT_RADIUS, Color(0.6, 0.65, 0.7, 0.8))
+			draw_circle(pos, PORT_RADIUS * 0.4, Color.WHITE)
+		else:
+			draw_circle(pos, PORT_RADIUS, Color(0.6, 0.65, 0.7, 0.8))
+			draw_circle(pos, PORT_RADIUS * 0.4, Color.WHITE)
 
 
 # --- UTILITY: Draw arc segment ---

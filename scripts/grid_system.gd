@@ -25,6 +25,13 @@ var _cable_v_edges: Dictionary = {}  ## Vector2i → int (cable count)
 var _bg_rect: ColorRect = null
 var _bg_material: ShaderMaterial = null
 
+# GPU underglow texture — maps grid cells to building/cable colors
+var _underglow_image: Image = null
+var _underglow_texture: ImageTexture = null
+var _underglow_dirty: bool = false
+const UNDERGLOW_TEX_SIZE: int = 512
+const CABLE_UNDERGLOW_COLOR := Color(0.13, 0.53, 0.73, 0.5)  # cyan, half alpha for cables
+
 
 
 func world_to_grid(world_pos: Vector2) -> Vector2i:
@@ -328,6 +335,8 @@ func _setup_gpu_background() -> void:
 	bg_layer.name = "PCBBackground"
 	bg_layer.add_child(_bg_rect)
 	add_child(bg_layer)
+	# GPU underglow disabled for debugging — enable after stability confirmed
+	#_setup_underglow_texture()
 
 
 func _process(_delta: float) -> void:
@@ -340,6 +349,8 @@ func _process(_delta: float) -> void:
 			_bg_material.set_shader_parameter("camera_pos", cam.global_position)
 			_bg_material.set_shader_parameter("viewport_size", vp_size)
 			_bg_material.set_shader_parameter("zoom_level", zoom)
+	# GPU underglow disabled for debugging
+	#_upload_underglow()
 	queue_redraw()
 
 
@@ -436,3 +447,84 @@ func _draw_grid_lines(cam_pos: Vector2, vp_size: Vector2, zoom_level: float) -> 
 		draw_line(Vector2(x * TILE_SIZE, start_y * TILE_SIZE), Vector2(x * TILE_SIZE, end_y * TILE_SIZE), line_color, grid_width, true)
 	for y in range(start_y, end_y + 1, grid_step):
 		draw_line(Vector2(start_x * TILE_SIZE, y * TILE_SIZE), Vector2(end_x * TILE_SIZE, y * TILE_SIZE), line_color, grid_width, true)
+
+
+# =============================================================================
+# GPU UNDERGLOW TEXTURE — building/cable underglow via shader (Faz 3)
+# =============================================================================
+
+func _setup_underglow_texture() -> void:
+	## Create underglow data texture for GPU-based rendering.
+	## Each pixel = 1 grid cell. RGB = accent color, A = type (1.0 building, 0.5 cable).
+	_underglow_image = Image.create(UNDERGLOW_TEX_SIZE, UNDERGLOW_TEX_SIZE, false, Image.FORMAT_RGBA8)
+	_underglow_image.fill(Color(0, 0, 0, 0))
+	_underglow_texture = ImageTexture.create_from_image(_underglow_image)
+	if _bg_material:
+		_bg_material.set_shader_parameter("underglow_tex", _underglow_texture)
+		_bg_material.set_shader_parameter("underglow_tex_size", float(UNDERGLOW_TEX_SIZE))
+
+
+func _set_underglow_pixel(cell: Vector2i, color: Color) -> void:
+	## Set a single pixel in the underglow texture. Uses modular addressing.
+	if _underglow_image == null:
+		return
+	var tx: int = posmod(cell.x, UNDERGLOW_TEX_SIZE)
+	var ty: int = posmod(cell.y, UNDERGLOW_TEX_SIZE)
+	_underglow_image.set_pixel(tx, ty, color)
+	_underglow_dirty = true
+
+
+func _update_cable_underglow(v1: Vector2i, v2: Vector2i, has_cable: bool) -> void:
+	## Update underglow pixels for cells adjacent to a cable edge.
+	if _underglow_image == null:
+		return
+	if has_cable:
+		# Color both cells adjacent to the edge
+		if v1.y == v2.y:  # horizontal edge
+			var x_min: int = mini(v1.x, v2.x)
+			# Cells above and below the edge
+			var cell_above := Vector2i(x_min, v1.y - 1)
+			var cell_below := Vector2i(x_min, v1.y)
+			if not _occupied_cells.has(cell_above):
+				_set_underglow_pixel(cell_above, CABLE_UNDERGLOW_COLOR)
+			if not _occupied_cells.has(cell_below):
+				_set_underglow_pixel(cell_below, CABLE_UNDERGLOW_COLOR)
+		else:  # vertical edge
+			var y_min: int = mini(v1.y, v2.y)
+			var cell_left := Vector2i(v1.x - 1, y_min)
+			var cell_right := Vector2i(v1.x, y_min)
+			if not _occupied_cells.has(cell_left):
+				_set_underglow_pixel(cell_left, CABLE_UNDERGLOW_COLOR)
+			if not _occupied_cells.has(cell_right):
+				_set_underglow_pixel(cell_right, CABLE_UNDERGLOW_COLOR)
+	else:
+		# Clear cable underglow (only if no building occupies the cell)
+		if v1.y == v2.y:
+			var x_min: int = mini(v1.x, v2.x)
+			var cell_above := Vector2i(x_min, v1.y - 1)
+			var cell_below := Vector2i(x_min, v1.y)
+			if not _occupied_cells.has(cell_above) and not _has_adjacent_cable(cell_above):
+				_set_underglow_pixel(cell_above, Color(0, 0, 0, 0))
+			if not _occupied_cells.has(cell_below) and not _has_adjacent_cable(cell_below):
+				_set_underglow_pixel(cell_below, Color(0, 0, 0, 0))
+		else:
+			var y_min: int = mini(v1.y, v2.y)
+			var cell_left := Vector2i(v1.x - 1, y_min)
+			var cell_right := Vector2i(v1.x, y_min)
+			if not _occupied_cells.has(cell_left) and not _has_adjacent_cable(cell_left):
+				_set_underglow_pixel(cell_left, Color(0, 0, 0, 0))
+			if not _occupied_cells.has(cell_right) and not _has_adjacent_cable(cell_right):
+				_set_underglow_pixel(cell_right, Color(0, 0, 0, 0))
+
+
+func _has_adjacent_cable(cell: Vector2i) -> bool:
+	## Check if any cable edge touches this cell.
+	return (_cable_h_edges.has(cell) or _cable_h_edges.has(Vector2i(cell.x, cell.y + 1))
+		or _cable_v_edges.has(cell) or _cable_v_edges.has(Vector2i(cell.x + 1, cell.y)))
+
+
+func _upload_underglow() -> void:
+	## Upload underglow image to GPU once per frame (only if dirty).
+	if _underglow_dirty and _underglow_texture:
+		_underglow_texture.update(_underglow_image)
+		_underglow_dirty = false

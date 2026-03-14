@@ -54,7 +54,7 @@ static func state_color(s: int) -> Color:
 
 static func content_char(c: int) -> String:
 	match c:
-		ContentType.STANDARD: return ["0", "1"][randi() % 2]
+		ContentType.STANDARD: return "1"
 		ContentType.FINANCIAL: return "$"
 		ContentType.BIOMETRIC: return "@"
 		ContentType.BLUEPRINT: return "#"
