@@ -383,7 +383,8 @@ bin/
 - [ ] 200 kablo + 500 transit item'da 60 FPS (Faz 2 sonrasi — benchmark bekliyor)
 - [x] Save/load ve gameplay davranisi degismemis (regresyon yok)
 - [x] Late-game Faz 1: 999 bina + 998 kablo + 28K transit = 28 FPS (rendering cozuldu, sim darboğaz)
-- [x] Late-game Faz 3: C++ DeliveryEngine = 38 FPS (sim %41 azaldi, routing+trash native)
+- [x] Late-game Faz 3 (O11-O12): C++ DeliveryEngine = 38 FPS (sim %41 azaldi, routing+trash native)
+- [x] Late-game Faz 3 (O13-O15): Packed data + SimKernel = 49 FPS (sim %58 azaldi, generation+stall+inline native)
 
 ---
 
@@ -444,20 +445,20 @@ Oncelik sirasi: Building draw > Cable draw > Grid draw > Simulation.
 - [x] **O10. Building underglow → shader** — `pcb_grid.gdshader`'da 512x512 underglow texture sampling, event-driven pixel update. Kablo underglow kaldirildi (temiz goruntu).
 - [x] **Bonus: Transit parcacik font zoom-scaling** — `inv_zoom` ile font boyutu + glow halesi zoom'a gore olcekleniyor, tum zoom seviyelerinde net
 
-### Faz 3: C++ Simulasyon Kernel — DEVAM EDIYOR
-**Gercek kazanc (ilk adim): Sim %41 azaldi, FPS 28→38**
+### Faz 3: C++ Simulasyon Kernel — TAMAMLANDI
+**Toplam kazanc: Sim %58 azaldi (17,426→7,306us), FPS 28→49**
 - [x] **O11. `_deliver_arrived()` → C++ DeliveryEngine** — Routing passthrough (Classifier/Separator/Splitter/Merger) + Trash delivery tamamen C++'da. GDScript sadece inline (dual-input) + regular storage delivery yapar. Pre-computed metadata array'ler (conn_target_types/filters/bids) topology degistiginde olusturulur.
 - [x] **O12. `_try_passthrough()` → C++ `_try_routing()`** — Routing mantigi (filter check, port lookup, stall check, transit append) native C++.
-- [ ] **O13. Veri modeli refactoru** — Dictionary/String key→packed int/enum struct (transit item, stored_data)
-- [ ] **O14. Generation/processing/storage forward → C++** — tick-based islemler native
-- [ ] **O15. Graph state management → C++** — baglanti grafi, adjacency, stall state
+- [x] **O13. Veri modeli refactoru** — String key→packed int32 (content<<12|state<<8|tier<<4|tags). Transit item 7→3 alan (key,amount,t). Packet key bit 16 flag. stored_data int key. C++ DeliveryEngine packed key'den bit shift ile content/state cikarir.
+- [x] **O14. Generation/processing/storage forward → C++** — SimKernel sinifi: configure_sources/buildings/graph + run_tick(). Kaynak uretimi, storage forward, trash, inline rendezvous (Decryptor/Encryptor/Recoverer) native C++. CT port purity GDScript'te (ct_pushes). Routing processing (Classifier/Separator/Splitter/Merger) + Producer + Compiler GDScript'te.
+- [x] **O15. Graph state management → C++** — SimKernel.update_stalls(): Pass 1 (transit stall + capacity) + Pass 2-4 (back-pressure) tek C++ cagrisi. Internal graph state (_g_conn_from/_g_conn_to) + ConnMeta (accepts_mask, capacity) kullanir. building_active array per-tick.
 
-**Faz 3 Olcum (999 bina + 998 kablo + 18K transit, RTX 3070):**
-| Metrik | Faz 1 Sonrasi | Faz 3 Sonrasi | Degisim |
-|--------|---------------|---------------|---------|
-| Sim | 17,426 us | 10,321 us | -41% |
-| Transit items | 28,192 | 17,931 | -36% |
-| **FPS** | **28** | **38** | **+36%** |
+**Faz 3 Olcum (999 bina + 998 kablo, RTX 3070):**
+| Metrik | Faz 1 Sonrasi | O11-O12 | O13-O15 | Toplam |
+|--------|---------------|---------|---------|--------|
+| Sim | 17,426 us | 10,321 us | 7,306 us | -58% |
+| Transit items | 28,192 | 17,931 | 13,801 | -51% |
+| **FPS** | **28** | **38** | **49** | **+75%** |
 
 ### Faz 4: Render Overhaul — KISMEN TAMAMLANDI
 **Gercek kazanc: Transit %99 draw call azalma, kablo %75, bina %30+**
@@ -498,7 +499,7 @@ Oncelik sirasi: Building draw > Cable draw > Grid draw > Simulation.
 - **Yol:** `gdextension/` — godot-cpp submodule + src/ klasoru
 - **Build:** `cd gdextension && scons platform=windows target=template_debug -j4`
 - **Cikti:** `bin/sysadmin.windows.template_debug.x86_64.dll`
-- **Siniflar:** `TransitSimulator`, `PolylineHelper`, `StallPropagator`, `DeliveryEngine`
+- **Siniflar:** `TransitSimulator`, `PolylineHelper`, `StallPropagator`, `DeliveryEngine`, `SimKernel`
 - **Fallback:** DLL yoksa GDScript otomatik devreye girer (`ClassDB.class_exists()` kontrolu)
 - **Ilk build** godot-cpp'yi derler (~5-10dk), sonraki build'ler sadece src/ degisikliklerini derler (~5sn)
 
