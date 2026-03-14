@@ -77,15 +77,22 @@ func can_place(grid_pos: Vector2i, building_size: Vector2i) -> bool:
 
 
 func occupy(grid_pos: Vector2i, building_size: Vector2i, building_ref: Node) -> void:
+	var color := Color(0.3, 0.6, 0.8, 1.0)
+	if building_ref and building_ref.get("definition") and building_ref.definition:
+		color = Color(building_ref.definition.color, 1.0)
 	for x in range(building_size.x):
 		for y in range(building_size.y):
-			_occupied_cells[Vector2i(grid_pos.x + x, grid_pos.y + y)] = building_ref
+			var cell := Vector2i(grid_pos.x + x, grid_pos.y + y)
+			_occupied_cells[cell] = building_ref
+			_set_underglow_pixel(cell, color)
 
 
 func free_cells(grid_pos: Vector2i, building_size: Vector2i) -> void:
 	for x in range(building_size.x):
 		for y in range(building_size.y):
-			_occupied_cells.erase(Vector2i(grid_pos.x + x, grid_pos.y + y))
+			var cell := Vector2i(grid_pos.x + x, grid_pos.y + y)
+			_occupied_cells.erase(cell)
+			_set_underglow_pixel(cell, Color(0, 0, 0, 0))
 
 
 func get_building_at(cell: Vector2i) -> Node:
@@ -179,6 +186,7 @@ func occupy_cable_edge(v1: Vector2i, v2: Vector2i) -> void:
 	var dict: Dictionary = data[0]
 	var key: Vector2i = data[1]
 	dict[key] = dict.get(key, 0) + 1
+	_update_cable_underglow(v1, v2, true)
 
 
 func free_cable_edge(v1: Vector2i, v2: Vector2i) -> void:
@@ -190,6 +198,7 @@ func free_cable_edge(v1: Vector2i, v2: Vector2i) -> void:
 		dict.erase(key)
 	else:
 		dict[key] = count
+	_update_cable_underglow(v1, v2, count > 0)
 
 
 func has_cable_at_edge(v1: Vector2i, v2: Vector2i) -> bool:
@@ -335,8 +344,7 @@ func _setup_gpu_background() -> void:
 	bg_layer.name = "PCBBackground"
 	bg_layer.add_child(_bg_rect)
 	add_child(bg_layer)
-	# GPU underglow disabled for debugging — enable after stability confirmed
-	#_setup_underglow_texture()
+	_setup_underglow_texture()
 
 
 func _process(_delta: float) -> void:
@@ -349,8 +357,7 @@ func _process(_delta: float) -> void:
 			_bg_material.set_shader_parameter("camera_pos", cam.global_position)
 			_bg_material.set_shader_parameter("viewport_size", vp_size)
 			_bg_material.set_shader_parameter("zoom_level", zoom)
-	# GPU underglow disabled for debugging
-	#_upload_underglow()
+	_upload_underglow()
 	queue_redraw()
 
 
@@ -375,45 +382,8 @@ func _draw() -> void:
 		_draw_pcb_pattern(sx_f, ex_f, sy_f, ey_f, zoom_level)
 		_draw_grid_lines(cam_pos, vp_size, zoom_level)
 
-	# Viewport cell range for underglow
-	var sx: int = int(cam_pos.x / TILE_SIZE) - 1
-	var ex: int = int((cam_pos.x + vp_size.x) / TILE_SIZE) + 2
-	var sy: int = int(cam_pos.y / TILE_SIZE) - 1
-	var ey: int = int((cam_pos.y + vp_size.y) / TILE_SIZE) + 2
-
-	# Underglow intensity scales with zoom
-	var ug_scale: float = clampf(1.0 / zoom_level, 1.0, 3.0) if zoom_level < 1.0 else 1.0
-
-	PerfMonitor.grid_pcb_us = 0  # GPU shader handles PCB now
-
-	# Building cell underglow
-	for cell in _occupied_cells:
-		if cell.x < sx or cell.x > ex or cell.y < sy or cell.y > ey:
-			continue
-		var building = _occupied_cells[cell]
-		if building and building.definition:
-			var a: Color = building.definition.color
-			var r := Rect2(cell.x * TILE_SIZE, cell.y * TILE_SIZE, TILE_SIZE, TILE_SIZE)
-			draw_rect(r, Color(a, minf(0.06 * ug_scale, 0.2)), true)
-			if zoom_level > 0.4:
-				draw_rect(r, Color(a, 0.03), false, 1.0)
-
-	# Cable edge underglow
-	var cable_ug := Color(0.13, 0.53, 0.73, minf(0.06 * ug_scale, 0.15))
-	var cable_w: float = maxf(2.0, 4.0 * ug_scale)
-	for edge_key in _cable_h_edges:
-		if edge_key.x < sx - 1 or edge_key.x > ex + 1 or edge_key.y < sy - 1 or edge_key.y > ey + 1:
-			continue
-		var p1 := Vector2(edge_key.x * TILE_SIZE, edge_key.y * TILE_SIZE)
-		var p2 := Vector2((edge_key.x + 1) * TILE_SIZE, edge_key.y * TILE_SIZE)
-		draw_line(p1, p2, cable_ug, cable_w)
-	for edge_key in _cable_v_edges:
-		if edge_key.x < sx - 1 or edge_key.x > ex + 1 or edge_key.y < sy - 1 or edge_key.y > ey + 1:
-			continue
-		var p1 := Vector2(edge_key.x * TILE_SIZE, edge_key.y * TILE_SIZE)
-		var p2 := Vector2(edge_key.x * TILE_SIZE, (edge_key.y + 1) * TILE_SIZE)
-		draw_line(p1, p2, cable_ug, cable_w)
-
+	# Underglow rendered by GPU shader via underglow texture
+	PerfMonitor.grid_pcb_us = 0
 	PerfMonitor.grid_draw_us = Time.get_ticks_usec() - _grid_t0
 
 

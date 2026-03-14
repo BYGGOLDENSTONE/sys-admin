@@ -6,9 +6,9 @@ uniform vec2 viewport_size;  // Viewport size in world pixels (already zoom-divi
 uniform float zoom_level;    // Camera zoom.x
 uniform float tile_size = 64.0;
 
-// Underglow texture — GPU-driven building/cable underglow (disabled for debugging)
-//uniform sampler2D underglow_tex : filter_nearest, hint_default_black;
-//uniform float underglow_tex_size = 512.0;
+// Underglow texture — GPU-driven building/cable underglow
+uniform sampler2D underglow_tex : filter_nearest, hint_default_black;
+uniform float underglow_tex_size = 512.0;
 
 // Colors
 const vec3 BG_COLOR = vec3(0.04, 0.12, 0.19);           // Cyan-tinted dark
@@ -152,7 +152,22 @@ void fragment() {
         col = mix(col, GRID_COLOR, t * 0.95);
     }
 
-    // GPU underglow disabled for debugging — will be re-enabled after stability confirmed
+    // === UNDERGLOW (GPU-driven building/cable glow) ===
+    vec2 ug_uv = mod(cell_f, underglow_tex_size) / underglow_tex_size;
+    vec4 ug = texture(underglow_tex, ug_uv);
+    if (ug.a > 0.01) {
+        float ug_scale = clamp(1.0 / zoom_level, 1.0, 3.0);
+        float ug_intensity = 0.06 * ug_scale * ug.a;
+        col = mix(col, ug.rgb, min(ug_intensity, 0.2));
+        if (zoom_level > 0.4 && ug.a > 0.8) {
+            vec2 cf = fract(cell_f);
+            float border = max(
+                smoothstep(0.04, 0.0, cf.x) + smoothstep(0.96, 1.0, cf.x),
+                smoothstep(0.04, 0.0, cf.y) + smoothstep(0.96, 1.0, cf.y)
+            );
+            col = mix(col, ug.rgb, min(border * 0.04, 0.1));
+        }
+    }
 
     COLOR = vec4(col, alpha_out);
 }
