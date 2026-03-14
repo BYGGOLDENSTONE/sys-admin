@@ -392,7 +392,11 @@ func _draw_transit_items(conn: Dictionary, _conn_index: int) -> void:
 	var min_render_t: float = 1.0 / maxf(cable_grids, 1.0)
 
 	var font := _MONO_FONT
-	var half_fs: float = PARTICLE_FONT_SIZE * 0.5
+	# Scale font size inversely with zoom for crisp rendering at all zoom levels
+	var z: float = _get_zoom_level()
+	var inv_zoom: float = clampf(1.0 / z, 1.0, 3.0) if z < 1.0 else 1.0
+	var fs: int = int(PARTICLE_FONT_SIZE * inv_zoom)
+	var half_fs: float = fs * 0.5
 
 	var batch_positions: PackedVector2Array
 	var use_batch: bool = _polyline_helper != null and conn.has("_cached_cumulative_dists")
@@ -424,11 +428,11 @@ func _draw_transit_items(conn: Dictionary, _conn_index: int) -> void:
 
 		var glow_pulse: float = sin(Time.get_ticks_msec() / 120.0 + float(pi) * 1.7) * 0.5 + 0.5
 
-		# Outer glow halo — scales with throughput intensity
-		var outer_r: float = (10.0 + glow_pulse * 4.0) * (0.8 + intensity * 0.4)
+		# Outer glow halo — scales with throughput intensity + zoom
+		var outer_r: float = (10.0 + glow_pulse * 4.0) * (0.8 + intensity * 0.4) * inv_zoom
 		draw_circle(pos, outer_r, Color(base_color, (0.08 + glow_pulse * 0.06) * intensity))
 		# Inner glow
-		draw_circle(pos, 6.0, Color(base_color, 0.25 + 0.15 * intensity))
+		draw_circle(pos, 6.0 * inv_zoom, Color(base_color, 0.25 + 0.15 * intensity))
 
 		# Dark background pill behind character for contrast
 		var bg_rect := Rect2(pos + Vector2(-half_fs * 0.45, -half_fs * 0.55), Vector2(half_fs * 0.9, half_fs * 1.1))
@@ -436,9 +440,9 @@ func _draw_transit_items(conn: Dictionary, _conn_index: int) -> void:
 
 		# Character — bright colored on dark bg
 		var draw_pos := pos + Vector2(-half_fs * 0.3, half_fs * 0.3)
-		draw_string(font, draw_pos, ch, HORIZONTAL_ALIGNMENT_LEFT, -1, PARTICLE_FONT_SIZE, Color(base_color, 0.95))
+		draw_string(font, draw_pos, ch, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(base_color, 0.95))
 		# White overlay for extra brightness
-		draw_string(font, draw_pos, ch, HORIZONTAL_ALIGNMENT_LEFT, -1, PARTICLE_FONT_SIZE, Color(1, 1, 1, 0.35))
+		draw_string(font, draw_pos, ch, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(1, 1, 1, 0.35))
 
 
 func _get_point_along_path(points: PackedVector2Array, seg_lengths: Array[float], total: float, t: float) -> Vector2:

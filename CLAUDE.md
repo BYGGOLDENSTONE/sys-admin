@@ -437,11 +437,12 @@ Oncelik sirasi: Building draw > Cable draw > Grid draw > Simulation.
 
 **Sonuc:** Rendering darbogazı neredeyse tamamen cozuldu. Yeni darboğaz simulasyon (28K transit item GDScript'te). Sonraki adim: Faz 3 C++ Simulation Kernel.
 
-### Faz 2: GPU Shader Migration
-**Beklenen kazanc: %15-20 CPU, %30-40 draw call**
-- [ ] **O8. PCB pattern → fragment shader** — `pcb_background.gdshader`, camera pos+zoom uniform, CPU maliyeti sifir
-- [ ] **O9. Grid cizgileri → ayni shader** — PCB shader'a dahil
-- [ ] **O10. Kablo underglow → shader** — background layer'da GPU ile
+### Faz 2: GPU Shader Migration — TAMAMLANDI
+**Gercek kazanc: PCB + grid CPU maliyeti sifir (GPU shader), parcacik font zoom-adaptive**
+- [x] **O8. PCB pattern → fragment shader** — `shaders/pcb_grid.gdshader`, camera pos+zoom+viewport uniform, deterministic hash, trace/via/pad tamamen GPU'da
+- [x] **O9. Grid cizgileri → ayni shader** — Adaptive grid step (1-16x), smoothstep anti-alias, ayni shader icinde
+- [ ] **O10. Kablo underglow → shader** — ertelendi (CPU underglow yeterli, building/cable underglow hala _draw'da)
+- [x] **Bonus: Transit parcacik font zoom-scaling** — `inv_zoom` ile font boyutu + glow halesi zoom'a gore olcekleniyor, tum zoom seviyelerinde net
 
 ### Faz 3: C++ Simulasyon Kernel — DEVAM EDIYOR
 **Gercek kazanc (ilk adim): Sim %41 azaldi, FPS 28→38**

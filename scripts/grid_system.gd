@@ -21,6 +21,10 @@ var _source_cells: Dictionary = {}  ## cell → source Node2D ref
 var _cable_h_edges: Dictionary = {}  ## Vector2i → int (cable count)
 var _cable_v_edges: Dictionary = {}  ## Vector2i → int (cable count)
 
+# GPU shader background (PCB + grid rendered entirely on GPU)
+var _bg_rect: ColorRect = null
+var _bg_material: ShaderMaterial = null
+
 
 
 func world_to_grid(world_pos: Vector2) -> Vector2i:
@@ -302,7 +306,40 @@ func _draw_pcb_pattern(sx: int, ex: int, sy: int, ey: int, zoom_level: float) ->
 					draw_rect(pr, pad_border, false, 1.0)
 
 
+func _ready() -> void:
+	_setup_gpu_background()
+
+
+func _setup_gpu_background() -> void:
+	## Create full-viewport ColorRect with PCB+grid shader (zero CPU cost)
+	var shader: Shader = load("res://shaders/pcb_grid.gdshader")
+	if shader == null:
+		push_warning("[GridSystem] PCB shader not found — falling back to CPU draw")
+		return
+	_bg_material = ShaderMaterial.new()
+	_bg_material.shader = shader
+	_bg_rect = ColorRect.new()
+	_bg_rect.material = _bg_material
+	_bg_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_bg_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	# Add to a CanvasLayer at z=-100 so it's always behind everything
+	var bg_layer := CanvasLayer.new()
+	bg_layer.layer = -100
+	bg_layer.name = "PCBBackground"
+	bg_layer.add_child(_bg_rect)
+	add_child(bg_layer)
+
+
 func _process(_delta: float) -> void:
+	# Update GPU shader uniforms with camera state
+	if _bg_material:
+		var cam: Camera2D = get_viewport().get_camera_2d()
+		if cam:
+			var zoom: float = cam.zoom.x
+			var vp_size := get_viewport_rect().size / cam.zoom
+			_bg_material.set_shader_parameter("camera_pos", cam.global_position)
+			_bg_material.set_shader_parameter("viewport_size", vp_size)
+			_bg_material.set_shader_parameter("zoom_level", zoom)
 	queue_redraw()
 
 
@@ -313,25 +350,32 @@ func _draw() -> void:
 		return
 	var zoom_level: float = cam.zoom.x
 
-	# Infinite background — draw viewport-sized rect
+	# Background + PCB + grid are rendered by GPU shader (_bg_rect)
+	# CPU fallback only if shader not loaded
 	var vp_size := get_viewport_rect().size / cam.zoom
 	var cam_pos := cam.global_position - vp_size / 2.0
-	draw_rect(Rect2(cam_pos, vp_size), BG_COLOR, true)
+	if _bg_material == null:
+		# CPU fallback: draw background + PCB + grid
+		draw_rect(Rect2(cam_pos, vp_size), BG_COLOR, true)
+		var sx_f: int = int(cam_pos.x / TILE_SIZE) - 1
+		var ex_f: int = int((cam_pos.x + vp_size.x) / TILE_SIZE) + 2
+		var sy_f: int = int(cam_pos.y / TILE_SIZE) - 1
+		var ey_f: int = int((cam_pos.y + vp_size.y) / TILE_SIZE) + 2
+		_draw_pcb_pattern(sx_f, ex_f, sy_f, ey_f, zoom_level)
+		_draw_grid_lines(cam_pos, vp_size, zoom_level)
 
-	# Viewport cell range (no bounds clamping — infinite grid)
+	# Viewport cell range for underglow
 	var sx: int = int(cam_pos.x / TILE_SIZE) - 1
 	var ex: int = int((cam_pos.x + vp_size.x) / TILE_SIZE) + 2
 	var sy: int = int(cam_pos.y / TILE_SIZE) - 1
 	var ey: int = int((cam_pos.y + vp_size.y) / TILE_SIZE) + 2
 
-	# Underglow intensity scales with zoom (brighter when zoomed out)
+	# Underglow intensity scales with zoom
 	var ug_scale: float = clampf(1.0 / zoom_level, 1.0, 3.0) if zoom_level < 1.0 else 1.0
 
-	# PCB trace pattern layer (below everything, above background)
-	var _pcb_t0: int = Time.get_ticks_usec()
-	_draw_pcb_pattern(sx, ex, sy, ey, zoom_level)
-	PerfMonitor.grid_pcb_us = Time.get_ticks_usec() - _pcb_t0
+	PerfMonitor.grid_pcb_us = 0  # GPU shader handles PCB now
 
+	# Building cell underglow
 	for cell in _occupied_cells:
 		if cell.x < sx or cell.x > ex or cell.y < sy or cell.y > ey:
 			continue
@@ -359,7 +403,11 @@ func _draw() -> void:
 		var p2 := Vector2(edge_key.x * TILE_SIZE, (edge_key.y + 1) * TILE_SIZE)
 		draw_line(p1, p2, cable_ug, cable_w)
 
-	# Adaptive grid — cells merge at lower zoom: 1x1 → 2x2 → 4x4 → 8x8 → 16x16
+	PerfMonitor.grid_draw_us = Time.get_ticks_usec() - _grid_t0
+
+
+func _draw_grid_lines(cam_pos: Vector2, vp_size: Vector2, zoom_level: float) -> void:
+	## CPU fallback for grid lines (used when shader not available)
 	var grid_step: int
 	if zoom_level >= 0.8:
 		grid_step = 1
@@ -371,39 +419,20 @@ func _draw() -> void:
 		grid_step = 8
 	else:
 		grid_step = 16
-
-	# Zoom-compensated width — always ~1.5 screen pixels regardless of zoom
 	var grid_width: float = clampf(1.5 / zoom_level, 1.0, 50.0)
 	var grid_a: float = clampf(0.3 + (1.0 - zoom_level) * 0.15, 0.3, 0.55)
 	var line_color := Color(GRID_LINE_COLOR, grid_a)
-
-	# Grid line range (no bounds clamping — infinite)
-	var start_x: int = floori(cam_pos.x / TILE_SIZE)
+	var start_x: int = floori(cam_pos.x / TILE_SIZE) - posmod(floori(cam_pos.x / TILE_SIZE), grid_step)
 	var end_x: int = ceili((cam_pos.x + vp_size.x) / TILE_SIZE)
-	var start_y: int = floori(cam_pos.y / TILE_SIZE)
+	var start_y: int = floori(cam_pos.y / TILE_SIZE) - posmod(floori(cam_pos.y / TILE_SIZE), grid_step)
 	var end_y: int = ceili((cam_pos.y + vp_size.y) / TILE_SIZE)
-
-	# Align to grid_step for perfect tiling (posmod handles negative coords)
-	start_x = start_x - posmod(start_x, grid_step)
-	start_y = start_y - posmod(start_y, grid_step)
 	var rx: int = posmod(end_x, grid_step)
 	if rx != 0:
-		end_x = end_x + grid_step - rx
+		end_x += grid_step - rx
 	var ry: int = posmod(end_y, grid_step)
 	if ry != 0:
-		end_y = end_y + grid_step - ry
-
+		end_y += grid_step - ry
 	for x in range(start_x, end_x + 1, grid_step):
-		draw_line(
-			Vector2(x * TILE_SIZE, start_y * TILE_SIZE),
-			Vector2(x * TILE_SIZE, end_y * TILE_SIZE),
-			line_color, grid_width, true
-		)
+		draw_line(Vector2(x * TILE_SIZE, start_y * TILE_SIZE), Vector2(x * TILE_SIZE, end_y * TILE_SIZE), line_color, grid_width, true)
 	for y in range(start_y, end_y + 1, grid_step):
-		draw_line(
-			Vector2(start_x * TILE_SIZE, y * TILE_SIZE),
-			Vector2(end_x * TILE_SIZE, y * TILE_SIZE),
-			line_color, grid_width, true
-		)
-
-	PerfMonitor.grid_draw_us = Time.get_ticks_usec() - _grid_t0
+		draw_line(Vector2(start_x * TILE_SIZE, y * TILE_SIZE), Vector2(end_x * TILE_SIZE, y * TILE_SIZE), line_color, grid_width, true)
