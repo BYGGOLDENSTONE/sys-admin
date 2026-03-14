@@ -7,6 +7,7 @@
 #include "transit_simulator.h"
 #include "polyline_helper.h"
 #include "stall_propagator.h"
+#include "delivery_engine.h"
 
 using namespace godot;
 
@@ -17,6 +18,7 @@ void initialize_sysadmin_module(ModuleInitializationLevel p_level) {
     ClassDB::register_class<TransitSimulator>();
     ClassDB::register_class<PolylineHelper>();
     ClassDB::register_class<StallPropagator>();
+    ClassDB::register_class<DeliveryEngine>();
 }
 
 void uninitialize_sysadmin_module(ModuleInitializationLevel p_level) {

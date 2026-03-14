@@ -27,6 +27,13 @@ var _building_cache_dirty: bool = true
 # --- C++ NATIVE ACCELERATORS (fallback to GDScript if DLL not loaded) ---
 var _transit_sim: RefCounted = null
 var _stall_prop: RefCounted = null
+var _delivery_engine: RefCounted = null
+
+# --- DELIVERY METADATA (rebuilt when conn cache changes, used by C++ DeliveryEngine) ---
+var _conn_target_types: PackedInt32Array = PackedInt32Array()
+var _conn_target_filters: PackedInt32Array = PackedInt32Array()
+var _conn_target_bids: Array = []  # Array[int] instance_ids
+var _target_ports: Dictionary = {}  # bid → Array[String] output port names
 
 # --- CONNECTION CACHE (event-based dirty flag, rebuilt only when topology changes) ---
 var _cached_conns: Array[Dictionary] = []
@@ -51,6 +58,11 @@ func _ready() -> void:
 		print("[Simulation] C++ StallPropagator loaded")
 	else:
 		print("[Simulation] StallPropagator — GDScript fallback")
+	if ClassDB.class_exists("DeliveryEngine"):
+		_delivery_engine = ClassDB.instantiate("DeliveryEngine")
+		print("[Simulation] C++ DeliveryEngine loaded")
+	else:
+		print("[Simulation] DeliveryEngine — GDScript fallback")
 	print("[Simulation] Manager initialized — tick: %.1fs, transit speed: %.1f grids/s" % [_sim_timer.wait_time, TRANSIT_GRIDS_PER_SEC])
 
 
@@ -75,6 +87,58 @@ func _rebuild_conn_cache() -> void:
 			_output_ports[from_id] = {}
 		_output_ports[from_id][conn.from_port] = i
 	_conn_cache_dirty = false
+	# Build delivery metadata for C++ DeliveryEngine
+	_rebuild_delivery_meta()
+
+
+func _rebuild_delivery_meta() -> void:
+	var count: int = _cached_conns.size()
+	_conn_target_types.resize(count)
+	_conn_target_filters.resize(count)
+	_conn_target_bids.resize(count)
+	_target_ports.clear()
+	for i in range(count):
+		var conn: Dictionary = _cached_conns[i]
+		var target: Node2D = conn.to_building
+		var bid: int = target.get_instance_id()
+		_conn_target_bids[i] = bid
+		var def = target.definition if is_instance_valid(target) else null
+		if def == null:
+			_conn_target_types[i] = 0
+			_conn_target_filters[i] = 0
+			continue
+		if def.processor != null and def.processor.rule == "trash":
+			_conn_target_types[i] = 6
+			_conn_target_filters[i] = 0
+		elif def.dual_input != null:
+			_conn_target_types[i] = 7
+			_conn_target_filters[i] = 0
+		elif def.classifier != null:
+			_conn_target_types[i] = 1
+			_conn_target_filters[i] = target.classifier_filter_content
+			if not _target_ports.has(bid):
+				_target_ports[bid] = def.output_ports.duplicate()
+		elif def.processor != null and def.processor.rule == "separator":
+			if target.separator_mode == "state":
+				_conn_target_types[i] = 2
+			else:
+				_conn_target_types[i] = 3
+			_conn_target_filters[i] = target.separator_filter_value
+			if not _target_ports.has(bid):
+				_target_ports[bid] = def.output_ports.duplicate()
+		elif def.splitter != null:
+			_conn_target_types[i] = 4
+			_conn_target_filters[i] = 0
+			if not _target_ports.has(bid):
+				_target_ports[bid] = def.output_ports.duplicate()
+		elif def.merger != null:
+			_conn_target_types[i] = 5
+			_conn_target_filters[i] = 0
+			if not _target_ports.has(bid):
+				_target_ports[bid] = def.output_ports.duplicate()
+		else:
+			_conn_target_types[i] = 0
+			_conn_target_filters[i] = 0
 
 
 func _invalidate_conn_cache(_conn: Dictionary = {}) -> void:
@@ -195,63 +259,102 @@ func _advance_transit_gdscript(delta: float) -> void:
 
 func _deliver_arrived() -> void:
 	## Deliver transit items that reached destination (t >= 1.0).
-	## Trash: instant destroy. Inline processors: rendezvous matching.
-	## Storage buildings: partial delivery when target capacity is limited.
-	for conn in _cached_conns:
-		if not conn.has("transit") or conn["transit"].is_empty():
-			continue
-		var transit: Array = conn["transit"]
-		var target: Node2D = conn.to_building
-		if not is_instance_valid(target) or not target.has_method("can_accept_data"):
-			transit.clear()
-			continue
-		# Deliver front items that have arrived (t >= 1.0)
-		while not transit.is_empty() and transit[0].t >= 1.0:
-			var item: Dictionary = transit[0]
-			# Real-time pass-through for routing buildings (preserves visual identity)
-			if _try_passthrough(target, item):
-				transit.remove_at(0)
-				continue
-			# Routing buildings: if ports not connected → hard stall.
-			# If port exists but cable temporarily stalled → allow storage buffer for tick-based routing.
-			# This prevents FIFO blocking: items for non-stalled ports can still be forwarded from storage.
-			if target.definition != null and (target.definition.classifier != null \
-					or target.definition.splitter != null or target.definition.merger != null \
-					or (target.definition.processor != null and target.definition.processor.rule == "separator")):
-				if _get_passthrough_port(target, item) == "":
-					break  # Required ports not connected — hard stall
-			# Trash: instant destroy — no storage needed
-			if target.definition != null and target.definition.processor != null \
-					and target.definition.processor.rule == "trash":
-				transit.remove_at(0)
-				target.is_working = true
-				continue
-			# Inline processor (Decryptor/Encryptor/Recoverer): leave in transit for rendezvous
-			if _is_inline_processor(target):
-				break
-			# Reserve capacity in dual-input buildings for secondary input (keys/fuel)
-			if not _dual_input_can_accept(target, item):
-				break  # Primary data stopped — reserve space for keys/fuel
-			# Check if target has any room
-			if not target.can_accept_data(1):
-				break  # Target full — item stays, cable freezes
-			# Calculate deliverable amount (partial delivery if needed)
-			var deliver: int = item.amount
-			if not target.can_accept_data(deliver):
-				if target.definition != null and target.definition.storage != null:
-					var room: int = int(target.get_effective_value("capacity")) - target.get_total_stored()
-					deliver = clampi(room, 1, item.amount)
-				else:
-					deliver = 1
-			# Deliver to target building
-			target.stored_data[item.key] = target.stored_data.get(item.key, 0) + deliver
-			item.amount -= deliver
-			if item.amount <= 0:
-				transit.remove_at(0)
-			else:
-				break  # Remaining amount stays in transit for next tick
+	## C++ DeliveryEngine handles routing passthrough + trash.
+	## GDScript handles inline rendezvous + regular storage delivery.
+	if _delivery_engine:
+		_deliver_arrived_cpp()
+	else:
+		_deliver_arrived_gdscript()
 	# Storageless inline processing: match primary + secondary inputs on cables
 	_process_inline_rendezvous()
+
+
+func _deliver_arrived_cpp() -> void:
+	# Update filter values (can change via Tab key without topology change)
+	_update_delivery_filters()
+	# C++ handles routing passthrough + trash in native iteration
+	var result: Dictionary = _delivery_engine.deliver_arrived(
+		_cached_conns, _conn_target_types, _conn_target_filters,
+		_conn_target_bids, _target_ports, _output_ports, _splitter_next_port)
+	# Mark working buildings
+	for bid in result.get("working", []):
+		for ci in _conn_to.get(bid, []):
+			var target: Node2D = _cached_conns[ci].to_building
+			if is_instance_valid(target):
+				target.is_working = true
+				break
+	# Process remaining connections (inline + regular) in GDScript
+	var remaining: Array = result.get("remaining", [])
+	for ci in remaining:
+		var conn: Dictionary = _cached_conns[ci]
+		_deliver_conn_gdscript(conn)
+
+
+func _update_delivery_filters() -> void:
+	## Update filter values for classifier/separator (can change without topology change).
+	for i in range(_cached_conns.size()):
+		var type: int = _conn_target_types[i]
+		if type == 1:  # CLASSIFIER
+			_conn_target_filters[i] = _cached_conns[i].to_building.classifier_filter_content
+		elif type == 2 or type == 3:  # SEPARATOR
+			_conn_target_filters[i] = _cached_conns[i].to_building.separator_filter_value
+
+
+func _deliver_conn_gdscript(conn: Dictionary) -> void:
+	## GDScript delivery for a single connection (inline + regular buildings).
+	var transit: Array = conn.get("transit", [])
+	if transit.is_empty():
+		return
+	var target: Node2D = conn.to_building
+	if not is_instance_valid(target) or not target.has_method("can_accept_data"):
+		transit.clear()
+		return
+	while not transit.is_empty() and transit[0].t >= 1.0:
+		var item: Dictionary = transit[0]
+		# Routing fallback (C++ failed — ports not connected)
+		if _try_passthrough(target, item):
+			transit.remove_at(0)
+			continue
+		if target.definition != null and (target.definition.classifier != null \
+				or target.definition.splitter != null or target.definition.merger != null \
+				or (target.definition.processor != null and target.definition.processor.rule == "separator")):
+			if _get_passthrough_port(target, item) == "":
+				break
+		# Trash fallback
+		if target.definition != null and target.definition.processor != null \
+				and target.definition.processor.rule == "trash":
+			transit.remove_at(0)
+			target.is_working = true
+			continue
+		# Inline processor: leave in transit for rendezvous
+		if _is_inline_processor(target):
+			break
+		# Reserve capacity for secondary input (keys/fuel)
+		if not _dual_input_can_accept(target, item):
+			break
+		# Check capacity
+		if not target.can_accept_data(1):
+			break
+		# Partial delivery
+		var deliver: int = item.amount
+		if not target.can_accept_data(deliver):
+			if target.definition != null and target.definition.storage != null:
+				var room: int = int(target.get_effective_value("capacity")) - target.get_total_stored()
+				deliver = clampi(room, 1, item.amount)
+			else:
+				deliver = 1
+		target.stored_data[item.key] = target.stored_data.get(item.key, 0) + deliver
+		item.amount -= deliver
+		if item.amount <= 0:
+			transit.remove_at(0)
+		else:
+			break
+
+
+func _deliver_arrived_gdscript() -> void:
+	## Pure GDScript fallback for delivery (no C++ DLL).
+	for conn in _cached_conns:
+		_deliver_conn_gdscript(conn)
 
 
 func _dual_input_can_accept(target: Node2D, item: Dictionary) -> bool:

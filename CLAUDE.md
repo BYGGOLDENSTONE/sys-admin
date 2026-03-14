@@ -383,6 +383,7 @@ bin/
 - [ ] 200 kablo + 500 transit item'da 60 FPS (Faz 2 sonrasi — benchmark bekliyor)
 - [x] Save/load ve gameplay davranisi degismemis (regresyon yok)
 - [x] Late-game Faz 1: 999 bina + 998 kablo + 28K transit = 28 FPS (rendering cozuldu, sim darboğaz)
+- [x] Late-game Faz 3: C++ DeliveryEngine = 38 FPS (sim %41 azaldi, routing+trash native)
 
 ---
 
@@ -442,13 +443,20 @@ Oncelik sirasi: Building draw > Cable draw > Grid draw > Simulation.
 - [ ] **O9. Grid cizgileri → ayni shader** — PCB shader'a dahil
 - [ ] **O10. Kablo underglow → shader** — background layer'da GPU ile
 
-### Faz 3: C++ Simulasyon Kernel
-**Beklenen kazanc: %30-40 CPU**
-- [ ] **O11. `_deliver_arrived()` → C++** — remove_at(0) O(m)→deque/ring buffer, nested condition native
-- [ ] **O12. `_try_passthrough()` → C++** — routing mantigi per-item native
+### Faz 3: C++ Simulasyon Kernel — DEVAM EDIYOR
+**Gercek kazanc (ilk adim): Sim %41 azaldi, FPS 28→38**
+- [x] **O11. `_deliver_arrived()` → C++ DeliveryEngine** — Routing passthrough (Classifier/Separator/Splitter/Merger) + Trash delivery tamamen C++'da. GDScript sadece inline (dual-input) + regular storage delivery yapar. Pre-computed metadata array'ler (conn_target_types/filters/bids) topology degistiginde olusturulur.
+- [x] **O12. `_try_passthrough()` → C++ `_try_routing()`** — Routing mantigi (filter check, port lookup, stall check, transit append) native C++.
 - [ ] **O13. Veri modeli refactoru** — Dictionary/String key→packed int/enum struct (transit item, stored_data)
 - [ ] **O14. Generation/processing/storage forward → C++** — tick-based islemler native
 - [ ] **O15. Graph state management → C++** — baglanti grafi, adjacency, stall state
+
+**Faz 3 Olcum (999 bina + 998 kablo + 18K transit, RTX 3070):**
+| Metrik | Faz 1 Sonrasi | Faz 3 Sonrasi | Degisim |
+|--------|---------------|---------------|---------|
+| Sim | 17,426 us | 10,321 us | -41% |
+| Transit items | 28,192 | 17,931 | -36% |
+| **FPS** | **28** | **38** | **+36%** |
 
 ### Faz 4: Buyuk Render Overhaul
 **Beklenen kazanc: %80-90 draw call**
@@ -487,7 +495,7 @@ Oncelik sirasi: Building draw > Cable draw > Grid draw > Simulation.
 - **Yol:** `gdextension/` — godot-cpp submodule + src/ klasoru
 - **Build:** `cd gdextension && scons platform=windows target=template_debug -j4`
 - **Cikti:** `bin/sysadmin.windows.template_debug.x86_64.dll`
-- **Siniflar:** `TransitSimulator`, `PolylineHelper`, `StallPropagator`
+- **Siniflar:** `TransitSimulator`, `PolylineHelper`, `StallPropagator`, `DeliveryEngine`
 - **Fallback:** DLL yoksa GDScript otomatik devreye girer (`ClassDB.class_exists()` kontrolu)
 - **Ilk build** godot-cpp'yi derler (~5-10dk), sonraki build'ler sadece src/ degisikliklerini derler (~5sn)
 
