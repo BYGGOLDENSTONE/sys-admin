@@ -507,33 +507,8 @@ func _draw() -> void:
 	# === MEDIUM MODE (zoom 0.25-0.45) — simplified ===
 	var is_medium := zoom < 0.45
 
-	# Wide outer glow (soft halo) — scaled up at lower zoom
 	var zoom_glow_scale: float = clampf(1.0 / zoom, 1.0, 2.5) if zoom < 1.0 else 1.0
-	var outer_w: float = OUTER_GLOW_WIDTH * zoom_glow_scale
-	var outer_rect := Rect2(
-		Vector2(-outer_w, -outer_w),
-		size + Vector2(outer_w * 2, outer_w * 2)
-	)
-	var outer_a := OUTER_GLOW_ALPHA + pulse
-	if is_working:
-		outer_a += 0.15
-	outer_a *= zoom_glow_scale  # brighter at low zoom
-	draw_rect(outer_rect, Color(accent, minf(outer_a, 0.5)), false, outer_w)
-
-	# Contract Terminal beacon — golden radial glow as visual anchor
-	if definition.visual_type == "terminal":
-		var beacon_r: float = maxf(size.x, size.y) * 0.8 * zoom_glow_scale
-		var beacon_pulse: float = (sin(_glow_time * 1.5) * 0.5 + 0.5) * 0.04
-		draw_circle(center, beacon_r, Color(accent, 0.03 + beacon_pulse))
-		draw_circle(center, beacon_r * 0.5, Color(accent, 0.06 + beacon_pulse))
-
-	# Inner glow
-	var inner_w: float = GLOW_WIDTH * zoom_glow_scale
-	var glow_rect := Rect2(
-		Vector2(-inner_w, -inner_w),
-		size + Vector2(inner_w * 2, inner_w * 2)
-	)
-	draw_rect(glow_rect, Color(accent, minf((GLOW_ALPHA + pulse) * zoom_glow_scale, 0.6)), false, inner_w)
+	var outer_w: float = OUTER_GLOW_WIDTH * zoom_glow_scale  # used by selection highlight
 
 	# Body — slightly brighter at medium zoom for visibility
 	var body_color: Color = BODY_COLOR if not is_medium else Color(
@@ -669,14 +644,6 @@ func _draw_pcb_mode(size: Vector2, rect: Rect2, accent: Color, pulse: float) -> 
 	var inv_zoom: float = clampf(1.0 / zoom, 2.0, 8.0)
 	var vtype: String = definition.visual_type if definition else "default"
 
-	# Soft circular glow halo (bloom substitute — zoom-compensated)
-	var glow_r: float = maxf(size.x, size.y) * 0.4 * inv_zoom
-	var glow_a: float = 0.025 + pulse * 0.01
-	if is_working:
-		glow_a += 0.015
-	draw_circle(center, glow_r, Color(accent, glow_a))
-	draw_circle(center, glow_r * 0.5, Color(accent, glow_a * 2.5))
-
 	# Body — tinted with accent color, using building silhouette polygon
 	var chip_body := Color(
 		BODY_COLOR.r + accent.r * 0.12,
@@ -710,11 +677,6 @@ func _draw_pcb_mode(size: Vector2, rect: Rect2, accent: Color, pulse: float) -> 
 	# Working indicator: brighter fill
 	if is_working:
 		draw_colored_polygon(_cached_base_poly, Color(accent, 0.12))
-
-	# Contract Terminal beacon at PCB zoom
-	if vtype == "terminal":
-		var beacon_r: float = maxf(size.x, size.y) * 0.6 * inv_zoom
-		draw_circle(center, beacon_r, Color(accent, 0.02 + pulse * 0.01))
 
 	# Malware overlay (still visible at distance — skip for Trash)
 	if not _is_ghost and _has_malware():

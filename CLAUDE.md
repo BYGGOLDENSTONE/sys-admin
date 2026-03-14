@@ -441,7 +441,7 @@ Oncelik sirasi: Building draw > Cable draw > Grid draw > Simulation.
 **Gercek kazanc: PCB + grid CPU maliyeti sifir (GPU shader), parcacik font zoom-adaptive**
 - [x] **O8. PCB pattern → fragment shader** — `shaders/pcb_grid.gdshader`, camera pos+zoom+viewport uniform, deterministic hash, trace/via/pad tamamen GPU'da
 - [x] **O9. Grid cizgileri → ayni shader** — Adaptive grid step (1-16x), smoothstep anti-alias, ayni shader icinde
-- [ ] **O10. Kablo underglow → shader** — ertelendi (CPU underglow yeterli, building/cable underglow hala _draw'da)
+- [x] **O10. Building underglow → shader** — `pcb_grid.gdshader`'da 512x512 underglow texture sampling, event-driven pixel update. Kablo underglow kaldirildi (temiz goruntu).
 - [x] **Bonus: Transit parcacik font zoom-scaling** — `inv_zoom` ile font boyutu + glow halesi zoom'a gore olcekleniyor, tum zoom seviyelerinde net
 
 ### Faz 3: C++ Simulasyon Kernel — DEVAM EDIYOR
@@ -459,11 +459,12 @@ Oncelik sirasi: Building draw > Cable draw > Grid draw > Simulation.
 | Transit items | 28,192 | 17,931 | -36% |
 | **FPS** | **28** | **38** | **+36%** |
 
-### Faz 4: Buyuk Render Overhaul
-**Beklenen kazanc: %80-90 draw call**
-- [ ] **O16. Parcacik instanced rendering** — 50K draw call→1-2, glyph texture atlas, shader ile renk/glow
-- [ ] **O17. Kablo mesh-based rendering** — 4-5 polyline/kablo→1 mesh strip + shader
-- [ ] **O18. Building batch rendering** — MultiMesh, 44 unique polygon, 500 bina→44 draw call
+### Faz 4: Render Overhaul — KISMEN TAMAMLANDI
+**Gercek kazanc: Transit %99 draw call azalma, kablo %75, bina %30+**
+- [x] **O16. Transit MultiMesh rendering** — `shaders/transit_item.gdshader` + glyph atlas (SubViewport, 480x48). 2500+ draw call→1-2. INSTANCE_CUSTOM varying ile vertex→fragment. Zoom-adaptive scale (0.8x-2.0x).
+- [x] **O17. Kablo LOD** — Zoom-based: aktif kablo 1 core polyline (glow kaldirildi), inaktif 1 dim polyline.
+- [x] **O18. Building CPU optimizasyonlari** — Breathing animation draw_set_transform (polygon regen yok), text 4→2 draw_string, redraw throttle (alternate frames), port LOD (3→2 circle). Glow katmanlari kaldirildi (outer/inner/beacon).
+- [ ] **O19. Building batch rendering** — MultiMesh, 44 unique polygon, 500 bina→44 draw call (ileride)
 
 ### Faz 5: Streaming + Memory
 **Late-game surdurulebilirlik**
@@ -478,15 +479,16 @@ Oncelik sirasi: Building draw > Cable draw > Grid draw > Simulation.
 - Her faz sonrasi benchmark ile dogrulama — tahminler kesin olcum degil
 
 ### Draw Call Hedef Tablosu
-| Katman | Demo (simdi) | Late-Game (raw) | Hedef (optimized) |
-|--------|-------------|-----------------|-------------------|
-| PCB + Grid | 100 | 100 | 0 (shader) |
-| Kablo underglow | 50 | 1,000 | 0 (shader) |
-| Kablo polyline | 200 | 5,000 | 1,000 (mesh) |
-| Parcaciklar | 600 | 50,000 | 1-2 (instanced) |
-| Binalar | 375 | 7,500 | 2,000 (dirty+batch) |
-| UI + Minimap | 100 | 100 | 50 (lazy) |
-| **TOPLAM** | **~1,400** | **~63,700** | **~3,050** |
+| Katman | Eski | Simdi | Hedef |
+|--------|------|-------|-------|
+| PCB + Grid | 100 | 0 (shader) | 0 ✓ |
+| Building underglow | 3,000 | 0 (shader) | 0 ✓ |
+| Kablo underglow | 2,000 | 0 (kaldirildi) | 0 ✓ |
+| Kablo polyline | 800 | 200 (1/kablo) | 200 ✓ |
+| Transit parcaciklar | 2,500 | 1-2 (MultiMesh) | 1-2 ✓ |
+| Binalar | 6,000 | ~3,000 (LOD+throttle) | 2,000 (batch) |
+| UI + Minimap | 100 | 100 | 50 |
+| **TOPLAM** | **~14,500** | **~3,300** | **~2,250** |
 
 ---
 

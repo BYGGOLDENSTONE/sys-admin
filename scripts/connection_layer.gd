@@ -234,26 +234,10 @@ func _draw_connection(conn: Dictionary, active: bool, hovered: bool) -> void:
 		draw_polyline(points, HOVER_COLOR, HOVER_WIDTH * zoom_scale, true)
 
 	if active:
-		var pulse := sin(Time.get_ticks_msec() / 200.0) * 0.5 + 0.5
-		if zoom > 0.5:
-			# Full quality (4 polylines): outer halo + mid glow + core + highlight
-			draw_polyline(points, Color(accent, (0.08 + pulse * 0.06) * zoom_scale), glow_w * 2.0, true)
-			draw_polyline(points, Color(accent, minf((CABLE_GLOW_ALPHA + pulse * 0.12) * zoom_scale, 0.6)), glow_w, true)
-			draw_polyline(points, accent, core_w, true)
-			draw_polyline(points, Color(1.0, 1.0, 1.0, 0.2 + pulse * 0.1), maxf(1.0, core_w * 0.4), true)
-		elif zoom > 0.25:
-			# Medium quality (2 polylines): glow + core
-			draw_polyline(points, Color(accent, minf((CABLE_GLOW_ALPHA + pulse * 0.12) * zoom_scale, 0.6)), glow_w, true)
-			draw_polyline(points, accent, core_w, true)
-		else:
-			# Far quality (1 polyline): thick core only
-			draw_polyline(points, accent, core_w * 1.5, true)
+		# Core line only — no glow layers
+		draw_polyline(points, accent, core_w, true)
 	else:
-		if zoom > 0.25:
-			draw_polyline(points, Color(accent, minf(CABLE_INACTIVE_ALPHA * 0.4 * zoom_scale, 0.25)), glow_w * 0.4, true)
-			draw_polyline(points, Color(accent, minf(CABLE_INACTIVE_ALPHA * 0.8 * zoom_scale, 0.35)), core_w, true)
-		else:
-			draw_polyline(points, Color(accent, minf(CABLE_INACTIVE_ALPHA * 0.6 * zoom_scale, 0.3)), core_w, true)
+		draw_polyline(points, Color(accent, minf(CABLE_INACTIVE_ALPHA * 0.8 * zoom_scale, 0.35)), core_w, true)
 
 
 func _build_polyline(conn: Dictionary) -> PackedVector2Array:

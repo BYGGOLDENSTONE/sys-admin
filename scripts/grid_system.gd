@@ -186,7 +186,6 @@ func occupy_cable_edge(v1: Vector2i, v2: Vector2i) -> void:
 	var dict: Dictionary = data[0]
 	var key: Vector2i = data[1]
 	dict[key] = dict.get(key, 0) + 1
-	_update_cable_underglow(v1, v2, true)
 
 
 func free_cable_edge(v1: Vector2i, v2: Vector2i) -> void:
@@ -198,7 +197,6 @@ func free_cable_edge(v1: Vector2i, v2: Vector2i) -> void:
 		dict.erase(key)
 	else:
 		dict[key] = count
-	_update_cable_underglow(v1, v2, count > 0)
 
 
 func has_cable_at_edge(v1: Vector2i, v2: Vector2i) -> bool:
