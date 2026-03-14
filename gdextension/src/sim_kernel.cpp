@@ -11,6 +11,7 @@ void SimKernel::_bind_methods() {
     ClassDB::bind_method(D_METHOD("configure_graph", "conn_from", "conn_to", "output_ports", "conn_push_meta"),
                          &SimKernel::configure_graph);
     ClassDB::bind_method(D_METHOD("run_tick", "conns", "splitter_next", "blocked_ports"), &SimKernel::run_tick);
+    ClassDB::bind_method(D_METHOD("update_stalls", "conns", "building_active", "max_passes"), &SimKernel::update_stalls);
 }
 
 SimKernel::SimKernel() {}
@@ -485,6 +486,99 @@ void SimKernel::_do_inline_rendezvous(Array &conns, Array &ct_pushes,
             sounds.push_back(String("process")); // generic sound
         }
     }
+}
+
+// ─── Stall tracking ───
+
+Dictionary SimKernel::update_stalls(Array conns, PackedInt32Array building_active, int max_passes) {
+    Dictionary stalled;
+    int conn_count = conns.size();
+
+    // Build bid→active lookup from building_active array (indexed by _bslots order)
+    std::unordered_map<int64_t, bool> bid_active;
+    const int32_t *active_ptr = building_active.ptr();
+    for (int i = 0; i < (int)_bslots.size() && i < building_active.size(); i++) {
+        bid_active[_bslots[i].bid] = (active_ptr[i] != 0);
+    }
+
+    // Pass 1: Direct stalls — transit front stuck OR target full OR source inactive
+    for (int ci = 0; ci < conn_count; ci++) {
+        Dictionary conn = conns[ci];
+
+        // Check source active
+        if (conn.has("from_building")) {
+            Object *from_obj = (Object *)(conn["from_building"]);
+            if (from_obj) {
+                int64_t from_bid = from_obj->get_instance_id();
+                auto ait = bid_active.find(from_bid);
+                if (ait != bid_active.end() && !ait->second) {
+                    continue; // Source inactive — skip (not stalled, just idle)
+                }
+            }
+        }
+
+        // Transit stall: front item at t >= 1.0
+        if (conn.has("transit")) {
+            Array transit = conn["transit"];
+            if (transit.size() > 0) {
+                Dictionary front = transit[0];
+                if ((double)front["t"] >= 1.0) {
+                    stalled[ci] = true;
+                    continue;
+                }
+            }
+        }
+
+        // Target capacity check
+        if (ci < (int)_conn_meta.size()) {
+            const ConnMeta &cm = _conn_meta[ci];
+            if (!cm.unlimited_accept && cm.capacity > 0) {
+                auto slot_it = _bid_to_slot.find(cm.target_bid);
+                if (slot_it != _bid_to_slot.end()) {
+                    Dictionary &sd = _bslots[slot_it->second].stored_data;
+                    if (_get_total_stored(sd) >= cm.capacity) {
+                        stalled[ci] = true;
+                        continue;
+                    }
+                }
+            }
+        }
+    }
+
+    // Pass 2-4: Back-pressure propagation
+    for (int pass = 0; pass < max_passes; pass++) {
+        Dictionary newly_stalled;
+        for (auto &kv : _g_conn_from) {
+            int64_t bid = kv.first;
+            const std::vector<int> &out_indices = kv.second;
+
+            // Check if ALL output connections are stalled
+            bool all_blocked = true;
+            for (int oi : out_indices) {
+                if (!stalled.has(oi) && !newly_stalled.has(oi)) {
+                    all_blocked = false;
+                    break;
+                }
+            }
+            if (!all_blocked) continue;
+
+            // Mark ALL input connections as stalled
+            auto in_it = _g_conn_to.find(bid);
+            if (in_it == _g_conn_to.end()) continue;
+            for (int ii : in_it->second) {
+                if (!stalled.has(ii)) {
+                    newly_stalled[ii] = true;
+                }
+            }
+        }
+        if (newly_stalled.is_empty()) break;
+        Array nk = newly_stalled.keys();
+        for (int i = 0; i < nk.size(); i++) {
+            stalled[nk[i]] = true;
+        }
+    }
+
+    return stalled;
 }
 
 // ─── Main tick ───

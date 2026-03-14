@@ -46,6 +46,12 @@ public:
     // --- Tick execution ---
     Dictionary run_tick(Array conns, Dictionary splitter_next, Dictionary blocked_ports);
 
+    // --- Stall tracking (Pass 1-4 combined) ---
+    /// Full stall tracking: transit stall + capacity check + back-pressure propagation.
+    /// building_active: PackedInt32Array indexed by _bslots order (1=active, 0=inactive)
+    /// Returns: Dictionary {conn_idx → true} for stalled connections.
+    Dictionary update_stalls(Array conns, PackedInt32Array building_active, int max_passes);
+
 private:
     // --- Internal data structures ---
     struct SourcePort {

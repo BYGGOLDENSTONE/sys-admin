@@ -838,6 +838,12 @@ func _update_stall_tracking() -> void:
 		connection_stalled.clear()
 		return
 
+	# C++ SimKernel: unified Pass 1-4 in one call
+	if _sim_kernel:
+		var active_arr: PackedInt32Array = _build_active_array()
+		connection_stalled = _sim_kernel.update_stalls(_cached_conns, active_arr, 3)
+		return
+
 	connection_stalled.clear()
 
 	# Pass 1: Direct stalls — transit front item stuck OR target full
@@ -876,6 +882,14 @@ func _update_stall_tracking() -> void:
 			if newly_stalled.is_empty():
 				break
 			connection_stalled.merge(newly_stalled)
+
+
+func _build_active_array() -> PackedInt32Array:
+	## Build per-building-slot active flag array for C++ stall tracking.
+	var arr: PackedInt32Array = PackedInt32Array()
+	for b in _get_buildings():
+		arr.append(1 if b.is_active() else 0)
+	return arr
 
 
 # --- ROLL HELPERS ---
