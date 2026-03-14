@@ -136,7 +136,7 @@ func _update_stats() -> void:
 			recipe += " + [color=#ff33aa]%d MB %s[/color]" % [def.producer.tier3_extra_amount, DataEnums.content_name(def.producer.tier3_extra_content)]
 		lines.append(_stat("Recipe", recipe))
 		# Tier cycle hint removed — taught in tutorial
-		var research_key: String = DataEnums.make_key(def.producer.input_content, def.producer.input_state)
+		var research_key: int = DataEnums.pack_key(def.producer.input_content, def.producer.input_state)
 		var stored_research: int = b.stored_data.get(research_key, 0)
 		if stored_research > 0:
 			lines.append(_stat("Stock", "%d MB Research waiting" % stored_research))
@@ -166,7 +166,7 @@ func _update_stats() -> void:
 		if not def.dual_input.fuel_matches_content:
 			var key_parts: PackedStringArray = []
 			for kt in range(1, 4):
-				var kk: String = DataEnums.make_key(def.dual_input.key_content, DataEnums.DataState.PUBLIC, kt, 0)
+				var kk: int = DataEnums.pack_key(def.dual_input.key_content, DataEnums.DataState.PUBLIC, kt, 0)
 				var count: int = b.stored_data.get(kk, 0)
 				if count > 0:
 					key_parts.append("T%d:%d" % [kt, count])
@@ -251,13 +251,14 @@ func _format_stored_data(data: Dictionary) -> String:
 	for key in data:
 		if data[key] <= 0:
 			continue
-		if DataEnums.is_packet(key):
-			parts.append("[color=#66ffcc]%d[/color] %s" % [data[key], DataEnums.packet_label(key)])
+		if DataEnums.is_packed_packet(key):
+			parts.append("[color=#66ffcc]%d[/color] %s" % [data[key], DataEnums.packed_packet_label(key)])
 			continue
-		var parsed: Dictionary = DataEnums.parse_key(key)
-		var c_color: String = DataEnums.content_color_hex(parsed.content)
-		var s_color: String = DataEnums.state_color_hex(parsed.state)
-		var label: String = DataEnums.data_label(parsed.content, parsed.state, parsed.tier, parsed.tags)
+		var c: int = DataEnums.unpack_content(key)
+		var s: int = DataEnums.unpack_state(key)
+		var c_color: String = DataEnums.content_color_hex(c)
+		var s_color: String = DataEnums.state_color_hex(s)
+		var label: String = DataEnums.data_label(c, s, DataEnums.unpack_tier(key), DataEnums.unpack_tags(key))
 		parts.append("[color=%s]%d[/color] [color=%s]%s[/color]" % [
 			s_color, data[key], c_color, label
 		])

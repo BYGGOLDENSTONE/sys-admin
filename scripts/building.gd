@@ -28,7 +28,7 @@ var _prev_working: bool = false
 var _process_flash: float = 0.0
 
 # Runtime state (set by SimulationManager)
-var stored_data: Dictionary = {}  ## Key: "content_state_tier_tags" (e.g. "0_0_0_0"), Value: int MB
+var stored_data: Dictionary = {}  ## Key: packed int (DataEnums.pack_key), Value: int MB
 var blocked_ports: Dictionary = {}  ## Port Purity: port_name → true
 var port_carried_types: Dictionary = {}  ## Port Purity: port_name → { "content_state" → true } — cumulative record
 var purity_checker: Callable  ## Set by GigManager: func(content, state) -> bool
@@ -422,12 +422,11 @@ func get_center_world() -> Vector2:
 
 func _has_malware() -> bool:
 	for key in stored_data:
-		if DataEnums.is_packet(key):
+		if DataEnums.is_packed_packet(key):
 			continue
 		if stored_data[key] <= 0:
 			continue
-		var parsed: Dictionary = DataEnums.parse_key(key)
-		if parsed.state == DataEnums.DataState.MALWARE:
+		if DataEnums.unpack_state(key) == DataEnums.DataState.MALWARE:
 			return true
 	return false
 
@@ -435,10 +434,9 @@ func _has_malware() -> bool:
 func get_malware_amount() -> int:
 	var total: int = 0
 	for key in stored_data:
-		if DataEnums.is_packet(key):
+		if DataEnums.is_packed_packet(key):
 			continue
-		var parsed: Dictionary = DataEnums.parse_key(key)
-		if parsed.state == DataEnums.DataState.MALWARE:
+		if DataEnums.unpack_state(key) == DataEnums.DataState.MALWARE:
 			total += stored_data[key]
 	return total
 

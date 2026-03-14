@@ -8,6 +8,7 @@
 #include "polyline_helper.h"
 #include "stall_propagator.h"
 #include "delivery_engine.h"
+#include "sim_kernel.h"
 
 using namespace godot;
 
@@ -19,6 +20,7 @@ void initialize_sysadmin_module(ModuleInitializationLevel p_level) {
     ClassDB::register_class<PolylineHelper>();
     ClassDB::register_class<StallPropagator>();
     ClassDB::register_class<DeliveryEngine>();
+    ClassDB::register_class<SimKernel>();
 }
 
 void uninitialize_sysadmin_module(ModuleInitializationLevel p_level) {

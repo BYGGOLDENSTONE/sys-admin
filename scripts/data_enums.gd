@@ -123,11 +123,64 @@ static func content_color_hex(c: int) -> String:
 	return "#7788aa"
 
 
-## --- PACKET KEYS ---
-## Format: "P_contentA_tagsA_contentB_tagsB" (A <= B by content, for consistency)
+## --- PACKED INT KEYS (O13 optimization) ---
+## Normal key:  bits 15-12=content, 11-8=state, 7-4=tier, 3-0=tags (bit 16 clear)
+## Packet key:  bit 16 set, 15-12=content_a, 11-8=tags_a, 7-4=content_b, 3-0=tags_b
+
+const PACK_PACKET_BIT: int = 1 << 16
+
+static func pack_key(content: int, state: int, tier: int = 0, tags: int = 0) -> int:
+	return (content << 12) | (state << 8) | (tier << 4) | tags
+
+static func unpack_content(key: int) -> int:
+	return (key >> 12) & 0xF
+
+static func unpack_state(key: int) -> int:
+	return (key >> 8) & 0xF
+
+static func unpack_tier(key: int) -> int:
+	return (key >> 4) & 0xF
+
+static func unpack_tags(key: int) -> int:
+	return key & 0xF
+
+static func pack_packet_key(content_a: int, tags_a: int, content_b: int, tags_b: int) -> int:
+	# Normalize order: smaller content first
+	if content_a > content_b or (content_a == content_b and tags_a > tags_b):
+		return PACK_PACKET_BIT | (content_b << 12) | (tags_b << 8) | (content_a << 4) | tags_a
+	return PACK_PACKET_BIT | (content_a << 12) | (tags_a << 8) | (content_b << 4) | tags_b
+
+static func is_packed_packet(key: int) -> bool:
+	return (key & PACK_PACKET_BIT) != 0
+
+static func unpack_packet_content_a(key: int) -> int:
+	return (key >> 12) & 0xF
+
+static func unpack_packet_tags_a(key: int) -> int:
+	return (key >> 8) & 0xF
+
+static func unpack_packet_content_b(key: int) -> int:
+	return (key >> 4) & 0xF
+
+static func unpack_packet_tags_b(key: int) -> int:
+	return key & 0xF
+
+static func packed_packet_label(key: int) -> String:
+	var ca: int = unpack_packet_content_a(key)
+	var ta: int = unpack_packet_tags_a(key)
+	var cb: int = unpack_packet_content_b(key)
+	var tb: int = unpack_packet_tags_b(key)
+	var a: String = content_name(ca)
+	if ta != 0:
+		a += " " + tags_label(ta)
+	var b: String = content_name(cb)
+	if tb != 0:
+		b += " " + tags_label(tb)
+	return "[%s · %s]" % [a, b]
+
+## --- LEGACY STRING KEYS (kept for display/UI only) ---
 
 static func make_packet_key(content_a: int, tags_a: int, content_b: int, tags_b: int) -> String:
-	# Normalize order: smaller content first
 	if content_a > content_b or (content_a == content_b and tags_a > tags_b):
 		return "P_%d_%d_%d_%d" % [content_b, tags_b, content_a, tags_a]
 	return "P_%d_%d_%d_%d" % [content_a, tags_a, content_b, tags_b]

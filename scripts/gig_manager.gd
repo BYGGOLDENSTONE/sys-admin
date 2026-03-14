@@ -92,11 +92,10 @@ func process_deliveries() -> void:
 		var amount: int = _contract_terminal.stored_data[key]
 		if amount <= 0:
 			continue
-		if DataEnums.is_packet(key):
-			_count_packet_delivery(key, amount)
+		if DataEnums.is_packed_packet(key):
+			_count_packed_packet_delivery(key, amount)
 			continue
-		var parsed: Dictionary = DataEnums.parse_key(key)
-		_count_delivery(parsed.content, parsed.state, parsed.tier, parsed.tags, amount)
+		_count_delivery(DataEnums.unpack_content(key), DataEnums.unpack_state(key), DataEnums.unpack_tier(key), DataEnums.unpack_tags(key), amount)
 
 	# Consume all delivered data (Shapez model)
 	_contract_terminal.stored_data.clear()
@@ -120,8 +119,7 @@ func evaluate_ct_connections() -> void:
 	for port in _contract_terminal.port_carried_types:
 		var types: Dictionary = _contract_terminal.port_carried_types[port]
 		for type_key in types:
-			var parts: PackedStringArray = type_key.split("_")
-			if not _output_matches_any_requirement(int(parts[0]), int(parts[1])):
+			if not _output_matches_any_requirement(type_key >> 4, type_key & 0xF):
 				_contract_terminal.blocked_ports[port] = true
 				break
 
@@ -147,7 +145,7 @@ func on_ct_connection_added(conn: Dictionary) -> void:
 			for s_id in src_def.state_weights:
 				if src_def.state_weights[s_id] <= 0.0:
 					continue
-				_contract_terminal.port_carried_types[port]["%d_%d" % [int(c_id), int(s_id)]] = true
+				_contract_terminal.port_carried_types[port][(int(c_id) << 4) | int(s_id)] = true
 		# Evaluate immediately — block before first tick
 		evaluate_ct_connections()
 
@@ -203,6 +201,14 @@ func _count_packet_delivery(pkt_key: String, amount: int) -> void:
 			progress_arr[i] = new_val
 			if new_val > old_val:
 				gig_progress_updated.emit(gig, i, new_val, req.amount)
+
+
+func _count_packed_packet_delivery(packed_key: int, amount: int) -> void:
+	# Convert packed int to string for comparison with gig requirement (not hot path)
+	var str_key: String = DataEnums.make_packet_key(
+		DataEnums.unpack_packet_content_a(packed_key), DataEnums.unpack_packet_tags_a(packed_key),
+		DataEnums.unpack_packet_content_b(packed_key), DataEnums.unpack_packet_tags_b(packed_key))
+	_count_packet_delivery(str_key, amount)
 
 
 func _count_delivery(content: int, state: int, tier: int, tags: int, amount: int) -> void:

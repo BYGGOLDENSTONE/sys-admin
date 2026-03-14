@@ -3,6 +3,11 @@
 
 using namespace godot;
 
+// Packed key layout: (content << 12) | (state << 8) | (tier << 4) | tags
+// Packet flag: bit 16 set
+static inline int unpack_content(int64_t key) { return (int)((key >> 12) & 0xF); }
+static inline int unpack_state(int64_t key) { return (int)((key >> 8) & 0xF); }
+
 void DeliveryEngine::_bind_methods() {
     ClassDB::bind_method(D_METHOD("deliver_arrived", "conns",
         "conn_target_types", "conn_target_filters", "conn_target_bids",
@@ -108,6 +113,11 @@ bool DeliveryEngine::_try_routing(
 
     String output_port;
 
+    // Extract content/state from packed key for routing decisions
+    int64_t packed_key = (int64_t)item["key"];
+    int item_content = unpack_content(packed_key);
+    int item_state = unpack_state(packed_key);
+
     switch (type) {
         case TYPE_CLASSIFIER: {
             if (ports.size() < 2) return false;
@@ -116,8 +126,7 @@ bool DeliveryEngine::_try_routing(
             String p0 = ports[0];
             String p1 = ports[1];
             if (!bid_ports.has(p0) || !bid_ports.has(p1)) return false;
-            int content = (int)(int64_t)item["content"];
-            output_port = (content == filter) ? p0 : p1;
+            output_port = (item_content == filter) ? p0 : p1;
             break;
         }
         case TYPE_SEPARATOR_STATE: {
@@ -127,8 +136,7 @@ bool DeliveryEngine::_try_routing(
             String p0 = ports[0];
             String p1 = ports[1];
             if (!bid_ports.has(p0) || !bid_ports.has(p1)) return false;
-            int state = (int)(int64_t)item["state"];
-            output_port = (state == filter) ? p0 : p1;
+            output_port = (item_state == filter) ? p0 : p1;
             break;
         }
         case TYPE_SEPARATOR_CONTENT: {
@@ -138,8 +146,7 @@ bool DeliveryEngine::_try_routing(
             String p0 = ports[0];
             String p1 = ports[1];
             if (!bid_ports.has(p0) || !bid_ports.has(p1)) return false;
-            int content = (int)(int64_t)item["content"];
-            output_port = (content == filter) ? p0 : p1;
+            output_port = (item_content == filter) ? p0 : p1;
             break;
         }
         case TYPE_SPLITTER: {
@@ -182,13 +189,9 @@ bool DeliveryEngine::_try_routing(
         }
     }
 
-    // Forward: create new transit item at t=0 on output cable
+    // Forward: create slim transit item (key + amount + t only)
     Dictionary new_item;
     new_item["key"] = item["key"];
-    new_item["content"] = item["content"];
-    new_item["state"] = item["state"];
-    new_item["tier"] = item["tier"];
-    new_item["tags"] = item["tags"];
     new_item["amount"] = item["amount"];
     new_item["t"] = 0.0;
 

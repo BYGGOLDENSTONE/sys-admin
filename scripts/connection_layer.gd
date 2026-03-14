@@ -433,16 +433,17 @@ func _draw_transit_items(conn: Dictionary, _conn_index: int) -> void:
 				continue
 			pos = _get_point_along_path(points, seg_lengths, total_length, item.t)
 
-		# Derive visual from actual data type
+		# Derive visual from packed key
+		var ikey: int = int(item.key)
 		var base_color: Color
 		var ch: String
-		if item.content < 0:
+		if DataEnums.is_packed_packet(ikey):
 			# Packet — purple-pink, "P" character
 			ch = "P"
 			base_color = Color(0.9, 0.3, 1.0)
 		else:
-			ch = DataEnums.content_char(item.content)
-			base_color = DataEnums.state_color(item.state)
+			ch = DataEnums.content_char(DataEnums.unpack_content(ikey))
+			base_color = DataEnums.state_color(DataEnums.unpack_state(ikey))
 
 		var glow_pulse: float = sin(Time.get_ticks_msec() / 120.0 + float(pi) * 1.7) * 0.5 + 0.5
 
@@ -656,13 +657,15 @@ func _update_transit_multimesh() -> void:
 					continue
 				pos = _get_point_along_path(points, seg_lengths, total_length, item.t)
 
-			# Glyph index + state color
-			var glyph_idx: int = GLYPH_MAP.get(item.content, 0)
+			# Glyph index + state color from packed key
+			var mkey: int = int(item.key)
+			var m_content: int = DataEnums.unpack_content(mkey) if not DataEnums.is_packed_packet(mkey) else -1
+			var glyph_idx: int = GLYPH_MAP.get(m_content, 0)
 			var base_color: Color
-			if item.content < 0:
+			if DataEnums.is_packed_packet(mkey):
 				base_color = Color(0.9, 0.3, 1.0)  # Packet: purple-pink
 			else:
-				base_color = DataEnums.state_color(item.state)
+				base_color = DataEnums.state_color(DataEnums.unpack_state(mkey))
 
 			# Transform: position + zoom-adaptive scale
 			var xf := Transform2D(0.0, Vector2(inv_zoom, inv_zoom), 0.0, pos)

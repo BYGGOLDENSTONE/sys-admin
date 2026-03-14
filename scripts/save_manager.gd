@@ -261,11 +261,11 @@ func _restore_buildings(buildings_data: Array) -> Dictionary:
 		building.selected_tier = int(entry.get("selected_tier", 1))
 		building.upgrade_level = int(entry.get("upgrade_level", 0))
 
-		# Restore stored data
+		# Restore stored data (packed int keys)
 		var saved_data: Dictionary = entry.get("stored_data", {})
 		building.stored_data.clear()
 		for key in saved_data:
-			building.stored_data[key] = int(saved_data[key])
+			building.stored_data[int(key)] = int(saved_data[key])
 
 		var map_key: String = "%d_%d" % [cell.x, cell.y]
 		building_map[map_key] = building

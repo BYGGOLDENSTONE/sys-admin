@@ -363,13 +363,14 @@ func _dual_input_can_accept(target: Node2D, item: Dictionary) -> bool:
 	if target.definition == null or target.definition.dual_input == null:
 		return true  # Not a dual-input building — no restriction
 	var dual: DualInputComponent = target.definition.dual_input
+	var ikey: int = int(item.key)
 	var is_secondary: bool
 	if dual.fuel_matches_content:
 		# Recoverer: fuel = Public state, tier 0
-		is_secondary = (item.state == DataEnums.DataState.PUBLIC and item.tier == 0)
+		is_secondary = (DataEnums.unpack_state(ikey) == DataEnums.DataState.PUBLIC and DataEnums.unpack_tier(ikey) == 0)
 	else:
 		# Decryptor/Encryptor: fuel = Key content type
-		is_secondary = (item.content == dual.key_content)
+		is_secondary = (DataEnums.unpack_content(ikey) == dual.key_content)
 	if is_secondary:
 		return true  # Secondary input always allowed up to full capacity
 	var cap: int = int(target.get_effective_value("capacity"))
@@ -395,10 +396,7 @@ func _try_passthrough(building: Node2D, item: Dictionary) -> bool:
 	# Forward the transit item to output cable at t=0
 	if not out_conn.has("transit"):
 		out_conn["transit"] = []
-	out_conn["transit"].append({
-		"key": item.key, "content": item.content, "state": item.state,
-		"tier": item.tier, "tags": item.tags, "amount": item.amount, "t": 0.0
-	})
+	out_conn["transit"].append({"key": int(item.key), "amount": int(item.amount), "t": 0.0})
 	building.is_working = true
 	return true
 
@@ -409,6 +407,7 @@ func _get_passthrough_port(building: Node2D, item: Dictionary) -> String:
 	var def = building.definition
 	if def == null:
 		return ""
+	var ikey: int = int(item.key)
 	# Classifier: route by content
 	if def.classifier != null:
 		var ports: Array[String] = def.output_ports
@@ -416,7 +415,7 @@ func _get_passthrough_port(building: Node2D, item: Dictionary) -> String:
 			return ""
 		if not _has_output_connection(building, ports[0]) or not _has_output_connection(building, ports[1]):
 			return ""
-		return ports[0] if item.content == building.classifier_filter_content else ports[1]
+		return ports[0] if DataEnums.unpack_content(ikey) == building.classifier_filter_content else ports[1]
 	# Separator: route by content or state
 	if def.processor != null and def.processor.rule == "separator":
 		var ports: Array[String] = def.output_ports
@@ -427,9 +426,9 @@ func _get_passthrough_port(building: Node2D, item: Dictionary) -> String:
 		var mode: String = def.processor.separator_mode
 		var matches: bool
 		if mode == "content":
-			matches = (item.content == building.separator_filter_value)
+			matches = (DataEnums.unpack_content(ikey) == building.separator_filter_value)
 		else:
-			matches = (item.state == building.separator_filter_value)
+			matches = (DataEnums.unpack_state(ikey) == building.separator_filter_value)
 		return ports[0] if matches else ports[1]
 	# Splitter: round-robin
 	if def.splitter != null:
@@ -512,7 +511,8 @@ func _try_rendezvous(building: Node2D) -> void:
 			break
 
 		# Calculate key/fuel cost
-		var tier: int = p_item.tier
+		var pkey: int = int(p_item.key)
+		var tier: int = DataEnums.unpack_tier(pkey)
 		var key_cost: int = dual.key_cost
 		if tier > 0 and tier <= dual.tier_key_costs.size():
 			key_cost = dual.tier_key_costs[tier - 1]
@@ -520,8 +520,8 @@ func _try_rendezvous(building: Node2D) -> void:
 			break
 
 		# Push output to transit
-		var out_tags: int = p_item.tags | dual.output_tag
-		var sent: int = _push_data_from(building, p_item.content, dual.output_state, 1, "", tier, out_tags)
+		var out_tags: int = DataEnums.unpack_tags(pkey) | dual.output_tag
+		var sent: int = _push_data_from(building, DataEnums.unpack_content(pkey), dual.output_state, 1, "", tier, out_tags)
 		if sent <= 0:
 			break  # Output cable stalled
 
@@ -548,40 +548,44 @@ func _try_rendezvous(building: Node2D) -> void:
 
 func _is_inline_primary(dual: DualInputComponent, item: Dictionary) -> bool:
 	## Check if transit item is primary input for inline dual-input processing.
+	var ikey: int = int(item.key)
 	if dual.fuel_matches_content:
-		if item.state == DataEnums.DataState.PUBLIC and item.tier == 0:
+		if DataEnums.unpack_state(ikey) == DataEnums.DataState.PUBLIC and DataEnums.unpack_tier(ikey) == 0:
 			return false  # This is fuel, not primary
 	else:
-		if item.content == dual.key_content:
+		if DataEnums.unpack_content(ikey) == dual.key_content:
 			return false  # This is a Key, not primary
-	if not dual.primary_input_states.is_empty() and item.state not in dual.primary_input_states:
+	if not dual.primary_input_states.is_empty() and DataEnums.unpack_state(ikey) not in dual.primary_input_states:
 		return false
 	return true
 
 
 func _is_inline_secondary(dual: DualInputComponent, item: Dictionary) -> bool:
 	## Check if transit item is secondary input (key/fuel) for inline processing.
+	var ikey: int = int(item.key)
 	if dual.fuel_matches_content:
-		return item.state == DataEnums.DataState.PUBLIC and item.tier == 0
+		return DataEnums.unpack_state(ikey) == DataEnums.DataState.PUBLIC and DataEnums.unpack_tier(ikey) == 0
 	else:
-		return item.content == dual.key_content
+		return DataEnums.unpack_content(ikey) == dual.key_content
 
 
 func _inline_secondary_matches(dual: DualInputComponent, primary: Dictionary, secondary: Dictionary) -> bool:
 	## Verify that a specific secondary item matches the primary for processing.
+	var pkey: int = int(primary.key)
+	var skey: int = int(secondary.key)
 	if dual.fuel_matches_content:
 		# Recoverer: fuel must match primary content + required tags
-		if secondary.content != primary.content:
+		if DataEnums.unpack_content(skey) != DataEnums.unpack_content(pkey):
 			return false
 		var required_tags: int = 0
-		var tier: int = primary.tier
+		var tier: int = DataEnums.unpack_tier(pkey)
 		if tier > 0 and tier <= dual.required_fuel_tags.size():
 			required_tags = dual.required_fuel_tags[tier - 1]
-		return secondary.tags == required_tags
+		return DataEnums.unpack_tags(skey) == required_tags
 	else:
 		# Decryptor/Encryptor: key tier must match data tier (min T1)
-		var key_tier: int = maxi(primary.tier, 1)
-		return secondary.tier == key_tier
+		var key_tier: int = maxi(DataEnums.unpack_tier(pkey), 1)
+		return DataEnums.unpack_tier(skey) == key_tier
 
 
 func _inline_input_status(building: Node2D, dual: DualInputComponent, check_primary: bool) -> int:
@@ -747,7 +751,7 @@ func _push_data_from(source: Node2D, content: int, state: int, amount: int, from
 				targets.append(conn)
 	if targets.is_empty():
 		return 0
-	var key: String = DataEnums.make_key(content, state, tier, tags)
+	var packed_key: int = DataEnums.pack_key(content, state, tier, tags)
 	var per_target: int = maxi(1, amount / targets.size())
 	var total_sent: int = 0
 	for conn in targets:
@@ -768,17 +772,16 @@ func _push_data_from(source: Node2D, content: int, state: int, amount: int, from
 			var port: String = conn.to_port
 			if target.blocked_ports.has(port):
 				continue
-			# Record this data type on the cable
+			# Record this data type on the cable (packed int key: content<<4|state)
 			if not target.port_carried_types.has(port):
 				target.port_carried_types[port] = {}
-			var type_key: String = "%d_%d" % [content, state]
+			var type_key: int = (content << 4) | state
 			target.port_carried_types[port][type_key] = true
 			# Check purity: if ANY recorded type doesn't match gig → block
 			if target.purity_checker.is_valid():
 				var contaminated := false
 				for tk in target.port_carried_types[port]:
-					var parts: PackedStringArray = tk.split("_")
-					if not target.purity_checker.call(int(parts[0]), int(parts[1])):
+					if not target.purity_checker.call(tk >> 4, tk & 0xF):
 						contaminated = true
 						break
 				if contaminated:
@@ -788,10 +791,7 @@ func _push_data_from(source: Node2D, content: int, state: int, amount: int, from
 		# Push to transit queue at t=0
 		if not conn.has("transit"):
 			conn["transit"] = []
-		conn["transit"].append({
-			"key": key, "content": content, "state": state,
-			"tier": tier, "tags": tags, "amount": to_send, "t": 0.0
-		})
+		conn["transit"].append({"key": packed_key, "amount": to_send, "t": 0.0})
 		amount -= to_send
 		total_sent += to_send
 	return total_sent
@@ -838,10 +838,9 @@ func _update_storage_forward(buildings: Array[Node]) -> void:
 			var available: int = b.stored_data[key]
 			if available <= 0:
 				continue
-			if DataEnums.is_packet(key):
+			if DataEnums.is_packed_packet(key):
 				continue
-			var parsed: Dictionary = DataEnums.parse_key(key)
-			var pushed: int = _push_data_from(b, parsed.content, parsed.state, mini(available, max_forward - sent), "", parsed.tier, parsed.tags)
+			var pushed: int = _push_data_from(b, DataEnums.unpack_content(key), DataEnums.unpack_state(key), mini(available, max_forward - sent), "", DataEnums.unpack_tier(key), DataEnums.unpack_tags(key))
 			if pushed > 0:
 				b.stored_data[key] -= pushed
 				sent += pushed
@@ -910,10 +909,10 @@ func _process_classifier(b: Node2D, max_process: int) -> int:
 		var available: int = b.stored_data.get(key, 0)
 		if available <= 0:
 			continue
-		var parsed: Dictionary = DataEnums.parse_key(key)
+		var c: int = DataEnums.unpack_content(key)
 		var to_process: int = mini(available, max_process - processed)
-		var target_port: String = primary_port if parsed.content == filter_content else secondary_port
-		var sent: int = _push_data_from(b, parsed.content, parsed.state, to_process, target_port, parsed.tier, parsed.tags)
+		var target_port: String = primary_port if c == filter_content else secondary_port
+		var sent: int = _push_data_from(b, c, DataEnums.unpack_state(key), to_process, target_port, DataEnums.unpack_tier(key), DataEnums.unpack_tags(key))
 		if sent > 0:
 			b.stored_data[key] -= sent
 			processed += sent
@@ -923,7 +922,7 @@ func _process_classifier(b: Node2D, max_process: int) -> int:
 func _process_producer(b: Node2D, max_process: int) -> int:
 	var prod: ProducerComponent = b.definition.producer
 	var selected: int = b.selected_tier
-	var input_key: String = DataEnums.make_key(prod.input_content, prod.input_state)
+	var input_key: int = DataEnums.pack_key(prod.input_content, prod.input_state)
 	var available: int = b.stored_data.get(input_key, 0)
 	if available <= 0:
 		return 0
@@ -932,11 +931,11 @@ func _process_producer(b: Node2D, max_process: int) -> int:
 		return 0
 	# Check tier-based extra content requirements
 	if selected >= 2 and prod.tier2_extra_content >= 0:
-		var extra2_key: String = DataEnums.make_key(prod.tier2_extra_content, prod.input_state)
+		var extra2_key: int = DataEnums.pack_key(prod.tier2_extra_content, prod.input_state)
 		var extra2_avail: int = b.stored_data.get(extra2_key, 0)
 		productions = mini(productions, extra2_avail / prod.tier2_extra_amount)
 	if selected >= 3 and prod.tier3_extra_content >= 0:
-		var extra3_key: String = DataEnums.make_key(prod.tier3_extra_content, prod.input_state)
+		var extra3_key: int = DataEnums.pack_key(prod.tier3_extra_content, prod.input_state)
 		var extra3_avail: int = b.stored_data.get(extra3_key, 0)
 		productions = mini(productions, extra3_avail / prod.tier3_extra_amount)
 	if productions <= 0:
@@ -952,10 +951,10 @@ func _process_producer(b: Node2D, max_process: int) -> int:
 	b.stored_data[input_key] -= consumed
 	# Consume extra inputs proportional to actual output
 	if selected >= 2 and prod.tier2_extra_content >= 0:
-		var extra2_key: String = DataEnums.make_key(prod.tier2_extra_content, prod.input_state)
+		var extra2_key: int = DataEnums.pack_key(prod.tier2_extra_content, prod.input_state)
 		b.stored_data[extra2_key] -= sent * prod.tier2_extra_amount
 	if selected >= 3 and prod.tier3_extra_content >= 0:
-		var extra3_key: String = DataEnums.make_key(prod.tier3_extra_content, prod.input_state)
+		var extra3_key: int = DataEnums.pack_key(prod.tier3_extra_content, prod.input_state)
 		b.stored_data[extra3_key] -= sent * prod.tier3_extra_amount
 	var tier_label: String = "T%d " % selected if selected > 0 else ""
 	print("[Producer] %s: %d MB consumed → %d %sKey produced" % [
@@ -990,29 +989,31 @@ func _process_dual_input_key_mode(b: Node2D, dual: DualInputComponent, max_proce
 		var available: int = b.stored_data[key]
 		if available <= 0:
 			continue
-		var parsed: Dictionary = DataEnums.parse_key(key)
-		if parsed.content == dual.key_content:
+		var p_content: int = DataEnums.unpack_content(key)
+		var p_state: int = DataEnums.unpack_state(key)
+		var p_tier: int = DataEnums.unpack_tier(key)
+		var p_tags: int = DataEnums.unpack_tags(key)
+		if p_content == dual.key_content:
 			continue
-		if not dual.primary_input_states.is_empty() and parsed.state not in dual.primary_input_states:
+		if not dual.primary_input_states.is_empty() and p_state not in dual.primary_input_states:
 			continue
 		# Match Key tier to data tier (min T1)
-		var tier: int = parsed.tier
-		var key_tier: int = maxi(tier, 1)
-		var key_key: String = DataEnums.make_key(dual.key_content, DataEnums.DataState.PUBLIC, key_tier, 0)
+		var key_tier: int = maxi(p_tier, 1)
+		var key_key: int = DataEnums.pack_key(dual.key_content, DataEnums.DataState.PUBLIC, key_tier, 0)
 		var keys_available: int = b.stored_data.get(key_key, 0) - fuel_consumed.get(key_key, 0)
 		if keys_available <= 0:
 			continue
 		var actual_key_cost: int = dual.key_cost
-		if tier > 0 and tier <= dual.tier_key_costs.size():
-			actual_key_cost = dual.tier_key_costs[tier - 1]
+		if p_tier > 0 and p_tier <= dual.tier_key_costs.size():
+			actual_key_cost = dual.tier_key_costs[p_tier - 1]
 		var to_process: int = mini(available, max_process - processed)
 		var keys_needed: int = to_process * actual_key_cost
 		if keys_needed > keys_available:
 			to_process = keys_available / actual_key_cost
 		if to_process <= 0:
 			continue
-		var out_tags: int = parsed.tags | dual.output_tag
-		var sent: int = _push_data_from(b, parsed.content, dual.output_state, to_process, "", tier, out_tags)
+		var out_tags: int = p_tags | dual.output_tag
+		var sent: int = _push_data_from(b, p_content, dual.output_state, to_process, "", p_tier, out_tags)
 		if sent > 0:
 			b.stored_data[key] -= sent
 			processed += sent
@@ -1022,7 +1023,7 @@ func _process_dual_input_key_mode(b: Node2D, dual: DualInputComponent, max_proce
 				sound_manager.play_process_event(b.definition.visual_type)
 			print("[DualInput] %s: %d MB → %s (-%d T%d Key)" % [
 				b.definition.building_name, sent,
-				DataEnums.data_label(parsed.content, dual.output_state, tier, out_tags),
+				DataEnums.data_label(p_content, dual.output_state, p_tier, out_tags),
 				sent * actual_key_cost, key_tier])
 	return processed
 
@@ -1036,29 +1037,31 @@ func _process_dual_input_fuel_mode(b: Node2D, dual: DualInputComponent, max_proc
 		var available: int = b.stored_data[key]
 		if available <= 0:
 			continue
-		var parsed: Dictionary = DataEnums.parse_key(key)
-		if not dual.primary_input_states.is_empty() and parsed.state not in dual.primary_input_states:
+		var p_content: int = DataEnums.unpack_content(key)
+		var p_state: int = DataEnums.unpack_state(key)
+		var p_tier: int = DataEnums.unpack_tier(key)
+		var p_tags: int = DataEnums.unpack_tags(key)
+		if not dual.primary_input_states.is_empty() and p_state not in dual.primary_input_states:
 			continue
 		# Find fuel: same content, Public, tier 0, tags based on corrupted tier
 		var required_tags: int = 0
-		var tier: int = parsed.tier
-		if tier > 0 and tier <= dual.required_fuel_tags.size():
-			required_tags = dual.required_fuel_tags[tier - 1]
-		var fuel_key: String = DataEnums.make_key(parsed.content, DataEnums.DataState.PUBLIC, 0, required_tags)
+		if p_tier > 0 and p_tier <= dual.required_fuel_tags.size():
+			required_tags = dual.required_fuel_tags[p_tier - 1]
+		var fuel_key: int = DataEnums.pack_key(p_content, DataEnums.DataState.PUBLIC, 0, required_tags)
 		var fuel_available: int = b.stored_data.get(fuel_key, 0) - fuel_consumed.get(fuel_key, 0)
 		if fuel_available <= 0:
 			continue
 		var actual_fuel_cost: int = dual.key_cost
-		if tier > 0 and tier <= dual.tier_key_costs.size():
-			actual_fuel_cost = dual.tier_key_costs[tier - 1]
+		if p_tier > 0 and p_tier <= dual.tier_key_costs.size():
+			actual_fuel_cost = dual.tier_key_costs[p_tier - 1]
 		var to_process: int = mini(available, max_process - processed)
 		var fuel_needed: int = to_process * actual_fuel_cost
 		if fuel_needed > fuel_available:
 			to_process = fuel_available / actual_fuel_cost
 		if to_process <= 0:
 			continue
-		var out_tags: int = parsed.tags | dual.output_tag
-		var sent: int = _push_data_from(b, parsed.content, dual.output_state, to_process, "", tier, out_tags)
+		var out_tags: int = p_tags | dual.output_tag
+		var sent: int = _push_data_from(b, p_content, dual.output_state, to_process, "", p_tier, out_tags)
 		if sent > 0:
 			b.stored_data[key] -= sent
 			processed += sent
@@ -1068,7 +1071,7 @@ func _process_dual_input_fuel_mode(b: Node2D, dual: DualInputComponent, max_proc
 				sound_manager.play_process_event(b.definition.visual_type)
 			print("[DualInput] %s: %d MB → %s (-%d fuel)" % [
 				b.definition.building_name, sent,
-				DataEnums.data_label(parsed.content, dual.output_state, tier, out_tags),
+				DataEnums.data_label(p_content, dual.output_state, p_tier, out_tags),
 				sent * actual_fuel_cost])
 	return processed
 
@@ -1077,13 +1080,12 @@ func _process_compiler(b: Node2D, _max_process: int) -> int:
 	# Collect stored data entries (any state/tags, excluding packet keys)
 	var entries: Array[Dictionary] = []  # [{key, content, tags, amount}]
 	for key in b.stored_data:
-		if DataEnums.is_packet(key):
+		if DataEnums.is_packed_packet(key):
 			continue
 		var amount: int = b.stored_data[key]
 		if amount <= 0:
 			continue
-		var parsed: Dictionary = DataEnums.parse_key(key)
-		entries.append({"key": key, "content": parsed.content, "tags": parsed.tags, "amount": amount})
+		entries.append({"key": key, "content": DataEnums.unpack_content(key), "tags": DataEnums.unpack_tags(key), "amount": amount})
 	if entries.size() < 2:
 		return 0
 	# Find first pair of DIFFERENT entries to combine (1:1 ratio)
@@ -1102,7 +1104,7 @@ func _process_compiler(b: Node2D, _max_process: int) -> int:
 			if to_craft <= 0:
 				continue
 			# Create packet and push to transit FIRST
-			var pkt_key: String = DataEnums.make_packet_key(a.content, a.tags, bb.content, bb.tags)
+			var pkt_key: int = DataEnums.pack_packet_key(a.content, a.tags, bb.content, bb.tags)
 			var sent: int = _push_packet_from(b, pkt_key, to_craft)
 			if sent <= 0:
 				continue
@@ -1115,11 +1117,11 @@ func _process_compiler(b: Node2D, _max_process: int) -> int:
 			_spawn_floating_text(b, "+%d Packet" % sent, Color("#44ff88"))
 			if sound_manager:
 				sound_manager.play_process_event("compiler")
-			print("[Compiler] %d packet: %s" % [sent, DataEnums.packet_label(pkt_key)])
+			print("[Compiler] %d packet: %s" % [sent, DataEnums.packed_packet_label(pkt_key)])
 	return crafted
 
 
-func _push_packet_from(source: Node2D, pkt_key: String, amount: int) -> int:
+func _push_packet_from(source: Node2D, pkt_key: int, amount: int) -> int:
 	var bid: int = source.get_instance_id()
 	var targets: Array[Dictionary] = []
 	if _conn_from.has(bid):
@@ -1145,10 +1147,7 @@ func _push_packet_from(source: Node2D, pkt_key: String, amount: int) -> int:
 		# Push to transit queue
 		if not conn.has("transit"):
 			conn["transit"] = []
-		conn["transit"].append({
-			"key": pkt_key, "content": -1, "state": DataEnums.DataState.PUBLIC,
-			"tier": 0, "tags": 0, "amount": to_send, "t": 0.0
-		})
+		conn["transit"].append({"key": pkt_key, "amount": to_send, "t": 0.0})
 		amount -= to_send
 		total_sent += to_send
 	return total_sent
@@ -1169,18 +1168,19 @@ func _process_separator(b: Node2D, proc: ProcessorComponent, max_process: int) -
 		var available: int = b.stored_data.get(key, 0)
 		if available <= 0:
 			continue
-		var parsed: Dictionary = DataEnums.parse_key(key)
+		var c: int = DataEnums.unpack_content(key)
+		var s: int = DataEnums.unpack_state(key)
 		var to_process: int = mini(available, max_process - processed)
 		# Route: matching value → primary (right), rest → secondary (bottom)
 		var matches: bool
 		if mode == "content":
-			matches = (parsed.content == b.separator_filter_value)
+			matches = (c == b.separator_filter_value)
 		else:
-			matches = (parsed.state == b.separator_filter_value)
+			matches = (s == b.separator_filter_value)
 		var target_port: String = primary_port if matches else secondary_port
 		if target_port == "":
 			continue
-		var sent: int = _push_data_from(b, parsed.content, parsed.state, to_process, target_port, parsed.tier, parsed.tags)
+		var sent: int = _push_data_from(b, c, s, to_process, target_port, DataEnums.unpack_tier(key), DataEnums.unpack_tags(key))
 		if sent > 0:
 			b.stored_data[key] -= sent
 			processed += sent
@@ -1209,13 +1209,16 @@ func _process_splitter(b: Node2D, max_process: int) -> int:
 		var available: int = b.stored_data.get(key, 0)
 		if available <= 0:
 			continue
-		var parsed: Dictionary = DataEnums.parse_key(key)
+		var c: int = DataEnums.unpack_content(key)
+		var s: int = DataEnums.unpack_state(key)
+		var t: int = DataEnums.unpack_tier(key)
+		var tg: int = DataEnums.unpack_tags(key)
 		var to_process: int = mini(available, max_process - processed)
 		# Round-robin: distribute one at a time, alternating ports
 		var sent_total: int = 0
 		for _unit in range(to_process):
 			var port: String = output_ports[next_idx]
-			var sent: int = _push_data_from(b, parsed.content, parsed.state, 1, port, parsed.tier, parsed.tags)
+			var sent: int = _push_data_from(b, c, s, 1, port, t, tg)
 			if sent > 0:
 				sent_total += 1
 				next_idx = (next_idx + 1) % port_count
@@ -1223,7 +1226,7 @@ func _process_splitter(b: Node2D, max_process: int) -> int:
 				# This port blocked — try next port once
 				var alt_idx: int = (next_idx + 1) % port_count
 				var alt_port: String = output_ports[alt_idx]
-				var alt_sent: int = _push_data_from(b, parsed.content, parsed.state, 1, alt_port, parsed.tier, parsed.tags)
+				var alt_sent: int = _push_data_from(b, c, s, 1, alt_port, t, tg)
 				if alt_sent > 0:
 					sent_total += 1
 					next_idx = (alt_idx + 1) % port_count
@@ -1247,9 +1250,8 @@ func _process_merger(b: Node2D, max_process: int) -> int:
 		var available: int = b.stored_data.get(key, 0)
 		if available <= 0:
 			continue
-		var parsed: Dictionary = DataEnums.parse_key(key)
 		var to_process: int = mini(available, max_process - processed)
-		var sent: int = _push_data_from(b, parsed.content, parsed.state, to_process, output_port, parsed.tier, parsed.tags)
+		var sent: int = _push_data_from(b, DataEnums.unpack_content(key), DataEnums.unpack_state(key), to_process, output_port, DataEnums.unpack_tier(key), DataEnums.unpack_tags(key))
 		if sent > 0:
 			b.stored_data[key] -= sent
 			processed += sent
@@ -1364,24 +1366,24 @@ func _update_status_reasons(buildings: Array[Node]) -> void:
 		if b.definition.compiler != null:
 			var types: int = 0
 			for key in b.stored_data:
-				if not DataEnums.is_packet(key) and b.stored_data[key] > 0:
+				if not DataEnums.is_packed_packet(key) and b.stored_data[key] > 0:
 					types += 1
 			b.status_reason = "Need 2+ types" if types < 2 else "Output blocked"
 			continue
 		# Producer (Research Lab)
 		if b.definition.producer != null:
 			var prod: ProducerComponent = b.definition.producer
-			var input_key: String = DataEnums.make_key(prod.input_content, prod.input_state)
+			var input_key: int = DataEnums.pack_key(prod.input_content, prod.input_state)
 			if b.stored_data.get(input_key, 0) <= 0:
 				b.status_reason = "No %s data" % DataEnums.content_name(prod.input_content)
 			else:
 				var missing: String = ""
 				if b.selected_tier >= 2 and prod.tier2_extra_content >= 0:
-					var ek: String = DataEnums.make_key(prod.tier2_extra_content, prod.input_state)
+					var ek: int = DataEnums.pack_key(prod.tier2_extra_content, prod.input_state)
 					if b.stored_data.get(ek, 0) <= 0:
 						missing = DataEnums.content_name(prod.tier2_extra_content)
 				if missing == "" and b.selected_tier >= 3 and prod.tier3_extra_content >= 0:
-					var ek: String = DataEnums.make_key(prod.tier3_extra_content, prod.input_state)
+					var ek: int = DataEnums.pack_key(prod.tier3_extra_content, prod.input_state)
 					if b.stored_data.get(ek, 0) <= 0:
 						missing = DataEnums.content_name(prod.tier3_extra_content)
 				b.status_reason = ("Need %s" % missing) if missing != "" else "Output blocked"
@@ -1408,14 +1410,15 @@ func _reason_has_primary(b: Node2D, dual: DualInputComponent) -> bool:
 	for key in b.stored_data:
 		if b.stored_data[key] <= 0:
 			continue
-		if DataEnums.is_packet(key):
+		if DataEnums.is_packed_packet(key):
 			continue
-		var p: Dictionary = DataEnums.parse_key(key)
-		if p.content == dual.key_content:
+		var c: int = DataEnums.unpack_content(key)
+		var s: int = DataEnums.unpack_state(key)
+		if c == dual.key_content:
 			continue
-		if dual.fuel_matches_content and p.state == DataEnums.DataState.PUBLIC and p.tier == 0:
+		if dual.fuel_matches_content and s == DataEnums.DataState.PUBLIC and DataEnums.unpack_tier(key) == 0:
 			continue
-		if not dual.primary_input_states.is_empty() and p.state not in dual.primary_input_states:
+		if not dual.primary_input_states.is_empty() and s not in dual.primary_input_states:
 			continue
 		return true
 	return false
@@ -1425,10 +1428,9 @@ func _reason_has_keys(b: Node2D, dual: DualInputComponent) -> bool:
 	for key in b.stored_data:
 		if b.stored_data[key] <= 0:
 			continue
-		if DataEnums.is_packet(key):
+		if DataEnums.is_packed_packet(key):
 			continue
-		var p: Dictionary = DataEnums.parse_key(key)
-		if p.content == dual.key_content:
+		if DataEnums.unpack_content(key) == dual.key_content:
 			return true
 	return false
 
@@ -1437,10 +1439,9 @@ func _reason_has_fuel(b: Node2D, dual: DualInputComponent) -> bool:
 	for key in b.stored_data:
 		if b.stored_data[key] <= 0:
 			continue
-		if DataEnums.is_packet(key):
+		if DataEnums.is_packed_packet(key):
 			continue
-		var p: Dictionary = DataEnums.parse_key(key)
-		if p.state == DataEnums.DataState.PUBLIC and p.content != dual.key_content:
+		if DataEnums.unpack_state(key) == DataEnums.DataState.PUBLIC and DataEnums.unpack_content(key) != dual.key_content:
 			return true
 	return false
 
