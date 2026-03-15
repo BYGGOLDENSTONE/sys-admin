@@ -12,12 +12,14 @@ const FEEDBACK_URL: String = "https://store.steampowered.com/app/PLACEHOLDER_APP
 
 var _new_game_btn: Button = null
 var _load_game_btn: Button = null
+var _level_select_btn: Button = null
 var _options_btn: Button = null
 var _feedback_btn: Button = null
 var _wishlist_btn: Button = null
 var _quit_btn: Button = null
 var _button_vbox: VBoxContainer = null
 var _load_vbox: VBoxContainer = null
+var _level_panel: PanelContainer = null
 var _options_panel: VBoxContainer = null
 var _title: Label = null
 
@@ -99,6 +101,10 @@ func _build_ui() -> void:
 	_load_game_btn.pressed.connect(_on_load_game)
 	_button_vbox.add_child(_load_game_btn)
 
+	_level_select_btn = _create_menu_button("Level Select")
+	_level_select_btn.pressed.connect(_on_level_select)
+	_button_vbox.add_child(_level_select_btn)
+
 	_options_btn = _create_menu_button("Options")
 	_options_btn.pressed.connect(_on_options)
 	_button_vbox.add_child(_options_btn)
@@ -121,6 +127,15 @@ func _build_ui() -> void:
 	_load_vbox.alignment = BoxContainer.ALIGNMENT_CENTER
 	_load_vbox.visible = false
 	main_box.add_child(_load_vbox)
+
+	# Level select panel (hidden, replaces buttons when active)
+	var LevelPanelScript = preload("res://scripts/ui/level_panel.gd")
+	_level_panel = PanelContainer.new()
+	_level_panel.set_script(LevelPanelScript)
+	_level_panel.visible = false
+	_level_panel.level_selected.connect(_on_level_chosen)
+	_level_panel.back_pressed.connect(_on_level_select_back)
+	main_box.add_child(_level_panel)
 
 	# Options panel (hidden, replaces buttons when active)
 	var OptionsPanelScript = preload("res://scripts/ui/options_panel.gd")
@@ -148,14 +163,19 @@ func _build_ui() -> void:
 
 func _update_load_button() -> void:
 	var has_saves := false
+	var max_level: int = 1
 	var slots: Array[Dictionary] = SaveManagerScript.list_slots()
 	for info in slots:
 		if info.exists:
 			has_saves = true
-			break
+			max_level = maxi(max_level, int(info.get("max_level", 1)))
 	_load_game_btn.disabled = not has_saves
 	if not has_saves:
 		_load_game_btn.tooltip_text = "No saved games"
+	# Level Select: only show if player has progressed beyond Level 1
+	_level_select_btn.visible = max_level > 1
+	if _level_panel:
+		_level_panel.max_level_reached = max_level
 
 
 func _create_menu_button(text: String) -> Button:
@@ -419,6 +439,24 @@ func _on_load_back() -> void:
 	_button_vbox.visible = true
 
 
+func _on_level_select() -> void:
+	_button_vbox.visible = false
+	_level_panel.visible = true
+
+
+func _on_level_select_back() -> void:
+	_level_panel.visible = false
+	_button_vbox.visible = true
+
+
+func _on_level_chosen(level: int) -> void:
+	_transition_to_game({
+		"_new_level": level,
+		"_max_level": _level_panel.max_level_reached,
+		"seed": randi(),
+	})
+
+
 func _on_options() -> void:
 	_button_vbox.visible = false
 	_options_panel.visible = true
@@ -445,6 +483,7 @@ func _transition_to_game(save_data: Dictionary) -> void:
 	# Disable all buttons
 	_new_game_btn.disabled = true
 	_load_game_btn.disabled = true
+	_level_select_btn.disabled = true
 	_options_btn.disabled = true
 	_feedback_btn.disabled = true
 	_wishlist_btn.disabled = true
