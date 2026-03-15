@@ -3,6 +3,7 @@
 [ext_resource type="Script" uid="uid://cfwq5ovxknq2q" path="res://scripts/ui/building_tooltip.gd" id="1_aalao"]
 
 [node name="BuildingTooltip" type="PanelContainer" unique_id=1200473385]
+custom_minimum_size = Vector2(320, 0)
 script = ExtResource("1_aalao")
 
 [node name="MarginContainer" type="MarginContainer" parent="." unique_id=1649145644]

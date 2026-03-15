@@ -65,7 +65,10 @@ func setup(def: DataSourceDefinition, origin: Vector2i) -> void:
 
 
 func _compute_dominant_color() -> Color:
-	## Returns the color of the highest-weight content type in this source.
+	## Hard/endgame sources use their own distinct color for map visibility.
+	## Easy/medium sources use the highest-weight content type color.
+	if definition.difficulty == "hard" or definition.difficulty == "endgame":
+		return definition.color
 	var weights: Dictionary = definition.content_weights
 	if weights.is_empty():
 		return definition.color
@@ -186,6 +189,13 @@ func _get_zoom_level() -> float:
 	return 1.0
 
 
+func _get_difficulty_glow_mult() -> float:
+	match definition.difficulty:
+		"hard": return 1.6
+		"endgame": return 2.2
+		_: return 1.0
+
+
 ## --- DRAWING ---
 
 func _draw() -> void:
@@ -238,30 +248,33 @@ func _draw() -> void:
 func _draw_pcb_source(accent: Color, pulse: float, zoom: float, size: Vector2) -> void:
 	var center := size / 2.0
 	var inv_zoom: float = clampf(1.0 / zoom, 2.0, 8.0)
+	var glow_mult: float = _get_difficulty_glow_mult()
 
 	# Soft glow halo
-	var glow_r: float = maxf(size.x, size.y) * 0.3 * inv_zoom
-	draw_circle(center, glow_r, Color(accent, 0.035 + pulse * 0.01))
-	draw_circle(center, glow_r * 0.5, Color(accent, 0.09 + pulse * 0.03))
-	draw_circle(center, glow_r * 0.25, Color(accent, 0.2 + pulse * 0.06))
+	var glow_r: float = maxf(size.x, size.y) * 0.3 * inv_zoom * glow_mult
+	draw_circle(center, glow_r, Color(accent, (0.035 + pulse * 0.01) * glow_mult))
+	draw_circle(center, glow_r * 0.5, Color(accent, (0.09 + pulse * 0.03) * glow_mult))
+	draw_circle(center, glow_r * 0.25, Color(accent, (0.2 + pulse * 0.06) * glow_mult))
 
 	# Bright core
-	draw_circle(center, maxf(6.0, glow_r * 0.08), Color(accent, 0.4 + pulse * 3.0))
-	draw_circle(center, maxf(2.5, glow_r * 0.03), Color(1.0, 1.0, 1.0, 0.5))
+	var core_r: float = maxf(6.0, glow_r * 0.08) * glow_mult
+	draw_circle(center, core_r, Color(accent, 0.4 + pulse * 3.0))
+	draw_circle(center, core_r * 0.4, Color(1.0, 1.0, 1.0, 0.5 * glow_mult))
 
 
 ## Medium zoom: simplified with soft glow halo
 func _draw_medium_source(accent: Color, pulse: float, zoom: float, size: Vector2) -> void:
 	var zoom_boost: float = clampf(1.0 / zoom, 1.0, 2.5)
-	var base_alpha: float = (0.15 + pulse) * zoom_boost
-	var border_alpha: float = (0.5 + pulse * 2.0) * zoom_boost
+	var glow_mult: float = _get_difficulty_glow_mult()
+	var base_alpha: float = (0.15 + pulse) * zoom_boost * glow_mult
+	var border_alpha: float = (0.5 + pulse * 2.0) * zoom_boost * glow_mult
 	var center := size / 2.0
 	var rect := Rect2(Vector2.ZERO, size)
 
 	# Soft glow halo
-	var glow_r: float = maxf(size.x, size.y) * 0.4
-	draw_circle(center, glow_r * 1.2, Color(accent, 0.04 * zoom_boost))
-	draw_circle(center, glow_r * 0.6, Color(accent, 0.08 * zoom_boost + pulse * 0.02))
+	var glow_r: float = maxf(size.x, size.y) * 0.4 * glow_mult
+	draw_circle(center, glow_r * 1.2, Color(accent, 0.04 * zoom_boost * glow_mult))
+	draw_circle(center, glow_r * 0.6, Color(accent, (0.08 * zoom_boost + pulse * 0.02) * glow_mult))
 
 	# Territory tint
 	_draw_territory_tint(accent, size, 0.08 * zoom_boost)

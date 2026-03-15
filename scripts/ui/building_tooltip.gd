@@ -47,6 +47,7 @@ func show_for_building(building: Node2D) -> void:
 	desc_label.text = def.description
 	info_label.text = def.category.to_upper()
 	_update_stats()
+	reset_size()
 	_show_animated()
 
 
@@ -63,6 +64,7 @@ func show_for_source(source: Node2D) -> void:
 	desc_label.text = def.description
 	info_label.text = "DATA SOURCE | %d MB/s" % int(def.bandwidth)
 	_update_source_stats()
+	reset_size()
 	_show_animated()
 
 
@@ -79,8 +81,10 @@ func hide_tooltip() -> void:
 func refresh() -> void:
 	if _target_building != null:
 		_update_stats()
+		reset_size()
 	elif _target_source != null:
 		_update_source_stats()
+		reset_size()
 
 
 func _process(_delta: float) -> void:

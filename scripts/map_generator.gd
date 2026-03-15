@@ -176,34 +176,38 @@ func _generate_chunk(chunk_pos: Vector2i) -> void:
 
 
 func _get_pool_for_distance(dist: int) -> Array:
-	if dist <= 3:
+	if dist <= 1:
 		return _pools["easy"]
-	elif dist <= 6:
+	elif dist <= 3:
 		return _pools["easy"] + _pools["medium"]
-	elif dist <= 9:
+	elif dist <= 5:
 		return _pools["medium"] + _pools["hard"]
+	elif dist <= 7:
+		return _pools["hard"] + _pools["endgame"]
 	else:
 		return _pools["hard"] + _pools["endgame"]
 
 
 func _roll_count(dist: int, rng: RandomNumberGenerator) -> int:
 	var roll: float = rng.randf()
-	if dist <= 3:
-		# Inner ring: moderate (was too dense)
+	if dist <= 2:
+		# Inner ring: tutorial neighborhood
 		if roll < 0.55: return 1
 		if roll < 0.80: return 2
 		return 0
-	elif dist <= 6:
-		# Mid ring: light
-		if roll < 0.45: return 1
-		if roll < 0.70: return 2
+	elif dist <= 4:
+		# Mid ring: medium sources mix in
+		if roll < 0.50: return 1
+		if roll < 0.75: return 2
 		return 0
-	elif dist <= 9:
-		# Outer ring: sparse
-		return 1 if roll < 0.30 else 0
+	elif dist <= 7:
+		# Outer ring: hard + endgame territory
+		if roll < 0.40: return 1
+		if roll < 0.55: return 2
+		return 0
 	else:
-		# Far: endgame — still sparse but closer than before
-		return 1 if roll < 0.20 else 0
+		# Far: endgame sparse
+		return 1 if roll < 0.25 else 0
 
 
 func _find_position_in_chunk(chunk_pos: Vector2i, grid_size: Vector2i, source_name: String, rng: RandomNumberGenerator) -> Vector2i:
@@ -216,8 +220,8 @@ func _find_position_in_chunk(chunk_pos: Vector2i, grid_size: Vector2i, source_na
 			rng.randi_range(chunk_origin.x, max_x),
 			rng.randi_range(chunk_origin.y, max_y)
 		)
-		# Don't place too close to CT
-		var ct_dist: int = absi(pos.x - CT_CENTER.x) + absi(pos.y - CT_CENTER.y)
+		# Don't place too close to CT (Chebyshev = square zone, not diamond)
+		var ct_dist: int = maxi(absi(pos.x - CT_CENTER.x), absi(pos.y - CT_CENTER.y))
 		if ct_dist < CT_EXCLUSION_RADIUS:
 			continue
 		if _is_too_close(pos):

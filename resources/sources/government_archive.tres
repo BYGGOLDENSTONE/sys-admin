@@ -6,9 +6,9 @@
 script = ExtResource("1")
 source_name = "Government Archive"
 description = "Secret government data vault. Contains Research, Blueprint, and Classified data. T3 encryption + corrupted data — requires multi-pipeline mastery."
-color = Color(0.53, 0.6, 0.87, 1.0)
-content_weights = {0: 0.05, 1: 0.05, 2: 0.05, 3: 0.25, 4: 0.30, 5: 0.30}
-state_weights = {0: 0.10, 1: 0.45, 2: 0.15, 4: 0.30}
+color = Color(1.0, 0.4, 0.15, 1.0)
+content_weights = {3: 0.30, 4: 0.35, 5: 0.35}
+state_weights = {1: 0.40, 2: 0.25, 4: 0.35}
 bandwidth = 10.0
 generation_rate = 6.0
 grid_size = Vector2i(3, 3)

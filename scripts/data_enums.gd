@@ -72,7 +72,7 @@ static func content_color(c: int) -> Color:
 	match c:
 		ContentType.STANDARD: return Color("#7788aa")
 		ContentType.FINANCIAL: return Color("#ffcc00")
-		ContentType.BIOMETRIC: return Color("#ff33aa")
+		ContentType.BIOMETRIC: return Color("#ff88cc")
 		ContentType.BLUEPRINT: return Color("#00ffcc")
 		ContentType.RESEARCH: return Color("#9955ff")
 		ContentType.CLASSIFIED: return Color("#ff3388")
@@ -127,7 +127,7 @@ static func content_color_hex(c: int) -> String:
 	match c:
 		ContentType.STANDARD: return "#7788aa"
 		ContentType.FINANCIAL: return "#ffcc00"
-		ContentType.BIOMETRIC: return "#ff33aa"
+		ContentType.BIOMETRIC: return "#ff88cc"
 		ContentType.BLUEPRINT: return "#00ffcc"
 		ContentType.RESEARCH: return "#9955ff"
 		ContentType.CLASSIFIED: return "#ff3388"

@@ -154,6 +154,16 @@ Asagidaki kararlar **scope lock** kabul edilir. Claude Code bu kararlarla celise
 - [x] **Kaynak dominant content rengi** — her kaynak en yuksek agirlikli content type'in rengini kullaniyor (orn. Hospital=%55 Biometric → pembe)
 - [x] **Minimap renk uyumu** — kablolar gumus, kaynaklar dominant content rengi
 - [x] **Save silme onay paneli** — Load Game'de silme butonuna basinca cyberpunk stilinde onay penceresi (teal border, kirmizi Delete butonu)
+- [x] **CT exclusion zone** — Manhattan→Chebyshev distance (kare bolge, her yonde 5 kare)
+- [x] **Harita cesitliligi** — pool gecisleri erkene alindi (hard dist 4+, endgame dist 6+), spawn yogunlugu artirildi
+- [x] **Easy kaynaklara T1 Encrypted** — Bank Terminal %15, Smart Lock %10, Shop Server %10 sifreleme eklendi
+- [x] **Endgame kaynak temasi** — Military: agir encrypted, Dark Web: agir corrupted, public veri sifir
+- [x] **Hard kaynak temasi** — Corporate/Govt Archive'den public ve temel content kaldirildi (oyuncuyu yan kaynaklara yonlendirir)
+- [x] **Kaynak renk sistemi yenilendi** — easy/medium: dominant content rengini kullanir (sari=Financial, pembe=Biometric, mor=Research), hard/endgame: kaynagin kendi rengi (turuncu/kirmizi/amber)
+- [x] **Hard/endgame glow guclendirme** — hard 1.6x, endgame 2.2x glow boyutu+parlaklik (zoom out'ta gorunurluk)
+- [x] **Biometric content rengi** — #ff33aa→#ff88cc (acik pembe, endgame kirmizilariyla karismiyor)
+- [x] **Berabere content dagilimi duzeltme** — Data Kiosk→Financial, Traffic Cam→Biometric, Public DB→Research, her kaynak net dominant renge sahip
+- [x] **Tooltip boyut fix** — reset_size() ile panel icerige tam oturuyor, altta bosluk kalmiyor
 
 ### Siralama
 Faz 1 → 2 → 3 → 4 → 5 → 6. Her faz sonunda oyun playable state'te kalmali.

@@ -6,8 +6,8 @@
 script = ExtResource("1")
 source_name = "Biotech Lab"
 description = "Private biotech research network. Contains Biometric, Research, and Blueprint data. Both encrypted and corrupted — requires Decryptor and Recoverer."
-color = Color(0.87, 0.4, 0.6, 1.0)
-content_weights = {2: 0.35, 4: 0.35, 3: 0.20, 0: 0.10}
+color = Color(0.75, 0.55, 0.85, 1.0)
+content_weights = {2: 0.40, 4: 0.30, 3: 0.20, 0: 0.10}
 state_weights = {2: 0.45, 1: 0.39, 0: 0.16}
 bandwidth = 5.0
 generation_rate = 5.0
