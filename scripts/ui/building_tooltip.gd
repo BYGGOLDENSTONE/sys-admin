@@ -76,15 +76,16 @@ func hide_tooltip() -> void:
 	_anim_tween.tween_callback(func(): visible = false)
 
 
-func _process(_delta: float) -> void:
-	if not visible:
-		return
-
-	# Live update stats while visible
+func refresh() -> void:
 	if _target_building != null:
 		_update_stats()
 	elif _target_source != null:
 		_update_source_stats()
+
+
+func _process(_delta: float) -> void:
+	if not visible:
+		return
 
 	var mouse_pos := get_viewport().get_mouse_position()
 	var viewport_size := get_viewport_rect().size

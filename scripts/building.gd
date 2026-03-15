@@ -20,6 +20,7 @@ var definition: BuildingDefinition
 var grid_cell: Vector2i = Vector2i.ZERO
 var direction: int = 0  ## 0=default, 1=90°CW, 2=180°, 3=270°CW
 var mirror_h: bool = false  ## Horizontal flip (left↔right)
+var mirror_v: bool = false  ## Vertical flip (top↔bottom)
 var fill_ratio: float = 0.0
 var _glow_time: float = 0.0
 var _is_ghost: bool = false
@@ -51,7 +52,8 @@ var _prev_is_selected: bool = false
 var _cached_base_poly: PackedVector2Array = PackedVector2Array()
 var _cached_closed_poly: PackedVector2Array = PackedVector2Array()
 var _cached_poly_dir: int = -1
-var _cached_poly_mirror: bool = false
+var _cached_poly_mirror_h: bool = false
+var _cached_poly_mirror_v: bool = false
 var _cached_poly_size: Vector2 = Vector2.ZERO
 
 
@@ -196,11 +198,12 @@ func _is_in_viewport() -> bool:
 		and my_pos.y - margin < cam_pos.y + vp_half.y)
 
 
-func setup(def: BuildingDefinition, cell: Vector2i, dir: int = 0, mirrored: bool = false) -> void:
+func setup(def: BuildingDefinition, cell: Vector2i, dir: int = 0, mirrored: bool = false, mirrored_v: bool = false) -> void:
 	definition = def
 	grid_cell = cell
 	direction = dir
 	mirror_h = mirrored
+	mirror_v = mirrored_v
 	_draw_dirty = true
 	queue_redraw()
 
@@ -223,7 +226,7 @@ func play_remove_animation() -> void:
 
 func _get_physical_side(logical_port: String) -> String:
 	## Maps a logical port name to its physical side based on building rotation and mirror.
-	if direction == 0 and not mirror_h:
+	if direction == 0 and not mirror_h and not mirror_v:
 		return logical_port
 	var base_side: String
 	var suffix: String = ""
@@ -245,6 +248,12 @@ func _get_physical_side(logical_port: String) -> String:
 			idx = 2  # right
 		elif sides[idx] == "right":
 			idx = 0  # left
+	# Apply vertical mirror (top↔bottom)
+	if mirror_v:
+		if sides[idx] == "top":
+			idx = 3  # bottom
+		elif sides[idx] == "bottom":
+			idx = 1  # top
 	return sides[idx] + suffix
 
 
@@ -278,6 +287,13 @@ func _mirror_polygon(poly: PackedVector2Array, center: Vector2) -> PackedVector2
 	var mirrored := PackedVector2Array()
 	for p in poly:
 		mirrored.append(Vector2(2.0 * center.x - p.x, p.y))
+	return mirrored
+
+
+func _mirror_polygon_v(poly: PackedVector2Array, center: Vector2) -> PackedVector2Array:
+	var mirrored := PackedVector2Array()
+	for p in poly:
+		mirrored.append(Vector2(p.x, 2.0 * center.y - p.y))
 	return mirrored
 
 
@@ -502,15 +518,18 @@ func _draw() -> void:
 	# Building silhouette polygon (cached — only recomputed on direction/mirror change)
 	var vtype: String = definition.visual_type if definition else "default"
 	if _cached_base_poly.is_empty() or _cached_poly_dir != direction \
-			or _cached_poly_mirror != mirror_h or _cached_poly_size != size:
+			or _cached_poly_mirror_h != mirror_h or _cached_poly_mirror_v != mirror_v or _cached_poly_size != size:
 		_cached_base_poly = _get_building_polygon(rect, vtype)
 		if direction != 0:
 			_cached_base_poly = _rotate_polygon(_cached_base_poly, center)
 		if mirror_h:
 			_cached_base_poly = _mirror_polygon(_cached_base_poly, center)
+		if mirror_v:
+			_cached_base_poly = _mirror_polygon_v(_cached_base_poly, center)
 		_cached_closed_poly = _get_closed_polyline(_cached_base_poly)
 		_cached_poly_dir = direction
-		_cached_poly_mirror = mirror_h
+		_cached_poly_mirror_h = mirror_h
+		_cached_poly_mirror_v = mirror_v
 		_cached_poly_size = size
 	var base_poly := _cached_base_poly
 	# Breathing effect — working buildings gently pulse size via transform (no polygon regen)
@@ -565,8 +584,10 @@ func _draw() -> void:
 
 	# Icon — rotate and/or mirror icon with building direction
 	var icon_angle: float = direction * PI / 2.0 if direction != 0 else 0.0
-	var icon_scale := Vector2(-1, 1) if mirror_h else Vector2.ONE
-	if direction != 0 or mirror_h:
+	var icon_scale_x: float = -1.0 if mirror_h else 1.0
+	var icon_scale_y: float = -1.0 if mirror_v else 1.0
+	var icon_scale := Vector2(icon_scale_x, icon_scale_y)
+	if direction != 0 or mirror_h or mirror_v:
 		draw_set_transform(center, icon_angle, icon_scale)
 		_draw_icon(Vector2.ZERO, size, accent)
 		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
@@ -635,16 +656,19 @@ func _draw_pcb_mode(size: Vector2, rect: Rect2, accent: Color, pulse: float) -> 
 		BODY_COLOR.b + accent.b * 0.12, 1.0)
 	# Use cached polygon (same as main draw — direction/mirror haven't changed)
 	if _cached_base_poly.is_empty() or _cached_poly_dir != direction \
-			or _cached_poly_mirror != mirror_h or _cached_poly_size != size:
+			or _cached_poly_mirror_h != mirror_h or _cached_poly_mirror_v != mirror_v or _cached_poly_size != size:
 		var vt: String = definition.visual_type if definition else "default"
 		_cached_base_poly = _get_building_polygon(rect, vt)
 		if direction != 0:
 			_cached_base_poly = _rotate_polygon(_cached_base_poly, center)
 		if mirror_h:
 			_cached_base_poly = _mirror_polygon(_cached_base_poly, center)
+		if mirror_v:
+			_cached_base_poly = _mirror_polygon_v(_cached_base_poly, center)
 		_cached_closed_poly = _get_closed_polyline(_cached_base_poly)
 		_cached_poly_dir = direction
-		_cached_poly_mirror = mirror_h
+		_cached_poly_mirror_h = mirror_h
+		_cached_poly_mirror_v = mirror_v
 		_cached_poly_size = size
 	draw_colored_polygon(_cached_base_poly, chip_body)
 

@@ -50,6 +50,9 @@ var _detail_container: VBoxContainer = null
 var _detail_name: Label = null
 var _detail_desc: Label = null
 var _detail_stats: RichTextLabel = null
+var _detail_filter_container: HBoxContainer = null
+var _detail_filter_label: Label = null
+var _detail_filter_dropdown: OptionButton = null
 var _detail_upgrade_header: Label = null
 var _detail_upgrade_dots: HBoxContainer = null
 var _detail_upgrade_stat: RichTextLabel = null
@@ -69,7 +72,7 @@ func _ready() -> void:
 	_play_slide_in()
 
 
-func _process(_delta: float) -> void:
+func refresh_detail() -> void:
 	if _in_detail_mode and _selected_building != null:
 		_update_detail()
 
@@ -270,6 +273,23 @@ func _build_detail_ui() -> void:
 	_detail_stats.add_theme_font_size_override("normal_font_size", 13)
 	_detail_container.add_child(_detail_stats)
 
+	# Filter dropdown (Classifier/Separator)
+	_detail_filter_container = HBoxContainer.new()
+	_detail_filter_container.add_theme_constant_override("separation", 8)
+	_detail_filter_container.visible = false
+	_detail_filter_label = Label.new()
+	_detail_filter_label.text = "Filter:"
+	_detail_filter_label.add_theme_font_size_override("font_size", 13)
+	_detail_filter_label.add_theme_color_override("font_color", ACCENT_COLOR)
+	_detail_filter_container.add_child(_detail_filter_label)
+	_detail_filter_dropdown = OptionButton.new()
+	_detail_filter_dropdown.add_theme_font_size_override("font_size", 13)
+	_detail_filter_dropdown.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_detail_filter_dropdown.focus_mode = Control.FOCUS_NONE
+	_detail_filter_dropdown.item_selected.connect(_on_filter_selected)
+	_detail_filter_container.add_child(_detail_filter_dropdown)
+	_detail_container.add_child(_detail_filter_container)
+
 	# Separator
 	var sep2 := HSeparator.new()
 	sep2.add_theme_constant_override("separation", 4)
@@ -334,6 +354,9 @@ func show_building_detail(building: Node2D) -> void:
 	_detail_name.add_theme_color_override("font_color", building.definition.color)
 	_detail_desc.text = building.definition.description
 
+	# Show/hide filter dropdown
+	_populate_filter_dropdown(building)
+
 	# Show/hide upgrade section
 	var has_upgrade: bool = building.definition.upgrade != null
 	_detail_upgrade_header.visible = has_upgrade
@@ -367,7 +390,7 @@ func _update_detail() -> void:
 	var b: Node2D = _selected_building
 	var def: BuildingDefinition = b.definition
 
-	# Live status
+	# Live status + type-specific stats
 	var lines: PackedStringArray = []
 	if b.is_working:
 		lines.append("[color=#44ff88]● Working[/color]")
@@ -377,7 +400,76 @@ func _update_detail() -> void:
 			lines.append("[color=#ffcc44]● Idle — %s[/color]" % reason)
 		else:
 			lines.append("[color=#ffcc44]● Idle[/color]")
+
+	# Type-specific live info
+	if def.classifier:
+		lines.append("[color=#888888]Throughput:[/color] %d MB/s" % int(b.get_effective_value("processing_rate")))
+		var filter_name: String = DataEnums.content_name(b.classifier_filter_content)
+		lines.append("[color=#888888]Right →[/color] [color=#44ff88]%s[/color]" % filter_name)
+		lines.append("[color=#888888]Bottom →[/color] All other content")
+	if def.producer:
+		lines.append("[color=#888888]Rate:[/color] %d/tick" % int(b.get_effective_value("processing_rate")))
+		var tier_names: Array[String] = ["T1 Key", "T2 Strong Key", "T3 Master Key"]
+		var tier_label: String = tier_names[b.selected_tier - 1] if b.selected_tier <= tier_names.size() else "T%d Key" % b.selected_tier
+		lines.append("[color=#888888]Mode:[/color] [color=#ffaa00]%s[/color]" % tier_label)
+		var recipe: String = "[color=#aa77ff]%d MB Research[/color]" % def.producer.consume_amount
+		if b.selected_tier >= 2 and def.producer.tier2_extra_content >= 0:
+			recipe += " + [color=#ffcc00]%d MB %s[/color]" % [def.producer.tier2_extra_amount, DataEnums.content_name(def.producer.tier2_extra_content)]
+		if b.selected_tier >= 3 and def.producer.tier3_extra_content >= 0:
+			recipe += " + [color=#ff33aa]%d MB %s[/color]" % [def.producer.tier3_extra_amount, DataEnums.content_name(def.producer.tier3_extra_content)]
+		lines.append("[color=#888888]Recipe:[/color] %s" % recipe)
+	if def.dual_input:
+		lines.append("[color=#888888]Throughput:[/color] %d MB/s" % int(b.get_effective_value("processing_rate")))
+		if not def.dual_input.fuel_matches_content:
+			var key_parts: PackedStringArray = []
+			for kt in range(1, 4):
+				var kk: int = DataEnums.pack_key(def.dual_input.key_content, DataEnums.DataState.PUBLIC, kt, 0)
+				var count: int = b.stored_data.get(kk, 0)
+				if count > 0:
+					key_parts.append("T%d:%d" % [kt, count])
+			if key_parts.is_empty():
+				lines.append("[color=#888888]Key Stock:[/color] [color=#ff6644]0[/color]")
+			else:
+				lines.append("[color=#888888]Key Stock:[/color] [color=#ffaa00]%s[/color]" % ", ".join(key_parts))
+	if def.processor:
+		if def.processor.rule == "separator":
+			lines.append("[color=#888888]Throughput:[/color] %d MB/s" % int(b.get_effective_value("processing_rate")))
+			var filter_name: String
+			if b.separator_mode == "content":
+				filter_name = DataEnums.content_name(b.separator_filter_value)
+			else:
+				filter_name = DataEnums.state_name(b.separator_filter_value)
+			lines.append("[color=#888888]Right →[/color] [color=#44ff88]%s[/color]" % filter_name)
+			lines.append("[color=#888888]Bottom →[/color] All other data")
+		elif def.processor.rule == "splitter":
+			lines.append("[color=#888888]Distribution:[/color] Equal (50/50)")
+		elif def.processor.rule == "merger":
+			lines.append("[color=#888888]Merging:[/color] ← Left + ↑ Top → Right")
+		elif def.processor.rule == "trash":
+			lines.append("[color=#888888]Mode:[/color] Instant destruction")
+	# Stored data summary
+	var total_stored: int = b.get_total_stored()
+	if total_stored > 0:
+		var cap: int = int(b.get_effective_value("capacity")) if b.has_method("get_effective_value") else 0
+		if cap > 0:
+			lines.append("[color=#888888]Stored:[/color] %d / %d MB" % [total_stored, cap])
+		else:
+			lines.append("[color=#888888]Stored:[/color] %d MB" % total_stored)
+
 	_detail_stats.text = "\n".join(lines)
+
+	# Live-update filter dropdown selection
+	if _detail_filter_container.visible:
+		if def.classifier:
+			_detail_filter_dropdown.selected = b.classifier_filter_content
+		elif def.processor and def.processor.rule == "separator":
+			if b.separator_mode == "state":
+				var state_cycle: Array[int] = [0, 1, 2, 4]
+				_detail_filter_dropdown.selected = maxi(state_cycle.find(b.separator_filter_value), 0)
+			else:
+				_detail_filter_dropdown.selected = b.separator_filter_value
+		elif def.producer and def.producer.max_tier > 1:
+			_detail_filter_dropdown.selected = b.selected_tier - 1
 
 	# Upgrade section
 	if def.upgrade == null:
@@ -523,3 +615,53 @@ func _style_cell(cell: PanelContainer, accent_color: Color) -> void:
 	cell.mouse_exited.connect(func() -> void:
 		cell.add_theme_stylebox_override("panel", normal_style)
 	)
+
+
+func _populate_filter_dropdown(building: Node2D) -> void:
+	_detail_filter_dropdown.clear()
+	var def: BuildingDefinition = building.definition
+	if def.classifier:
+		_detail_filter_container.visible = true
+		_detail_filter_label.text = "Content Filter:"
+		for i in range(6):
+			_detail_filter_dropdown.add_item(DataEnums.content_name(i), i)
+		_detail_filter_dropdown.selected = building.classifier_filter_content
+	elif def.processor and def.processor.rule == "separator":
+		_detail_filter_container.visible = true
+		if building.separator_mode == "state":
+			_detail_filter_label.text = "State Filter:"
+			var state_cycle: Array[int] = [0, 1, 2, 4]
+			for s in state_cycle:
+				_detail_filter_dropdown.add_item(DataEnums.state_name(s), s)
+			# Find the dropdown index for current value
+			var sel_idx: int = state_cycle.find(building.separator_filter_value)
+			_detail_filter_dropdown.selected = maxi(sel_idx, 0)
+		else:
+			_detail_filter_label.text = "Content Filter:"
+			for i in range(6):
+				_detail_filter_dropdown.add_item(DataEnums.content_name(i), i)
+			_detail_filter_dropdown.selected = building.separator_filter_value
+	elif def.producer and def.producer.max_tier > 1:
+		_detail_filter_container.visible = true
+		_detail_filter_label.text = "Tier:"
+		var tier_names: Array[String] = ["T1 Key", "T2 Strong Key", "T3 Master Key"]
+		for t in range(1, def.producer.max_tier + 1):
+			var label: String = tier_names[t - 1] if t <= tier_names.size() else "T%d Key" % t
+			_detail_filter_dropdown.add_item(label, t)
+		_detail_filter_dropdown.selected = building.selected_tier - 1
+	else:
+		_detail_filter_container.visible = false
+
+
+func _on_filter_selected(index: int) -> void:
+	if _selected_building == null or _selected_building.definition == null:
+		return
+	var def: BuildingDefinition = _selected_building.definition
+	var id: int = _detail_filter_dropdown.get_item_id(index)
+	if def.classifier:
+		_selected_building.classifier_filter_content = id
+	elif def.processor and def.processor.rule == "separator":
+		_selected_building.separator_filter_value = id
+	elif def.producer and def.producer.max_tier > 1:
+		_selected_building.selected_tier = id
+	_update_detail()

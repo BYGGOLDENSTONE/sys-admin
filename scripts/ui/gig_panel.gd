@@ -116,6 +116,7 @@ func _build_ui() -> void:
 	title_btn.add_theme_font_size_override("font_size", 16)
 	title_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	title_btn.mouse_filter = Control.MOUSE_FILTER_STOP
+	title_btn.focus_mode = Control.FOCUS_NONE
 	title_btn.pressed.connect(_toggle_expanded)
 	vbox.add_child(title_btn)
 	_title_btn = title_btn
@@ -184,6 +185,7 @@ func _create_tab_btn(label: String, tab_idx: int) -> Button:
 	btn.add_theme_font_size_override("font_size", 13)
 	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	btn.mouse_filter = Control.MOUSE_FILTER_STOP
+	btn.focus_mode = Control.FOCUS_NONE
 	btn.pressed.connect(_switch_tab.bind(tab_idx))
 	# Style will be applied by _update_tab_visuals
 	return btn

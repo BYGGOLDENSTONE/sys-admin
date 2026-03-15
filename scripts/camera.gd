@@ -37,6 +37,7 @@ func set_post_material(mat: ShaderMaterial) -> void:
 func _process(delta: float) -> void:
 	_handle_keyboard_pan(delta)
 	_smooth_zoom(delta)
+	_smooth_center(delta)
 
 	if _trauma > 0.0:
 		_noise_y += delta * 60.0
@@ -59,6 +60,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		_handle_mouse_button(event)
 	elif event is InputEventMouseMotion and _is_dragging:
+		_centering = false
 		position -= event.relative / zoom
 
 
@@ -73,6 +75,7 @@ func _handle_keyboard_pan(delta: float) -> void:
 	if Input.is_key_pressed(KEY_D) or Input.is_key_pressed(KEY_RIGHT):
 		direction.x += 1
 	if direction != Vector2.ZERO:
+		_centering = false
 		position += direction.normalized() * PAN_SPEED * delta / zoom.x
 
 
@@ -88,3 +91,19 @@ func _handle_mouse_button(event: InputEventMouseButton) -> void:
 func _smooth_zoom(delta: float) -> void:
 	var new_zoom := lerpf(zoom.x, _target_zoom, SMOOTH_FACTOR * delta)
 	zoom = Vector2(new_zoom, new_zoom)
+
+
+var _center_target: Vector2 = Vector2.ZERO
+var _centering: bool = false
+
+func center_on(world_pos: Vector2) -> void:
+	_center_target = world_pos
+	_centering = true
+
+func _smooth_center(delta: float) -> void:
+	if not _centering:
+		return
+	position = position.lerp(_center_target, SMOOTH_FACTOR * delta)
+	if position.distance_to(_center_target) < 1.0:
+		position = _center_target
+		_centering = false

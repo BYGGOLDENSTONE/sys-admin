@@ -46,6 +46,12 @@ var _removal_flash_times: Array[float] = []
 var _removal_flash_colors: Array[Color] = []
 const REMOVAL_FLASH_DURATION: float = 0.4
 
+# Box selection overlay (set by BuildingManager)
+var box_select_active: bool = false
+var box_select_start: Vector2 = Vector2.ZERO
+var box_select_end: Vector2 = Vector2.ZERO
+var selected_buildings: Array = []  ## Array[Node2D] — buildings with box selection highlight
+
 # --- TRANSIT ITEM MULTIMESH (batch rendering) ---
 var _transit_mm: MultiMesh = null
 var _transit_mm_node: MultiMeshInstance2D = null
@@ -185,6 +191,21 @@ func _draw() -> void:
 			var rw: float = CABLE_WIDTH * 3.0 * rt
 			draw_polyline(rpoints, Color(rcol, rt * 0.6), maxf(1.0, rw), true)
 			draw_polyline(rpoints, Color(1.0, 1.0, 1.0, rt * 0.3), maxf(1.0, rw * 0.4), true)
+
+	# Box selection rectangle
+	if box_select_active:
+		var min_pos := Vector2(minf(box_select_start.x, box_select_end.x), minf(box_select_start.y, box_select_end.y))
+		var max_pos := Vector2(maxf(box_select_start.x, box_select_end.x), maxf(box_select_start.y, box_select_end.y))
+		var rect_pos: Vector2 = to_local(min_pos)
+		var rect_size: Vector2 = max_pos - min_pos
+		draw_rect(Rect2(rect_pos, rect_size), Color(0.3, 0.7, 1.0, 0.15), true)
+		draw_rect(Rect2(rect_pos, rect_size), Color(0.3, 0.7, 1.0, 0.6), false, 2.0)
+	# Selection highlight for box-selected buildings
+	for b in selected_buildings:
+		if is_instance_valid(b):
+			var bpos: Vector2 = to_local(b.global_position)
+			var bsize := Vector2(b.definition.grid_size.x * TILE_SIZE, b.definition.grid_size.y * TILE_SIZE)
+			draw_rect(Rect2(bpos, bsize), Color(0.3, 0.7, 1.0, 0.1), true)
 
 	# Performance monitoring
 	PerfMonitor.conn_draw_us = Time.get_ticks_usec() - _draw_t0

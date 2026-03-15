@@ -213,6 +213,12 @@ WebSocket port 6505 | Godot editorde "MCP Connected" (yesil) olmali
 - Event-based logla, tick-based log BASMA
 - Format: `[SistemAdi] Olay — deger`
 
+### UI Guncelleme Kurali
+- **_process() icinde UI guncelleme YAPMA** — sinyal/event tabanli guncelle
+- Tooltip, panel, stats gibi UI'lar `tick_completed` veya ozel sinyal ile refresh edilmeli
+- Minimap gibi surekli cizim gereken UI'larda throttle kullan (ornegin 10 FPS)
+- Her frame string olusturma, RichTextLabel.text atama gibi islemler YASAK
+
 ### Kurallar
 - **OYUN DILI INGILIZCE** - Tum user-facing text Ingilizce. Turkce string YAZMA.
 - Kullanici teknik degil - ne/neden acikla, kod detayi verme

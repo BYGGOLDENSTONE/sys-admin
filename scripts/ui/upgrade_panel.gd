@@ -139,10 +139,9 @@ func hide_panel() -> void:
 	_show_tween.tween_callback(func(): visible = false)
 
 
-func _process(_delta: float) -> void:
-	if not visible or _building == null:
-		return
-	_update_display()
+func refresh() -> void:
+	if visible and _building != null:
+		_update_display()
 
 
 func _update_display() -> void:

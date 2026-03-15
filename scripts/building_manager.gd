@@ -8,8 +8,9 @@ signal building_selected(building: Node2D)
 signal building_deselected()
 signal source_hovered(source: Node2D)
 signal source_unhovered()
+signal building_state_changed()
 
-enum State { IDLE, PLACING, CONNECTING, MOVING }
+enum State { IDLE, PLACING, CONNECTING, MOVING, BOX_SELECTING, COPYING }
 
 @onready var grid_system: Node2D = $"../GridSystem"
 @onready var building_container: Node2D = $"../BuildingContainer"
@@ -32,6 +33,7 @@ var _selected_building: Node2D = null
 # Connecting state
 var _connecting_from_building: Node2D = null
 var _connecting_from_port: String = ""
+var _connecting_reversed: bool = false  ## True when cable started from input port
 var _cable_path: Array[Vector2i] = []  ## Vertex-based path built manually
 var _start_vertices: Array[Vector2i] = []  ## Two possible starting vertices near port
 var _start_initialized: bool = false
@@ -40,6 +42,17 @@ var _last_mouse_vertex: Vector2i = Vector2i(-9999, -9999)  ## Track mouse grid p
 # Moving state
 var _moving_building: Node2D = null
 var _moving_original_cell: Vector2i = Vector2i.ZERO
+
+# Box selection state
+var _box_start_world: Vector2 = Vector2.ZERO
+var _box_end_world: Vector2 = Vector2.ZERO
+var _selected_buildings: Array[Node2D] = []
+var _selected_connections: Array[Dictionary] = []  ## {from_cell, from_port, to_cell, to_port, path}
+
+# Copy/paste state
+var _copy_buffer: Array[Dictionary] = []  ## [{definition, offset, direction, mirror_h, mirror_v, ...}]
+var _copy_connections: Array[Dictionary] = []  ## [{from_offset, from_port, to_offset, to_port, path_offsets}]
+var _copy_anchor: Vector2i = Vector2i.ZERO  ## Anchor cell for paste preview
 
 # Exempt cells for cable routing (cells near port exit vertices)
 var _cable_exempt_cells: Dictionary = {}
@@ -80,6 +93,7 @@ func _cancel_connecting() -> void:
 	_state = State.IDLE
 	_connecting_from_building = null
 	_connecting_from_port = ""
+	_connecting_reversed = false
 	_cable_path.clear()
 	_start_vertices.clear()
 	_start_initialized = false
@@ -101,6 +115,10 @@ func _unhandled_input(event: InputEvent) -> void:
 			_handle_connecting_input(event)
 		State.MOVING:
 			_handle_moving_input(event)
+		State.BOX_SELECTING:
+			_handle_box_selecting_input(event)
+		State.COPYING:
+			_handle_copying_input(event)
 
 
 func _process(_delta: float) -> void:
@@ -113,11 +131,16 @@ func _process(_delta: float) -> void:
 		_update_manual_routing()
 	elif _state == State.MOVING:
 		_update_move_preview()
+	elif _state == State.BOX_SELECTING:
+		_box_end_world = _get_world_mouse_position()
+		_update_selection_overlay()
+	elif _state == State.COPYING:
+		_update_copy_preview()
 
 
 func _handle_idle_input(event: InputEvent) -> void:
-	# Tab key: cycle filter on selected building (Classifier/Separator)
-	if event is InputEventKey and event.pressed and event.keycode == KEY_TAB:
+	# E key: cycle filter on selected building (Classifier/Separator)
+	if event is InputEventKey and event.pressed and event.keycode == KEY_E:
 		if _selected_building != null:
 			_cycle_building_filter(_selected_building)
 		return
@@ -126,10 +149,27 @@ func _handle_idle_input(event: InputEvent) -> void:
 		if _selected_building != null:
 			_rotate_selected_building()
 		return
-	# T key: mirror selected building horizontally
+	# T key: mirror selected building (T=horizontal, Shift+T=vertical)
 	if event is InputEventKey and event.pressed and event.keycode == KEY_T:
 		if _selected_building != null:
-			_mirror_selected_building()
+			if event.shift_pressed:
+				_mirror_selected_building_v()
+			else:
+				_mirror_selected_building()
+		return
+	# C key: copy selected building(s)
+	if event is InputEventKey and event.pressed and event.keycode == KEY_C:
+		if not _selected_buildings.is_empty():
+			_copy_selection()
+		elif _selected_building != null:
+			_copy_single_building(_selected_building)
+		return
+	# Delete key: delete selected building(s)
+	if event is InputEventKey and event.pressed and event.keycode == KEY_DELETE:
+		if not _selected_buildings.is_empty():
+			_delete_selected_buildings()
+		elif _selected_building != null:
+			_remove_building(_selected_building)
 		return
 	if not (event is InputEventMouseButton and event.pressed):
 		return
@@ -137,6 +177,10 @@ func _handle_idle_input(event: InputEvent) -> void:
 	var world_pos := _get_world_mouse_position()
 
 	if event.button_index == MOUSE_BUTTON_LEFT:
+		# Shift+click: start box selection
+		if Input.is_key_pressed(KEY_SHIFT):
+			_start_box_selection(world_pos)
+			return
 		# Ctrl+click on building: start moving
 		if Input.is_key_pressed(KEY_CTRL):
 			var cell: Vector2i = grid_system.world_to_grid(world_pos)
@@ -148,7 +192,12 @@ func _handle_idle_input(event: InputEvent) -> void:
 		# Check if clicking on an output port
 		var port_info := _find_port_at(world_pos, true)
 		if not port_info.is_empty():
-			_start_connecting(port_info.building, port_info.side)
+			_start_connecting(port_info.building, port_info.side, false)
+			return
+		# Check if clicking on an input port (reversed cable drawing)
+		var input_port_info := _find_port_at(world_pos, false)
+		if not input_port_info.is_empty():
+			_start_connecting(input_port_info.building, input_port_info.side, true)
 			return
 
 		# Click on building: select it
@@ -158,6 +207,8 @@ func _handle_idle_input(event: InputEvent) -> void:
 			_select_building(clicked)
 		else:
 			_deselect_building()
+			_clear_box_selection()
+			_update_selection_overlay()
 
 	elif event.button_index == MOUSE_BUTTON_RIGHT:
 		# Try to delete a cable first
@@ -195,7 +246,10 @@ func _handle_placing_input(event: InputEvent) -> void:
 		ghost_preview.queue_redraw()
 		return
 	if event is InputEventKey and event.pressed and event.keycode == KEY_T:
-		ghost_preview.mirror_h = not ghost_preview.mirror_h
+		if event.shift_pressed:
+			ghost_preview.mirror_v = not ghost_preview.mirror_v
+		else:
+			ghost_preview.mirror_h = not ghost_preview.mirror_h
 		ghost_preview.queue_redraw()
 		return
 	if event is InputEventMouseButton and event.pressed:
@@ -210,11 +264,17 @@ func _handle_placing_input(event: InputEvent) -> void:
 func _handle_connecting_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed:
 		if event.button_index == MOUSE_BUTTON_LEFT:
-			# Only complete connection if clicking on an input port
 			var world_pos := _get_world_mouse_position()
-			var port_info := _find_port_at(world_pos, false)
-			if not port_info.is_empty():
-				_complete_connection(port_info.building, port_info.side)
+			if _connecting_reversed:
+				# Started from input — look for output port to complete
+				var port_info := _find_port_at(world_pos, true)
+				if not port_info.is_empty():
+					_complete_connection_reversed(port_info.building, port_info.side)
+			else:
+				# Started from output — look for input port to complete
+				var port_info := _find_port_at(world_pos, false)
+				if not port_info.is_empty():
+					_complete_connection(port_info.building, port_info.side)
 			# Don't cancel on empty left click — cable follows mouse movement
 		elif event.button_index == MOUSE_BUTTON_RIGHT:
 			_cancel_connecting()
@@ -222,9 +282,10 @@ func _handle_connecting_input(event: InputEvent) -> void:
 		_cancel_connecting()
 
 
-func _start_connecting(building: Node2D, port_side: String) -> void:
+func _start_connecting(building: Node2D, port_side: String, reversed: bool = false) -> void:
 	_connecting_from_building = building
 	_connecting_from_port = port_side
+	_connecting_reversed = reversed
 	_cable_path.clear()
 	_start_initialized = false
 	# Get the two possible starting vertices near the port
@@ -237,7 +298,8 @@ func _start_connecting(building: Node2D, port_side: String) -> void:
 		_hovered_building = null
 		building_unhovered.emit()
 	var from_name: String = building.definition.building_name if building.definition is BuildingDefinition else building.definition.source_name
-	print("[BuildingManager] Connecting from %s.%s" % [from_name, port_side])
+	var dir_label: String = " (from input)" if reversed else ""
+	print("[BuildingManager] Connecting from %s.%s%s" % [from_name, port_side, dir_label])
 
 
 func _complete_connection(to_building: Node2D, to_port: String) -> void:
@@ -324,6 +386,99 @@ func _complete_connection(to_building: Node2D, to_port: String) -> void:
 		connection_layer.preview_active = false
 		connection_layer.play_connection_flash(to_building)
 	# Camera shake feedback on cable connection
+	var cam: Camera2D = get_viewport().get_camera_2d()
+	if cam and cam.has_method("add_trauma"):
+		cam.add_trauma(0.08)
+
+
+func _complete_connection_reversed(output_building: Node2D, output_port: String) -> void:
+	## Complete a cable that was started from an INPUT port.
+	## The visual path goes input→output, but the connection is stored output→input.
+	if connection_manager == null or _cable_path.size() < 2:
+		_cancel_connecting()
+		return
+	# Target is the output port we just clicked
+	var target_verts: Array[Vector2i] = connection_manager.get_port_exit_vertices(output_building, output_port)
+	if target_verts.is_empty():
+		_cancel_connecting()
+		return
+	# Combine exempt cells
+	var combined_exempt: Dictionary = _cable_exempt_cells.duplicate()
+	var to_exempt: Dictionary = _compute_port_exempt_cells(output_building, output_port)
+	for cell in to_exempt:
+		combined_exempt[cell] = true
+	# Truncate + snap (same logic as forward connection)
+	for tv in target_verts:
+		var idx: int = _cable_path.find(tv)
+		if idx >= 1:
+			_cable_path.resize(idx + 1)
+			break
+	var last_v: Vector2i = _cable_path[_cable_path.size() - 1]
+	if not (last_v in target_verts):
+		var best: Vector2i = target_verts[0]
+		var best_dist: int = absi(last_v.x - best.x) + absi(last_v.y - best.y)
+		for tv in target_verts:
+			var d: int = absi(last_v.x - tv.x) + absi(last_v.y - tv.y)
+			if d < best_dist:
+				best_dist = d
+				best = tv
+		if best_dist <= 3:
+			var snap_path: Array[Vector2i] = _find_snap_path(last_v, best, combined_exempt, 3)
+			if not snap_path.is_empty():
+				for sv in snap_path:
+					_cable_path.append(sv)
+		last_v = _cable_path[_cable_path.size() - 1]
+		if not (last_v in target_verts):
+			for tv in target_verts:
+				if tv == last_v:
+					continue
+				var td: int = absi(last_v.x - tv.x) + absi(last_v.y - tv.y)
+				if td <= 3:
+					var snap_path2: Array[Vector2i] = _find_snap_path(last_v, tv, combined_exempt, 3)
+					if not snap_path2.is_empty():
+						for sv in snap_path2:
+							_cable_path.append(sv)
+						break
+	last_v = _cable_path[_cable_path.size() - 1]
+	if not (last_v in target_verts):
+		print("[BuildingManager] Cable must reach port — path end %s, targets %s" % [last_v, target_verts])
+		_cancel_connecting()
+		return
+	# Validate path
+	if _cable_path.size() < 2 or not connection_manager.is_path_valid(_cable_path, combined_exempt):
+		print("[BuildingManager] Cannot route cable — path invalid")
+		_cancel_connecting()
+		return
+	# REVERSE: connection is stored as output→input, path is reversed
+	var reversed_path: Array[Vector2i] = []
+	for i in range(_cable_path.size() - 1, -1, -1):
+		reversed_path.append(_cable_path[i])
+	# output_building.output_port → _connecting_from_building._connecting_from_port
+	var added: bool = connection_manager.add_connection(
+		output_building, output_port, _connecting_from_building, _connecting_from_port, reversed_path
+	)
+	if added and undo_manager and not undo_manager.is_undoing:
+		undo_manager.push_command({
+			type = "add_connection",
+			from_cell = output_building.grid_cell,
+			from_port = output_port,
+			to_cell = _connecting_from_building.grid_cell,
+			to_port = _connecting_from_port,
+			path = reversed_path.duplicate(),
+		})
+	var input_building: Node2D = _connecting_from_building
+	_state = State.IDLE
+	_connecting_from_building = null
+	_connecting_from_port = ""
+	_connecting_reversed = false
+	_cable_path.clear()
+	_start_vertices.clear()
+	_start_initialized = false
+	_last_mouse_vertex = Vector2i(-9999, -9999)
+	_cable_exempt_cells.clear()
+	if connection_layer:
+		connection_layer.preview_active = false
+		connection_layer.play_connection_flash(input_building if input_building else output_building)
 	var cam: Camera2D = get_viewport().get_camera_2d()
 	if cam and cam.has_method("add_trauma"):
 		cam.add_trauma(0.08)
@@ -562,13 +717,13 @@ func _clear_cable_hover() -> void:
 
 func _place_building() -> void:
 	var building: Node2D = _building_scene.instantiate()
-	building.setup(_current_definition, _ghost_cell, ghost_preview.direction, ghost_preview.mirror_h)
+	building.setup(_current_definition, _ghost_cell, ghost_preview.direction, ghost_preview.mirror_h, ghost_preview.mirror_v)
 	building.position = grid_system.grid_to_world(_ghost_cell)
 	building_container.add_child(building)
 	grid_system.occupy(_ghost_cell, _current_definition.grid_size, building)
 	building_placed.emit(building, _ghost_cell)
 	if undo_manager and not undo_manager.is_undoing:
-		undo_manager.push_command({type = "place", definition = _current_definition, cell = _ghost_cell, direction = ghost_preview.direction, mirror_h = ghost_preview.mirror_h})
+		undo_manager.push_command({type = "place", definition = _current_definition, cell = _ghost_cell, direction = ghost_preview.direction, mirror_h = ghost_preview.mirror_h, mirror_v = ghost_preview.mirror_v})
 	print("[BuildingManager] Building placed — %s at (%d,%d)" % [
 		_current_definition.building_name, _ghost_cell.x, _ghost_cell.y
 	])
@@ -591,6 +746,7 @@ func _remove_building(building: Node2D) -> void:
 			cell = cell,
 			direction = building.direction,
 			mirror_h = building.mirror_h,
+			mirror_v = building.mirror_v,
 			upgrade_level = building.upgrade_level,
 			classifier_filter_content = building.classifier_filter_content,
 			separator_mode = building.separator_mode,
@@ -632,6 +788,8 @@ func _select_building(building: Node2D) -> void:
 	if building == _selected_building:
 		return
 	_deselect_building()
+	_clear_box_selection()
+	_update_selection_overlay()
 	_selected_building = building
 	building.is_selected = true
 	building_selected.emit(building)
@@ -667,6 +825,7 @@ func _cycle_building_filter(building: Node2D) -> void:
 		var tier_names: Array[String] = ["T1 Key", "T2 Strong Key", "T3 Master Key"]
 		var label: String = tier_names[building.selected_tier - 1] if building.selected_tier <= tier_names.size() else "T%d Key" % building.selected_tier
 		print("[BuildingManager] %s tier → %s" % [def.building_name, label])
+	building_state_changed.emit()
 
 
 func _rotate_selected_building() -> void:
@@ -723,6 +882,30 @@ func _mirror_selected_building() -> void:
 			connections = saved_conns,
 		})
 	print("[BuildingManager] Mirrored — %s mirror_h=%s" % [building.definition.building_name, str(new_mirror)])
+
+
+func _mirror_selected_building_v() -> void:
+	var building: Node2D = _selected_building
+	if not building.definition.is_placeable:
+		return
+	var old_mirror: bool = building.mirror_v
+	var new_mirror: bool = not old_mirror
+	var saved_conns: Array[Dictionary] = []
+	if undo_manager:
+		saved_conns = undo_manager.get_connections_for_building(building)
+	if connection_manager:
+		connection_manager.remove_connections_for(building, building.grid_cell)
+	building.mirror_v = new_mirror
+	building.queue_redraw()
+	if undo_manager and not undo_manager.is_undoing:
+		undo_manager.push_command({
+			type = "mirror_v",
+			cell = building.grid_cell,
+			old_mirror_v = old_mirror,
+			new_mirror_v = new_mirror,
+			connections = saved_conns,
+		})
+	print("[BuildingManager] Mirrored — %s mirror_v=%s" % [building.definition.building_name, str(new_mirror)])
 
 
 ## Programmatic API (AutoPlayManager ve test sistemleri icin)
@@ -837,3 +1020,264 @@ func _cancel_moving() -> void:
 
 func _get_world_mouse_position() -> Vector2:
 	return get_viewport().get_canvas_transform().affine_inverse() * get_viewport().get_mouse_position()
+
+
+## --- BOX SELECTION ---
+
+func _start_box_selection(world_pos: Vector2) -> void:
+	_box_start_world = world_pos
+	_box_end_world = world_pos
+	_deselect_building()
+	_clear_box_selection()
+	_state = State.BOX_SELECTING
+	print("[BuildingManager] Box selection started")
+
+
+func _handle_box_selecting_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.pressed:
+		if event.button_index == MOUSE_BUTTON_LEFT:
+			# Complete box selection
+			_complete_box_selection()
+		elif event.button_index == MOUSE_BUTTON_RIGHT:
+			_cancel_box_selection()
+	elif event is InputEventMouseButton and not event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		_complete_box_selection()
+
+
+func _complete_box_selection() -> void:
+	var min_world := Vector2(minf(_box_start_world.x, _box_end_world.x), minf(_box_start_world.y, _box_end_world.y))
+	var max_world := Vector2(maxf(_box_start_world.x, _box_end_world.x), maxf(_box_start_world.y, _box_end_world.y))
+	var min_cell: Vector2i = grid_system.world_to_grid(min_world)
+	var max_cell: Vector2i = grid_system.world_to_grid(max_world)
+	# Find all buildings within the box
+	_selected_buildings.clear()
+	var selected_set: Dictionary = {}  # building → true for fast lookup
+	for building in building_container.get_children():
+		if not building.has_method("is_active"):
+			continue
+		var cell: Vector2i = building.grid_cell
+		var bsize: Vector2i = building.definition.grid_size
+		# Check if building overlaps with box
+		if cell.x + bsize.x > min_cell.x and cell.x <= max_cell.x \
+				and cell.y + bsize.y > min_cell.y and cell.y <= max_cell.y:
+			_selected_buildings.append(building)
+			selected_set[building] = true
+			building.is_selected = true
+	# Find connections between selected buildings
+	_selected_connections.clear()
+	if connection_manager:
+		for conn in connection_manager.get_connections():
+			if not is_instance_valid(conn.from_building) or not is_instance_valid(conn.to_building):
+				continue
+			if selected_set.has(conn.from_building) and selected_set.has(conn.to_building):
+				_selected_connections.append({
+					"from_cell": conn.from_building.grid_cell,
+					"from_port": conn.from_port,
+					"to_cell": conn.to_building.grid_cell,
+					"to_port": conn.to_port,
+					"path": conn.path.duplicate(),
+				})
+	_state = State.IDLE
+	_update_selection_overlay()
+	print("[BuildingManager] Box selected — %d buildings, %d cables" % [_selected_buildings.size(), _selected_connections.size()])
+
+
+func _cancel_box_selection() -> void:
+	_clear_box_selection()
+	_state = State.IDLE
+	_update_selection_overlay()
+	print("[BuildingManager] Box selection cancelled")
+
+
+func _clear_box_selection() -> void:
+	for b in _selected_buildings:
+		if is_instance_valid(b):
+			b.is_selected = false
+	_selected_buildings.clear()
+	_selected_connections.clear()
+
+
+func _delete_selected_buildings() -> void:
+	var buildings_copy: Array[Node2D] = _selected_buildings.duplicate()
+	_clear_box_selection()
+	for building in buildings_copy:
+		if is_instance_valid(building):
+			_remove_building(building)
+	print("[BuildingManager] Deleted %d buildings" % buildings_copy.size())
+
+
+func _update_selection_overlay() -> void:
+	if connection_layer == null:
+		return
+	if _state == State.BOX_SELECTING:
+		connection_layer.box_select_start = _box_start_world
+		connection_layer.box_select_end = _box_end_world
+		connection_layer.box_select_active = true
+	else:
+		connection_layer.box_select_active = false
+	connection_layer.selected_buildings = _selected_buildings
+	connection_layer.queue_redraw()
+
+
+## --- COPY / PASTE ---
+
+func _copy_single_building(building: Node2D) -> void:
+	_copy_buffer.clear()
+	_copy_connections.clear()
+	_copy_buffer.append({
+		"definition": building.definition,
+		"offset": Vector2i.ZERO,
+		"direction": building.direction,
+		"mirror_h": building.mirror_h,
+		"mirror_v": building.mirror_v,
+		"classifier_filter_content": building.classifier_filter_content,
+		"separator_mode": building.separator_mode,
+		"separator_filter_value": building.separator_filter_value,
+		"selected_tier": building.selected_tier,
+	})
+	_start_paste_mode()
+	print("[BuildingManager] Copied 1 building")
+
+
+func _copy_selection() -> void:
+	if _selected_buildings.is_empty():
+		return
+	_copy_buffer.clear()
+	_copy_connections.clear()
+	# Use first building as anchor
+	var anchor_cell: Vector2i = _selected_buildings[0].grid_cell
+	for building in _selected_buildings:
+		if not is_instance_valid(building):
+			continue
+		_copy_buffer.append({
+			"definition": building.definition,
+			"offset": building.grid_cell - anchor_cell,
+			"direction": building.direction,
+			"mirror_h": building.mirror_h,
+			"mirror_v": building.mirror_v,
+			"classifier_filter_content": building.classifier_filter_content,
+			"separator_mode": building.separator_mode,
+			"separator_filter_value": building.separator_filter_value,
+			"selected_tier": building.selected_tier,
+		})
+	# Copy connections (store offsets relative to anchor)
+	for conn in _selected_connections:
+		var path_offsets: Array[Vector2i] = []
+		for v in conn.path:
+			path_offsets.append(v - anchor_cell)
+		_copy_connections.append({
+			"from_offset": conn.from_cell - anchor_cell,
+			"from_port": conn.from_port,
+			"to_offset": conn.to_cell - anchor_cell,
+			"to_port": conn.to_port,
+			"path_offsets": path_offsets,
+		})
+	_start_paste_mode()
+	print("[BuildingManager] Copied %d buildings, %d cables" % [_copy_buffer.size(), _copy_connections.size()])
+
+
+func _start_paste_mode() -> void:
+	_clear_box_selection()
+	_deselect_building()
+	_state = State.COPYING
+	# Show ghost for first building
+	if not _copy_buffer.is_empty():
+		var first := _copy_buffer[0]
+		ghost_preview.visible = true
+		ghost_preview._is_ghost = true
+		ghost_preview.setup(first.definition, Vector2i.ZERO, first.direction, first.mirror_h, first.mirror_v)
+	print("[BuildingManager] Paste mode — click to place, right-click to cancel")
+
+
+func _handle_copying_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.pressed:
+		if event.button_index == MOUSE_BUTTON_LEFT:
+			_paste_buildings()
+		elif event.button_index == MOUSE_BUTTON_RIGHT:
+			_cancel_copying()
+
+
+func _update_copy_preview() -> void:
+	var world_pos := _get_world_mouse_position()
+	_copy_anchor = grid_system.world_to_grid(world_pos)
+	# Update ghost for visual feedback
+	if ghost_preview.visible and not _copy_buffer.is_empty():
+		ghost_preview.position = grid_system.grid_to_world(_copy_anchor)
+		ghost_preview.grid_cell = _copy_anchor
+		# Check if ALL buildings can be placed
+		var can_place_all: bool = true
+		for entry in _copy_buffer:
+			var target_cell: Vector2i = _copy_anchor + entry.offset
+			if not grid_system.can_place(target_cell, entry.definition.grid_size):
+				can_place_all = false
+				break
+		ghost_preview.modulate = VALID_COLOR if can_place_all else INVALID_COLOR
+
+
+func _paste_buildings() -> void:
+	# Check all can be placed
+	for entry in _copy_buffer:
+		var target_cell: Vector2i = _copy_anchor + entry.offset
+		if not grid_system.can_place(target_cell, entry.definition.grid_size):
+			print("[BuildingManager] Cannot paste — blocked at (%d,%d)" % [target_cell.x, target_cell.y])
+			return
+	# Place all buildings
+	var placed: Dictionary = {}  # offset → building (for connection restoration)
+	for entry in _copy_buffer:
+		var target_cell: Vector2i = _copy_anchor + entry.offset
+		var building: Node2D = _building_scene.instantiate()
+		building.setup(entry.definition, target_cell, entry.direction, entry.mirror_h, entry.mirror_v)
+		building.position = grid_system.grid_to_world(target_cell)
+		building_container.add_child(building)
+		grid_system.occupy(target_cell, entry.definition.grid_size, building)
+		building_placed.emit(building, target_cell)
+		building.classifier_filter_content = entry.classifier_filter_content
+		building.separator_mode = entry.separator_mode
+		building.separator_filter_value = entry.separator_filter_value
+		building.selected_tier = entry.selected_tier
+		placed[entry.offset] = building
+		if undo_manager and not undo_manager.is_undoing:
+			undo_manager.push_command({
+				type = "place",
+				definition = entry.definition,
+				cell = target_cell,
+				direction = entry.direction,
+				mirror_h = entry.mirror_h,
+				mirror_v = entry.mirror_v,
+			})
+	# Restore connections
+	for conn_data in _copy_connections:
+		var from_cell: Vector2i = _copy_anchor + conn_data.from_offset
+		var to_cell: Vector2i = _copy_anchor + conn_data.to_offset
+		var abs_path: Array[Vector2i] = []
+		for v in conn_data.path_offsets:
+			abs_path.append(_copy_anchor + v)
+		if connection_manager:
+			var from_b: Node2D = grid_system.get_building_at(from_cell)
+			var to_b: Node2D = grid_system.get_building_at(to_cell)
+			if from_b == null:
+				from_b = grid_system.get_source_at(from_cell)
+			if to_b == null:
+				to_b = grid_system.get_source_at(to_cell)
+			if from_b and to_b and connection_manager.is_path_valid(abs_path, {}):
+				var added: bool = connection_manager.add_connection(from_b, conn_data.from_port, to_b, conn_data.to_port, abs_path)
+				if added and undo_manager and not undo_manager.is_undoing:
+					undo_manager.push_command({
+						type = "add_connection",
+						from_cell = from_cell,
+						from_port = conn_data.from_port,
+						to_cell = to_cell,
+						to_port = conn_data.to_port,
+						path = abs_path.duplicate(),
+					})
+	print("[BuildingManager] Pasted %d buildings" % placed.size())
+	# Stay in copy mode for multi-paste (right-click to exit)
+
+
+func _cancel_copying() -> void:
+	_state = State.IDLE
+	_copy_buffer.clear()
+	_copy_connections.clear()
+	ghost_preview.visible = false
+	_update_selection_overlay()
+	print("[BuildingManager] Copy/paste cancelled")

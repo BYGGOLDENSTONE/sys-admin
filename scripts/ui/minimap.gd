@@ -21,8 +21,14 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 
 
-func _process(_delta: float) -> void:
-	queue_redraw()
+var _redraw_timer: float = 0.0
+const REDRAW_INTERVAL: float = 0.1  # 10 FPS for minimap
+
+func _process(delta: float) -> void:
+	_redraw_timer += delta
+	if _redraw_timer >= REDRAW_INTERVAL:
+		_redraw_timer = 0.0
+		queue_redraw()
 
 
 func _draw() -> void:

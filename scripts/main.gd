@@ -85,6 +85,8 @@ func _ready() -> void:
 	building_panel.setup_detail(simulation_manager)
 	building_manager.building_selected.connect(building_panel.show_building_detail)
 	building_manager.building_deselected.connect(building_panel.hide_building_detail)
+	building_manager.building_state_changed.connect(building_panel.refresh_detail)
+	building_manager.building_state_changed.connect(_tooltip.refresh)
 
 	# Setup gig manager
 	_setup_gig_manager()
@@ -282,6 +284,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		KEY_G:
 			if _gig_panel:
 				_gig_panel.toggle()
+		KEY_Q:
+			# Center camera on Contract Terminal
+			camera.center_on(Vector2(256 * 64 + 64, 256 * 64 + 64))
 
 
 func _run_benchmark(auto_report: bool = false) -> void:
@@ -354,19 +359,26 @@ func _update_shortcut_hints() -> void:
 	var bm_state: int = building_manager._state if building_manager else 0
 	match bm_state:
 		1:  # PLACING
-			ctx = "LMB Place | RMB Cancel | R Rotate | T Mirror"
+			ctx = "LMB Place | RMB Cancel | R Rotate | T Mirror | Shift+T V-Mirror"
 		2:  # CONNECTING
 			ctx = "LMB Connect | RMB Cancel"
 		3:  # MOVING
 			ctx = "LMB Place | RMB Cancel"
+		4:  # BOX_SELECTING
+			ctx = "Release to Select | RMB Cancel"
+		5:  # COPYING
+			ctx = "LMB Paste | RMB Cancel"
 		_:  # IDLE
 			var has_sel: bool = building_manager._selected_building != null if building_manager else false
-			if has_sel:
-				ctx = "R Rotate | T Mirror | Tab Filter | Ctrl+LMB Move | RMB Delete"
+			var has_multi: bool = not building_manager._selected_buildings.is_empty() if building_manager else false
+			if has_multi:
+				ctx = "C Copy | Del Delete | Shift+Drag Re-select"
+			elif has_sel:
+				ctx = "R Rotate | T Mirror | Shift+T V-Mirror | E Filter | C Copy | Ctrl+LMB Move | RMB Delete"
 			else:
-				ctx = "LMB Select | RMB Delete | Ctrl+LMB Move"
+				ctx = "LMB Select | RMB Delete | Ctrl+LMB Move | Shift+Drag Select"
 	var line1: String = ctx
-	var line2: String = "Esc Menu | Space Pause | 1-3 Speed | G Contracts | Ctrl+S Save | Ctrl+Z Undo | F7 Bench | H Hide"
+	var line2: String = "Esc Menu | Space Pause | 1-3 Speed | G Contracts | Q Center | Ctrl+S Save | Ctrl+Z Undo | H Hide"
 	_shortcut_hints.text = line1 + "\n" + line2
 	# Re-center after text change
 	call_deferred("_center_shortcut_panel")
@@ -401,6 +413,7 @@ func _setup_gig_manager() -> void:
 	_gig_manager.gig_progress_updated.connect(_on_gig_progress_sound)
 	# Process deliveries after each simulation tick
 	simulation_manager.tick_completed.connect(_on_tick_for_gig)
+	simulation_manager.tick_completed.connect(_on_tick_refresh_ui)
 	# NOTE: initialize() is called later — after load check in _ready()
 
 
@@ -460,6 +473,11 @@ func _find_clear_cell(center: Vector2i, building_size: Vector2i) -> Vector2i:
 func _on_tick_for_gig(_tick_count: int) -> void:
 	if _gig_manager:
 		_gig_manager.process_deliveries()
+
+
+func _on_tick_refresh_ui(_tick_count: int) -> void:
+	_tooltip.refresh()
+	building_panel.refresh_detail()
 
 
 func _on_gig_completed(gig) -> void:
