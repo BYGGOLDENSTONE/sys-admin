@@ -134,7 +134,8 @@ Asagidaki kararlar **scope lock** kabul edilir. Claude Code bu kararlarla celise
 - [x] Tum UI/tooltip/hint referanslari guncellendi
 - [ ] Ard arda undo yapilinca engine crash — undo stack guvenli hale getirilmeli
 - [x] Save slot sistemi — 5 slot, slot_N.json + slot_N_auto.json
-- [x] Ana menude slot listesi — dolu slotlar seed+tarih, bos slotlar "New Game"
+- [x] Ana menu: New Game (oto bos slot) + Load Game (slot listesi + silme) + Give Feedback
+- [x] Tarih formati okunabilir: "Mar 15, 2026 — 6:34 AM"
 - [ ] Son dokunuslar
 - [ ] **GDD.md guncelle** — Tum fazlar bittikten sonra, leftover kod kalmasin diye en son GDD v4.0 olarak yazilacak
 
