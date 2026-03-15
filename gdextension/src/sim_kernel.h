@@ -8,6 +8,7 @@
 #include <godot_cpp/variant/string.hpp>
 #include <vector>
 #include <unordered_map>
+#include "packed_key.h"
 
 namespace godot {
 
@@ -18,9 +19,6 @@ protected:
     static void _bind_methods();
 
 public:
-    // Packed key layout: (content << 12) | (state << 8) | (tier << 4) | tags
-    static constexpr int PACK_PACKET_BIT = 1 << 16;
-
     // Building processing types
     static constexpr int BTYPE_NONE       = 0;
     static constexpr int BTYPE_CLASSIFIER = 1;
@@ -29,7 +27,7 @@ public:
     static constexpr int BTYPE_MERGER     = 4;
     static constexpr int BTYPE_TRASH      = 5;
     static constexpr int BTYPE_PRODUCER   = 6;
-    static constexpr int BTYPE_COMPILER   = 8;
+    // BTYPE 7-8 reserved (Compiler removed in v4)
     static constexpr int BTYPE_STORAGE    = 9;
     static constexpr int BTYPE_DUAL_INPUT = 10; // storage-based dual-input
     static constexpr int BTYPE_INLINE     = 11; // cable rendezvous (storageless)
@@ -109,14 +107,7 @@ private:
     std::unordered_map<int64_t, std::vector<int>> _g_conn_to;
     Dictionary _g_output_ports_raw; // bid → {port_name → conn_idx} — kept as Godot Dictionary for String key compat
 
-    // --- Internal helpers ---
-    static inline int unpack_content(int64_t k) { return (int)((k >> 12) & 0xF); }
-    static inline int unpack_state(int64_t k)   { return (int)((k >> 8) & 0xF); }
-    static inline int unpack_tier(int64_t k)    { return (int)((k >> 4) & 0xF); }
-    static inline int unpack_tags(int64_t k)    { return (int)(k & 0xF); }
-    static inline int pack_key(int c, int s, int t, int tg) { return (c << 12) | (s << 8) | (t << 4) | tg; }
-    static inline bool is_packet(int64_t k) { return (k & PACK_PACKET_BIT) != 0; }
-
+    // --- Internal helpers (packed key ops in packed_key.h) ---
     bool _is_stalled(Array &conns, int ci);
     int _push_to_transit(Array &conns, int64_t from_bid, int packed_key, int amount,
                          const String &from_port, Array &ct_pushes);

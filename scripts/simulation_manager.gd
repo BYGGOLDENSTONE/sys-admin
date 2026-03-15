@@ -85,6 +85,7 @@ func _rebuild_conn_cache() -> void:
 			continue
 		var from_id: int = conn.from_building.get_instance_id()
 		var to_id: int = conn.to_building.get_instance_id()
+		conn["from_bid"] = from_id  # Pre-computed for safe C++ access (avoids raw Object* cast)
 		if not _conn_from.has(from_id):
 			_conn_from[from_id] = []
 		_conn_from[from_id].append(i)
@@ -255,14 +256,8 @@ func _rebuild_sim_kernel_meta() -> void:
 		var tdef = target.definition if is_instance_valid(target) else null
 		var meta: Dictionary = {"target_bid": target.get_instance_id() if is_instance_valid(target) else 0}
 		meta["is_ct"] = tdef != null and tdef.category == "terminal"
-		# accepts_mask: 28-bit (7 content × 4 state)
-		var mask: int = 0
-		if is_instance_valid(target) and target.has_method("accepts_data"):
-			for c in range(7):
-				for s in range(4):
-					if target.accepts_data(c, s):
-						mask |= 1 << (c * 4 + s)
-		meta["accepts_mask"] = mask
+		# accepts_mask: 28-bit (7 content × 4 state) — cached per definition
+		meta["accepts_mask"] = tdef.get_accepts_mask() if tdef != null else 0x0FFFFFFF
 		# Routing/trash = unlimited accept (no capacity check)
 		meta["unlimited_accept"] = tdef != null and (
 			tdef.classifier != null or tdef.splitter != null or tdef.merger != null
@@ -350,6 +345,10 @@ func _on_sim_tick() -> void:
 		_update_generation(buildings)
 		_update_storage_forward(buildings)
 		_update_processing(buildings)
+	# Mark buildings with changed stored_data for redraw
+	for b in buildings:
+		if b.is_working:
+			b.stored_data_dirty = true
 	# 4. Status, stall tracking, visuals
 	_update_status_reasons(buildings)
 	_update_stall_tracking()
@@ -536,6 +535,7 @@ func _deliver_conn_gdscript(conn: Dictionary) -> void:
 			else:
 				deliver = 1
 		target.stored_data[item.key] = target.stored_data.get(item.key, 0) + deliver
+		target.stored_data_dirty = true
 		item.amount -= deliver
 		if item.amount <= 0:
 			transit.remove_at(0)
@@ -1109,7 +1109,7 @@ func _process_classifier(b: Node2D, max_process: int) -> int:
 	if not _has_output_connection(b, primary_port) or not _has_output_connection(b, secondary_port):
 		return 0
 	var filter_content: int = b.classifier_filter_content
-	for key in b.stored_data.keys():
+	for key in b.stored_data:
 		if processed >= max_process:
 			break
 		var available: int = b.stored_data.get(key, 0)
@@ -1189,7 +1189,7 @@ func _process_dual_input(b: Node2D, max_process: int) -> int:
 
 func _process_dual_input_key_mode(b: Node2D, dual: DualInputComponent, max_process: int, fuel_consumed: Dictionary) -> int:
 	var processed: int = 0
-	for key in b.stored_data.keys():
+	for key in b.stored_data:
 		if processed >= max_process:
 			break
 		var available: int = b.stored_data[key]
@@ -1254,7 +1254,7 @@ func _process_dual_input_key_mode(b: Node2D, dual: DualInputComponent, max_proce
 func _process_dual_input_fuel_mode(b: Node2D, dual: DualInputComponent, max_process: int, fuel_consumed: Dictionary) -> int:
 	# Recoverer: fuel must be same content, tier-based tags required
 	var processed: int = 0
-	for key in b.stored_data.keys():
+	for key in b.stored_data:
 		if processed >= max_process:
 			break
 		var available: int = b.stored_data[key]
@@ -1309,7 +1309,7 @@ func _process_separator(b: Node2D, proc: ProcessorComponent, max_process: int) -
 		return 0
 	var processed: int = 0
 	var mode: String = proc.separator_mode
-	for key in b.stored_data.keys():
+	for key in b.stored_data:
 		if processed >= max_process:
 			break
 		var available: int = b.stored_data.get(key, 0)
@@ -1350,7 +1350,7 @@ func _process_splitter(b: Node2D, max_process: int) -> int:
 		return 0
 	var bid: int = b.get_instance_id()
 	var next_idx: int = _splitter_next_port.get(bid, 0) % port_count
-	for key in b.stored_data.keys():
+	for key in b.stored_data:
 		if processed >= max_process:
 			break
 		var available: int = b.stored_data.get(key, 0)
@@ -1391,7 +1391,7 @@ func _process_merger(b: Node2D, max_process: int) -> int:
 	var output_port: String = b.definition.output_ports[0] if b.definition.output_ports.size() > 0 else ""
 	if output_port == "":
 		return 0
-	for key in b.stored_data.keys():
+	for key in b.stored_data:
 		if processed >= max_process:
 			break
 		var available: int = b.stored_data.get(key, 0)

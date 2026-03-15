@@ -44,7 +44,7 @@ var upgrade_level: int = 0  ## Current upgrade level (0 = base)
 # --- DIRTY FLAG (skip redraw when nothing changed) ---
 var _draw_dirty: bool = true
 var _prev_status_reason: String = ""
-var _prev_stored_hash: int = 0
+var stored_data_dirty: bool = false  ## Set by SimulationManager when stored_data changes
 var _prev_fill_ratio: float = -1.0
 var _prev_is_selected: bool = false
 
@@ -183,9 +183,8 @@ func _process(delta: float) -> void:
 	if is_selected != _prev_is_selected:
 		_prev_is_selected = is_selected
 		_draw_dirty = true
-	var cur_hash: int = stored_data.hash()
-	if cur_hash != _prev_stored_hash:
-		_prev_stored_hash = cur_hash
+	if stored_data_dirty:
+		stored_data_dirty = false
 		_draw_dirty = true
 	# Working/active buildings redraw for animated glow/pulse/breathing
 	# Throttle: at far zoom, alternate frames per building to halve draw cost

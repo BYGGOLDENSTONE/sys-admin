@@ -1,12 +1,8 @@
 #include "delivery_engine.h"
+#include "packed_key.h"
 #include <godot_cpp/core/class_db.hpp>
 
 using namespace godot;
-
-// Packed key layout: (content << 12) | (state << 8) | (tier << 4) | tags
-// Packet flag: bit 16 set
-static inline int unpack_content(int64_t key) { return (int)((key >> 12) & 0xF); }
-static inline int unpack_state(int64_t key) { return (int)((key >> 8) & 0xF); }
 
 void DeliveryEngine::_bind_methods() {
     ClassDB::bind_method(D_METHOD("deliver_arrived", "conns",

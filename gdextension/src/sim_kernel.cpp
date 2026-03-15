@@ -505,15 +505,12 @@ Dictionary SimKernel::update_stalls(Array conns, PackedInt32Array building_activ
     for (int ci = 0; ci < conn_count; ci++) {
         Dictionary conn = conns[ci];
 
-        // Check source active
-        if (conn.has("from_building")) {
-            Object *from_obj = (Object *)(conn["from_building"]);
-            if (from_obj) {
-                int64_t from_bid = from_obj->get_instance_id();
-                auto ait = bid_active.find(from_bid);
-                if (ait != bid_active.end() && !ait->second) {
-                    continue; // Source inactive — skip (not stalled, just idle)
-                }
+        // Check source active (use pre-computed from_bid to avoid raw Object* cast)
+        if (conn.has("from_bid")) {
+            int64_t from_bid = (int64_t)conn["from_bid"];
+            auto ait = bid_active.find(from_bid);
+            if (ait != bid_active.end() && !ait->second) {
+                continue; // Source inactive — skip (not stalled, just idle)
             }
         }
 

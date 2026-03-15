@@ -96,7 +96,7 @@ func process_deliveries() -> void:
 		return
 
 	# Count deliveries from accepted data (blocked ports never receive data)
-	for key in _contract_terminal.stored_data.keys():
+	for key in _contract_terminal.stored_data:
 		var amount: int = _contract_terminal.stored_data[key]
 		if amount <= 0:
 			continue

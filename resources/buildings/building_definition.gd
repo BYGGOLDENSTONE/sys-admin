@@ -22,6 +22,21 @@ extends Resource
 @export var upgrade: UpgradeComponent
 
 
+## Pre-computed accepts_mask: bit (content*4+state) set if building accepts that combo.
+## Cached on first call — static per definition, avoids 28 method calls per topology change.
+var _accepts_mask: int = -1
+
+func get_accepts_mask() -> int:
+	if _accepts_mask >= 0:
+		return _accepts_mask
+	_accepts_mask = 0
+	for c in range(7):
+		for s in range(4):
+			if accepts_data(c, s):
+				_accepts_mask |= 1 << (c * 4 + s)
+	return _accepts_mask
+
+
 func get_storage_capacity() -> int:
 	if storage:
 		return storage.capacity
