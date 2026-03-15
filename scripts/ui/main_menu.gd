@@ -261,9 +261,18 @@ func _on_load_game() -> void:
 		var ts: String = info.get("timestamp", "")
 		if ts.length() > 16:
 			ts = ts.substr(0, 16)
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
 		var btn := _create_slot_button("Slot %d  —  Seed %d  (%s)" % [info.slot, info.get("seed", 0), ts])
+		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		btn.pressed.connect(_on_slot_load.bind(info.slot))
-		_load_vbox.add_child(btn)
+		row.add_child(btn)
+		var del_btn := _create_slot_button("X")
+		del_btn.custom_minimum_size = Vector2(44, 44)
+		del_btn.tooltip_text = "Delete this save"
+		del_btn.pressed.connect(_on_slot_delete.bind(info.slot))
+		row.add_child(del_btn)
+		_load_vbox.add_child(row)
 
 	var back_btn := _create_slot_button("Back")
 	back_btn.pressed.connect(_on_load_back)
@@ -285,6 +294,16 @@ func _on_slot_load(slot: int) -> void:
 			break
 	save_data["_slot"] = slot
 	_transition_to_game(save_data)
+
+
+func _on_slot_delete(slot: int) -> void:
+	# Delete both main save and autosave for this slot
+	for path in [SaveManagerScript.slot_path(slot), SaveManagerScript.slot_auto_path(slot)]:
+		if FileAccess.file_exists(path):
+			DirAccess.remove_absolute(path)
+	# Rebuild the load list
+	_on_load_game()
+	_update_load_button()
 
 
 func _on_load_back() -> void:
