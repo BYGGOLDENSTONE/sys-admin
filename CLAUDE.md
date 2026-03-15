@@ -54,11 +54,14 @@ Asagidaki kararlar **scope lock** kabul edilir. Claude Code bu kararlarla celise
 - Source bandwidth gameplay'de gercek limit (mevcut sistem)
 - Recoverer deterministic + fuel tabanli
 - Grid kablo routing = ana layout bulmacasi (dik kesisim serbest)
-- Bina rotasyonu (R tusu, 4 yon) | CT 3x3, 8 port, exclusion zone
+- Bina rotasyonu (R tusu, 4 yon) | CT dinamik boyut (2x2→10x10), port formulu: 4*(size-1)
 - CT Port Purity | Classifier/Separator Back-Pressure
 - Kaynaklar dogrudan output portlu (Uplink kaldirildi)
 - Merger tutorial'da erken acilir
 - Gig tamamlaninca pipeline KALIR (persistent network)
+- Kazanma kosulu: %100 network (tum kaynaklar bagli) → level complete
+- Sinirli harita (levels 1-8): bolge-grid tabanli esit kaynak dagitimi
+- Harita siniri gorunur (teal border + dis alan karartma + kamera siniri)
 
 ### Bilesik State Gorsel Dili
 - Public = Yesil, Encrypted = Mavi, Corrupted = Sari
@@ -74,6 +77,7 @@ Asagidaki kararlar **scope lock** kabul edilir. Claude Code bu kararlarla celise
 - Compiler, Packet sistemi, Malware Cleaner
 - T3/T4 zorunlu kontrat, Workshop/mod, Multiplayer
 - Buyuk hikaye/campaign, Tech tree/currency/upgrade buyutme
+- Level 2-9 ilerleme (demo = sadece Level 1, LevelConfig.IS_DEMO=true)
 
 ---
 
@@ -171,10 +175,11 @@ Asagidaki kararlar **scope lock** kabul edilir. Claude Code bu kararlarla celise
 - [x] `level_config.gd` — 9 level tanimi (CT 2x2→10x10, harita 100→800→sonsuz)
 - [x] `level_manager.gd` — level takibi, %100 network win condition, save/load
 - [x] CT dinamik boyut — .tres 2x2 varsayilan, runtime'da level'a gore override (.duplicate())
-- [x] Sinirli harita uretimi — map_generator bounded mod, tum chunk'lar basta uretilir
+- [x] Sinirli harita uretimi — bolge-grid tabanli esit dagitim (chunk-based degil)
 - [x] Kaynak pozisyonlari map center offset olarak (sabit degil)
-- [x] Pool filtreleme — level'in izin verdigi zorluk havuzlari
-- [x] Camera bounds — sinirli haritalarda kamera sinirlandirma
+- [x] Pool filtreleme — level'in izin verdigi zorluk havuzlari (ic=easy, orta=medium, dis=hard)
+- [x] Camera bounds — sinirli haritalarda kamera siniri ortalar
+- [x] Harita siniri gorseli — teal border, kose aksanlari, dis alan karartma (z_index=5)
 - [x] %100 network → "Level Complete" bildirimi + level gecis ekrani
 - [x] Demo modda "Demo Complete" + Wishlist ekrani
 - [x] Top bar: "LEVEL X [NxN]" etiketi
@@ -184,6 +189,8 @@ Asagidaki kararlar **scope lock** kabul edilir. Claude Code bu kararlarla celise
 - [x] Level paneli — 3x3 grid, 9 level karti (kilitli/acik/tamamlandi)
 - [x] Main menu: "Level Select" butonu (ilerleme varsa gorunur)
 - [x] IS_DEMO flag — demo=true ise sadece Level 1
+- [x] Gig content level uyumu — Level 1'de Blueprint istenmez, level-aware content pool
+- [x] Tutorial gig 6: Blueprint Run → Network Expansion (Research Public)
 
 ### Siralama
 Faz 1 → 2 → 3 → 4 → 5 → 6 → 7. Her faz sonunda oyun playable state'te kalmali.
