@@ -1,23 +1,23 @@
 extends Control
 
 ## Main Menu — entry point for SYS_ADMIN demo.
-## New Game starts a fresh session, Continue loads the latest save.
+## New Game auto-assigns an empty slot. Load Game shows saved slots.
 
 const GAME_SCENE: String = "res://scenes/main.tscn"
 const SaveManagerScript = preload("res://scripts/save_manager.gd")
 const TITLE_COLOR := Color(0.0, 0.85, 0.9, 1.0)
 const GLITCH_CHARS: String = "█▓░▒#@$%&*"
 const WISHLIST_URL: String = "https://store.steampowered.com/app/PLACEHOLDER_APP_ID/SYS_ADMIN/"
-const FEEDBACK_URL: String = "https://store.steampowered.com/app/PLACEHOLDER_APP_ID/SYS_ADMIN/discussions/"
 
+var _new_game_btn: Button = null
+var _load_game_btn: Button = null
 var _options_btn: Button = null
 var _wishlist_btn: Button = null
 var _quit_btn: Button = null
 var _button_vbox: VBoxContainer = null
-var _slot_vbox: VBoxContainer = null
+var _load_vbox: VBoxContainer = null
 var _options_panel: VBoxContainer = null
 var _title: Label = null
-var _slot_buttons: Array[Button] = []
 
 # Glitch state
 var _glitch_timer: float = 0.0
@@ -27,13 +27,9 @@ var _glitch_end: float = 0.0
 
 
 func _ready() -> void:
-	# Apply saved settings on startup
 	SettingsManager.apply_all(SettingsManager.get_settings())
-
 	_build_ui()
-	_update_continue_state()
 	_next_glitch = randf_range(2.0, 5.0)
-	# Fade in
 	modulate = Color(1, 1, 1, 0)
 	var tw := create_tween()
 	tw.tween_property(self, "modulate:a", 1.0, 0.6)
@@ -87,22 +83,19 @@ func _build_ui() -> void:
 	spacer.custom_minimum_size = Vector2(0, 40)
 	main_box.add_child(spacer)
 
-	# Menu buttons
+	# Main menu buttons
 	_button_vbox = VBoxContainer.new()
-	_button_vbox.add_theme_constant_override("separation", 12)
+	_button_vbox.add_theme_constant_override("separation", 16)
 	_button_vbox.alignment = BoxContainer.ALIGNMENT_CENTER
 	main_box.add_child(_button_vbox)
 
-	# Save slot buttons
-	_slot_vbox = VBoxContainer.new()
-	_slot_vbox.add_theme_constant_override("separation", 8)
-	_button_vbox.add_child(_slot_vbox)
-	_build_slot_buttons()
+	_new_game_btn = _create_menu_button("New Game")
+	_new_game_btn.pressed.connect(_on_new_game)
+	_button_vbox.add_child(_new_game_btn)
 
-	# Bottom buttons spacer
-	var btn_spacer := Control.new()
-	btn_spacer.custom_minimum_size = Vector2(0, 8)
-	_button_vbox.add_child(btn_spacer)
+	_load_game_btn = _create_menu_button("Load Game")
+	_load_game_btn.pressed.connect(_on_load_game)
+	_button_vbox.add_child(_load_game_btn)
 
 	_options_btn = _create_menu_button("Options")
 	_options_btn.pressed.connect(_on_options)
@@ -115,6 +108,13 @@ func _build_ui() -> void:
 	_quit_btn = _create_menu_button("Quit")
 	_quit_btn.pressed.connect(_on_quit)
 	_button_vbox.add_child(_quit_btn)
+
+	# Load game panel (hidden, replaces buttons when active)
+	_load_vbox = VBoxContainer.new()
+	_load_vbox.add_theme_constant_override("separation", 10)
+	_load_vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	_load_vbox.visible = false
+	main_box.add_child(_load_vbox)
 
 	# Options panel (hidden, replaces buttons when active)
 	var OptionsPanelScript = preload("res://scripts/ui/options_panel.gd")
@@ -136,13 +136,27 @@ func _build_ui() -> void:
 	version_lbl.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	add_child(version_lbl)
 
+	# Check if any saves exist
+	_update_load_button()
+
+
+func _update_load_button() -> void:
+	var has_saves := false
+	var slots: Array[Dictionary] = SaveManagerScript.list_slots()
+	for info in slots:
+		if info.exists:
+			has_saves = true
+			break
+	_load_game_btn.disabled = not has_saves
+	if not has_saves:
+		_load_game_btn.tooltip_text = "No saved games"
+
 
 func _create_menu_button(text: String) -> Button:
 	var btn := Button.new()
 	btn.text = text
 	btn.custom_minimum_size = Vector2(280, 50)
 	btn.add_theme_font_size_override("font_size", 22)
-	# Cyber-style flat button
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.06, 0.08, 0.12, 0.9)
 	style.border_color = Color(0.0, 0.7, 0.8, 0.6)
@@ -173,28 +187,11 @@ func _create_menu_button(text: String) -> Button:
 	return btn
 
 
-func _build_slot_buttons() -> void:
-	_slot_buttons.clear()
-	var slots: Array[Dictionary] = SaveManagerScript.list_slots()
-	for info in slots:
-		var slot_idx: int = info.slot
-		var btn: Button
-		if info.exists:
-			var ts: String = info.get("timestamp", "")
-			if ts.length() > 16:
-				ts = ts.substr(0, 16)
-			btn = _create_menu_button("Slot %d  —  Seed %d  (%s)" % [slot_idx, info.get("seed", 0), ts])
-			btn.tooltip_text = "Load this save"
-		else:
-			btn = _create_menu_button("Slot %d  —  New Game" % slot_idx)
-			btn.tooltip_text = "Start a new game in this slot"
-		btn.pressed.connect(_on_slot_selected.bind(slot_idx))
-		_slot_vbox.add_child(btn)
-		_slot_buttons.append(btn)
-
-
-func _update_continue_state() -> void:
-	pass  ## Slot buttons handle their own state
+func _create_slot_button(text: String) -> Button:
+	var btn := _create_menu_button(text)
+	btn.custom_minimum_size = Vector2(360, 44)
+	btn.add_theme_font_size_override("font_size", 18)
+	return btn
 
 
 # ── Glitch Effect ─────────────────────────────────────────────
@@ -205,7 +202,6 @@ func _update_glitch(delta: float) -> void:
 	_glitch_timer += delta
 	if _glitch_active:
 		if _glitch_timer >= _glitch_end:
-			# End glitch
 			_glitch_active = false
 			_title.text = "SYS_ADMIN"
 			_title.add_theme_color_override("font_color", TITLE_COLOR)
@@ -214,11 +210,9 @@ func _update_glitch(delta: float) -> void:
 			_next_glitch = randf_range(3.0, 8.0)
 	else:
 		if _glitch_timer >= _next_glitch:
-			# Start glitch burst
 			_glitch_active = true
 			_glitch_timer = 0.0
 			_glitch_end = randf_range(0.06, 0.18)
-			# Corrupt 1-2 characters
 			var original := "SYS_ADMIN"
 			var result := original
 			var corrupt_count := randi_range(1, 2)
@@ -227,15 +221,58 @@ func _update_glitch(delta: float) -> void:
 				var gc: String = GLITCH_CHARS[randi() % GLITCH_CHARS.length()]
 				result = result.substr(0, idx) + gc + result.substr(idx + 1)
 			_title.text = result
-			# Color flash + horizontal offset
 			_title.add_theme_color_override("font_color", Color(1.0, 0.15, 0.25, 0.9))
 			_title.position.x = randf_range(-6.0, 6.0)
 
 
 # ── Navigation ────────────────────────────────────────────────
 
-func _on_slot_selected(slot: int) -> void:
-	# Try main save, then autosave
+func _on_new_game() -> void:
+	# Find first empty slot
+	var slots: Array[Dictionary] = SaveManagerScript.list_slots()
+	var target_slot: int = -1
+	for info in slots:
+		if not info.exists:
+			target_slot = info.slot
+			break
+	if target_slot < 0:
+		# All slots full — use slot 1 (overwrite oldest)
+		target_slot = 1
+	_transition_to_game({"_slot": target_slot})
+
+
+func _on_load_game() -> void:
+	_button_vbox.visible = false
+	# Build slot list
+	for child in _load_vbox.get_children():
+		child.queue_free()
+
+	var header := Label.new()
+	header.text = "// LOAD GAME"
+	header.add_theme_font_size_override("font_size", 24)
+	header.add_theme_color_override("font_color", TITLE_COLOR)
+	header.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_load_vbox.add_child(header)
+
+	var slots: Array[Dictionary] = SaveManagerScript.list_slots()
+	for info in slots:
+		if not info.exists:
+			continue
+		var ts: String = info.get("timestamp", "")
+		if ts.length() > 16:
+			ts = ts.substr(0, 16)
+		var btn := _create_slot_button("Slot %d  —  Seed %d  (%s)" % [info.slot, info.get("seed", 0), ts])
+		btn.pressed.connect(_on_slot_load.bind(info.slot))
+		_load_vbox.add_child(btn)
+
+	var back_btn := _create_slot_button("Back")
+	back_btn.pressed.connect(_on_load_back)
+	_load_vbox.add_child(back_btn)
+
+	_load_vbox.visible = true
+
+
+func _on_slot_load(slot: int) -> void:
 	var save_data: Dictionary = {}
 	for path in [SaveManagerScript.slot_path(slot), SaveManagerScript.slot_auto_path(slot)]:
 		if not FileAccess.file_exists(path):
@@ -246,9 +283,13 @@ func _on_slot_selected(slot: int) -> void:
 		if not data.is_empty():
 			save_data = data
 			break
-	# Pass slot index to game
 	save_data["_slot"] = slot
 	_transition_to_game(save_data)
+
+
+func _on_load_back() -> void:
+	_load_vbox.visible = false
+	_button_vbox.visible = true
 
 
 func _on_options() -> void:
@@ -270,9 +311,9 @@ func _on_quit() -> void:
 
 
 func _transition_to_game(save_data: Dictionary) -> void:
-	# Disable all buttons during transition
-	for btn in _slot_buttons:
-		btn.disabled = true
+	# Disable all buttons
+	_new_game_btn.disabled = true
+	_load_game_btn.disabled = true
 	_options_btn.disabled = true
 	_wishlist_btn.disabled = true
 	_quit_btn.disabled = true
