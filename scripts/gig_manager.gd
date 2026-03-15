@@ -44,6 +44,10 @@ func initialize() -> void:
 		_activate_next_tutorial_gig()
 
 
+func set_level(level: int) -> void:
+	_build_content_pool_for_level(level)
+
+
 func _unlock_all_buildings() -> void:
 	## Unlock all placeable buildings (for Level 2+)
 	var all_names: PackedStringArray = [
@@ -347,7 +351,26 @@ const PROC_TIERS: Array = [
 
 ## Content pool — weighted by difficulty (harder content unlocks later)
 const EASY_CONTENT: Array[int] = [0, 1, 2]  # Standard, Financial, Biometric
+const MID_CONTENT: Array[int] = [0, 1, 2, 4]  # + Research (available in easy/medium sources)
 const HARD_CONTENT: Array[int] = [3, 4]      # Blueprint, Research
+
+## Level-aware content pool: which content types are realistically available
+var _level_content_pool: Array[int] = []
+
+
+func _build_content_pool_for_level(level: int) -> void:
+	## Determines which content types procedural gigs can request.
+	## Based on what sources actually produce at this level.
+	var data: Dictionary = LevelConfig.get_level(level)
+	var pools: Array = data.source_pools
+	if "hard" in pools or "endgame" in pools:
+		# Hard/Endgame sources carry Blueprint + Research
+		_level_content_pool = [0, 1, 2, 3, 4]
+	elif "medium" in pools:
+		# Medium sources carry Research but NOT Blueprint
+		_level_content_pool = [0, 1, 2, 4]  # Standard, Financial, Biometric, Research
+	else:
+		_level_content_pool = [0, 1, 2]  # Easy only
 
 
 func _generate_procedural_gig() -> GigDefinition:
@@ -356,14 +379,11 @@ func _generate_procedural_gig() -> GigDefinition:
 	var tier_idx: int = mini(diff, PROC_TIERS.size() - 1)
 	var tier_data: Dictionary = PROC_TIERS[tier_idx]
 
-	# Pick content — harder content appears at higher difficulty
+	# Pick content — filtered by level's available content types
 	var content: int
-	if diff >= 5 and randf() < 0.4:
-		content = HARD_CONTENT[randi() % HARD_CONTENT.size()]
-	elif diff >= 2 and randf() < 0.3:
-		content = HARD_CONTENT[randi() % HARD_CONTENT.size()]
-	else:
-		content = EASY_CONTENT[randi() % EASY_CONTENT.size()]
+	if _level_content_pool.is_empty():
+		_level_content_pool = [0, 1, 2]  # Fallback
+	content = _level_content_pool[randi() % _level_content_pool.size()]
 
 	# Amount scales with difficulty
 	var amount: int = 8 + mini(diff, 10) * 2

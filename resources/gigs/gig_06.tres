@@ -5,15 +5,15 @@
 
 [sub_resource type="Resource" id="req1"]
 script = ExtResource("2")
-content = 3
+content = 4
 state = 0
-amount = 15
-label = "Blueprint Public"
+amount = 10
+label = "Research Public"
 
 [resource]
 script = ExtResource("1")
-gig_name = "Blueprint Run"
-description = "ARCHIVE_X: I need raw Blueprint data — untouched. Find a source that carries it and get the pipeline running.\n\nBlueprint appears in Biotech Labs and harder sources. All your tools are unlocked now — build the network you need."
+gig_name = "Network Expansion"
+description = "ARCHIVE_X: I need raw Research data — untouched. Hospitals, Libraries, and Public Databases carry it.\n\nAll your tools are unlocked now. Build the network, connect more sources, and get the data flowing."
 order_index = 6
 is_tutorial = true
 requirements = Array[Resource]([SubResource("req1")])

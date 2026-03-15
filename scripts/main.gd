@@ -190,6 +190,7 @@ func _ready() -> void:
 		var cur_level_data: Dictionary = LevelConfig.get_level(_level_manager.current_level)
 		if not cur_level_data.is_tutorial:
 			_gig_manager.skip_tutorial = true
+		_gig_manager.set_level(_level_manager.current_level)
 		_gig_manager.initialize()
 
 	# Wire terminal click to gig panel
