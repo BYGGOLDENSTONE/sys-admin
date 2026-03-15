@@ -34,32 +34,22 @@ var _gig_hints: Dictionary = {
 	},
 	3: {
 		"id": "gig3_intro",
-		"text": "The Data Kiosk mixes Standard and Financial. Your new [color=#ffcc44]Classifier[/color] filters by [color=#00ddff]content type[/color].\nSet it to [color=#00ddff]Financial[/color] with [color=#ffcc44]TAB[/color] — Financial exits [color=#00ddff]right[/color], Standard exits [color=#00ddff]bottom[/color].",
+		"text": "The Bank Terminal has [color=#00ddff]two problems[/color]: mixed content AND mixed state.\nChain [color=#ffcc44]Separator[/color] + [color=#ffcc44]Classifier[/color] to split and filter. Try your new [color=#00ddff]Merger[/color] to combine sources.",
 		"duration": 14.0,
 	},
 	4: {
 		"id": "gig4_intro",
-		"text": "The Bank Terminal has [color=#00ddff]two problems[/color]: mixed content AND mixed state.\nChain [color=#ffcc44]Separator[/color] (remove Corrupted) → [color=#ffcc44]Classifier[/color] (split Financial/Biometric). Deliver each to a [color=#00ddff]separate CT port[/color].",
-		"duration": 16.0,
+		"text": "Connect [color=#00ddff]multiple sources[/color] and use your [color=#ffcc44]Merger[/color] to combine flows.\nTry the [color=#ffcc44]Research Lab[/color] and [color=#ffcc44]Decryptor[/color] on any encrypted data you find!",
+		"duration": 14.0,
 	},
 	5: {
 		"id": "gig5_intro",
-		"text": "Build a [color=#ffcc44]Research Lab[/color] to produce [color=#00ddff]Keys[/color], then a [color=#ffcc44]Decryptor[/color] to unlock Encrypted data.\nDecryptor needs [color=#00ddff]data[/color] from left and a [color=#00ddff]Key[/color] from top.",
+		"text": "The [color=#ffcc44]Recoverer[/color] repairs Corrupted data using [color=#00ddff]fuel[/color].\nFeed [color=#00ddff]Corrupted data[/color] from the left, [color=#00ddff]same-content Public fuel[/color] from the top.",
 		"duration": 14.0,
 	},
 	6: {
 		"id": "gig6_intro",
-		"text": "Your ISP Backbone and ATM pipelines are already running. Use your new [color=#ffcc44]Merger[/color] to combine flows.\n[color=#00ddff]Merger[/color] takes two inputs and outputs one stream — saves ports and cables.",
-		"duration": 14.0,
-	},
-	7: {
-		"id": "gig7_intro",
-		"text": "The [color=#ffcc44]Recoverer[/color] repairs Corrupted data using [color=#00ddff]fuel[/color].\nFeed [color=#00ddff]data[/color] from the left, [color=#00ddff]Public fuel[/color] from the top. Both inputs needed!",
-		"duration": 14.0,
-	},
-	8: {
-		"id": "gig8_intro",
-		"text": "The [color=#ffcc44]Encryptor[/color] re-encrypts processed data using a [color=#00ddff]Key[/color].\nFirst [color=#00ddff]decrypt[/color], then run through [color=#ffcc44]Encryptor[/color] — same Key supply as Decryptor.",
+		"text": "[color=#00ddff]Blueprint[/color] appears in Biotech Labs and harder sources. All tools unlocked — build the network you need.\nTry [color=#ffcc44]Encryptor[/color] on processed data for future contracts!",
 		"duration": 14.0,
 	},
 }
@@ -264,14 +254,12 @@ func on_gig_activated(gig) -> void:
 
 ## Completion messages per tutorial gig
 var _completion_hints: Dictionary = {
-	1: "Good — you've got data flowing! Next: learn to filter by state.",
-	2: "State filtering mastered! Next: learn to sort by content type.",
-	3: "Content sorting done! Next: chain both filters together.",
-	4: "Full filter chain built! Next: unlock decryption.",
-	5: "Decryption online! Next: streamline your deliveries.",
-	6: "Merger learned! Next: repair corrupted data.",
-	7: "Recovery pipeline built! Next: learn re-encryption.",
-	8: "Full encrypt/decrypt chain! All core mechanics learned — new contracts available.",
+	1: "Data flowing! Next: learn to filter dirty data.",
+	2: "Filtering mastered! Next: chain filters for complex sources.",
+	3: "Filter chain built! Next: combine multiple sources.",
+	4: "Multi-source delivery done! Next: repair corrupted data.",
+	5: "Recovery online! One more tutorial to go.",
+	6: "All tools unlocked! Contracts will now generate automatically — build your network.",
 }
 
 

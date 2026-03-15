@@ -110,12 +110,15 @@ Asagidaki kararlar **scope lock** kabul edilir. Claude Code bu kararlarla celise
 - [x] Gig panel: ENC_COR requirement icin "[Enc]·[Cor]" split renk gosterimi
 - [x] Decryptor/Recoverer tooltip: Enc·Cor kabul bilgisi
 
-### Faz 4: Gig Sistemi Yeniden Tasarimi
-- [ ] Tutorial gig'leri yeniden sirala (Merger erken, Compiler yok)
-- [ ] Throughput gig mekanigi (timer bazli sustain)
-- [ ] Basit procedural gig generator
-- [ ] 3 faz yapisi (One-shot → Sustain → Persistent Network)
-- **Risk:** Orta, gig sistemi cekirdegi degisiyor
+### Faz 4: Gig Sistemi Yeniden Tasarimi ✓ TAMAMLANDI
+- [x] Tutorial 8 gig → 6 gig'e indirildi (1:Extraction, 2:Separator, 3:FilterChain, 4:Merger, 5:Recovery, 6:Blueprint)
+- [x] Bina unlock sirasi: Gig1→Sep+Class, Gig2→Merger, Gig3→ResLab+Decryptor, Gig4→Recoverer, Gig5→Encryptor
+- [x] Eski post-tutorial gigler silindi (gig_08-16), yerlerine procedural gig generator
+- [x] Procedural gig generator: zorluk kademeli (Public→Decrypted→Recovered→Dec·Enc→Rec·Dec)
+- [x] 3 procedural gig ayni anda aktif, biri bitince yenisi uretilir
+- [x] Save/load procedural state destegi (tutorials_complete, procedural_count, next_order_index)
+- [x] Tutorial/stall hint'ler ve building_panel unlock mapping guncellendi
+- [x] Throughput gig mekanigi → Faz 4.5'te eklenebilir (simdilik one-shot delivery)
 
 ### Faz 5: Persistent Network
 - [ ] Gig tamamlaninca pipeline kalir, calismaya devam eder

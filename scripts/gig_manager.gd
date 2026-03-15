@@ -11,6 +11,14 @@ var _completed_indices: Dictionary = {}  ## order_index → true
 var _progress: Dictionary = {}  ## order_index → Array[int] (per-requirement count)
 var _unlocked_buildings: Dictionary = {}  ## building_name → true
 
+## Procedural gig state
+var _tutorials_complete: bool = false
+var _procedural_count: int = 0  ## How many procedural gigs completed (drives difficulty)
+var _next_order_index: int = 100  ## Start procedural gigs at 100+
+const MAX_ACTIVE_PROCEDURAL: int = 3
+
+const CLIENT_NAMES: PackedStringArray = ["FIXER_NULL", "BROKER_7", "GHOST_SIGNAL", "DR_PATCH", "CIPHER_QUEEN", "ARCHIVE_X"]
+
 ## Starting buildings (always available)
 var _starter_buildings: PackedStringArray = ["Trash", "Splitter"]
 
@@ -240,7 +248,8 @@ func _complete_gig(gig) -> void:
 	if gig.is_tutorial:
 		_activate_next_tutorial_gig()
 	else:
-		_check_wave_activations()
+		_procedural_count += 1
+		_fill_procedural_gigs()
 
 
 func _activate_next_tutorial_gig() -> void:
@@ -250,25 +259,24 @@ func _activate_next_tutorial_gig() -> void:
 				return  # Already active
 			_activate_gig(gig)
 			return
-	# All tutorials done — check wave activations
-	_check_wave_activations()
+	# All tutorials done — start procedural system
+	if not _tutorials_complete:
+		_tutorials_complete = true
+		print("[GigManager] All tutorials complete — procedural contracts enabled")
+	_fill_procedural_gigs()
 
 
-func _check_wave_activations() -> void:
-	var activated_any := false
-	for gig in _all_gigs:
-		if gig.is_tutorial:
-			continue
-		if _completed_indices.has(gig.order_index):
-			continue
-		if gig in _active_gigs:
-			continue
-		if not _prerequisites_met(gig):
-			continue
+func _fill_procedural_gigs() -> void:
+	## Keep MAX_ACTIVE_PROCEDURAL gigs running at all times
+	var active_count: int = 0
+	for gig in _active_gigs:
+		if not gig.is_tutorial:
+			active_count += 1
+	while active_count < MAX_ACTIVE_PROCEDURAL:
+		var gig = _generate_procedural_gig()
+		_all_gigs.append(gig)
 		_activate_gig(gig)
-		activated_any = true
-	if activated_any:
-		print("[GigManager] Wave check — new contracts activated")
+		active_count += 1
 
 
 func _prerequisites_met(gig) -> bool:
@@ -297,3 +305,107 @@ func _activate_gig(gig) -> void:
 	print("[GigManager] Gig activated — %s (order: %d)" % [gig.gig_name, gig.order_index])
 	# Re-evaluate CT ports — new gig requirements change what's accepted
 	evaluate_ct_connections()
+
+
+# ── PROCEDURAL GIG GENERATOR ──────────────────────────────────
+
+## Difficulty tiers define what processing tags are required
+const PROC_TIERS: Array = [
+	# tier 0-2: Public data, no processing needed
+	{"tags": 0, "state": 0, "label_suffix": "Public"},
+	{"tags": 0, "state": 0, "label_suffix": "Public"},
+	{"tags": 0, "state": 0, "label_suffix": "Public"},
+	# tier 3-4: Decrypted (needs Decryptor)
+	{"tags": 1, "state": 0, "label_suffix": "Decrypted"},
+	{"tags": 1, "state": 0, "label_suffix": "Decrypted"},
+	# tier 5-6: Recovered (needs Recoverer)
+	{"tags": 2, "state": 0, "label_suffix": "Recovered"},
+	{"tags": 2, "state": 0, "label_suffix": "Recovered"},
+	# tier 7-8: Decrypted·Encrypted (needs Decryptor + Encryptor chain)
+	{"tags": 5, "state": 0, "label_suffix": "Decrypted\u00b7Encrypted"},
+	{"tags": 5, "state": 0, "label_suffix": "Decrypted\u00b7Encrypted"},
+	# tier 9+: Recovered·Decrypted or multi-requirement
+	{"tags": 3, "state": 0, "label_suffix": "Recovered\u00b7Decrypted"},
+]
+
+## Content pool — weighted by difficulty (harder content unlocks later)
+const EASY_CONTENT: Array[int] = [0, 1, 2]  # Standard, Financial, Biometric
+const HARD_CONTENT: Array[int] = [3, 4]      # Blueprint, Research
+
+
+func _generate_procedural_gig() -> GigDefinition:
+	var gig := GigDefinition.new()
+	var diff: int = _procedural_count
+	var tier_idx: int = mini(diff, PROC_TIERS.size() - 1)
+	var tier_data: Dictionary = PROC_TIERS[tier_idx]
+
+	# Pick content — harder content appears at higher difficulty
+	var content: int
+	if diff >= 5 and randf() < 0.4:
+		content = HARD_CONTENT[randi() % HARD_CONTENT.size()]
+	elif diff >= 2 and randf() < 0.3:
+		content = HARD_CONTENT[randi() % HARD_CONTENT.size()]
+	else:
+		content = EASY_CONTENT[randi() % EASY_CONTENT.size()]
+
+	# Amount scales with difficulty
+	var amount: int = 8 + mini(diff, 10) * 2
+
+	# Build requirement
+	var req := GigRequirement.new()
+	req.content = content
+	req.state = tier_data.state
+	req.tags = tier_data.tags
+	req.amount = amount
+	req.label = "%s %s" % [DataEnums.content_name(content), tier_data.label_suffix]
+
+	# Multi-requirement at high difficulty (2 different content types)
+	var reqs: Array[Resource] = [req]
+	if diff >= 8 and randf() < 0.5:
+		var content2: int = content
+		while content2 == content:
+			content2 = (EASY_CONTENT + HARD_CONTENT)[randi() % 5]
+		var prev_tier: Dictionary = PROC_TIERS[maxi(tier_idx - 2, 0)]
+		var req2 := GigRequirement.new()
+		req2.content = content2
+		req2.state = prev_tier.state
+		req2.tags = prev_tier.tags
+		req2.amount = maxi(amount - 5, 5)
+		req2.label = "%s %s" % [DataEnums.content_name(content2), prev_tier.label_suffix]
+		reqs.append(req2)
+
+	# Generate name and description
+	var client: String = CLIENT_NAMES[randi() % CLIENT_NAMES.size()]
+	gig.gig_name = _proc_gig_name(content, tier_data.tags)
+	gig.description = "%s: I need %d %s. Get it flowing.\n\n%s" % [
+		client, amount, req.label, _proc_gig_instruction(tier_data.tags)]
+	gig.order_index = _next_order_index
+	gig.is_tutorial = false
+	gig.requirements = reqs
+	gig.reward_buildings = []
+
+	_next_order_index += 1
+	print("[GigManager] Generated procedural gig — %s (difficulty %d)" % [gig.gig_name, diff])
+	return gig
+
+
+func _proc_gig_name(content: int, tags: int) -> String:
+	var c_name: String = DataEnums.content_name(content)
+	match tags:
+		0: return "%s Harvest" % c_name
+		1: return "%s Decrypt Job" % c_name
+		2: return "%s Recovery" % c_name
+		4: return "%s Encryption" % c_name
+		5: return "%s Secure Transfer" % c_name
+		3: return "%s Deep Clean" % c_name
+	return "%s Contract" % c_name
+
+
+func _proc_gig_instruction(tags: int) -> String:
+	match tags:
+		0: return "Deliver clean Public data to the Terminal."
+		1: return "Decrypt the data first — you'll need Keys from a Research Lab."
+		2: return "Recover corrupted data — feed same-content Public fuel into the Recoverer."
+		5: return "Decrypt first, then re-encrypt through the Encryptor. Both need Keys."
+		3: return "Recover the data, then decrypt it. A multi-step pipeline."
+	return "Process and deliver the data."

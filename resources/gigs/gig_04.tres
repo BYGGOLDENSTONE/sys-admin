@@ -5,23 +5,23 @@
 
 [sub_resource type="Resource" id="req1"]
 script = ExtResource("2")
-content = 1
+content = 0
 state = 0
-amount = 8
-label = "Financial Public"
+amount = 15
+label = "Standard Public"
 
 [sub_resource type="Resource" id="req2"]
 script = ExtResource("2")
-content = 2
+content = 1
 state = 0
-amount = 8
-label = "Biometric Public"
+amount = 10
+label = "Financial Public"
 
 [resource]
 script = ExtResource("1")
-gig_name = "Full Filter Chain"
-description = "DR_PATCH: The Bank Terminal has Financial and Biometric, but some of it is Corrupted. I need both types — clean only.\n\nChain your tools: Separator first to remove Corrupted, then Classifier to split Financial and Biometric. Deliver each to a separate CT port."
+gig_name = "Combined Flow"
+description = "FIXER_NULL: I need Standard and Financial flowing into one line. Multiple sources, one delivery point.\n\nConnect multiple sources and use your Merger to combine flows. Try your Research Lab and Decryptor on encrypted data while you're at it."
 order_index = 4
 is_tutorial = true
 requirements = Array[Resource]([SubResource("req1"), SubResource("req2")])
-reward_buildings = Array[String]([])
+reward_buildings = Array[String](["Recoverer"])

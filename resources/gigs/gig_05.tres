@@ -5,17 +5,17 @@
 
 [sub_resource type="Resource" id="req1"]
 script = ExtResource("2")
-content = 4
+content = 1
 state = 0
-tags = 1
+tags = 2
 amount = 10
-label = "Research Decrypted"
+label = "Financial Recovered"
 
 [resource]
 script = ExtResource("1")
-gig_name = "Decryption Run"
-description = "CIPHER_QUEEN: Locked data is my specialty. Build a key forge and crack those files open — I need what's inside.\n\nEncrypted data needs Keys to unlock. Build a Research Lab to produce Keys, then feed both into a Decryptor."
+gig_name = "Data Recovery"
+description = "DR_PATCH: Corrupted files aren't trash — they're opportunities. Repair them and I'll make it worth your time.\n\nUse your Recoverer — feed Corrupted data from the left and same-content Public fuel from the top. The repaired data comes out right."
 order_index = 5
 is_tutorial = true
 requirements = Array[Resource]([SubResource("req1")])
-reward_buildings = Array[String](["Research Lab", "Decryptor"])
+reward_buildings = Array[String](["Encryptor"])

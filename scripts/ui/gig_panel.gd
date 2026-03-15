@@ -641,22 +641,11 @@ func _lbl(text: String, color: Color, font_size: int) -> Label:
 
 const STALL_HINTS: Dictionary = {
 	1: ["Draw a cable from a source's output port to the Contract Terminal"],
-	2: ["Use a Separator (set to Public with TAB) to filter out Corrupted data — only Public goes to the Terminal"],
-	3: ["Use a Classifier (set to Financial with TAB) to sort content — Financial exits right, Standard exits bottom"],
-	4: ["Chain Separator (Public) → Classifier (Financial) → CT. Biometric Public exits Classifier bottom to a second CT port", "Both Financial Public and Biometric Public need to reach the Terminal on separate ports"],
-	5: ["Build a Research Lab for Keys, then a Decryptor. Feed Encrypted data + Key"],
-	6: ["Your ISP Backbone (Standard) and ATM (Financial) lines are already flowing. Place a Merger to combine them into one cable to the Terminal", "You can also use two separate CT ports without a Merger — but Merger saves space"],
-	7: ["Recoverer needs TWO inputs: Corrupted data from left, Public fuel from top"],
-	8: ["Decrypt first, then re-encrypt: Decryptor → Encryptor. Both need Keys from top"],
-	10: ["Find a source with Blueprint content — try Biotech Lab or Corporate Server"],
-	11: ["Recover Corrupted Blueprint with the Recoverer — same process you used on Financial. Tougher files may need processed fuel"],
-	12: ["Decrypt Financial first (Decryptor + Key), then re-encrypt it (Encryptor + Key). Your Key forge and Financial source do the work"],
-	13: [],
-	14: ["Recover Financial (Corrupted→Recoverer+Public fuel), then Encrypt it (Encryptor+Key). Three steps total"],
-	15: ["Biometric needs T1 Key, Financial needs T2 Key. Set Research Lab to T2 with TAB for stronger Keys", "Financial Encrypted comes from Corporate Server — T2 needs Research + Financial in the Key recipe"],
-	16: ["Research appears in Libraries and Hospitals. Use Classifiers to filter it out of mixed sources", "Standard data flows from Vending Machines, Traffic Cameras, and other easy sources — your earliest pipelines still work"],
-	17: [],
-	18: [],
+	2: ["Use a Separator (set to Public with TAB) to filter out Corrupted data"],
+	3: ["Chain Separator + Classifier to filter both state and content", "Both Financial and Biometric need to reach the Terminal"],
+	4: ["Connect multiple sources — use Merger to combine flows into one cable"],
+	5: ["Recoverer needs TWO inputs: Corrupted data from left, same-content Public fuel from top"],
+	6: ["Find a source with Blueprint content — try Biotech Lab or harder sources"],
 }
 
 

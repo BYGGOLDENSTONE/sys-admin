@@ -158,9 +158,7 @@ func _ready() -> void:
 			_undo_manager._redo_stack.clear()
 		load_save_data = {}
 		print("[Main] Game loaded from save")
-		# Check if finale gig was already completed in the save
-		if _gig_manager and _gig_manager.is_gig_completed(18):
-			_demo_complete_shown = true
+		# Procedural gigs — no finale check needed
 	else:
 		# NEW GAME PATH: place Contract Terminal and initialize gigs
 		_place_contract_terminal()

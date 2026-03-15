@@ -217,6 +217,9 @@ func _capture_gigs() -> Dictionary:
 		"progress": progress,
 		"unlocked": unlocked,
 		"active": active,
+		"tutorials_complete": gig_manager._tutorials_complete,
+		"procedural_count": gig_manager._procedural_count,
+		"next_order_index": gig_manager._next_order_index,
 	}
 
 
@@ -385,9 +388,14 @@ func _restore_gigs(gig_data: Dictionary) -> void:
 		if active_indices.has(gig.order_index):
 			gig_manager._active_gigs.append(gig)
 
-	# Migration pass: activate any gigs whose prerequisites are now met
-	# but weren't in the save (e.g. new gigs added after save was created)
-	gig_manager._check_wave_activations()
+	# Restore procedural state
+	gig_manager._tutorials_complete = gig_data.get("tutorials_complete", false)
+	gig_manager._procedural_count = int(gig_data.get("procedural_count", 0))
+	gig_manager._next_order_index = int(gig_data.get("next_order_index", 100))
+
+	# If tutorials complete and no active gigs, generate procedural
+	if gig_manager._tutorials_complete and gig_manager._active_gigs.is_empty():
+		gig_manager._fill_procedural_gigs()
 
 	print("[SaveManager] Gig state restored — %d completed, %d active" % [
 		gig_manager._completed_indices.size(), gig_manager._active_gigs.size()])

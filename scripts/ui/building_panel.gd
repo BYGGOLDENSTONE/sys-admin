@@ -26,13 +26,13 @@ const BUILDING_ORDER: PackedStringArray = [
 
 ## Which gig unlocks each building (for locked tooltip)
 const UNLOCK_GIG: Dictionary = {
-	"Separator": "Gig 2: Clean Data Only",
-	"Classifier": "Gig 3: Sorting by Type",
-	"Merger": "Gig 6: Streamlined Delivery",
-	"Recoverer": "Gig 7: Data Recovery",
-	"Research Lab": "Gig 5: Decryption Run",
-	"Decryptor": "Gig 5: Decryption Run",
-	"Encryptor": "Gig 8: Encryption Job",
+	"Separator": "Gig 1: First Extraction",
+	"Classifier": "Gig 1: First Extraction",
+	"Merger": "Gig 2: Clean Data Only",
+	"Research Lab": "Gig 3: Full Filter Chain",
+	"Decryptor": "Gig 3: Full Filter Chain",
+	"Recoverer": "Gig 4: Combined Flow",
+	"Encryptor": "Gig 5: Data Recovery",
 }
 
 var _definitions: Array[BuildingDefinition] = []

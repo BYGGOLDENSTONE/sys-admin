@@ -1,27 +1,20 @@
-[gd_resource type="Resource" load_steps=4 format=3]
+[gd_resource type="Resource" load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://resources/gigs/gig_definition.gd" id="1"]
 [ext_resource type="Script" path="res://resources/gigs/gig_requirement.gd" id="2"]
 
 [sub_resource type="Resource" id="req1"]
 script = ExtResource("2")
-content = 0
+content = 3
 state = 0
 amount = 15
-label = "Standard Public"
-
-[sub_resource type="Resource" id="req2"]
-script = ExtResource("2")
-content = 1
-state = 0
-amount = 10
-label = "Financial Public"
+label = "Blueprint Public"
 
 [resource]
 script = ExtResource("1")
-gig_name = "Streamlined Delivery"
-description = "FIXER_NULL: I need Standard and Financial flowing into one line. Use a Merger to combine two pipelines — less cables, less mess.\n\nYour ISP Backbone and ATM pipelines are already running. Use your new Merger to combine flows into a single cable to the Terminal."
+gig_name = "Blueprint Run"
+description = "ARCHIVE_X: I need raw Blueprint data — untouched. Find a source that carries it and get the pipeline running.\n\nBlueprint appears in Biotech Labs and harder sources. All your tools are unlocked now — build the network you need."
 order_index = 6
 is_tutorial = true
-requirements = Array[Resource]([SubResource("req1"), SubResource("req2")])
-reward_buildings = Array[String](["Merger"])
+requirements = Array[Resource]([SubResource("req1")])
+reward_buildings = Array[String]([])
