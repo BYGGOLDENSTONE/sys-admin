@@ -1279,7 +1279,6 @@ func _process_dual_input_fuel_mode(b: Node2D, dual: DualInputComponent, max_proc
 		if to_process <= 0:
 			continue
 		var out_tags: int = p_tags | dual.output_tag
-		var out_tags: int = p_tags | dual.output_tag
 		var sent: int = _push_data_from(b, p_content, dual.output_state, to_process, "", p_tier, out_tags)
 		if sent > 0:
 			b.stored_data[key] -= sent
