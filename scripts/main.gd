@@ -608,10 +608,27 @@ func _setup_sound_manager() -> void:
 	# Wire cable events
 	connection_manager.connection_added.connect(_on_cable_connected_sound)
 	connection_manager.connection_removed.connect(_on_cable_removed_sound)
+	# City Control: update network coverage on connection changes
+	connection_manager.connection_added.connect(func(_c): _update_city_control())
+	connection_manager.connection_removed.connect(func(_c): _update_city_control())
 	# Port Purity: pre-populate cable types at connection time (blocks before first tick)
 	connection_manager.connection_added.connect(_gig_manager.on_ct_connection_added)
 	# Port Purity: clear port tracking when cable disconnected from CT
 	connection_manager.connection_removed.connect(_gig_manager.on_ct_connection_removed)
+
+
+func _update_city_control() -> void:
+	if _top_bar == null or source_manager == null:
+		return
+	var all_sources: Array[Node2D] = source_manager.get_all_sources()
+	var total: int = all_sources.size()
+	var connected: int = 0
+	for source in all_sources:
+		for conn in connection_manager.connections:
+			if conn.from_building == source:
+				connected += 1
+				break
+	_top_bar.update_city_control(connected, total)
 
 
 func _on_building_placed_sound(_building: Node2D, _cell: Vector2i) -> void:

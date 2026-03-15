@@ -5,6 +5,7 @@ const BORDER_COLOR := Color("#00bbee")
 const DIVIDER_COLOR := Color("#00bbee40")
 
 var _speed_label: Label
+var _city_label: Label
 var _seed_label: Label
 var _dev_label: Label
 var _speed_tween: Tween = null
@@ -40,6 +41,11 @@ func _build_ui() -> void:
 	_speed_label = _make_label("> 1x", Color(0, 1, 0.53), 18)
 	_speed_label.custom_minimum_size.x = 130
 	hbox.add_child(_speed_label)
+
+	# City Control
+	_city_label = _make_label("NETWORK: 0%", Color(0.4, 0.7, 0.9, 0.8), 14)
+	_city_label.visible = false
+	hbox.add_child(_city_label)
 
 	# Spacer
 	var spacer := Control.new()
@@ -110,3 +116,15 @@ func update_seed(seed_value: int) -> void:
 
 func set_dev_visible(show: bool) -> void:
 	_dev_label.visible = show
+
+
+func update_city_control(connected: int, total: int) -> void:
+	if total <= 0:
+		_city_label.visible = false
+		return
+	_city_label.visible = true
+	var pct: int = int(float(connected) / float(total) * 100.0)
+	_city_label.text = "NETWORK: %d/%d (%d%%)" % [connected, total, pct]
+	# Color shifts from cool blue to bright green as coverage grows
+	var t: float = clampf(float(pct) / 100.0, 0.0, 1.0)
+	_city_label.add_theme_color_override("font_color", Color(0.3, 0.5 + t * 0.5, 0.7 + t * 0.3, 0.85))

@@ -120,10 +120,11 @@ Asagidaki kararlar **scope lock** kabul edilir. Claude Code bu kararlarla celise
 - [x] Tutorial/stall hint'ler ve building_panel unlock mapping guncellendi
 - [x] Throughput gig mekanigi → Faz 4.5'te eklenebilir (simdilik one-shot delivery)
 
-### Faz 5: Persistent Network
-- [ ] Gig tamamlaninca pipeline kalir, calismaya devam eder
-- [ ] "Sehir Kontrolu" progress gostergesi
-- **Risk:** Dusuk, mevcut sistemde zaten binalar/kablolar kalici
+### Faz 5: Persistent Network ✓ TAMAMLANDI
+- [x] Pipeline'lar zaten kalici — binalar/kablolar gig tamamlaninca silinmiyor (mevcut davranis)
+- [x] "NETWORK: X/Y (Z%)" progress gostergesi top_bar'a eklendi
+- [x] Bagli kaynak / toplam kaynak orani, renk mavi→yesile kayiyor
+- [x] Kablo ekleme/cikarma'da otomatik guncelleniyor
 
 ### Faz 6: Coklu Save + Polish + GDD Guncelleme
 - [ ] Ard arda undo yapilinca engine crash — undo stack guvenli hale getirilmeli
