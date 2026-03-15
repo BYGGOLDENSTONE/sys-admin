@@ -330,7 +330,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		KEY_2:
 			simulation_manager.set_speed(2)
 		KEY_3:
-			simulation_manager.set_speed(3)
+			simulation_manager.set_speed(4)
+		KEY_4:
+			simulation_manager.set_speed(8)
 		KEY_F7:
 			_run_benchmark()
 		KEY_H:
@@ -432,7 +434,7 @@ func _update_shortcut_hints() -> void:
 			else:
 				ctx = "LMB Select | RMB Delete | Ctrl+LMB Move | Shift+Drag Select"
 	var line1: String = ctx
-	var line2: String = "Esc Menu | Space Pause | 1-3 Speed | G Contracts | Q Center | Ctrl+S Save | Ctrl+Z Undo | H Hide"
+	var line2: String = "Esc Menu | Space Pause | 1-4 Speed | G Contracts | Q Center | Ctrl+S Save | Ctrl+Z Undo | H Hide"
 	_shortcut_hints.text = line1 + "\n" + line2
 	# Re-center after text change
 	call_deferred("_center_shortcut_panel")

@@ -94,13 +94,15 @@ func update_speed(multiplier: int, paused: bool) -> void:
 		_speed_label.text = "|| PAUSED"
 		_speed_label.add_theme_color_override("font_color", Color(1, 0.13, 0.27))
 	else:
-		_speed_label.text = "%s %dx" % [">".repeat(multiplier), multiplier]
+		var arrows: int = [1, 2, 4, 8].find(multiplier) + 1
+		_speed_label.text = "%s %dx" % [">".repeat(arrows), multiplier]
 		var speed_color: Color
 		match multiplier:
 			1: speed_color = Color(0.2, 1, 0.67)     # Mint green
 			2: speed_color = Color(1.0, 0.8, 0.2)    # Gold
-			3: speed_color = Color(1.0, 0.5, 0.15)   # Amber
-			_: speed_color = Color(1.0, 0.3, 0.15)   # Orange-red
+			4: speed_color = Color(1.0, 0.5, 0.15)   # Amber
+			8: speed_color = Color(1.0, 0.3, 0.15)   # Orange-red
+			_: speed_color = Color(1.0, 0.3, 0.15)
 		_speed_label.add_theme_color_override("font_color", speed_color)
 	# Pulse animation on change
 	_play_speed_pulse()

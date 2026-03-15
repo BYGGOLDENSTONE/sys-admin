@@ -296,7 +296,10 @@ func _process(delta: float) -> void:
 
 
 func set_speed(multiplier: int) -> void:
-	speed_multiplier = clampi(multiplier, 1, 3)
+	# Valid speeds: 1, 2, 4, 8
+	if multiplier not in [1, 2, 4, 8]:
+		multiplier = 1
+	speed_multiplier = multiplier
 	_sim_timer.wait_time = 1.0 / speed_multiplier
 	if is_paused:
 		is_paused = false
