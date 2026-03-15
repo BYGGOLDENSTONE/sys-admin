@@ -82,7 +82,7 @@ func play_process_event(building_type: String) -> void:
 			play("process_recover", -14.0)
 		"classifier", "separator":
 			play("process_classify", -16.0)
-		"research":
+		"research", "repair_lab":
 			play("process_research", -14.0)
 		_:
 			play("process_tick", -16.0)

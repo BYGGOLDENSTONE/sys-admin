@@ -21,7 +21,7 @@ const CELL_ICON_SIZE: float = 48.0
 const BUILDING_ORDER: PackedStringArray = [
 	"Trash", "Splitter",
 	"Separator", "Classifier", "Merger", "Recoverer",
-	"Research Lab", "Decryptor", "Encryptor",
+	"Key Forge", "Repair Lab", "Decryptor", "Encryptor",
 ]
 
 ## Which gig unlocks each building (for locked tooltip)
@@ -29,8 +29,9 @@ const UNLOCK_GIG: Dictionary = {
 	"Separator": "Gig 1: First Extraction",
 	"Classifier": "Gig 1: First Extraction",
 	"Merger": "Gig 2: Clean Data Only",
-	"Research Lab": "Gig 3: Full Filter Chain",
+	"Key Forge": "Gig 3: Full Filter Chain",
 	"Decryptor": "Gig 3: Full Filter Chain",
+	"Repair Lab": "Gig 4: Combined Flow",
 	"Recoverer": "Gig 4: Combined Flow",
 	"Encryptor": "Gig 5: Data Recovery",
 }

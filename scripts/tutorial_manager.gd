@@ -39,12 +39,12 @@ var _gig_hints: Dictionary = {
 	},
 	4: {
 		"id": "gig4_intro",
-		"text": "Connect [color=#00ddff]multiple sources[/color] and use your [color=#ffcc44]Merger[/color] to combine flows.\nTry the [color=#ffcc44]Research Lab[/color] and [color=#ffcc44]Decryptor[/color] on any encrypted data you find!",
+		"text": "Connect [color=#00ddff]multiple sources[/color] and use your [color=#ffcc44]Merger[/color] to combine flows.\nTry the [color=#ffcc44]Key Forge[/color] and [color=#ffcc44]Decryptor[/color] on any encrypted data you find!",
 		"duration": 14.0,
 	},
 	5: {
 		"id": "gig5_intro",
-		"text": "The [color=#ffcc44]Recoverer[/color] repairs Corrupted data using [color=#00ddff]fuel[/color].\nFeed [color=#00ddff]Corrupted data[/color] from the left, [color=#00ddff]same-content Public fuel[/color] from the top.",
+		"text": "The [color=#ffcc44]Recoverer[/color] repairs Corrupted data using [color=#00ddff]Repair Kits[/color].\nFeed [color=#00ddff]Corrupted data[/color] from the left, [color=#00ddff]Repair Kit[/color] from the top (built by [color=#ffcc44]Repair Lab[/color]).",
 		"duration": 14.0,
 	},
 	6: {
@@ -73,12 +73,17 @@ var _building_hints: Dictionary = {
 	},
 	"Recoverer": {
 		"id": "unlock_recoverer",
-		"text": "[color=#ffcc44]RECOVERER[/color] unlocked — repairs Corrupted data.\nData: [color=#00ddff]left[/color]  |  Fuel: [color=#00ddff]top[/color]  |  Output: [color=#00ddff]right[/color]",
+		"text": "[color=#ffcc44]RECOVERER[/color] unlocked — repairs Corrupted data.\nData: [color=#00ddff]left[/color]  |  Repair Kit: [color=#00ddff]top[/color]  |  Output: [color=#00ddff]right[/color]",
 		"duration": 8.0,
 	},
-	"Research Lab": {
-		"id": "unlock_research_lab",
-		"text": "[color=#ffcc44]RESEARCH LAB[/color] unlocked — produces Decryption Keys.\nPress [color=#ffcc44]TAB[/color] to select Key tier. Higher tier = more ingredients needed.",
+	"Key Forge": {
+		"id": "unlock_key_forge",
+		"text": "[color=#ffcc44]KEY FORGE[/color] unlocked — produces Decryption Keys.\nPress [color=#ffcc44]TAB[/color] to select Key tier. Higher tier = more ingredients needed.",
+		"duration": 8.0,
+	},
+	"Repair Lab": {
+		"id": "unlock_repair_lab",
+		"text": "[color=#ffcc44]REPAIR LAB[/color] unlocked — produces Repair Kits for the Recoverer.\nPress [color=#ffcc44]TAB[/color] to select Kit tier. Higher tier = more ingredients needed.",
 		"duration": 8.0,
 	},
 	"Decryptor": {

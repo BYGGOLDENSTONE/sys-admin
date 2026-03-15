@@ -145,6 +145,7 @@ func _update_stats() -> void:
 		if def.dual_input.fuel_matches_content:
 			# Recoverer
 			lines.append(_stat("Left Port ←", "[color=#ff8844]Corrupted[/color] / [color=#88aa44]Enc·Cor[/color] data"))
+			lines.append(_stat("Top Port ←", "[color=#ff7744]Repair Kit[/color] (from Repair Lab)"))
 			var fuel_tags: Array[int] = def.dual_input.required_fuel_tags
 			if fuel_tags.size() >= 3:
 				lines.append(_stat("Top Port ←", "Fuel: [color=#44ff88]Public[/color] / [color=#44aaff]Decrypted[/color] / [color=#44aaff]Dec·Enc[/color]"))
@@ -154,7 +155,7 @@ func _update_stats() -> void:
 		elif def.dual_input.output_tag == DataEnums.ProcessingTag.ENCRYPTED:
 			# Encryptor
 			lines.append(_stat("Left Port ←", "[color=#44ff88]Processed[/color] data"))
-			lines.append(_stat("Top Port ←", "[color=#ffaa00]Key[/color] (from Research Lab)"))
+			lines.append(_stat("Top Port ←", "[color=#ffaa00]Key[/color] (from Key Forge)"))
 			lines.append(_stat("Output →", "[color=#44aaff]Encrypted[/color] tag added"))
 			lines.append(_stat("Key/packet", "%d" % def.dual_input.key_cost))
 		else:

@@ -1,6 +1,6 @@
 class_name DataEnums
 
-enum ContentType { STANDARD, FINANCIAL, BIOMETRIC, BLUEPRINT, RESEARCH, CLASSIFIED, KEY }
+enum ContentType { STANDARD, FINANCIAL, BIOMETRIC, BLUEPRINT, RESEARCH, CLASSIFIED, KEY, REPAIR_KIT }
 enum DataState { PUBLIC, ENCRYPTED, CORRUPTED, MALWARE, ENC_COR }
 
 ## Processing tags — bit flags that accumulate on data as it gets processed
@@ -34,6 +34,7 @@ static func content_name(c: int) -> String:
 		ContentType.RESEARCH: return "Research"
 		ContentType.CLASSIFIED: return "Classified"
 		ContentType.KEY: return "Key"
+		ContentType.REPAIR_KIT: return "Repair Kit"
 	return "Unknown"
 
 static func state_name(s: int) -> String:
@@ -63,6 +64,7 @@ static func content_char(c: int) -> String:
 		ContentType.RESEARCH: return "?"
 		ContentType.CLASSIFIED: return "!"
 		ContentType.KEY: return "K"
+		ContentType.REPAIR_KIT: return "+"
 	return "0"
 
 
@@ -75,6 +77,7 @@ static func content_color(c: int) -> Color:
 		ContentType.RESEARCH: return Color("#9955ff")
 		ContentType.CLASSIFIED: return Color("#ff3388")
 		ContentType.KEY: return Color("#ffaa00")
+		ContentType.REPAIR_KIT: return Color("#ff7744")
 	return Color("#7788aa")
 
 static func state_color_hex(s: int) -> String:
@@ -129,6 +132,7 @@ static func content_color_hex(c: int) -> String:
 		ContentType.RESEARCH: return "#9955ff"
 		ContentType.CLASSIFIED: return "#ff3388"
 		ContentType.KEY: return "#ffaa00"
+		ContentType.REPAIR_KIT: return "#ff7744"
 	return "#7788aa"
 
 

@@ -404,7 +404,7 @@ func _proc_gig_name(content: int, tags: int) -> String:
 func _proc_gig_instruction(tags: int) -> String:
 	match tags:
 		0: return "Deliver clean Public data to the Terminal."
-		1: return "Decrypt the data first — you'll need Keys from a Research Lab."
+		1: return "Decrypt the data first — you'll need Keys from a Key Forge."
 		2: return "Recover corrupted data — feed same-content Public fuel into the Recoverer."
 		5: return "Decrypt first, then re-encrypt through the Encryptor. Both need Keys."
 		3: return "Recover the data, then decrypt it. A multi-step pipeline."

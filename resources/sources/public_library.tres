@@ -5,7 +5,7 @@
 [resource]
 script = ExtResource("1")
 source_name = "Public Library"
-description = "Open-access academic databases. Contains Standard and Research, some corrupted. Primary fuel source for Research Lab."
+description = "Open-access academic databases. Contains Standard and Research, some corrupted. Primary ingredient source for Key Forge."
 color = Color(0.53, 0.6, 0.87, 1.0)
 content_weights = {0: 0.45, 4: 0.55}
 state_weights = {0: 0.70, 2: 0.30}

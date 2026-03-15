@@ -32,7 +32,7 @@ level_values = Array[float]([5.0, 6.0, 8.0])
 [resource]
 script = ExtResource("1")
 building_name = "Decryptor"
-description = "Breaks encryption. Dual input: Encrypted data from left, Key from top. Halts without Key. Requires continuous Key supply from Research Lab."
+description = "Breaks encryption. Dual input: Encrypted data from left, Key from top. Halts without Key. Requires continuous Key supply from Key Forge."
 grid_size = Vector2i(2, 2)
 color = Color(0.95, 0.55, 0.15, 1)
 category = "processing"

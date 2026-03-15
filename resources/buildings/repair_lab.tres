@@ -13,15 +13,15 @@ forward_rate = 0.0
 [sub_resource type="Resource" id="prod1"]
 script = ExtResource("3")
 consume_amount = 5
-input_content = 4
+input_content = 0
 input_state = 0
-output_content = 6
+output_content = 7
 output_state = 0
 processing_rate = 2.0
 max_tier = 3
-tier2_extra_content = 2
+tier2_extra_content = 1
 tier2_extra_amount = 2
-tier3_extra_content = 1
+tier3_extra_content = 3
 tier3_extra_amount = 2
 
 [sub_resource type="Resource" id="upg1"]
@@ -34,12 +34,12 @@ level_values = Array[float]([3.0, 4.0, 5.0])
 
 [resource]
 script = ExtResource("1")
-building_name = "Key Forge"
-description = "Produces Decryption Keys for the Decryptor. Tab to select tier: T1=Research, T2=Research+Biometric, T3=Research+Biometric+Financial."
+building_name = "Repair Lab"
+description = "Produces Repair Kits for the Recoverer. Tab to select tier: T1=Standard, T2=Standard+Financial, T3=Standard+Financial+Blueprint."
 grid_size = Vector2i(2, 2)
-color = Color(0.18, 0.83, 0.35, 1)
+color = Color(0.85, 0.55, 0.25, 1)
 category = "processing"
-visual_type = "research"
+visual_type = "repair_lab"
 output_ports = Array[String](["right"])
 input_ports = Array[String](["left"])
 storage = SubResource("stor1")

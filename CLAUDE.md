@@ -126,12 +126,16 @@ Asagidaki kararlar **scope lock** kabul edilir. Claude Code bu kararlarla celise
 - [x] Bagli kaynak / toplam kaynak orani, renk mavi→yesile kayiyor
 - [x] Kablo ekleme/cikarma'da otomatik guncelleniyor
 
-### Faz 6: Coklu Save + Polish + GDD Guncelleme
+### Faz 6: Coklu Save + Polish + GDD Guncelleme (DEVAM EDIYOR)
+- [x] **Research Lab → Key Forge** yeniden adlandirildi (T1:Research, T2:+Biometric, T3:+Financial)
+- [x] **Repair Lab** yeni bina eklendi — Repair Kit uretir (T1:Standard, T2:+Financial, T3:+Blueprint)
+- [x] **Recoverer** fuel mode → key mode (Repair Kit kullanir, Decryptor ile simetrik)
+- [x] **REPAIR_KIT** content type eklendi (char:"+", color:#ff7744)
+- [x] Tum UI/tooltip/hint referanslari guncellendi
 - [ ] Ard arda undo yapilinca engine crash — undo stack guvenli hale getirilmeli
 - [ ] Save slot sistemi (birden fazla save dosyasi)
 - [ ] Load ekraninda slot listesi
 - [ ] Son dokunuslar
-- [ ] **Recoverer yakit sistemi yeniden degerlendir** — Recoverer'in yakit olarak ne kullandigini gozden gecir, v4 mekanikleriyle uyumlu mu kontrol et
 - [ ] **GDD.md guncelle** — Tum fazlar bittikten sonra, leftover kod kalmasin diye en son GDD v4.0 olarak yazilacak
 
 ### Siralama

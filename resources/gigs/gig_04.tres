@@ -20,8 +20,8 @@ label = "Financial Public"
 [resource]
 script = ExtResource("1")
 gig_name = "Combined Flow"
-description = "FIXER_NULL: I need Standard and Financial flowing into one line. Multiple sources, one delivery point.\n\nConnect multiple sources and use your Merger to combine flows. Try your Research Lab and Decryptor on encrypted data while you're at it."
+description = "FIXER_NULL: I need Standard and Financial flowing into one line. Multiple sources, one delivery point.\n\nConnect multiple sources and use your Merger to combine flows. Try your Key Forge and Decryptor on encrypted data while you're at it."
 order_index = 4
 is_tutorial = true
 requirements = Array[Resource]([SubResource("req1"), SubResource("req2")])
-reward_buildings = Array[String](["Recoverer"])
+reward_buildings = Array[String](["Repair Lab", "Recoverer"])

@@ -664,7 +664,7 @@ func _cycle_building_filter(building: Node2D) -> void:
 		building.selected_tier = (building.selected_tier % def.producer.max_tier) + 1
 		var tier_names: Array[String] = ["T1 Key", "T2 Strong Key", "T3 Master Key"]
 		var label: String = tier_names[building.selected_tier - 1] if building.selected_tier <= tier_names.size() else "T%d Key" % building.selected_tier
-		print("[BuildingManager] Research Lab tier → %s" % label)
+		print("[BuildingManager] %s tier → %s" % [def.building_name, label])
 
 
 func _rotate_selected_building() -> void:

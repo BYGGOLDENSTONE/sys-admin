@@ -24,4 +24,4 @@ description = "DR_PATCH: The Bank Terminal has Financial and Biometric, but some
 order_index = 3
 is_tutorial = true
 requirements = Array[Resource]([SubResource("req1"), SubResource("req2")])
-reward_buildings = Array[String](["Research Lab", "Decryptor"])
+reward_buildings = Array[String](["Key Forge", "Decryptor"])
