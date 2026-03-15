@@ -8,10 +8,12 @@ const SaveManagerScript = preload("res://scripts/save_manager.gd")
 const TITLE_COLOR := Color(0.0, 0.85, 0.9, 1.0)
 const GLITCH_CHARS: String = "█▓░▒#@$%&*"
 const WISHLIST_URL: String = "https://store.steampowered.com/app/PLACEHOLDER_APP_ID/SYS_ADMIN/"
+const FEEDBACK_URL: String = "https://store.steampowered.com/app/PLACEHOLDER_APP_ID/SYS_ADMIN/discussions/"
 
 var _new_game_btn: Button = null
 var _load_game_btn: Button = null
 var _options_btn: Button = null
+var _feedback_btn: Button = null
 var _wishlist_btn: Button = null
 var _quit_btn: Button = null
 var _button_vbox: VBoxContainer = null
@@ -100,6 +102,10 @@ func _build_ui() -> void:
 	_options_btn = _create_menu_button("Options")
 	_options_btn.pressed.connect(_on_options)
 	_button_vbox.add_child(_options_btn)
+
+	_feedback_btn = _create_menu_button("Give Feedback")
+	_feedback_btn.pressed.connect(_on_feedback)
+	_button_vbox.add_child(_feedback_btn)
 
 	_wishlist_btn = _create_menu_button("Wishlist Full Game")
 	_wishlist_btn.pressed.connect(_on_wishlist)
@@ -321,6 +327,10 @@ func _on_options_back() -> void:
 	_button_vbox.visible = true
 
 
+func _on_feedback() -> void:
+	OS.shell_open(FEEDBACK_URL)
+
+
 func _on_wishlist() -> void:
 	OS.shell_open(WISHLIST_URL)
 
@@ -334,6 +344,7 @@ func _transition_to_game(save_data: Dictionary) -> void:
 	_new_game_btn.disabled = true
 	_load_game_btn.disabled = true
 	_options_btn.disabled = true
+	_feedback_btn.disabled = true
 	_wishlist_btn.disabled = true
 	_quit_btn.disabled = true
 
