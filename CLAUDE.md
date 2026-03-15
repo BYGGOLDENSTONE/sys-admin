@@ -149,6 +149,11 @@ Asagidaki kararlar **scope lock** kabul edilir. Claude Code bu kararlarla celise
 - [x] **Bina gorsel yenileme** — tum binalar 2x2 (Splitter/Merger/Trash 1x1→2x2), ayirt edici polygon sekilleri, ikon merkez fix (rotate/mirror), output port oklari (disari uzayan ucgen), input port daireler, key/fuel port elmas sembol ("K"/"R"), Decryptor acik kilit / Encryptor kapali kilit, Repair Lab ikonu, Separator/Classifier buyutulmus ikon
 - [x] **Merger port layout** — iki input sol kenarda koselerde (left_0/left_1), ikon guncellendi
 - [x] **Splitter port layout** — iki output sag kenarda koselerde (right_0/right_1), ikon guncellendi
+- [x] **Kablo renk solma kaldirildi** — tum kablolar her zaman tam parlaklikta, _get_cable_state/CABLE_INACTIVE sistemi temizlendi
+- [x] **Kablo sabit renk** — tum kablolar notral gumus-beyaz (#aabbcc, alpha 0.7), bina renginden bagimsiz
+- [x] **Kaynak dominant content rengi** — her kaynak en yuksek agirlikli content type'in rengini kullaniyor (orn. Hospital=%55 Biometric → pembe)
+- [x] **Minimap renk uyumu** — kablolar gumus, kaynaklar dominant content rengi
+- [x] **Save silme onay paneli** — Load Game'de silme butonuna basinca cyberpunk stilinde onay penceresi (teal border, kirmizi Delete butonu)
 
 ### Siralama
 Faz 1 → 2 → 3 → 4 → 5 → 6. Her faz sonunda oyun playable state'te kalmali.

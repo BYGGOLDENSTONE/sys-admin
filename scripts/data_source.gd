@@ -52,12 +52,32 @@ func _is_in_viewport() -> bool:
 		and my_pos.y - margin < cam_pos.y + vp_half.y)
 
 
+## Dominant content color — derived from content_weights at setup
+var _dominant_color: Color = Color.CYAN
+
 func setup(def: DataSourceDefinition, origin: Vector2i) -> void:
 	definition = def
 	grid_cell = origin
+	_dominant_color = _compute_dominant_color()
 	_generate_rectangular_cells()
 	_generate_output_ports()
 	queue_redraw()
+
+
+func _compute_dominant_color() -> Color:
+	## Returns the color of the highest-weight content type in this source.
+	var weights: Dictionary = definition.content_weights
+	if weights.is_empty():
+		return definition.color
+	var best_content: int = -1
+	var best_weight: float = -1.0
+	for content_type in weights:
+		if weights[content_type] > best_weight:
+			best_weight = weights[content_type]
+			best_content = content_type
+	if best_content >= 0:
+		return DataEnums.content_color(best_content)
+	return definition.color
 
 
 func _generate_rectangular_cells() -> void:
@@ -176,7 +196,7 @@ func _draw() -> void:
 	var size := Vector2(definition.grid_size.x * TILE_SIZE, definition.grid_size.y * TILE_SIZE)
 	var rect := Rect2(Vector2.ZERO, size)
 
-	var accent: Color = definition.color
+	var accent: Color = _dominant_color
 	var pulse: float = sin(_glow_time * GLOW_PULSE_SPEED) * GLOW_PULSE_AMOUNT
 
 	# === PCB MODE (zoom < 0.25) — soft glowing dots ===

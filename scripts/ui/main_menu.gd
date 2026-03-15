@@ -334,13 +334,82 @@ func _on_slot_load(slot: int) -> void:
 
 
 func _on_slot_delete(slot: int) -> void:
-	# Delete both main save and autosave for this slot
-	for path in [SaveManagerScript.slot_path(slot), SaveManagerScript.slot_auto_path(slot)]:
-		if FileAccess.file_exists(path):
-			DirAccess.remove_absolute(path)
-	# Rebuild the load list
-	_on_load_game()
-	_update_load_button()
+	# Show styled confirmation overlay
+	var overlay := ColorRect.new()
+	overlay.color = Color(0.0, 0.0, 0.0, 0.6)
+	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(overlay)
+
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay.add_child(center)
+
+	var panel := PanelContainer.new()
+	var panel_style := StyleBoxFlat.new()
+	panel_style.bg_color = Color(0.04, 0.06, 0.1, 0.95)
+	panel_style.border_color = Color(0.0, 0.7, 0.8, 0.7)
+	panel_style.set_border_width_all(2)
+	panel_style.set_corner_radius_all(6)
+	panel_style.set_content_margin_all(32)
+	panel.add_theme_stylebox_override("panel", panel_style)
+	center.add_child(panel)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 20)
+	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	panel.add_child(vbox)
+
+	var title_lbl := Label.new()
+	title_lbl.text = "// DELETE SAVE"
+	title_lbl.add_theme_font_size_override("font_size", 22)
+	title_lbl.add_theme_color_override("font_color", Color(1.0, 0.35, 0.3, 1.0))
+	title_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(title_lbl)
+
+	var msg_lbl := Label.new()
+	msg_lbl.text = "Are you sure you want to delete Slot %d?\nThis cannot be undone." % slot
+	msg_lbl.add_theme_font_size_override("font_size", 16)
+	msg_lbl.add_theme_color_override("font_color", Color(0.7, 0.8, 0.85, 0.9))
+	msg_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(msg_lbl)
+
+	var btn_row := HBoxContainer.new()
+	btn_row.add_theme_constant_override("separation", 16)
+	btn_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	vbox.add_child(btn_row)
+
+	var cancel_btn := _create_menu_button("Cancel")
+	cancel_btn.custom_minimum_size = Vector2(160, 44)
+	cancel_btn.add_theme_font_size_override("font_size", 18)
+	cancel_btn.pressed.connect(overlay.queue_free)
+	btn_row.add_child(cancel_btn)
+
+	var delete_btn := _create_menu_button("Delete")
+	delete_btn.custom_minimum_size = Vector2(160, 44)
+	delete_btn.add_theme_font_size_override("font_size", 18)
+	# Red border for delete button
+	var del_style := StyleBoxFlat.new()
+	del_style.bg_color = Color(0.12, 0.04, 0.04, 0.95)
+	del_style.border_color = Color(1.0, 0.3, 0.25, 0.7)
+	del_style.set_border_width_all(2)
+	del_style.set_corner_radius_all(4)
+	del_style.set_content_margin_all(12)
+	delete_btn.add_theme_stylebox_override("normal", del_style)
+	var del_hover := del_style.duplicate()
+	del_hover.bg_color = Color(0.18, 0.06, 0.06, 0.95)
+	del_hover.border_color = Color(1.0, 0.4, 0.35, 1.0)
+	delete_btn.add_theme_stylebox_override("hover", del_hover)
+	delete_btn.add_theme_color_override("font_color", Color(1.0, 0.5, 0.45, 1.0))
+	delete_btn.add_theme_color_override("font_hover_color", Color(1.0, 0.7, 0.65, 1.0))
+	delete_btn.pressed.connect(func():
+		overlay.queue_free()
+		for path in [SaveManagerScript.slot_path(slot), SaveManagerScript.slot_auto_path(slot)]:
+			if FileAccess.file_exists(path):
+				DirAccess.remove_absolute(path)
+		_on_load_game()
+		_update_load_button()
+	)
+	btn_row.add_child(delete_btn)
 
 
 func _on_load_back() -> void:

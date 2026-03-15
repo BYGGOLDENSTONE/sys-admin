@@ -4,8 +4,7 @@ const _MONO_FONT: Font = preload("res://assets/fonts/JetBrainsMono-Regular.ttf")
 const TILE_SIZE: int = 64
 const CABLE_WIDTH: float = 5.0
 const CABLE_GLOW_WIDTH: float = 11.0
-const CABLE_GLOW_ALPHA: float = 0.2
-const CABLE_INACTIVE_ALPHA: float = 0.12
+const CABLE_COLOR := Color(0.67, 0.73, 0.8, 0.7)  # Silver-white — neutral PCB trace
 const PARTICLE_FONT_SIZE: int = 20
 const HOVER_COLOR := Color(1.0, 0.3, 0.3, 0.6)
 const HOVER_WIDTH: float = 14.0
@@ -16,14 +15,8 @@ var connection_manager: Node = null
 var simulation_manager: Node = null
 var hovered_cable_index: int = -1
 var _camera: Camera2D = null
-# Per-frame cache: buildings that have transit items heading toward them
-var _has_incoming: Dictionary = {}  # building → true
 var _polyline_helper: RefCounted = null
 
-# Cable state constants
-const CABLE_FLOWING: int = 0
-const CABLE_STALLED: int = 1
-const CABLE_INACTIVE: int = 2
 
 # Preview state (set by BuildingManager during CONNECTING)
 var preview_path: Array[Vector2i] = []
@@ -143,11 +136,6 @@ func _draw() -> void:
 	var conns: Array[Dictionary] = connection_manager.get_connections()
 	var vp_bounds: Rect2 = _get_viewport_bounds()
 	# Build per-frame cache of buildings with incoming transit
-	_has_incoming.clear()
-	for c in conns:
-		if c.has("transit") and not c["transit"].is_empty():
-			if is_instance_valid(c.to_building):
-				_has_incoming[c.to_building] = true
 	var _items_us: int = 0
 	var _items_calls: int = 0
 	for i in range(conns.size()):
@@ -157,9 +145,8 @@ func _draw() -> void:
 		# Viewport frustum culling — skip cables entirely off-screen
 		if not _is_conn_in_viewport(conn, vp_bounds):
 			continue
-		var cable_state: int = _get_cable_state(conn, i)
 		var hovered: bool = (i == hovered_cable_index)
-		_draw_connection(conn, cable_state != CABLE_INACTIVE, hovered)
+		_draw_connection(conn, hovered)
 		# Transit items: MultiMesh handles rendering when atlas is ready
 		if not _atlas_ready and zoom > 0.25:
 			var _it0: int = Time.get_ticks_usec()
@@ -238,11 +225,10 @@ func _get_cached_polyline(conn: Dictionary) -> PackedVector2Array:
 	return conn["_cached_polyline"]
 
 
-func _draw_connection(conn: Dictionary, active: bool, hovered: bool) -> void:
+func _draw_connection(conn: Dictionary, hovered: bool) -> void:
 	var path: Array = conn.path
 	if path.size() < 2:
 		return
-	var accent: Color = conn.from_building.definition.color
 	var points: PackedVector2Array = _get_cached_polyline(conn)
 	if points.size() < 2:
 		return
@@ -251,16 +237,12 @@ func _draw_connection(conn: Dictionary, active: bool, hovered: bool) -> void:
 	# Scale cable thickness at low zoom so cables stay visible
 	var zoom_scale: float = clampf(1.0 / zoom, 1.0, 2.5) if zoom < 1.0 else 1.0
 	var core_w: float = CABLE_WIDTH * zoom_scale
-	var glow_w: float = CABLE_GLOW_WIDTH * zoom_scale
 
 	if hovered:
 		draw_polyline(points, HOVER_COLOR, HOVER_WIDTH * zoom_scale, true)
 
-	if active:
-		# Core line only — no glow layers
-		draw_polyline(points, accent, core_w, true)
-	else:
-		draw_polyline(points, Color(accent, minf(CABLE_INACTIVE_ALPHA * 0.8 * zoom_scale, 0.35)), core_w, true)
+	# Fixed neon cyan — transit data shows activity
+	draw_polyline(points, CABLE_COLOR, core_w, true)
 
 
 func _build_polyline(conn: Dictionary) -> PackedVector2Array:
@@ -384,29 +366,6 @@ func _draw_preview() -> void:
 func _get_preview_from_port() -> String:
 	return preview_from_port if preview_from_port != "" else "right"
 
-
-func _get_cable_state(conn: Dictionary, conn_index: int) -> int:
-	var from_b: Node2D = conn.from_building
-	var to_b: Node2D = conn.to_building
-	# Source must be active (buildings only — data sources are always active)
-	if from_b.has_method("is_active") and not from_b.is_active():
-		return CABLE_INACTIVE
-	# Check simulation stalled tracking
-	if simulation_manager and simulation_manager.connection_stalled.get(conn_index, false):
-		return CABLE_STALLED
-	# Transit data — if items are in flight, cable is flowing
-	if conn.has("transit") and not conn["transit"].is_empty():
-		return CABLE_FLOWING
-	# Source working → flowing (building-only fallback)
-	if "is_working" in from_b and from_b.is_working:
-		return CABLE_FLOWING
-	# Source has data incoming → output cables stay active (routing buildings)
-	if _has_incoming.has(from_b):
-		return CABLE_FLOWING
-	# Target full → stalled (fallback check)
-	if to_b.has_method("can_accept_data") and not to_b.can_accept_data(1):
-		return CABLE_STALLED
-	return CABLE_INACTIVE
 
 
 func _draw_transit_items(conn: Dictionary, _conn_index: int) -> void:

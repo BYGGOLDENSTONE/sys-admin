@@ -237,9 +237,8 @@ Dikdortgenler + ince cizgiler + kucuk noktalar $9.99 icin yeterince cekici degil
 
 **Kablolar → Veri Otoyollari:**
 - Grid hucresi boyutunda parlayan kanallar (ince cizgi degil!)
-- Ic renk = akan verinin dominant state'i
+- Sabit notral gumus-beyaz renk — tum kablolar ayni ton, veriler kendi rengini tasiyor
 - Icinden semboller akar: $ @ # ? ! 0/1 +
-- Yogun trafik = parlak, bos = sonuk
 - Koseler ve kavsaklar yumusak gecisli
 
 **Binalar → Canli Makineler:**
@@ -611,6 +610,7 @@ Kaynaklar haritaya **rastgele sacilmis.** Zorluk konumdan degil, kaynağin TIPIN
 - 5 scripted tutorial spawn (ISP, ATM, Data Kiosk, Bank Terminal, Hospital)
 - Sektor garanti: Biyotek Labi
 - Zor kaynaklar Enc·Cor bilesik state icerir (demo mekaniği)
+- Kaynak rengi = baskin content tipinin rengi (orn. %55 Biometric → pembe, %100 Standard → gri-mavi)
 
 ### "Gorebilirsin Ama Isleyemezsin" Mekanigi
 ```
@@ -787,6 +787,7 @@ Her sey kodla cizilir + shader efektleri. Procedural-first sanat yonu.
 Arka plan:     #060a10 (koyu siyah)
 Grid:          #0f1520
 Bina govde:    #0a0d14
+Kablo:         #aabbcc (gumus-beyaz, notral)
 UI Accent:     #00bbee (teal-cyan)
 
 State Renkleri:

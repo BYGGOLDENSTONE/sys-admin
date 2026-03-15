@@ -82,7 +82,7 @@ func _draw_cables() -> void:
 	for conn in conns:
 		var from_pos: Vector2 = _world_to_mini(conn.from_building.global_position)
 		var to_pos: Vector2 = _world_to_mini(conn.to_building.global_position)
-		var accent: Color = Color(conn.from_building.definition.color, 0.3)
+		var accent: Color = Color(0.67, 0.73, 0.8, 0.3)  # Match cable silver
 		draw_line(from_pos, to_pos, accent, 1.0, true)
 
 
@@ -91,7 +91,7 @@ func _draw_sources() -> void:
 		return
 	for src in source_manager.get_all_sources():
 		var pos := _world_to_mini(Vector2(src.grid_cell.x * TILE_PX, src.grid_cell.y * TILE_PX))
-		var col: Color = src.definition.color
+		var col: Color = src._dominant_color
 		# Glow halo
 		draw_circle(pos, 5.0, Color(col, 0.15))
 		draw_circle(pos, 3.0, col)
