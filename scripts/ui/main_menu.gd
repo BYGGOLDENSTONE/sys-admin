@@ -298,9 +298,11 @@ func _on_load_game() -> void:
 		if net_total > 0:
 			var pct: int = int(float(net_connected) / float(net_total) * 100.0)
 			net_str = "  ·  NETWORK %d%%" % pct
+		var level: int = info.get("level", 1)
+		var level_str: String = "  ·  LVL %d" % level
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 8)
-		var btn := _create_slot_button("Slot %d  —  Seed %d  (%s)%s" % [info.slot, info.get("seed", 0), ts, net_str])
+		var btn := _create_slot_button("Slot %d  —  %s%s%s" % [info.slot, ts, level_str, net_str])
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		btn.pressed.connect(_on_slot_load.bind(info.slot))
 		row.add_child(btn)

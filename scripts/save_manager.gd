@@ -3,7 +3,7 @@ extends Node
 ## Save/Load system for SYS_ADMIN demo.
 ## JSON-based save format with autosave and backup support.
 
-const SAVE_VERSION: int = 4
+const SAVE_VERSION: int = 5
 const SAVE_DIR: String = "user://saves/"
 const MAX_SLOTS: int = 5
 const AUTOSAVE_INTERVAL: float = 300.0  ## 5 minutes
@@ -20,6 +20,7 @@ var simulation_manager: Node = null
 var current_seed: int = 0
 var current_slot: int = 1  ## Active save slot (1-based)
 var map_generator: RefCounted = null  ## For chunk save/load
+var level_manager: Node = null  ## For level state save/load
 
 var _autosave_timer: Timer = null
 
@@ -51,6 +52,9 @@ static func list_slots() -> Array[Dictionary]:
 					var net: Dictionary = data.get("network", {})
 					info["network_connected"] = int(net.get("connected", 0))
 					info["network_total"] = int(net.get("total", 0))
+					var lvl: Dictionary = data.get("level_state", {})
+					info["level"] = int(lvl.get("current_level", 1))
+					info["max_level"] = int(lvl.get("max_level_reached", 1))
 					break
 		result.append(info)
 	return result
@@ -155,6 +159,8 @@ func capture_state() -> Dictionary:
 	data["network"] = _capture_network()
 	if map_generator:
 		data["generated_chunks"] = map_generator.get_generated_chunk_keys()
+	if level_manager:
+		data["level_state"] = level_manager.get_save_data()
 	return data
 
 
@@ -535,6 +541,15 @@ static func _migrate_save(data: Dictionary, from_version: int) -> Dictionary:
 		# No generated_chunks in old saves — they'll be regenerated from initial area + camera
 		data["version"] = 3
 		print("[SaveManager] Migrated save v2 → v3")
+	if from_version < 5:
+		# v4 → v5: level progression system
+		data["level_state"] = {
+			"current_level": 1,
+			"max_level_reached": 1,
+			"completed_levels": [],
+		}
+		data["version"] = 5
+		print("[SaveManager] Migrated save v4 → v5")
 	return data
 
 

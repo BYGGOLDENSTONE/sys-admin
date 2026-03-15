@@ -733,6 +733,7 @@ func _setup_save_manager() -> void:
 	_save_manager.gig_manager = _gig_manager
 	_save_manager.simulation_manager = simulation_manager
 	_save_manager.current_seed = _current_seed
+	_save_manager.level_manager = _level_manager
 	add_child(_save_manager)
 
 
