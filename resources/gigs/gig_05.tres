@@ -18,4 +18,4 @@ description = "DR_PATCH: Corrupted files aren't trash — they're opportunities.
 order_index = 5
 is_tutorial = true
 requirements = Array[Resource]([SubResource("req1")])
-reward_buildings = Array[String](["Encryptor"])
+reward_buildings = Array[String](["Key Forge", "Decryptor"])

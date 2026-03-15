@@ -5,17 +5,17 @@
 
 [sub_resource type="Resource" id="req1"]
 script = ExtResource("2")
-content = 4
+content = 1
 state = 0
-tags = 1
-amount = 10
-label = "Research Decrypted"
+tags = 5
+amount = 8
+label = "Financial Decrypted·Encrypted"
 
 [resource]
 script = ExtResource("1")
-gig_name = "Decryption Run"
-description = "GHOST_SIGNAL: Encrypted Research data is piling up. Crack it open — I need it clean and decrypted.\n\nBuild a Key Forge to produce Keys from Research data, then feed Encrypted data and Keys into the Decryptor."
-order_index = 6
+gig_name = "Encryption Job"
+description = "CIPHER_QUEEN: I need Financial data that's been decrypted AND re-encrypted. Secure transfer protocol.\n\nDecrypt the data first with your Decryptor, then run it through the Encryptor. Both need Keys from the Key Forge."
+order_index = 7
 is_tutorial = true
 requirements = Array[Resource]([SubResource("req1")])
-reward_buildings = Array[String](["Encryptor"])
+reward_buildings = Array[String]([])

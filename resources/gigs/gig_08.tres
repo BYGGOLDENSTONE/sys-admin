@@ -5,23 +5,24 @@
 
 [sub_resource type="Resource" id="req1"]
 script = ExtResource("2")
-content = 1
+content = 2
 state = 0
-amount = 8
-label = "Financial Public"
+amount = 12
+label = "Biometric Public"
 
 [sub_resource type="Resource" id="req2"]
 script = ExtResource("2")
-content = 2
+content = 0
 state = 0
+tags = 2
 amount = 8
-label = "Biometric Public"
+label = "Standard Recovered"
 
 [resource]
 script = ExtResource("1")
-gig_name = "Full Filter Chain"
-description = "DR_PATCH: The Bank Terminal has Financial and Biometric, but some of it is Corrupted. I need both types — clean only.\n\nChain your tools: Separator to remove Corrupted, Classifier to split content types. Use Merger to combine sources if needed."
-order_index = 3
+gig_name = "Open Network"
+description = "ARCHIVE_X: Multiple clients need different things. Biometric data flowing clean, Standard data recovered from corruption.\n\nUse everything you've learned. Build the network, connect sources, and get it all delivered."
+order_index = 8
 is_tutorial = true
 requirements = Array[Resource]([SubResource("req1"), SubResource("req2")])
 reward_buildings = Array[String]([])

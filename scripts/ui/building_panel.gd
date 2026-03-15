@@ -29,12 +29,22 @@ const UNLOCK_GIG: Dictionary = {
 	"Separator": "Gig 1: First Extraction",
 	"Classifier": "Gig 1: First Extraction",
 	"Merger": "Gig 2: Clean Data Only",
-	"Key Forge": "Gig 3: Full Filter Chain",
-	"Decryptor": "Gig 3: Full Filter Chain",
 	"Repair Lab": "Gig 4: Research Collection",
 	"Recoverer": "Gig 4: Research Collection",
-	"Encryptor": "Gig 5: Data Recovery",
+	"Key Forge": "Gig 5: Data Recovery",
+	"Decryptor": "Gig 5: Data Recovery",
+	"Encryptor": "Gig 6: Decryption Run",
 }
+
+## Cell references for guided tutorial arrow targeting
+var _cell_refs: Dictionary = {}  ## building_name → PanelContainer
+
+
+func get_building_button_rect(building_name: String) -> Rect2:
+	var cell = _cell_refs.get(building_name)
+	if cell != null and is_instance_valid(cell):
+		return cell.get_global_rect()
+	return Rect2()
 
 var _definitions: Array[BuildingDefinition] = []
 var _gig_manager: Node = null
@@ -119,6 +129,7 @@ func refresh_buttons() -> void:
 func _rebuild_buttons() -> void:
 	if _button_container_ref == null:
 		return
+	_cell_refs.clear()
 	# Clear old children
 	for child in _button_container_ref.get_children():
 		child.queue_free()
@@ -213,6 +224,7 @@ func _create_cell(def: BuildingDefinition, unlocked: bool) -> PanelContainer:
 	else:
 		_style_locked_cell(cell)
 
+	_cell_refs[def.building_name] = cell
 	return cell
 
 

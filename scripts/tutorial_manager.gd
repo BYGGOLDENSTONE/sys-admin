@@ -39,7 +39,7 @@ var _gig_hints: Dictionary = {
 	},
 	4: {
 		"id": "gig4_intro",
-		"text": "Connect [color=#00ddff]multiple sources[/color] and use your [color=#ffcc44]Merger[/color] to combine flows.\nTry the [color=#ffcc44]Key Forge[/color] and [color=#ffcc44]Decryptor[/color] on any encrypted data you find!",
+		"text": "Find a [color=#00ddff]medium-difficulty source[/color] that carries [color=#9955ff]Research[/color] data — like a Hospital or Biotech Lab.\nFilter and deliver the clean Research data.",
 		"duration": 14.0,
 	},
 	5: {
@@ -49,8 +49,18 @@ var _gig_hints: Dictionary = {
 	},
 	6: {
 		"id": "gig6_intro",
-		"text": "[color=#00ddff]Blueprint[/color] appears in Biotech Labs and harder sources. All tools unlocked — build the network you need.\nTry [color=#ffcc44]Encryptor[/color] on processed data for future contracts!",
+		"text": "The [color=#ffcc44]Key Forge[/color] crafts Keys from [color=#9955ff]Research[/color] data.\nThe [color=#ffcc44]Decryptor[/color] needs [color=#2288ff]Encrypted[/color] data on the [color=#00ddff]left[/color] and a [color=#ffcc44]Key[/color] on the [color=#00ddff]top[/color].",
 		"duration": 14.0,
+	},
+	7: {
+		"id": "gig7_intro",
+		"text": "The [color=#ffcc44]Encryptor[/color] re-encrypts processed data. Feed [color=#00ddff]Decrypted[/color] data from the left and a [color=#ffcc44]Key[/color] from the top.\nDecrypt first, then encrypt — the data gains both tags.",
+		"duration": 14.0,
+	},
+	8: {
+		"id": "gig8_intro",
+		"text": "All tools are yours now. Multiple data types, multiple processing chains.\nBuild the network you need — contracts will keep coming after this.",
+		"duration": 12.0,
 	},
 }
 
@@ -261,10 +271,12 @@ func on_gig_activated(gig) -> void:
 var _completion_hints: Dictionary = {
 	1: "Data flowing! Next: learn to filter dirty data.",
 	2: "Filtering mastered! Next: chain filters for complex sources.",
-	3: "Filter chain built! Next: combine multiple sources.",
-	4: "Multi-source delivery done! Next: repair corrupted data.",
-	5: "Recovery online! One more tutorial to go.",
-	6: "All tools unlocked! Contracts will now generate automatically — build your network.",
+	3: "Filter chain built! Next: find new data sources.",
+	4: "Research data delivered! Next: repair corrupted data.",
+	5: "Recovery mastered! Next: crack encrypted data.",
+	6: "Decryption online! Next: re-encrypt for secure delivery.",
+	7: "Encryption chain complete! One more tutorial to go.",
+	8: "All tools mastered! Contracts will now generate automatically — build your network.",
 }
 
 

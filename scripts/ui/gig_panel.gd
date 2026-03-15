@@ -643,11 +643,13 @@ func _lbl(text: String, color: Color, font_size: int) -> Label:
 
 const STALL_HINTS: Dictionary = {
 	1: ["Draw a cable from a source's output port to the Contract Terminal"],
-	2: ["Use a Separator (set to Public with TAB) to filter out Corrupted data"],
+	2: ["Use a Separator (set to Public with E) to filter out Corrupted data"],
 	3: ["Chain Separator + Classifier to filter both state and content", "Both Financial and Biometric need to reach the Terminal"],
-	4: ["Connect multiple sources — use Merger to combine flows into one cable"],
-	5: ["Recoverer needs TWO inputs: Corrupted data from left, same-content Public fuel from top"],
-	6: ["Find a source with Blueprint content — try Biotech Lab or harder sources"],
+	4: ["Find a source carrying Research data — Hospital Terminal is south of center"],
+	5: ["Recoverer needs TWO inputs: Corrupted data from left, Repair Kit from top (Repair Lab makes kits)"],
+	6: ["Decryptor needs Encrypted data from left, Key from top (Key Forge makes Keys from Research data)"],
+	7: ["Decrypt first, then Encrypt — both need Keys. The data gets Decrypted AND Encrypted tags"],
+	8: ["Use all your tools — multiple sources and processing chains may be needed"],
 }
 
 

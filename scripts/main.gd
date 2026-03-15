@@ -28,6 +28,7 @@ var _gig_manager: Node = null
 var _gig_panel: PanelContainer = null
 var _contract_terminal: Node2D = null
 var _tutorial_manager: Node = null
+var _guided_tutorial: Node = null
 var _save_manager: Node = null
 var _pause_overlay: CanvasLayer = null
 var _pause_buttons: VBoxContainer = null
@@ -173,6 +174,8 @@ func _ready() -> void:
 				break
 		if _contract_terminal != null and _gig_manager != null:
 			_gig_manager.set_contract_terminal(_contract_terminal)
+		# Setup guided tutorial BEFORE gig panel rebuild (so it can receive signals)
+		_setup_guided_tutorial()
 		# Rebuild UI from loaded state
 		building_panel.refresh_buttons()
 		if _gig_panel:
@@ -186,6 +189,8 @@ func _ready() -> void:
 	else:
 		# NEW GAME PATH: place Contract Terminal and initialize gigs
 		_place_contract_terminal()
+		# Setup guided tutorial BEFORE gig initialization (so Gig 1 arrows show)
+		_setup_guided_tutorial()
 		# Level 2+: skip tutorial, unlock all buildings
 		var cur_level_data: Dictionary = LevelConfig.get_level(_level_manager.current_level)
 		if not cur_level_data.is_tutorial:
@@ -196,8 +201,10 @@ func _ready() -> void:
 	# Wire terminal click to gig panel
 	building_manager.building_selected.connect(_on_building_selected_for_panel)
 
-	# Center camera on map center
+	# Center camera on map center, zoom out a bit so ISP Backbone is visible
 	camera.position = _map_center_world
+	camera._target_zoom = 0.7
+	camera.zoom = Vector2(0.7, 0.7)
 
 	# Set camera bounds for bounded maps
 	var _level_data: Dictionary = LevelConfig.get_level(_level_manager.current_level)
@@ -534,7 +541,6 @@ func _on_tick_refresh_ui(_tick_count: int) -> void:
 
 
 func _on_gig_completed(gig) -> void:
-	_show_gig_notification("GIG COMPLETE: %s" % gig.gig_name, Color("#44ff88"))
 	if _sound_manager:
 		_sound_manager.play_gig_complete()
 	if camera.has_method("add_trauma"):
@@ -544,7 +550,6 @@ func _on_gig_completed(gig) -> void:
 
 
 func _on_gig_activated(gig) -> void:
-	_show_gig_notification("NEW GIG: %s" % gig.gig_name, Color("#00bbee"))
 	building_panel.refresh_buttons()
 	if _tutorial_manager:
 		_tutorial_manager.on_gig_activated(gig)
@@ -580,7 +585,6 @@ func _show_gig_notification(text: String, color: Color) -> void:
 
 func _on_building_unlocked(building_name: String) -> void:
 	print("[Main] Building unlocked: %s" % building_name)
-	_show_unlock_notification(building_name)
 	if _sound_manager:
 		_sound_manager.play_unlock()
 	if camera.has_method("add_trauma"):
@@ -664,6 +668,27 @@ func _setup_tutorial_manager() -> void:
 	_tutorial_manager.name = "TutorialManager"
 	add_child(_tutorial_manager)
 	_tutorial_manager.setup(ui_layer)
+
+	# Guided tutorial node (setup called later when CT is ready)
+	var GuidedTutorialScript = preload("res://scripts/guided_tutorial.gd")
+	_guided_tutorial = Node.new()
+	_guided_tutorial.set_script(GuidedTutorialScript)
+	_guided_tutorial.name = "GuidedTutorial"
+	add_child(_guided_tutorial)
+
+
+func _setup_guided_tutorial() -> void:
+	if not _guided_tutorial or not _contract_terminal:
+		return
+	_guided_tutorial.setup({
+		"camera": camera,
+		"building_manager": building_manager,
+		"connection_manager": connection_manager,
+		"tutorial_manager": _tutorial_manager,
+		"source_container": source_container,
+		"contract_terminal": _contract_terminal,
+	})
+	_gig_manager.gig_activated.connect(_guided_tutorial.on_gig_activated)
 
 
 func _setup_sound_manager() -> void:
