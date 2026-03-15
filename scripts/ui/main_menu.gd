@@ -3,22 +3,21 @@ extends Control
 ## Main Menu — entry point for SYS_ADMIN demo.
 ## New Game starts a fresh session, Continue loads the latest save.
 
-const SAVE_FILE: String = "user://saves/savegame.json"
-const AUTOSAVE_FILE: String = "user://saves/autosave.json"
 const GAME_SCENE: String = "res://scenes/main.tscn"
+const SaveManagerScript = preload("res://scripts/save_manager.gd")
 const TITLE_COLOR := Color(0.0, 0.85, 0.9, 1.0)
 const GLITCH_CHARS: String = "█▓░▒#@$%&*"
 const WISHLIST_URL: String = "https://store.steampowered.com/app/PLACEHOLDER_APP_ID/SYS_ADMIN/"
 const FEEDBACK_URL: String = "https://store.steampowered.com/app/PLACEHOLDER_APP_ID/SYS_ADMIN/discussions/"
 
-var _continue_btn: Button = null
-var _new_game_btn: Button = null
 var _options_btn: Button = null
 var _wishlist_btn: Button = null
 var _quit_btn: Button = null
 var _button_vbox: VBoxContainer = null
+var _slot_vbox: VBoxContainer = null
 var _options_panel: VBoxContainer = null
 var _title: Label = null
+var _slot_buttons: Array[Button] = []
 
 # Glitch state
 var _glitch_timer: float = 0.0
@@ -90,17 +89,20 @@ func _build_ui() -> void:
 
 	# Menu buttons
 	_button_vbox = VBoxContainer.new()
-	_button_vbox.add_theme_constant_override("separation", 16)
+	_button_vbox.add_theme_constant_override("separation", 12)
 	_button_vbox.alignment = BoxContainer.ALIGNMENT_CENTER
 	main_box.add_child(_button_vbox)
 
-	_continue_btn = _create_menu_button("Continue")
-	_continue_btn.pressed.connect(_on_continue)
-	_button_vbox.add_child(_continue_btn)
+	# Save slot buttons
+	_slot_vbox = VBoxContainer.new()
+	_slot_vbox.add_theme_constant_override("separation", 8)
+	_button_vbox.add_child(_slot_vbox)
+	_build_slot_buttons()
 
-	_new_game_btn = _create_menu_button("New Game")
-	_new_game_btn.pressed.connect(_on_new_game)
-	_button_vbox.add_child(_new_game_btn)
+	# Bottom buttons spacer
+	var btn_spacer := Control.new()
+	btn_spacer.custom_minimum_size = Vector2(0, 8)
+	_button_vbox.add_child(btn_spacer)
 
 	_options_btn = _create_menu_button("Options")
 	_options_btn.pressed.connect(_on_options)
@@ -171,28 +173,28 @@ func _create_menu_button(text: String) -> Button:
 	return btn
 
 
+func _build_slot_buttons() -> void:
+	_slot_buttons.clear()
+	var slots: Array[Dictionary] = SaveManagerScript.list_slots()
+	for info in slots:
+		var slot_idx: int = info.slot
+		var btn: Button
+		if info.exists:
+			var ts: String = info.get("timestamp", "")
+			if ts.length() > 16:
+				ts = ts.substr(0, 16)
+			btn = _create_menu_button("Slot %d  —  Seed %d  (%s)" % [slot_idx, info.get("seed", 0), ts])
+			btn.tooltip_text = "Load this save"
+		else:
+			btn = _create_menu_button("Slot %d  —  New Game" % slot_idx)
+			btn.tooltip_text = "Start a new game in this slot"
+		btn.pressed.connect(_on_slot_selected.bind(slot_idx))
+		_slot_vbox.add_child(btn)
+		_slot_buttons.append(btn)
+
+
 func _update_continue_state() -> void:
-	var has_save: bool = FileAccess.file_exists(SAVE_FILE) or FileAccess.file_exists(AUTOSAVE_FILE)
-	if not has_save:
-		_continue_btn.disabled = true
-		_continue_btn.tooltip_text = "No saved game found"
-		return
-	# Check save compatibility — try both files, use first compatible one
-	var SaveManagerScript = preload("res://scripts/save_manager.gd")
-	var compatible := false
-	for path in [SAVE_FILE, AUTOSAVE_FILE]:
-		if not FileAccess.file_exists(path):
-			continue
-		var data: Dictionary = SaveManagerScript.load_from_file(path)
-		if not data.get("_incompatible", false) and not data.is_empty():
-			compatible = true
-			break
-	if compatible:
-		_continue_btn.disabled = false
-		_continue_btn.tooltip_text = "Resume your last session"
-	else:
-		_continue_btn.disabled = true
-		_continue_btn.tooltip_text = "Save from older build — start a new game"
+	pass  ## Slot buttons handle their own state
 
 
 # ── Glitch Effect ─────────────────────────────────────────────
@@ -232,31 +234,21 @@ func _update_glitch(delta: float) -> void:
 
 # ── Navigation ────────────────────────────────────────────────
 
-func _on_continue() -> void:
-	# Try save file first, then autosave — skip incompatible saves
-	var SaveManagerScript = preload("res://scripts/save_manager.gd")
+func _on_slot_selected(slot: int) -> void:
+	# Try main save, then autosave
 	var save_data: Dictionary = {}
-	for path in [SAVE_FILE, AUTOSAVE_FILE]:
+	for path in [SaveManagerScript.slot_path(slot), SaveManagerScript.slot_auto_path(slot)]:
 		if not FileAccess.file_exists(path):
 			continue
 		var data: Dictionary = SaveManagerScript.load_from_file(path)
 		if data.get("_incompatible", false):
-			push_warning("[MainMenu] Skipping incompatible save: %s" % path)
 			continue
 		if not data.is_empty():
 			save_data = data
 			break
-
-	if save_data.is_empty():
-		push_warning("[MainMenu] No compatible save found — starting new game")
-		_on_new_game()
-		return
-
+	# Pass slot index to game
+	save_data["_slot"] = slot
 	_transition_to_game(save_data)
-
-
-func _on_new_game() -> void:
-	_transition_to_game({})
 
 
 func _on_options() -> void:
@@ -278,9 +270,9 @@ func _on_quit() -> void:
 
 
 func _transition_to_game(save_data: Dictionary) -> void:
-	# Disable buttons during transition
-	_continue_btn.disabled = true
-	_new_game_btn.disabled = true
+	# Disable all buttons during transition
+	for btn in _slot_buttons:
+		btn.disabled = true
 	_options_btn.disabled = true
 	_wishlist_btn.disabled = true
 	_quit_btn.disabled = true

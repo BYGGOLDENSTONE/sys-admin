@@ -138,7 +138,11 @@ func _ready() -> void:
 	# Give save manager access to map generator for chunk save/load
 	_save_manager.map_generator = _map_generator
 
-	if is_loading:
+	# Set active save slot
+	var slot: int = int(load_save_data.get("_slot", load_save_data.get("slot", 1)))
+	_save_manager.current_slot = slot
+
+	if is_loading and load_save_data.has("seed"):
 		# LOAD PATH: restore saved state (includes chunk regeneration)
 		_save_manager.apply_state(load_save_data)
 		# Find Contract Terminal from loaded buildings

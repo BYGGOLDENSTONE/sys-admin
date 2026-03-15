@@ -133,8 +133,8 @@ Asagidaki kararlar **scope lock** kabul edilir. Claude Code bu kararlarla celise
 - [x] **REPAIR_KIT** content type eklendi (char:"+", color:#ff7744)
 - [x] Tum UI/tooltip/hint referanslari guncellendi
 - [ ] Ard arda undo yapilinca engine crash — undo stack guvenli hale getirilmeli
-- [ ] Save slot sistemi (birden fazla save dosyasi)
-- [ ] Load ekraninda slot listesi
+- [x] Save slot sistemi — 5 slot, slot_N.json + slot_N_auto.json
+- [x] Ana menude slot listesi — dolu slotlar seed+tarih, bos slotlar "New Game"
 - [ ] Son dokunuslar
 - [ ] **GDD.md guncelle** — Tum fazlar bittikten sonra, leftover kod kalmasin diye en son GDD v4.0 olarak yazilacak
 

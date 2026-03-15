@@ -3,11 +3,9 @@ extends Node
 ## Save/Load system for SYS_ADMIN demo.
 ## JSON-based save format with autosave and backup support.
 
-const SAVE_VERSION: int = 3
+const SAVE_VERSION: int = 4
 const SAVE_DIR: String = "user://saves/"
-const SAVE_FILE: String = "user://saves/savegame.json"
-const AUTOSAVE_FILE: String = "user://saves/autosave.json"
-const AUTOSAVE_BACKUP: String = "user://saves/autosave_backup.json"
+const MAX_SLOTS: int = 5
 const AUTOSAVE_INTERVAL: float = 300.0  ## 5 minutes
 
 signal game_saved()
@@ -20,9 +18,39 @@ var source_manager: Node = null
 var gig_manager: Node = null
 var simulation_manager: Node = null
 var current_seed: int = 0
+var current_slot: int = 1  ## Active save slot (1-based)
 var map_generator: RefCounted = null  ## For chunk save/load
 
 var _autosave_timer: Timer = null
+
+
+static func slot_path(slot: int) -> String:
+	return "user://saves/slot_%d.json" % slot
+
+
+static func slot_auto_path(slot: int) -> String:
+	return "user://saves/slot_%d_auto.json" % slot
+
+
+static func list_slots() -> Array[Dictionary]:
+	## Returns metadata for all slots: [{slot, exists, seed, timestamp, version}]
+	var result: Array[Dictionary] = []
+	for i in range(1, MAX_SLOTS + 1):
+		var path: String = slot_path(i)
+		var auto_path: String = slot_auto_path(i)
+		var info: Dictionary = {"slot": i, "exists": false}
+		# Try main save, fallback to autosave
+		for p in [path, auto_path]:
+			if FileAccess.file_exists(p):
+				var data: Dictionary = load_from_file(p)
+				if not data.is_empty() and not data.get("_incompatible", false):
+					info["exists"] = true
+					info["seed"] = data.get("seed", 0)
+					info["timestamp"] = data.get("timestamp", "")
+					info["version"] = data.get("version", 0)
+					break
+		result.append(info)
+	return result
 
 
 func setup_autosave() -> void:
@@ -41,30 +69,34 @@ func _on_autosave_tick() -> void:
 
 ## --- PUBLIC API ---
 
-func save_game(path: String = SAVE_FILE) -> bool:
+func save_game(path: String = "") -> bool:
+	if path == "":
+		path = slot_path(current_slot)
 	var data: Dictionary = capture_state()
+	data["slot"] = current_slot
 	return _write_save(path, data)
 
 
 func autosave() -> bool:
-	# Rotate: current autosave → backup, then write new
-	if FileAccess.file_exists(AUTOSAVE_FILE):
-		if FileAccess.file_exists(AUTOSAVE_BACKUP):
-			DirAccess.remove_absolute(AUTOSAVE_BACKUP)
-		DirAccess.rename_absolute(AUTOSAVE_FILE, AUTOSAVE_BACKUP)
 	var data: Dictionary = capture_state()
-	var ok: bool = _write_save(AUTOSAVE_FILE, data)
+	data["slot"] = current_slot
+	var ok: bool = _write_save(slot_auto_path(current_slot), data)
 	if ok:
-		print("[SaveManager] Autosave complete")
+		print("[SaveManager] Autosave complete — slot %d" % current_slot)
 	return ok
 
 
-func has_save(path: String = SAVE_FILE) -> bool:
+func has_save(path: String = "") -> bool:
+	if path == "":
+		path = slot_path(current_slot)
 	return FileAccess.file_exists(path)
 
 
 func has_any_save() -> bool:
-	return has_save(SAVE_FILE) or has_save(AUTOSAVE_FILE)
+	for i in range(1, MAX_SLOTS + 1):
+		if FileAccess.file_exists(slot_path(i)) or FileAccess.file_exists(slot_auto_path(i)):
+			return true
+	return false
 
 
 static func load_from_file(path: String) -> Dictionary:
