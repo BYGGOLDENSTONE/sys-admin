@@ -137,8 +137,9 @@ func _ready() -> void:
 	# Compute map center from current level
 	_map_center_world = LevelConfig.get_map_center_world(_level_manager.current_level)
 
-	# Seed-based procedural map generation
+	# Seed-based procedural map generation (level-aware)
 	_map_generator = _MapGeneratorScript.new()
+	_map_generator.configure(_level_manager.current_level)
 	_map_generator.generate_map(_current_seed, source_manager)
 	_last_cam_pos = camera.position
 
@@ -185,6 +186,19 @@ func _ready() -> void:
 
 	# Center camera on map center
 	camera.position = _map_center_world
+
+	# Set camera bounds for bounded maps
+	var _level_data: Dictionary = LevelConfig.get_level(_level_manager.current_level)
+	if not _level_data.is_infinite:
+		var map_center: Vector2i = LevelConfig.get_map_center(_level_manager.current_level)
+		var half_cells: int = _level_data.map_size / 2
+		var bounds_rect := Rect2(
+			(map_center.x - half_cells) * 64.0,
+			(map_center.y - half_cells) * 64.0,
+			_level_data.map_size * 64.0,
+			_level_data.map_size * 64.0
+		)
+		camera.set_bounds(bounds_rect)
 
 	# Update seed in top bar
 	_top_bar.update_seed(_current_seed)

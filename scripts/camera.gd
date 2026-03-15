@@ -9,6 +9,10 @@ const SMOOTH_FACTOR: float = 8.0
 var _target_zoom: float = 1.0
 var _is_dragging: bool = false
 
+## Optional camera bounds (set for bounded maps)
+var _has_bounds: bool = false
+var _bounds: Rect2 = Rect2()
+
 # Trauma-based screen shake (Squirrel Eiserloh GDC technique)
 var _trauma: float = 0.0
 var _noise: FastNoiseLite = null
@@ -34,10 +38,17 @@ func set_post_material(mat: ShaderMaterial) -> void:
 	_post_material = mat
 
 
+func set_bounds(world_rect: Rect2) -> void:
+	_bounds = world_rect
+	_has_bounds = true
+
+
 func _process(delta: float) -> void:
 	_handle_keyboard_pan(delta)
 	_smooth_zoom(delta)
 	_smooth_center(delta)
+	if _has_bounds:
+		_clamp_to_bounds()
 
 	if _trauma > 0.0:
 		_noise_y += delta * 60.0
@@ -107,3 +118,20 @@ func _smooth_center(delta: float) -> void:
 	if position.distance_to(_center_target) < 1.0:
 		position = _center_target
 		_centering = false
+
+
+func _clamp_to_bounds() -> void:
+	var vp_size := get_viewport().get_visible_rect().size / zoom
+	var half_vp := vp_size / 2.0
+	# Allow camera center to stay within bounds + half viewport
+	var min_pos := _bounds.position + half_vp
+	var max_pos := _bounds.end - half_vp
+	# If viewport is larger than bounds, center on bounds
+	if min_pos.x > max_pos.x:
+		position.x = _bounds.position.x + _bounds.size.x / 2.0
+	else:
+		position.x = clampf(position.x, min_pos.x, max_pos.x)
+	if min_pos.y > max_pos.y:
+		position.y = _bounds.position.y + _bounds.size.y / 2.0
+	else:
+		position.y = clampf(position.y, min_pos.y, max_pos.y)
