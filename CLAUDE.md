@@ -93,13 +93,15 @@ Asagidaki kararlar **scope lock** kabul edilir. Claude Code bu kararlarla celise
 - [x] gig_requirement.gd — packet_key alani kaldirildi
 - [x] shop_server.tres — Compiler referansi guncellendi
 
-### Faz 2: Bilesik State (Enc·Cor) — Ana Mekanik
-- [ ] `data_enums.gd` — compound state destegi ekle
-- [ ] Kaynak tanimlarinda bilesik state weight'leri
-- [ ] `simulation_manager.gd` — bilesik state isleme: bir state cozulunce diger +1 tier
-- [ ] Decryptor/Recoverer bilesik state veriyi kabul etmeli
-- [ ] Separator bilesik state filtreleme destegi
-- **Risk:** Orta, veri modeli degisikligi — dikkatli test gerekir
+### Faz 2: Bilesik State (Enc·Cor) — Ana Mekanik ✓ TAMAMLANDI
+- [x] `data_enums.gd` — ENC_COR=4 state, compound tier helpers (make/enc/cor), state_name/color/label
+- [x] Kaynak tanimlarinda bilesik state weight'leri (Corporate %20, Govt %30, Military %35, DarkWeb %40)
+- [x] `simulation_manager.gd` — _roll_tier ENC_COR destegi, tier escalation (+1 kalan state)
+- [x] Decryptor: ENC_COR kabul, sifre cozer → Corrupted cikar (cor_tier+1)
+- [x] Recoverer: ENC_COR kabul, bozukluk onarir → Encrypted cikar (enc_tier+1)
+- [x] Separator: Tab dongusu PUBLIC→ENCRYPTED→CORRUPTED→ENC_COR (MALWARE atlandi)
+- [x] decryptor.tres / recoverer.tres — primary_input_states'e ENC_COR(4) eklendi
+- [x] building_tooltip.gd — Enc·Cor kabul gosterimi
 
 ### Faz 3: Bilesik State Gorselleri
 - [ ] Transit item'da yari-yariya bolunmus renk

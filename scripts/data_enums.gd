@@ -1,7 +1,7 @@
 class_name DataEnums
 
 enum ContentType { STANDARD, FINANCIAL, BIOMETRIC, BLUEPRINT, RESEARCH, CLASSIFIED, KEY }
-enum DataState { PUBLIC, ENCRYPTED, CORRUPTED, MALWARE }
+enum DataState { PUBLIC, ENCRYPTED, CORRUPTED, MALWARE, ENC_COR }
 
 ## Processing tags — bit flags that accumulate on data as it gets processed
 enum ProcessingTag {
@@ -42,6 +42,7 @@ static func state_name(s: int) -> String:
 		DataState.ENCRYPTED: return "Encrypted"
 		DataState.CORRUPTED: return "Corrupted"
 		DataState.MALWARE: return "Malware"
+		DataState.ENC_COR: return "Enc·Cor"
 	return "Unknown"
 
 static func state_color(s: int) -> Color:
@@ -50,6 +51,7 @@ static func state_color(s: int) -> Color:
 		DataState.ENCRYPTED: return Color("#2288ff")
 		DataState.CORRUPTED: return Color("#ffaa00")
 		DataState.MALWARE: return Color("#ff1133")
+		DataState.ENC_COR: return Color("#88aa44")
 	return Color("#778899")
 
 static func content_char(c: int) -> String:
@@ -81,6 +83,7 @@ static func state_color_hex(s: int) -> String:
 		DataState.ENCRYPTED: return "#2288ff"
 		DataState.CORRUPTED: return "#ffaa00"
 		DataState.MALWARE: return "#ff1133"
+		DataState.ENC_COR: return "#88aa44"
 	return "#778899"
 
 
@@ -105,9 +108,15 @@ static func data_label(content: int, state: int, tier: int = 0, tags: int = 0) -
 		label += " " + state_name(state)
 	else:
 		label += " Public"
-	var t: String = tier_name(tier)
-	if t != "":
-		label += " " + t
+	if state == DataState.ENC_COR:
+		var et: int = compound_enc_tier(tier)
+		var ct: int = compound_cor_tier(tier)
+		if et > 0 or ct > 0:
+			label += " T%d·T%d" % [et, ct]
+	else:
+		var t: String = tier_name(tier)
+		if t != "":
+			label += " " + t
 	return label
 
 
@@ -140,4 +149,20 @@ static func unpack_tier(key: int) -> int:
 
 static func unpack_tags(key: int) -> int:
 	return key & 0xF
+
+## --- COMPOUND STATE TIER HELPERS ---
+## For ENC_COR state, tier field packs two sub-tiers: enc_tier(bits 3-2) | cor_tier(bits 1-0)
+## Each sub-tier supports T0-T3 range (2 bits each, fits in 4-bit tier field)
+
+static func make_compound_tier(enc_tier: int, cor_tier: int) -> int:
+	return (enc_tier << 2) | cor_tier
+
+static func compound_enc_tier(tier: int) -> int:
+	return (tier >> 2) & 0x3
+
+static func compound_cor_tier(tier: int) -> int:
+	return tier & 0x3
+
+static func is_compound_state(state: int) -> bool:
+	return state == DataState.ENC_COR
 

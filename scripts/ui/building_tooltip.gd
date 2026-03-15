@@ -144,7 +144,7 @@ func _update_stats() -> void:
 		lines.append(_stat("Throughput", "%d MB/s" % int(b.get_effective_value("processing_rate"))))
 		if def.dual_input.fuel_matches_content:
 			# Recoverer
-			lines.append(_stat("Left Port ←", "[color=#ff8844]Corrupted[/color] data"))
+			lines.append(_stat("Left Port ←", "[color=#ff8844]Corrupted[/color] / [color=#88aa44]Enc·Cor[/color] data"))
 			var fuel_tags: Array[int] = def.dual_input.required_fuel_tags
 			if fuel_tags.size() >= 3:
 				lines.append(_stat("Top Port ←", "Fuel: [color=#44ff88]Public[/color] / [color=#44aaff]Decrypted[/color] / [color=#44aaff]Dec·Enc[/color]"))
@@ -159,7 +159,7 @@ func _update_stats() -> void:
 			lines.append(_stat("Key/packet", "%d" % def.dual_input.key_cost))
 		else:
 			# Decryptor
-			lines.append(_stat("Left Port ←", "[color=#44aaff]Encrypted[/color] data"))
+			lines.append(_stat("Left Port ←", "[color=#44aaff]Encrypted[/color] / [color=#88aa44]Enc·Cor[/color] data"))
 			lines.append(_stat("Top Port ←", "[color=#ffaa00]Key[/color] (tier must match data)"))
 			lines.append(_stat("Output →", "[color=#44ff88]Decrypted[/color] (content preserved)"))
 		# Show stored fuel/keys (per tier)

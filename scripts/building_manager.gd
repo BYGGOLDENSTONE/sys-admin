@@ -651,7 +651,10 @@ func _cycle_building_filter(building: Node2D) -> void:
 		print("[BuildingManager] Classifier filter → %s" % DataEnums.content_name(building.classifier_filter_content))
 	elif def.processor and def.processor.rule == "separator":
 		if building.separator_mode == "state":
-			building.separator_filter_value = (building.separator_filter_value + 1) % 4
+			# Cycle: PUBLIC(0) → ENCRYPTED(1) → CORRUPTED(2) → ENC_COR(4), skip MALWARE(3)
+			var state_cycle: Array[int] = [0, 1, 2, 4]
+			var idx: int = state_cycle.find(building.separator_filter_value)
+			building.separator_filter_value = state_cycle[(idx + 1) % state_cycle.size()]
 			print("[BuildingManager] Separator filter → %s" % DataEnums.state_name(building.separator_filter_value))
 		else:
 			building.separator_filter_value = (building.separator_filter_value + 1) % 6

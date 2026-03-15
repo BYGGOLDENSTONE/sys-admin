@@ -924,6 +924,10 @@ func _roll_tier(state: int, enc_max: int, cor_max: int) -> int:
 			return randi_range(1, maxi(1, enc_max)) if enc_max > 0 else 1
 		DataEnums.DataState.CORRUPTED:
 			return randi_range(1, maxi(1, cor_max)) if cor_max > 0 else 1
+		DataEnums.DataState.ENC_COR:
+			var et: int = randi_range(1, maxi(1, enc_max)) if enc_max > 0 else 1
+			var ct: int = randi_range(1, maxi(1, cor_max)) if cor_max > 0 else 1
+			return DataEnums.make_compound_tier(et, ct)
 		DataEnums.DataState.MALWARE:
 			return 1
 	return 0
@@ -1193,15 +1197,25 @@ func _process_dual_input_key_mode(b: Node2D, dual: DualInputComponent, max_proce
 			continue
 		if not dual.primary_input_states.is_empty() and p_state not in dual.primary_input_states:
 			continue
+		# Compound state: use enc sub-tier for key matching, output remaining state
+		var effective_tier: int = p_tier
+		var out_state: int = dual.output_state
+		var out_tier: int = p_tier
+		if p_state == DataEnums.DataState.ENC_COR:
+			var enc_t: int = DataEnums.compound_enc_tier(p_tier)
+			var cor_t: int = DataEnums.compound_cor_tier(p_tier)
+			effective_tier = enc_t  # Key matches enc tier
+			out_state = DataEnums.DataState.CORRUPTED  # Encryption removed → Corrupted remains
+			out_tier = cor_t + 1  # Tier escalation
 		# Match Key tier to data tier (min T1)
-		var key_tier: int = maxi(p_tier, 1)
+		var key_tier: int = maxi(effective_tier, 1)
 		var key_key: int = DataEnums.pack_key(dual.key_content, DataEnums.DataState.PUBLIC, key_tier, 0)
 		var keys_available: int = b.stored_data.get(key_key, 0) - fuel_consumed.get(key_key, 0)
 		if keys_available <= 0:
 			continue
 		var actual_key_cost: int = dual.key_cost
-		if p_tier > 0 and p_tier <= dual.tier_key_costs.size():
-			actual_key_cost = dual.tier_key_costs[p_tier - 1]
+		if effective_tier > 0 and effective_tier <= dual.tier_key_costs.size():
+			actual_key_cost = dual.tier_key_costs[effective_tier - 1]
 		var to_process: int = mini(available, max_process - processed)
 		var keys_needed: int = to_process * actual_key_cost
 		if keys_needed > keys_available:
@@ -1209,7 +1223,7 @@ func _process_dual_input_key_mode(b: Node2D, dual: DualInputComponent, max_proce
 		if to_process <= 0:
 			continue
 		var out_tags: int = p_tags | dual.output_tag
-		var sent: int = _push_data_from(b, p_content, dual.output_state, to_process, "", p_tier, out_tags)
+		var sent: int = _push_data_from(b, p_content, out_state, to_process, "", out_tier, out_tags)
 		if sent > 0:
 			b.stored_data[key] -= sent
 			processed += sent
@@ -1219,7 +1233,7 @@ func _process_dual_input_key_mode(b: Node2D, dual: DualInputComponent, max_proce
 				sound_manager.play_process_event(b.definition.visual_type)
 			print("[DualInput] %s: %d MB → %s (-%d T%d Key)" % [
 				b.definition.building_name, sent,
-				DataEnums.data_label(p_content, dual.output_state, p_tier, out_tags),
+				DataEnums.data_label(p_content, out_state, out_tier, out_tags),
 				sent * actual_key_cost, key_tier])
 	return processed
 
@@ -1239,17 +1253,27 @@ func _process_dual_input_fuel_mode(b: Node2D, dual: DualInputComponent, max_proc
 		var p_tags: int = DataEnums.unpack_tags(key)
 		if not dual.primary_input_states.is_empty() and p_state not in dual.primary_input_states:
 			continue
+		# Compound state: use cor sub-tier for fuel matching, output remaining state
+		var effective_tier: int = p_tier
+		var out_state: int = dual.output_state
+		var out_tier: int = p_tier
+		if p_state == DataEnums.DataState.ENC_COR:
+			var enc_t: int = DataEnums.compound_enc_tier(p_tier)
+			var cor_t: int = DataEnums.compound_cor_tier(p_tier)
+			effective_tier = cor_t  # Fuel matches cor tier
+			out_state = DataEnums.DataState.ENCRYPTED  # Corruption removed → Encrypted remains
+			out_tier = enc_t + 1  # Tier escalation
 		# Find fuel: same content, Public, tier 0, tags based on corrupted tier
 		var required_tags: int = 0
-		if p_tier > 0 and p_tier <= dual.required_fuel_tags.size():
-			required_tags = dual.required_fuel_tags[p_tier - 1]
+		if effective_tier > 0 and effective_tier <= dual.required_fuel_tags.size():
+			required_tags = dual.required_fuel_tags[effective_tier - 1]
 		var fuel_key: int = DataEnums.pack_key(p_content, DataEnums.DataState.PUBLIC, 0, required_tags)
 		var fuel_available: int = b.stored_data.get(fuel_key, 0) - fuel_consumed.get(fuel_key, 0)
 		if fuel_available <= 0:
 			continue
 		var actual_fuel_cost: int = dual.key_cost
-		if p_tier > 0 and p_tier <= dual.tier_key_costs.size():
-			actual_fuel_cost = dual.tier_key_costs[p_tier - 1]
+		if effective_tier > 0 and effective_tier <= dual.tier_key_costs.size():
+			actual_fuel_cost = dual.tier_key_costs[effective_tier - 1]
 		var to_process: int = mini(available, max_process - processed)
 		var fuel_needed: int = to_process * actual_fuel_cost
 		if fuel_needed > fuel_available:
@@ -1257,7 +1281,7 @@ func _process_dual_input_fuel_mode(b: Node2D, dual: DualInputComponent, max_proc
 		if to_process <= 0:
 			continue
 		var out_tags: int = p_tags | dual.output_tag
-		var sent: int = _push_data_from(b, p_content, dual.output_state, to_process, "", p_tier, out_tags)
+		var sent: int = _push_data_from(b, p_content, out_state, to_process, "", out_tier, out_tags)
 		if sent > 0:
 			b.stored_data[key] -= sent
 			processed += sent
@@ -1267,7 +1291,7 @@ func _process_dual_input_fuel_mode(b: Node2D, dual: DualInputComponent, max_proc
 				sound_manager.play_process_event(b.definition.visual_type)
 			print("[DualInput] %s: %d MB → %s (-%d fuel)" % [
 				b.definition.building_name, sent,
-				DataEnums.data_label(p_content, dual.output_state, p_tier, out_tags),
+				DataEnums.data_label(p_content, out_state, out_tier, out_tags),
 				sent * actual_fuel_cost])
 	return processed
 
