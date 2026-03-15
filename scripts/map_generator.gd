@@ -11,6 +11,7 @@ const MAX_PLACEMENT_ATTEMPTS := 60
 const CT_EXCLUSION_RADIUS := 5   ## No sources within this of CT center (Chebyshev)
 const TILE_SIZE := 64
 const REGION_SIZE := 25          ## Region grid cell size for bounded maps
+const MAX_PER_SOURCE_TYPE := 3   ## Max total placements per source type (includes guarantees)
 
 var _pools: Dictionary = {
 	"easy": ["isp_backbone", "public_database", "atm", "smart_lock", "traffic_camera", "data_kiosk", "bank_terminal"],
@@ -31,6 +32,10 @@ var _tutorial_offsets := [
 ## Sector-based guarantees for non-tutorial sources
 var _sector_guarantees := [
 	{"name": "biotech_lab", "angle": PI, "r_min": 12.0, "r_max": 25.0},
+	{"name": "corporate_server", "angle": -PI / 4.0, "r_min": 18.0, "r_max": 35.0},
+	{"name": "government_archive", "angle": PI / 4.0, "r_min": 18.0, "r_max": 35.0},
+	{"name": "corporate_server", "angle": 3.0 * PI / 4.0, "r_min": 18.0, "r_max": 35.0},
+	{"name": "government_archive", "angle": -3.0 * PI / 4.0, "r_min": 18.0, "r_max": 35.0},
 ]
 
 var _world_seed: int = 0
@@ -132,7 +137,10 @@ func _generate_bounded_map() -> void:
 			var reg_y1: int = _map_bounds.position.y + int((ry + 1) * region_h)
 
 			for _i in range(count):
-				var source_name: String = pool[rng.randi_range(0, pool.size() - 1)]
+				var filtered: Array = pool.filter(func(n): return _get_placed_count(n) < MAX_PER_SOURCE_TYPE)
+				if filtered.is_empty():
+					continue
+				var source_name: String = filtered[rng.randi_range(0, filtered.size() - 1)]
 				var def := _load_source_def(source_name)
 				if def == null:
 					continue
@@ -224,7 +232,10 @@ func _generate_chunk(chunk_pos: Vector2i) -> void:
 	if pool.is_empty():
 		return
 	for i in range(count):
-		var source_name: String = pool[chunk_rng.randi_range(0, pool.size() - 1)]
+		var filtered: Array = pool.filter(func(n): return _get_placed_count(n) < MAX_PER_SOURCE_TYPE)
+		if filtered.is_empty():
+			continue
+		var source_name: String = filtered[chunk_rng.randi_range(0, filtered.size() - 1)]
 		var def := _load_source_def(source_name)
 		if def == null:
 			continue
@@ -377,6 +388,12 @@ func _is_same_type_too_close(source_name: String, pos: Vector2i) -> bool:
 		if absi(pos.x - existing.x) + absi(pos.y - existing.y) < MIN_SAME_TYPE_DISTANCE:
 			return true
 	return false
+
+
+func _get_placed_count(source_name: String) -> int:
+	if _placed_names.has(source_name):
+		return _placed_names[source_name].size()
+	return 0
 
 
 func _track_placed_name(source_name: String, pos: Vector2i) -> void:
