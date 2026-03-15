@@ -42,6 +42,10 @@ func redo() -> void:
 	print("[Redo] %s redone" % cmd.type)
 
 
+func safe_reset_undoing() -> void:
+	is_undoing = false
+
+
 func _execute_reverse(cmd: Dictionary) -> void:
 	match cmd.type:
 		"place":
@@ -125,6 +129,8 @@ func _remove_connection_by_cells(from_cell: Vector2i, from_port: String, to_cell
 	var conns: Array[Dictionary] = connection_manager.get_connections()
 	for i in range(conns.size()):
 		var conn: Dictionary = conns[i]
+		if not is_instance_valid(conn.from_building) or not is_instance_valid(conn.to_building):
+			continue
 		if conn.from_building.grid_cell == from_cell and conn.from_port == from_port \
 				and conn.to_building.grid_cell == to_cell and conn.to_port == to_port:
 			connection_manager.remove_connection(i)
@@ -167,6 +173,8 @@ func _set_building_mirror(cell: Vector2i, mirrored: bool) -> void:
 func get_connections_for_building(building: Node2D) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for conn in connection_manager.get_connections():
+		if not is_instance_valid(conn.from_building) or not is_instance_valid(conn.to_building):
+			continue
 		if conn.from_building == building or conn.to_building == building:
 			result.append({
 				"from_cell": conn.from_building.grid_cell,

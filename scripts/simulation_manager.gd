@@ -81,6 +81,8 @@ func _rebuild_conn_cache() -> void:
 	_output_ports.clear()
 	for i in range(_cached_conns.size()):
 		var conn: Dictionary = _cached_conns[i]
+		if not is_instance_valid(conn.from_building) or not is_instance_valid(conn.to_building):
+			continue
 		var from_id: int = conn.from_building.get_instance_id()
 		var to_id: int = conn.to_building.get_instance_id()
 		if not _conn_from.has(from_id):
@@ -480,6 +482,8 @@ func _deliver_arrived_cpp() -> void:
 func _update_delivery_filters() -> void:
 	## Update filter values for classifier/separator (can change without topology change).
 	for i in range(_cached_conns.size()):
+		if not is_instance_valid(_cached_conns[i].to_building):
+			continue
 		var type: int = _conn_target_types[i]
 		if type == 1:  # CLASSIFIER
 			_conn_target_filters[i] = _cached_conns[i].to_building.classifier_filter_content

@@ -257,8 +257,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		match event.keycode:
 			KEY_Z:
 				_undo_manager.undo()
+				_undo_manager.safe_reset_undoing()
 			KEY_Y:
 				_undo_manager.redo()
+				_undo_manager.safe_reset_undoing()
 			KEY_S:
 				if _save_manager:
 					_save_manager.save_game()

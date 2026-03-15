@@ -49,11 +49,12 @@ func remove_connection(index: int) -> void:
 		grid_system.free_cable_edge(path[i], path[i + 1])
 	connections.remove_at(index)
 	connection_removed.emit(conn)
-	var from_name: String = conn.from_building.definition.building_name if conn.from_building.definition is BuildingDefinition else conn.from_building.definition.source_name
-	var to_name: String = conn.to_building.definition.building_name if conn.to_building.definition is BuildingDefinition else conn.to_building.definition.source_name
-	print("[Connection] Removed — %s.%s → %s.%s" % [
-		from_name, conn.from_port, to_name, conn.to_port
-	])
+	if is_instance_valid(conn.from_building) and is_instance_valid(conn.to_building):
+		var from_name: String = conn.from_building.definition.building_name if conn.from_building.definition is BuildingDefinition else conn.from_building.definition.source_name
+		var to_name: String = conn.to_building.definition.building_name if conn.to_building.definition is BuildingDefinition else conn.to_building.definition.source_name
+		print("[Connection] Removed — %s.%s → %s.%s" % [
+			from_name, conn.from_port, to_name, conn.to_port
+		])
 
 
 func remove_connections_for(building: Node2D, _cell: Vector2i) -> void:

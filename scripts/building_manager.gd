@@ -617,8 +617,10 @@ func _remove_building(building: Node2D) -> void:
 	print("[BuildingManager] Building removed — %s at (%d,%d)" % [
 		def.building_name, cell.x, cell.y
 	])
-	# Animated removal
-	if building.has_method("play_remove_animation"):
+	# Animated removal — skip animation during undo to prevent zombie node crashes
+	if undo_manager and undo_manager.is_undoing:
+		building.queue_free()
+	elif building.has_method("play_remove_animation"):
 		building.play_remove_animation()
 	else:
 		building.queue_free()

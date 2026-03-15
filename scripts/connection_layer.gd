@@ -140,11 +140,14 @@ func _draw() -> void:
 	_has_incoming.clear()
 	for c in conns:
 		if c.has("transit") and not c["transit"].is_empty():
-			_has_incoming[c.to_building] = true
+			if is_instance_valid(c.to_building):
+				_has_incoming[c.to_building] = true
 	var _items_us: int = 0
 	var _items_calls: int = 0
 	for i in range(conns.size()):
 		var conn: Dictionary = conns[i]
+		if not is_instance_valid(conn.from_building) or not is_instance_valid(conn.to_building):
+			continue
 		# Viewport frustum culling — skip cables entirely off-screen
 		if not _is_conn_in_viewport(conn, vp_bounds):
 			continue
