@@ -127,32 +127,32 @@ func _update_stats() -> void:
 		lines.append(_stat("Bottom Port →", "All other content"))
 	if def.producer:
 		lines.append(_stat("Processing", "%d production/tick" % int(b.get_effective_value("processing_rate"))))
-		var tier_names: Array[String] = ["T1 Key", "T2 Strong Key", "T3 Master Key"]
-		var tier_label: String = tier_names[b.selected_tier - 1] if b.selected_tier <= tier_names.size() else "T%d Key" % b.selected_tier
-		lines.append(_stat("Mode", "[color=#ffaa00]%s[/color]" % tier_label))
-		var recipe: String = "[color=#aa77ff]%d MB Research[/color]" % def.producer.consume_amount
+		var output_name: String = DataEnums.content_name(def.producer.output_content)
+		var output_color: String = DataEnums.content_color_hex(def.producer.output_content)
+		var tier_label: String = "[color=%s]T%d %s[/color]" % [output_color, b.selected_tier, output_name]
+		lines.append(_stat("Mode", tier_label))
+		var input_name: String = DataEnums.content_name(def.producer.input_content)
+		var input_color: String = DataEnums.content_color_hex(def.producer.input_content)
+		var recipe: String = "[color=%s]%d MB %s[/color]" % [input_color, def.producer.consume_amount, input_name]
 		if b.selected_tier >= 2 and def.producer.tier2_extra_content >= 0:
-			recipe += " + [color=#ffcc00]%d MB %s[/color]" % [def.producer.tier2_extra_amount, DataEnums.content_name(def.producer.tier2_extra_content)]
+			var c2_color: String = DataEnums.content_color_hex(def.producer.tier2_extra_content)
+			recipe += " + [color=%s]%d MB %s[/color]" % [c2_color, def.producer.tier2_extra_amount, DataEnums.content_name(def.producer.tier2_extra_content)]
 		if b.selected_tier >= 3 and def.producer.tier3_extra_content >= 0:
-			recipe += " + [color=#ff33aa]%d MB %s[/color]" % [def.producer.tier3_extra_amount, DataEnums.content_name(def.producer.tier3_extra_content)]
+			var c3_color: String = DataEnums.content_color_hex(def.producer.tier3_extra_content)
+			recipe += " + [color=%s]%d MB %s[/color]" % [c3_color, def.producer.tier3_extra_amount, DataEnums.content_name(def.producer.tier3_extra_content)]
 		lines.append(_stat("Recipe", recipe))
-		# Tier cycle hint removed — taught in tutorial
-		var research_key: int = DataEnums.pack_key(def.producer.input_content, def.producer.input_state)
-		var stored_research: int = b.stored_data.get(research_key, 0)
-		if stored_research > 0:
-			lines.append(_stat("Stock", "%d MB Research waiting" % stored_research))
+		var input_key: int = DataEnums.pack_key(def.producer.input_content, def.producer.input_state)
+		var stored_input: int = b.stored_data.get(input_key, 0)
+		if stored_input > 0:
+			lines.append(_stat("Stock", "[color=%s]%d MB %s[/color] waiting" % [input_color, stored_input, input_name]))
 	if def.dual_input:
 		lines.append(_stat("Throughput", "%d MB/s" % int(b.get_effective_value("processing_rate"))))
-		if def.dual_input.fuel_matches_content:
-			# Recoverer
+		if def.dual_input.output_tag == DataEnums.ProcessingTag.RECOVERED:
+			# Recoverer — uses Repair Kits
 			lines.append(_stat("Left Port ←", "[color=#ff8844]Corrupted[/color] / [color=#88aa44]Enc·Cor[/color] data"))
 			lines.append(_stat("Top Port ←", "[color=#ff7744]Repair Kit[/color] (from Repair Lab)"))
-			var fuel_tags: Array[int] = def.dual_input.required_fuel_tags
-			if fuel_tags.size() >= 3:
-				lines.append(_stat("Top Port ←", "Fuel: [color=#44ff88]Public[/color] / [color=#44aaff]Decrypted[/color] / [color=#44aaff]Dec·Enc[/color]"))
-			else:
-				lines.append(_stat("Top Port ←", "Same-type [color=#44ff88]Public[/color] data (fuel)"))
 			lines.append(_stat("Output →", "[color=#44ff88]Recovered[/color] (content preserved)"))
+			lines.append(_stat("Kit Cost", "%d per unit" % def.dual_input.key_cost))
 		elif def.dual_input.output_tag == DataEnums.ProcessingTag.ENCRYPTED:
 			# Encryptor
 			lines.append(_stat("Left Port ←", "[color=#44ff88]Processed[/color] data"))
@@ -164,18 +164,19 @@ func _update_stats() -> void:
 			lines.append(_stat("Left Port ←", "[color=#44aaff]Encrypted[/color] / [color=#88aa44]Enc·Cor[/color] data"))
 			lines.append(_stat("Top Port ←", "[color=#ffaa00]Key[/color] (tier must match data)"))
 			lines.append(_stat("Output →", "[color=#44ff88]Decrypted[/color] (content preserved)"))
-		# Show stored fuel/keys (per tier)
-		if not def.dual_input.fuel_matches_content:
-			var key_parts: PackedStringArray = []
-			for kt in range(1, 4):
-				var kk: int = DataEnums.pack_key(def.dual_input.key_content, DataEnums.DataState.PUBLIC, kt, 0)
-				var count: int = b.stored_data.get(kk, 0)
-				if count > 0:
-					key_parts.append("T%d:%d" % [kt, count])
-			if key_parts.is_empty():
-				lines.append(_stat("Key Stock", "[color=#ff6644]0 Key[/color]"))
-			else:
-				lines.append(_stat("Key Stock", "[color=#ffaa00]%s[/color]" % ", ".join(key_parts)))
+		# Show stored keys/kits (per tier)
+		var consumable_name: String = DataEnums.content_name(def.dual_input.key_content)
+		var consumable_color: String = DataEnums.content_color_hex(def.dual_input.key_content)
+		var key_parts: PackedStringArray = []
+		for kt in range(1, 4):
+			var kk: int = DataEnums.pack_key(def.dual_input.key_content, DataEnums.DataState.PUBLIC, kt, 0)
+			var count: int = b.stored_data.get(kk, 0)
+			if count > 0:
+				key_parts.append("T%d:%d" % [kt, count])
+		if key_parts.is_empty():
+			lines.append(_stat("%s Stock" % consumable_name, "[color=#ff6644]0[/color]"))
+		else:
+			lines.append(_stat("%s Stock" % consumable_name, "[color=%s]%s[/color]" % [consumable_color, ", ".join(key_parts)]))
 	if def.storage and def.processor == null and def.classifier == null and def.producer == null and def.dual_input == null:
 		if def.storage.forward_rate > 0:
 			lines.append(_stat("Transfer", "%d MB/s" % int(def.storage.forward_rate)))
@@ -279,12 +280,13 @@ func _update_source_stats() -> void:
 	lines.append(_stat("Bandwidth", "%d MB/s" % int(def.bandwidth)))
 	if not def.content_weights.is_empty():
 		lines.append(_stat("Content", _format_content_weights(def.content_weights)))
-	if not def.state_weights.is_empty():
-		lines.append(_stat("State", _format_state_weights(def.state_weights)))
+	var sw: Dictionary = _target_source.instance_state_weights if not _target_source.instance_state_weights.is_empty() else def.state_weights
+	if not sw.is_empty():
+		lines.append(_stat("State", _format_state_weights(sw)))
 	# Show tier info for encrypted/corrupted
-	if def.encrypted_max_tier > 0 and def.state_weights.has(DataEnums.DataState.ENCRYPTED):
+	if def.encrypted_max_tier > 0 and sw.has(DataEnums.DataState.ENCRYPTED):
 		lines.append(_stat("Encrypted Tier", "[color=#44aaff]T1%s[/color]" % ("-T%d" % def.encrypted_max_tier if def.encrypted_max_tier > 1 else "")))
-	if def.corrupted_max_tier > 0 and def.state_weights.has(DataEnums.DataState.CORRUPTED):
+	if def.corrupted_max_tier > 0 and sw.has(DataEnums.DataState.CORRUPTED):
 		lines.append(_stat("Corrupted Tier", "[color=#ff8844]T1%s[/color]" % ("-T%d" % def.corrupted_max_tier if def.corrupted_max_tier > 1 else "")))
 	# Port info
 	var port_count: int = _target_source.output_ports.size()

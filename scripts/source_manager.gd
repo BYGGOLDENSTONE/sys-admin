@@ -16,6 +16,9 @@ func place_source(def: DataSourceDefinition, origin: Vector2i, _rng_seed: int = 
 	source.position = grid_system.grid_to_world(origin)
 	source.dev_mode = dev_mode
 
+	# Generate per-instance state weight variation (content stays fixed)
+	source.instance_state_weights = _randomize_state_weights(def.state_weights, _rng_seed)
+
 	source_container.add_child(source)
 
 	grid_system.occupy_source(source.cells, source)
@@ -24,6 +27,28 @@ func place_source(def: DataSourceDefinition, origin: Vector2i, _rng_seed: int = 
 	print("[SourceManager] Source placed — %s at (%d,%d), %dx%d" % [
 		def.source_name, origin.x, origin.y, def.grid_size.x, def.grid_size.y])
 	return source
+
+
+## Randomize state weights with significant variation per instance.
+## Content weights stay fixed — only state distribution varies.
+func _randomize_state_weights(base_weights: Dictionary, seed_val: int) -> Dictionary:
+	if base_weights.size() <= 1:
+		return base_weights.duplicate()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_val if seed_val >= 0 else randi()
+	var result: Dictionary = {}
+	var total: float = 0.0
+	for key in base_weights:
+		# Log-uniform multiplier: exp(-1.6)≈0.2 to exp(1.6)≈5.0
+		var mult: float = exp(rng.randf_range(-1.6, 1.6))
+		var val: float = base_weights[key] * mult
+		result[key] = val
+		total += val
+	# Normalize to sum to 1.0
+	if total > 0.0:
+		for key in result:
+			result[key] = snapped(result[key] / total, 0.01)
+	return result
 
 
 func on_building_removed(_building: Node2D, _cell: Vector2i) -> void:

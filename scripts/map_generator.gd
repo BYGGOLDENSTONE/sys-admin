@@ -6,7 +6,8 @@ extends RefCounted
 
 const CHUNK_SIZE := 32           ## 32x32 cells per chunk
 const CT_CENTER := Vector2i(256, 256)
-const MIN_SOURCE_DISTANCE := 5
+const MIN_SOURCE_DISTANCE := 8   ## Min distance between ANY two sources
+const MIN_SAME_TYPE_DISTANCE := 18  ## Min distance between same-type sources
 const MAX_PLACEMENT_ATTEMPTS := 40
 const CT_EXCLUSION_RADIUS := 5   ## No sources within this of CT center
 const TILE_SIZE := 64
@@ -23,8 +24,8 @@ var _tutorial_sources := [
 	{"name": "isp_backbone", "pos": Vector2i(266, 246)},    # NE — Gig 1
 	{"name": "atm", "pos": Vector2i(268, 256)},              # E  — Gig 2
 	{"name": "data_kiosk", "pos": Vector2i(244, 256)},       # W  — Gig 3
-	{"name": "bank_terminal", "pos": Vector2i(256, 268)},    # S  — Gig 4
-	{"name": "hospital_terminal", "pos": Vector2i(256, 278)},# SS — Gig 5
+	{"name": "bank_terminal", "pos": Vector2i(256, 268)},    # S  — Gig 3
+	{"name": "hospital_terminal", "pos": Vector2i(256, 278)},# SS — Gig 4 (Research Collection)
 ]
 
 ## Sector-based guarantees for non-tutorial sources
@@ -35,6 +36,7 @@ var _sector_guarantees := [
 var _world_seed: int = 0
 var _source_manager: Node = null
 var _placed_origins: Array[Vector2i] = []
+var _placed_names: Dictionary = {}  ## source_name → Array[Vector2i]
 var _generated_chunks: Dictionary = {}  ## Vector2i → true
 var _ct_chunk: Vector2i
 
@@ -43,6 +45,7 @@ func generate_map(seed_value: int, source_manager: Node) -> void:
 	_world_seed = seed_value
 	_source_manager = source_manager
 	_placed_origins.clear()
+	_placed_names.clear()
 	_generated_chunks.clear()
 	_ct_chunk = Vector2i(CT_CENTER.x / CHUNK_SIZE, CT_CENTER.y / CHUNK_SIZE)
 
@@ -115,6 +118,7 @@ func _place_guaranteed() -> void:
 		var sub_seed: int = _world_seed + _placed_origins.size() * 7919
 		_source_manager.place_source(def, pos, sub_seed)
 		_placed_origins.append(pos)
+		_track_placed_name(entry.name, pos)
 
 	# 2. Sector-based guarantees (Biotech Lab etc.)
 	for entry in _sector_guarantees:
@@ -128,6 +132,7 @@ func _place_guaranteed() -> void:
 		var sub_seed: int = _world_seed + _placed_origins.size() * 7919
 		_source_manager.place_source(def, pos, sub_seed)
 		_placed_origins.append(pos)
+		_track_placed_name(entry.name, pos)
 
 
 func _generate_chunk(chunk_pos: Vector2i) -> void:
@@ -160,21 +165,22 @@ func _generate_chunk(chunk_pos: Vector2i) -> void:
 		if def == null:
 			continue
 
-		var pos := _find_position_in_chunk(chunk_pos, def.grid_size, chunk_rng)
+		var pos := _find_position_in_chunk(chunk_pos, def.grid_size, source_name, chunk_rng)
 		if pos == Vector2i(-1, -1):
 			continue
 
 		var sub_seed: int = (_world_seed + chunk_pos.x * 7919 + chunk_pos.y * 3571 + i * 1013) & 0x7FFFFFFF
 		_source_manager.place_source(def, pos, sub_seed)
 		_placed_origins.append(pos)
+		_track_placed_name(source_name, pos)
 
 
 func _get_pool_for_distance(dist: int) -> Array:
-	if dist <= 4:
+	if dist <= 3:
 		return _pools["easy"]
-	elif dist <= 7:
+	elif dist <= 6:
 		return _pools["easy"] + _pools["medium"]
-	elif dist <= 11:
+	elif dist <= 9:
 		return _pools["medium"] + _pools["hard"]
 	else:
 		return _pools["hard"] + _pools["endgame"]
@@ -183,24 +189,24 @@ func _get_pool_for_distance(dist: int) -> Array:
 func _roll_count(dist: int, rng: RandomNumberGenerator) -> int:
 	var roll: float = rng.randf()
 	if dist <= 3:
-		# Inner ring: dense — always at least 1 source
-		if roll < 0.45: return 2
-		if roll < 0.70: return 3
-		return 1
-	elif dist <= 6:
-		# Mid ring: usually has sources
-		if roll < 0.50: return 1
+		# Inner ring: moderate (was too dense)
+		if roll < 0.55: return 1
 		if roll < 0.80: return 2
 		return 0
-	elif dist <= 10:
-		# Outer ring: moderate
-		return 1 if roll < 0.35 else 0
+	elif dist <= 6:
+		# Mid ring: light
+		if roll < 0.45: return 1
+		if roll < 0.70: return 2
+		return 0
+	elif dist <= 9:
+		# Outer ring: sparse
+		return 1 if roll < 0.30 else 0
 	else:
-		# Far: sparse — rare corp servers and endgame
-		return 1 if roll < 0.15 else 0
+		# Far: endgame — still sparse but closer than before
+		return 1 if roll < 0.20 else 0
 
 
-func _find_position_in_chunk(chunk_pos: Vector2i, grid_size: Vector2i, rng: RandomNumberGenerator) -> Vector2i:
+func _find_position_in_chunk(chunk_pos: Vector2i, grid_size: Vector2i, source_name: String, rng: RandomNumberGenerator) -> Vector2i:
 	var chunk_origin := chunk_pos * CHUNK_SIZE
 	var max_x: int = chunk_origin.x + CHUNK_SIZE - grid_size.x
 	var max_y: int = chunk_origin.y + CHUNK_SIZE - grid_size.y
@@ -215,6 +221,8 @@ func _find_position_in_chunk(chunk_pos: Vector2i, grid_size: Vector2i, rng: Rand
 		if ct_dist < CT_EXCLUSION_RADIUS:
 			continue
 		if _is_too_close(pos):
+			continue
+		if _is_same_type_too_close(source_name, pos):
 			continue
 		return pos
 
@@ -237,6 +245,21 @@ func _is_too_close(pos: Vector2i) -> bool:
 		if absi(pos.x - existing.x) + absi(pos.y - existing.y) < MIN_SOURCE_DISTANCE:
 			return true
 	return false
+
+
+func _is_same_type_too_close(source_name: String, pos: Vector2i) -> bool:
+	if not _placed_names.has(source_name):
+		return false
+	for existing in _placed_names[source_name]:
+		if absi(pos.x - existing.x) + absi(pos.y - existing.y) < MIN_SAME_TYPE_DISTANCE:
+			return true
+	return false
+
+
+func _track_placed_name(source_name: String, pos: Vector2i) -> void:
+	if not _placed_names.has(source_name):
+		_placed_names[source_name] = []
+	_placed_names[source_name].append(pos)
 
 
 func _load_source_def(source_name: String) -> DataSourceDefinition:

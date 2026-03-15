@@ -37,7 +37,7 @@ script = ExtResource("1")
 building_name = "Repair Lab"
 description = "Produces Repair Kits for the Recoverer. Tab to select tier: T1=Standard, T2=Standard+Financial, T3=Standard+Financial+Blueprint."
 grid_size = Vector2i(2, 2)
-color = Color(0.85, 0.55, 0.25, 1)
+color = Color(0.25, 0.78, 0.6, 1)
 category = "processing"
 visual_type = "repair_lab"
 output_ports = Array[String](["right"])

@@ -752,6 +752,10 @@ func _setup_pause_menu() -> void:
 	save_btn.pressed.connect(_on_pause_save)
 	_pause_buttons.add_child(save_btn)
 
+	var wishlist_btn := _create_pause_button("Wishlist Full Game")
+	wishlist_btn.pressed.connect(_on_pause_wishlist)
+	_pause_buttons.add_child(wishlist_btn)
+
 	var feedback_btn := _create_pause_button("Give Feedback")
 	feedback_btn.pressed.connect(_on_pause_feedback)
 	_pause_buttons.add_child(feedback_btn)
@@ -838,6 +842,10 @@ func _on_pause_save() -> void:
 	if _save_manager:
 		_save_manager.save_game()
 	_show_gig_notification("GAME SAVED", Color("#44ddff"))
+
+
+func _on_pause_wishlist() -> void:
+	OS.shell_open(WISHLIST_URL)
 
 
 func _on_pause_feedback() -> void:

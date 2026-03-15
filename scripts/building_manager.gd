@@ -735,6 +735,8 @@ func _place_building() -> void:
 
 
 func _remove_building(building: Node2D) -> void:
+	if not building.definition.is_placeable:
+		return  # Contract Terminal cannot be deleted
 	var cell: Vector2i = building.grid_cell
 	var def: BuildingDefinition = building.definition
 	# Capture connections before removal for undo
@@ -936,6 +938,8 @@ func remove_building_at(cell: Vector2i) -> bool:
 ## --- MOVING ---
 
 func _start_moving(building: Node2D) -> void:
+	if not building.definition.is_placeable:
+		return  # Contract Terminal cannot be moved
 	_moving_building = building
 	_moving_original_cell = building.grid_cell
 	_state = State.MOVING
@@ -1100,10 +1104,12 @@ func _clear_box_selection() -> void:
 func _delete_selected_buildings() -> void:
 	var buildings_copy: Array[Node2D] = _selected_buildings.duplicate()
 	_clear_box_selection()
+	var count: int = 0
 	for building in buildings_copy:
-		if is_instance_valid(building):
+		if is_instance_valid(building) and building.definition.is_placeable:
 			_remove_building(building)
-	print("[BuildingManager] Deleted %d buildings" % buildings_copy.size())
+			count += 1
+	print("[BuildingManager] Deleted %d buildings" % count)
 
 
 func _update_selection_overlay() -> void:
@@ -1122,6 +1128,8 @@ func _update_selection_overlay() -> void:
 ## --- COPY / PASTE ---
 
 func _copy_single_building(building: Node2D) -> void:
+	if not building.definition.is_placeable:
+		return  # Contract Terminal cannot be copied
 	_copy_buffer.clear()
 	_copy_connections.clear()
 	_copy_buffer.append({
@@ -1149,6 +1157,8 @@ func _copy_selection() -> void:
 	for building in _selected_buildings:
 		if not is_instance_valid(building):
 			continue
+		if not building.definition.is_placeable:
+			continue  # Skip Contract Terminal in multi-copy
 		_copy_buffer.append({
 			"definition": building.definition,
 			"offset": building.grid_cell - anchor_cell,

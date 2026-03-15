@@ -19,6 +19,10 @@ var cells: Array[Vector2i] = []          ## All occupied cells (rectangular)
 var dev_mode: bool = false
 var _glow_time: float = 0.0
 
+## Per-instance state weights — randomized from definition base weights.
+## Content stays fixed (ATM = always Financial), but state ratios vary per instance.
+var instance_state_weights: Dictionary = {}
+
 ## Output port system — generated from grid_size
 var output_ports: Array[String] = []
 

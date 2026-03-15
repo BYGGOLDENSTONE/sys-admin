@@ -142,13 +142,14 @@ func on_ct_connection_added(conn: Dictionary) -> void:
 	# Pre-populate for data sources (composition fully known)
 	if upstream.definition is DataSourceDefinition:
 		var src_def: DataSourceDefinition = upstream.definition
+		var sw: Dictionary = upstream.instance_state_weights if not upstream.instance_state_weights.is_empty() else src_def.state_weights
 		if not _contract_terminal.port_carried_types.has(port):
 			_contract_terminal.port_carried_types[port] = {}
 		for c_id in src_def.content_weights:
 			if src_def.content_weights[c_id] <= 0.0:
 				continue
-			for s_id in src_def.state_weights:
-				if src_def.state_weights[s_id] <= 0.0:
+			for s_id in sw:
+				if sw[s_id] <= 0.0:
 					continue
 				_contract_terminal.port_carried_types[port][(int(c_id) << 4) | int(s_id)] = true
 		# Evaluate immediately — block before first tick

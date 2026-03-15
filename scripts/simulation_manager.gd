@@ -168,6 +168,7 @@ func _rebuild_sim_kernel_meta() -> void:
 		for port in source.output_ports:
 			if not _output_ports.has(src_id) or not _output_ports[src_id].has(port):
 				continue
+			var inst_sw: Dictionary = source.instance_state_weights if not source.instance_state_weights.is_empty() else src_def.state_weights
 			source_entries.append({
 				"conn_idx": _output_ports[src_id][port],
 				"gen_rate": int(src_def.generation_rate),
@@ -175,7 +176,7 @@ func _rebuild_sim_kernel_meta() -> void:
 				"from_port": port,
 				"src_id": src_id,
 				"content_weights": src_def.content_weights,
-				"state_weights": src_def.state_weights,
+				"state_weights": inst_sw,
 				"enc_max_tier": src_def.encrypted_max_tier,
 				"cor_max_tier": src_def.corrupted_max_tier,
 			})
@@ -1020,7 +1021,8 @@ func _update_generation(_buildings: Array[Node]) -> void:
 				continue
 			for _i in range(amount):
 				var content: int = _roll_content(src_def.content_weights)
-				var state: int = _roll_state(src_def.state_weights)
+				var sw: Dictionary = source.instance_state_weights if not source.instance_state_weights.is_empty() else src_def.state_weights
+				var state: int = _roll_state(sw)
 				var tier: int = _roll_tier(state, src_def.encrypted_max_tier, src_def.corrupted_max_tier)
 				_check_discovery(content, state)
 				_push_data_from(source, content, state, 1, port, tier)

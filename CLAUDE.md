@@ -136,7 +136,15 @@ Asagidaki kararlar **scope lock** kabul edilir. Claude Code bu kararlarla celise
 - [x] Save slot sistemi — 5 slot, slot_N.json + slot_N_auto.json
 - [x] Ana menu: New Game (oto bos slot) + Load Game (slot listesi + silme) + Give Feedback
 - [x] Tarih formati okunabilir: "Mar 15, 2026 — 6:34 AM"
-- [ ] Son dokunuslar
+- [x] Kaynak yogunluk azaltma — MIN_SOURCE_DISTANCE 5→8, ayni tip arasi 18, endgame dist 10→9
+- [x] Ayni tip kaynak yan yana engeli (MIN_SAME_TYPE_DISTANCE=18)
+- [x] Per-instance state weight varyasyonu — content sabit, state oranlari seed-based rastgele
+- [x] CT (Contract Terminal) korumasi — silinemez, kopyalanamaz, tasinamaz
+- [x] "Combined Flow" gig → "Research Collection" (Research data toplama ogretiyor)
+- [x] Pause menüye "Wishlist Full Game" butonu eklendi
+- [x] Renk paleti tutarli gruplara ayrildi (Filtering=cyan, Routing=steel, Support=green, Crypto=orange/blue)
+- [x] Producer tooltip dinamik (Key Forge + Repair Lab dogru gosterim)
+- [x] Recoverer tooltip output_tag ile dogru ayirt ediliyor (Repair Kit gosterimi)
 - [x] **GDD.md guncelle** — v4.0 olarak yeniden yazildi (Compiler/Uplink/Bridge kaldirildi, Key Forge + Repair Lab eklendi, bilesik state, procedural gig, 3 faz yapisi)
 
 ### Siralama

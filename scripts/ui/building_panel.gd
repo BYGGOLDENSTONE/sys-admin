@@ -31,8 +31,8 @@ const UNLOCK_GIG: Dictionary = {
 	"Merger": "Gig 2: Clean Data Only",
 	"Key Forge": "Gig 3: Full Filter Chain",
 	"Decryptor": "Gig 3: Full Filter Chain",
-	"Repair Lab": "Gig 4: Combined Flow",
-	"Recoverer": "Gig 4: Combined Flow",
+	"Repair Lab": "Gig 4: Research Collection",
+	"Recoverer": "Gig 4: Research Collection",
 	"Encryptor": "Gig 5: Data Recovery",
 }
 
