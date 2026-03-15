@@ -137,7 +137,7 @@ Asagidaki kararlar **scope lock** kabul edilir. Claude Code bu kararlarla celise
 - [x] Ana menu: New Game (oto bos slot) + Load Game (slot listesi + silme) + Give Feedback
 - [x] Tarih formati okunabilir: "Mar 15, 2026 — 6:34 AM"
 - [ ] Son dokunuslar
-- [ ] **GDD.md guncelle** — Tum fazlar bittikten sonra, leftover kod kalmasin diye en son GDD v4.0 olarak yazilacak
+- [x] **GDD.md guncelle** — v4.0 olarak yeniden yazildi (Compiler/Uplink/Bridge kaldirildi, Key Forge + Repair Lab eklendi, bilesik state, procedural gig, 3 faz yapisi)
 
 ### Siralama
 Faz 1 → 2 → 3 → 4 → 5 → 6. Her faz sonunda oyun playable state'te kalmali.

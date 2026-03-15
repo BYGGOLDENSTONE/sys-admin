@@ -157,7 +157,7 @@ func _update_stats() -> void:
 			lines.append(_stat("Left Port ←", "[color=#44ff88]Processed[/color] data"))
 			lines.append(_stat("Top Port ←", "[color=#ffaa00]Key[/color] (from Key Forge)"))
 			lines.append(_stat("Output →", "[color=#44aaff]Encrypted[/color] tag added"))
-			lines.append(_stat("Key/packet", "%d" % def.dual_input.key_cost))
+			lines.append(_stat("Key Cost", "%d" % def.dual_input.key_cost))
 		else:
 			# Decryptor
 			lines.append(_stat("Left Port ←", "[color=#44aaff]Encrypted[/color] / [color=#88aa44]Enc·Cor[/color] data"))
@@ -206,7 +206,7 @@ func _update_stats() -> void:
 		else:
 			lines.append(_stat("Level", "%d/%d" % [lvl, upg.max_level]))
 
-	# Malware warning (non-quarantine buildings holding malware)
+	# Malware warning (non-Trash buildings holding malware)
 	var malware_amount: int = b.get_malware_amount()
 	if malware_amount > 0 and not (def.processor and def.processor.rule == "trash"):
 		lines.append(_stat("Malware", "[color=#ff4466]%d MB — Route to Trash![/color]" % malware_amount))
