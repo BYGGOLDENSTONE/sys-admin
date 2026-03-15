@@ -132,7 +132,7 @@ Asagidaki kararlar **scope lock** kabul edilir. Claude Code bu kararlarla celise
 - [x] **Recoverer** fuel mode → key mode (Repair Kit kullanir, Decryptor ile simetrik)
 - [x] **REPAIR_KIT** content type eklendi (char:"+", color:#ff7744)
 - [x] Tum UI/tooltip/hint referanslari guncellendi
-- [ ] Ard arda undo yapilinca engine crash — undo stack guvenli hale getirilmeli
+- [x] Ard arda undo yapilinca engine crash — zombie node korumasi + is_instance_valid guard
 - [x] Save slot sistemi — 5 slot, slot_N.json + slot_N_auto.json
 - [x] Ana menu: New Game (oto bos slot) + Load Game (slot listesi + silme) + Give Feedback
 - [x] Tarih formati okunabilir: "Mar 15, 2026 — 6:34 AM"
