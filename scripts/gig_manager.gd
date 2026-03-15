@@ -24,6 +24,7 @@ var _starter_buildings: PackedStringArray = ["Trash", "Splitter"]
 
 var building_container: Node2D = null
 var _contract_terminal: Node2D = null
+var skip_tutorial: bool = false  ## Level 2+: all buildings unlocked, procedural only
 
 
 func _ready() -> void:
@@ -35,7 +36,22 @@ func _ready() -> void:
 
 ## Call after signals are connected to ensure notifications fire
 func initialize() -> void:
-	_activate_next_tutorial_gig()
+	if skip_tutorial:
+		_unlock_all_buildings()
+		_tutorials_complete = true
+		_fill_procedural_gigs()
+	else:
+		_activate_next_tutorial_gig()
+
+
+func _unlock_all_buildings() -> void:
+	## Unlock all placeable buildings (for Level 2+)
+	var all_names: PackedStringArray = [
+		"Trash", "Splitter", "Merger", "Classifier", "Separator",
+		"Decryptor", "Encryptor", "Recoverer", "Key Forge", "Repair Lab"
+	]
+	for b_name in all_names:
+		_unlocked_buildings[b_name] = true
 
 
 func _load_gigs() -> void:

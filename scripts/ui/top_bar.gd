@@ -5,6 +5,7 @@ const BORDER_COLOR := Color("#00bbee")
 const DIVIDER_COLOR := Color("#00bbee40")
 
 var _speed_label: Label
+var _level_label: Label
 var _city_label: Label
 var _seed_label: Label
 var _dev_label: Label
@@ -41,6 +42,10 @@ func _build_ui() -> void:
 	_speed_label = _make_label("> 1x", Color(0, 1, 0.53), 18)
 	_speed_label.custom_minimum_size.x = 130
 	hbox.add_child(_speed_label)
+
+	# Level
+	_level_label = _make_label("LEVEL 1 [2x2]", Color(1.0, 0.75, 0.0, 0.9), 14)
+	hbox.add_child(_level_label)
 
 	# City Control
 	_city_label = _make_label("NETWORK: 0%", Color(0.4, 0.7, 0.9, 0.8), 14)
@@ -116,6 +121,15 @@ func update_seed(seed_value: int) -> void:
 
 func set_dev_visible(show: bool) -> void:
 	_dev_label.visible = show
+
+
+func update_level(level: int) -> void:
+	var data: Dictionary = LevelConfig.get_level(level)
+	var ct: Vector2i = data.ct_size
+	if data.is_infinite:
+		_level_label.text = "LEVEL %d [%dx%d] ENDLESS" % [level, ct.x, ct.y]
+	else:
+		_level_label.text = "LEVEL %d [%dx%d]" % [level, ct.x, ct.y]
 
 
 func update_city_control(connected: int, total: int) -> void:

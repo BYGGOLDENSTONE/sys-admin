@@ -126,7 +126,14 @@ func _ready() -> void:
 
 	# Determine seed: from save, command-line, or random
 	var is_loading: bool = not load_save_data.is_empty()
-	if is_loading:
+	var is_new_level: bool = load_save_data.has("_new_level")
+	if is_new_level:
+		# Starting a fresh level (not loading a save)
+		_current_seed = int(load_save_data.get("seed", randi()))
+		_level_manager.current_level = int(load_save_data.get("_new_level", 1))
+		_level_manager.max_level_reached = int(load_save_data.get("_max_level", 1))
+		is_loading = false  # Treat as new game for CT placement
+	elif is_loading:
 		_current_seed = int(load_save_data.get("seed", randi()))
 		# Restore level from save
 		var level_data: Dictionary = load_save_data.get("level_state", {})
@@ -179,6 +186,10 @@ func _ready() -> void:
 	else:
 		# NEW GAME PATH: place Contract Terminal and initialize gigs
 		_place_contract_terminal()
+		# Level 2+: skip tutorial, unlock all buildings
+		var cur_level_data: Dictionary = LevelConfig.get_level(_level_manager.current_level)
+		if not cur_level_data.is_tutorial:
+			_gig_manager.skip_tutorial = true
 		_gig_manager.initialize()
 
 	# Wire terminal click to gig panel
@@ -200,8 +211,12 @@ func _ready() -> void:
 		)
 		camera.set_bounds(bounds_rect)
 
-	# Update seed in top bar
+	# Update seed and level in top bar
 	_top_bar.update_seed(_current_seed)
+	_top_bar.update_level(_level_manager.current_level)
+
+	# Wire level completion
+	_level_manager.level_completed.connect(_on_level_completed)
 
 	# Setup shortcut hints
 	_setup_shortcut_hints()
@@ -518,11 +533,6 @@ func _on_gig_completed(gig) -> void:
 		camera.add_trauma(0.25)
 	if _tutorial_manager:
 		_tutorial_manager.on_gig_completed(gig)
-	# Check if finale gig (The Net Heist) is done → demo complete
-	if not _demo_complete_shown and _gig_manager and _gig_manager.is_gig_completed(18):
-		_demo_complete_shown = true
-		# Delay to let the last gig complete notification play first
-		get_tree().create_timer(2.5).timeout.connect(_show_demo_complete)
 
 
 func _on_gig_activated(gig) -> void:
@@ -683,6 +693,9 @@ func _update_city_control() -> void:
 				connected += 1
 				break
 	_top_bar.update_city_control(connected, total)
+	# Check win condition (100% network)
+	if _level_manager:
+		_level_manager.check_win_condition(connected, total)
 
 
 func _on_building_placed_sound(_building: Node2D, _cell: Vector2i) -> void:
@@ -911,6 +924,126 @@ func _on_settings_changed() -> void:
 	# Update autosave interval
 	if _save_manager:
 		_save_manager.update_autosave_interval(int(settings.get("autosave_interval", 300)))
+
+
+func _on_level_completed(level: int) -> void:
+	if _demo_complete_shown:
+		return
+	_demo_complete_shown = true
+	_show_gig_notification("LEVEL %d COMPLETE — 100%% NETWORK" % level, Color("#00ffaa"))
+	if _sound_manager:
+		_sound_manager.play_gig_complete()
+	if camera.has_method("add_trauma"):
+		camera.add_trauma(0.3)
+	# Autosave on level complete
+	if _save_manager:
+		_save_manager.autosave()
+	# Delay to let notification play, then show appropriate screen
+	get_tree().create_timer(2.5).timeout.connect(func():
+		if LevelConfig.IS_DEMO:
+			_show_demo_complete()
+		else:
+			_show_level_complete(level)
+	)
+
+
+func _show_level_complete(level: int) -> void:
+	## Full release: show next level option
+	if not simulation_manager.is_paused:
+		simulation_manager.toggle_pause()
+
+	var overlay := CanvasLayer.new()
+	overlay.layer = 99
+	add_child(overlay)
+
+	var bg := ColorRect.new()
+	bg.color = Color(0.01, 0.02, 0.04, 0.0)
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	bg.mouse_filter = Control.MOUSE_FILTER_STOP
+	overlay.add_child(bg)
+	var bg_tw := create_tween()
+	bg_tw.tween_property(bg, "color:a", 0.85, 1.0)
+
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay.add_child(center)
+
+	var main_box := VBoxContainer.new()
+	main_box.alignment = BoxContainer.ALIGNMENT_CENTER
+	main_box.add_theme_constant_override("separation", 0)
+	center.add_child(main_box)
+
+	var title := Label.new()
+	title.text = "LEVEL %d COMPLETE" % level
+	title.add_theme_font_size_override("font_size", 48)
+	title.add_theme_color_override("font_color", Color(0.0, 1.0, 0.6, 1.0))
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	main_box.add_child(title)
+
+	var subtitle := Label.new()
+	subtitle.text = "Network fully connected."
+	subtitle.add_theme_font_size_override("font_size", 20)
+	subtitle.add_theme_color_override("font_color", Color(0.5, 0.7, 0.8, 0.8))
+	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	main_box.add_child(subtitle)
+
+	var spacer := Control.new()
+	spacer.custom_minimum_size = Vector2(0, 32)
+	main_box.add_child(spacer)
+
+	var btn_box := VBoxContainer.new()
+	btn_box.add_theme_constant_override("separation", 14)
+	btn_box.alignment = BoxContainer.ALIGNMENT_CENTER
+	main_box.add_child(btn_box)
+
+	if level < LevelConfig.MAX_LEVEL:
+		var next_data: Dictionary = LevelConfig.get_level(level + 1)
+		var next_btn := _create_demo_complete_button(
+			"Next Level — %dx%d CT" % [next_data.ct_size.x, next_data.ct_size.y],
+			Color(0.0, 1.0, 0.6))
+		next_btn.pressed.connect(func():
+			overlay.queue_free()
+			_start_new_level(level + 1)
+		)
+		btn_box.add_child(next_btn)
+
+	var continue_btn := _create_demo_complete_button("Keep Playing", Color(0.6, 0.65, 0.7))
+	continue_btn.pressed.connect(func():
+		overlay.queue_free()
+		if simulation_manager.is_paused:
+			simulation_manager.toggle_pause()
+	)
+	btn_box.add_child(continue_btn)
+
+	var menu_btn := _create_demo_complete_button("Quit to Menu", Color(0.5, 0.5, 0.6))
+	menu_btn.pressed.connect(func():
+		overlay.queue_free()
+		_on_pause_quit()
+	)
+	btn_box.add_child(menu_btn)
+
+	# Fade in
+	main_box.modulate = Color(1, 1, 1, 0)
+	var content_tw := create_tween()
+	content_tw.tween_property(main_box, "modulate:a", 1.0, 0.8).set_delay(0.5)
+
+
+func _start_new_level(level: int) -> void:
+	## Transition to a new level by reloading the scene
+	_level_manager.start_level(level)
+	if _save_manager:
+		_save_manager.autosave()
+	# Reload scene with new level data
+	var game_scene := load("res://scenes/main.tscn") as PackedScene
+	var game_instance := game_scene.instantiate()
+	game_instance.load_save_data = {
+		"_slot": _save_manager.current_slot if _save_manager else 1,
+		"_new_level": level,
+		"_max_level": _level_manager.max_level_reached,
+		"seed": randi(),  # New seed for new level
+	}
+	get_tree().root.add_child(game_instance)
+	queue_free()
 
 
 # --- Demo Complete Screen ---
