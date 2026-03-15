@@ -210,6 +210,13 @@ func _ready() -> void:
 			_level_data.map_size * 64.0
 		)
 		camera.set_bounds(bounds_rect)
+		# Draw visible map border
+		var MapBorderScript = preload("res://scripts/map_border.gd")
+		var border := Node2D.new()
+		border.set_script(MapBorderScript)
+		border.name = "MapBorder"
+		add_child(border)
+		border.setup(bounds_rect)
 
 	# Update seed and level in top bar
 	_top_bar.update_seed(_current_seed)

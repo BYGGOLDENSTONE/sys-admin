@@ -121,17 +121,6 @@ func _smooth_center(delta: float) -> void:
 
 
 func _clamp_to_bounds() -> void:
-	var vp_size := get_viewport().get_visible_rect().size / zoom
-	var half_vp := vp_size / 2.0
-	# Allow camera center to stay within bounds + half viewport
-	var min_pos := _bounds.position + half_vp
-	var max_pos := _bounds.end - half_vp
-	# If viewport is larger than bounds, center on bounds
-	if min_pos.x > max_pos.x:
-		position.x = _bounds.position.x + _bounds.size.x / 2.0
-	else:
-		position.x = clampf(position.x, min_pos.x, max_pos.x)
-	if min_pos.y > max_pos.y:
-		position.y = _bounds.position.y + _bounds.size.y / 2.0
-	else:
-		position.y = clampf(position.y, min_pos.y, max_pos.y)
+	# Camera center can reach the boundary itself — so the edge can be centered on screen
+	position.x = clampf(position.x, _bounds.position.x, _bounds.end.x)
+	position.y = clampf(position.y, _bounds.position.y, _bounds.end.y)
