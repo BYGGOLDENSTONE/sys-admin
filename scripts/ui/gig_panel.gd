@@ -565,26 +565,12 @@ func _update_empty() -> void:
 
 
 func _req_text(req) -> String:
-	if req.packet_key != "":
-		return DataEnums.packet_label(req.packet_key)
 	return req.label if req.label != "" else "Data"
 
 
 func _req_bbcode(req, done: bool) -> String:
 	if done:
 		return "[color=#44ff88]%s[/color]" % _req_text(req)
-
-	if req.packet_key != "":
-		var p: Dictionary = DataEnums.parse_packet_key(req.packet_key)
-		var c_a: String = DataEnums.content_color_hex(p.content_a)
-		var c_b: String = DataEnums.content_color_hex(p.content_b)
-		var name_a: String = DataEnums.content_name(p.content_a)
-		var name_b: String = DataEnums.content_name(p.content_b)
-		if p.tags_a != 0:
-			name_a += " " + DataEnums.tags_label(p.tags_a)
-		if p.tags_b != 0:
-			name_b += " " + DataEnums.tags_label(p.tags_b)
-		return "[color=%s]%s[/color] + [color=%s]%s[/color] Packet" % [c_a, name_a, c_b, name_b]
 
 	var c_hex: String = DataEnums.content_color_hex(req.content)
 	var c_char: String = DataEnums.content_char(req.content)
@@ -660,16 +646,15 @@ const STALL_HINTS: Dictionary = {
 	6: ["Your ISP Backbone (Standard) and ATM (Financial) lines are already flowing. Place a Merger to combine them into one cable to the Terminal", "You can also use two separate CT ports without a Merger — but Merger saves space"],
 	7: ["Recoverer needs TWO inputs: Corrupted data from left, Public fuel from top"],
 	8: ["Decrypt first, then re-encrypt: Decryptor → Encryptor. Both need Keys from top"],
-	9: ["Compiler needs two DIFFERENT data types: one from left, one from top"],
 	10: ["Find a source with Blueprint content — try Biotech Lab or Corporate Server"],
 	11: ["Recover Corrupted Blueprint with the Recoverer — same process you used on Financial. Tougher files may need processed fuel"],
 	12: ["Decrypt Financial first (Decryptor + Key), then re-encrypt it (Encryptor + Key). Your Key forge and Financial source do the work"],
-	13: ["Encrypt Financial first, then feed it with Blueprint into the Compiler"],
+	13: [],
 	14: ["Recover Financial (Corrupted→Recoverer+Public fuel), then Encrypt it (Encryptor+Key). Three steps total"],
 	15: ["Biometric needs T1 Key, Financial needs T2 Key. Set Research Lab to T2 with TAB for stronger Keys", "Financial Encrypted comes from Corporate Server — T2 needs Research + Financial in the Key recipe"],
 	16: ["Research appears in Libraries and Hospitals. Use Classifiers to filter it out of mixed sources", "Standard data flows from Vending Machines, Traffic Cameras, and other easy sources — your earliest pipelines still work"],
-	17: ["Recover Financial (from ATM Corrupted), Decrypt Research (from Hospital Encrypted), then Compile both into a Packet"],
-	18: ["Blueprint Decrypted·Encrypted: Decrypt Blueprint, then re-encrypt it", "Package: Encrypt raw Financial, Recover Biometric, then Compile", "Research Recovered: find Corrupted Research and Recover it with Public fuel"],
+	17: [],
+	18: [],
 }
 
 

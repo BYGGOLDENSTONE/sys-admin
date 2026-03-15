@@ -7,4 +7,3 @@ extends Resource
 @export var min_tier: int = 0  ## Minimum source tier required (0 = any)
 @export var amount: int = 10
 @export var label: String = "" ## Display label e.g. "Standard Public"
-@export var packet_key: String = "" ## If set, matches packet deliveries instead of individual data

@@ -62,11 +62,6 @@ var _gig_hints: Dictionary = {
 		"text": "The [color=#ffcc44]Encryptor[/color] re-encrypts processed data using a [color=#00ddff]Key[/color].\nFirst [color=#00ddff]decrypt[/color], then run through [color=#ffcc44]Encryptor[/color] — same Key supply as Decryptor.",
 		"duration": 14.0,
 	},
-	9: {
-		"id": "gig9_intro",
-		"text": "The [color=#ffcc44]Compiler[/color] combines [color=#00ddff]two different data types[/color] into one [color=#00ddff]Packet[/color].\nFeed one type from [color=#00ddff]left[/color], another from [color=#00ddff]top[/color].",
-		"duration": 14.0,
-	},
 }
 
 ## Building unlock descriptions — shown when a building unlocks
@@ -104,11 +99,6 @@ var _building_hints: Dictionary = {
 	"Encryptor": {
 		"id": "unlock_encryptor",
 		"text": "[color=#ffcc44]ENCRYPTOR[/color] unlocked — re-encrypts processed data.\nData: [color=#00ddff]left[/color]  |  Key: [color=#00ddff]top[/color]  |  Output: [color=#00ddff]right[/color]",
-		"duration": 8.0,
-	},
-	"Compiler": {
-		"id": "unlock_compiler",
-		"text": "[color=#ffcc44]COMPILER[/color] unlocked — packages two data types into one Packet.\nType A: [color=#00ddff]left[/color]  |  Type B: [color=#00ddff]top[/color]  |  Packet: [color=#00ddff]right[/color]",
 		"duration": 8.0,
 	},
 }
@@ -281,8 +271,7 @@ var _completion_hints: Dictionary = {
 	5: "Decryption online! Next: streamline your deliveries.",
 	6: "Merger learned! Next: repair corrupted data.",
 	7: "Recovery pipeline built! Next: learn re-encryption.",
-	8: "Full encrypt/decrypt chain! Last step: package data.",
-	9: "All core mechanics learned! New contracts available.",
+	8: "Full encrypt/decrypt chain! All core mechanics learned — new contracts available.",
 }
 
 

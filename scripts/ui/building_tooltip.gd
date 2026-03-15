@@ -174,15 +174,7 @@ func _update_stats() -> void:
 				lines.append(_stat("Key Stock", "[color=#ff6644]0 Key[/color]"))
 			else:
 				lines.append(_stat("Key Stock", "[color=#ffaa00]%s[/color]" % ", ".join(key_parts)))
-	if def.compiler:
-		lines.append(_stat("Processing", "%d craft/tick" % int(b.get_effective_value("processing_rate"))))
-		lines.append(_stat("Left Port ←", "Data A (any type)"))
-		lines.append(_stat("Top Port ←", "Data B (any type)"))
-		lines.append(_stat("Output →", "[color=#66ffcc]Packet [A·B][/color]"))
-		var total: int = b.get_total_stored()
-		if total > 0:
-			lines.append(_stat("Stock", _format_stored_data(b.stored_data)))
-	if def.storage and def.processor == null and def.classifier == null and def.producer == null and def.dual_input == null and def.compiler == null:
+	if def.storage and def.processor == null and def.classifier == null and def.producer == null and def.dual_input == null:
 		if def.storage.forward_rate > 0:
 			lines.append(_stat("Transfer", "%d MB/s" % int(def.storage.forward_rate)))
 	if def.processor:
@@ -250,9 +242,6 @@ func _format_stored_data(data: Dictionary) -> String:
 	var parts: PackedStringArray = []
 	for key in data:
 		if data[key] <= 0:
-			continue
-		if DataEnums.is_packed_packet(key):
-			parts.append("[color=#66ffcc]%d[/color] %s" % [data[key], DataEnums.packed_packet_label(key)])
 			continue
 		var c: int = DataEnums.unpack_content(key)
 		var s: int = DataEnums.unpack_state(key)

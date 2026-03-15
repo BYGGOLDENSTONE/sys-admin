@@ -19,7 +19,6 @@ extends Resource
 @export var dual_input: DualInputComponent
 @export var splitter: SplitterComponent
 @export var merger: MergerComponent
-@export var compiler: CompilerComponent
 @export var upgrade: UpgradeComponent
 
 
@@ -31,9 +30,6 @@ func get_storage_capacity() -> int:
 
 func accepts_data(content: int, state: int) -> bool:
 	## Check if this building can accept data with given content+state
-	if compiler:
-		# Compiler accepts any data for packaging
-		return true
 	if dual_input:
 		# Dual input accepts: primary data (matching states) OR fuel/keys
 		if dual_input.fuel_matches_content:

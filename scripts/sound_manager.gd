@@ -78,8 +78,6 @@ func play_process_event(building_type: String) -> void:
 			play("process_crack", -14.0)
 		"encryptor":
 			play("process_encrypt", -14.0)
-		"compiler":
-			play("process_synth", -14.0)
 		"recoverer":
 			play("process_recover", -14.0)
 		"classifier", "separator":

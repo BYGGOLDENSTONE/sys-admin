@@ -92,9 +92,6 @@ func process_deliveries() -> void:
 		var amount: int = _contract_terminal.stored_data[key]
 		if amount <= 0:
 			continue
-		if DataEnums.is_packed_packet(key):
-			_count_packed_packet_delivery(key, amount)
-			continue
 		_count_delivery(DataEnums.unpack_content(key), DataEnums.unpack_state(key), DataEnums.unpack_tier(key), DataEnums.unpack_tags(key), amount)
 
 	# Consume all delivered data (Shapez model)
@@ -172,8 +169,6 @@ func _output_matches_any_requirement(content: int, state: int) -> bool:
 	var content_relevant: bool = false
 	for gig in _active_gigs:
 		for req in gig.requirements:
-			if req.packet_key != "":
-				continue
 			if req.content == content:
 				content_relevant = true
 				if req.state < 0 or req.state == state:
@@ -183,32 +178,6 @@ func _output_matches_any_requirement(content: int, state: int) -> bool:
 		return false
 	# Content doesn't match any requirement → irrelevant, allow (will be trashed by CT)
 	return true
-
-
-func _count_packet_delivery(pkt_key: String, amount: int) -> void:
-	# Packet = real product — counts as ONE delivery, not split into components
-	for gig in _active_gigs:
-		var progress_arr: Array = _progress.get(gig.order_index, [])
-		for i in range(gig.requirements.size()):
-			var req = gig.requirements[i]
-			if req.packet_key == "":
-				continue
-			if req.packet_key != pkt_key:
-				continue
-			# Match — count packet as single delivery
-			var old_val: int = progress_arr[i]
-			var new_val: int = mini(old_val + amount, req.amount)
-			progress_arr[i] = new_val
-			if new_val > old_val:
-				gig_progress_updated.emit(gig, i, new_val, req.amount)
-
-
-func _count_packed_packet_delivery(packed_key: int, amount: int) -> void:
-	# Convert packed int to string for comparison with gig requirement (not hot path)
-	var str_key: String = DataEnums.make_packet_key(
-		DataEnums.unpack_packet_content_a(packed_key), DataEnums.unpack_packet_tags_a(packed_key),
-		DataEnums.unpack_packet_content_b(packed_key), DataEnums.unpack_packet_tags_b(packed_key))
-	_count_packet_delivery(str_key, amount)
 
 
 func _count_delivery(content: int, state: int, tier: int, tags: int, amount: int) -> void:

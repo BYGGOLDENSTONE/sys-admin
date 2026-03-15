@@ -30,8 +30,6 @@ func _draw() -> void:
 			_draw_splitter(center)
 		"merger":
 			_draw_merger(center)
-		"compiler":
-			_draw_compiler(center)
 		"terminal":
 			_draw_terminal(center)
 		_:
@@ -230,43 +228,6 @@ func _draw_merger(center: Vector2) -> void:
 	draw_line(out_pos, out_pos + Vector2(-5, 3), accent, 1.5)
 
 	draw_circle(center, 3.0, accent)
-
-
-# --- COMPILER: Two inputs → diamond → star output ---
-func _draw_compiler(center: Vector2) -> void:
-	var s: float = minf(size.x, size.y) * 0.35
-	var glow := Color(accent, GLOW_ALPHA)
-
-	var in_a := center + Vector2(-s * 0.7, -s * 0.3)
-	var in_b := center + Vector2(-s * 0.7, s * 0.3)
-	var mid := center + Vector2(-s * 0.1, 0)
-	draw_line(in_a, mid, glow, GLOW_WIDTH)
-	draw_line(in_b, mid, glow, GLOW_WIDTH)
-	draw_line(in_a, mid, accent, 1.5)
-	draw_line(in_b, mid, accent, 1.5)
-
-	var d: float = s * 0.25
-	var diamond := PackedVector2Array([
-		center + Vector2(0, -d),
-		center + Vector2(d, 0),
-		center + Vector2(0, d),
-		center + Vector2(-d, 0),
-		center + Vector2(0, -d),
-	])
-	draw_polygon(PackedVector2Array([
-		center + Vector2(0, -d),
-		center + Vector2(d, 0),
-		center + Vector2(0, d),
-		center + Vector2(-d, 0),
-	]), [Color(accent, 0.2)])
-	draw_polyline(diamond, glow, GLOW_WIDTH)
-	draw_polyline(diamond, accent, 2.0)
-
-	var out_pos := center + Vector2(s * 0.7, 0)
-	draw_line(center + Vector2(d, 0), out_pos, glow, GLOW_WIDTH)
-	draw_line(center + Vector2(d, 0), out_pos, accent, 2.0)
-	draw_circle(out_pos, 3.0, accent)
-	draw_circle(out_pos, 1.5, Color.WHITE)
 
 
 # --- TERMINAL: Monitor + stand + arrow ---

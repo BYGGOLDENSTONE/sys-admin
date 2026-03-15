@@ -21,7 +21,7 @@ const CELL_ICON_SIZE: float = 48.0
 const BUILDING_ORDER: PackedStringArray = [
 	"Trash", "Splitter",
 	"Separator", "Classifier", "Merger", "Recoverer",
-	"Research Lab", "Decryptor", "Encryptor", "Compiler",
+	"Research Lab", "Decryptor", "Encryptor",
 ]
 
 ## Which gig unlocks each building (for locked tooltip)
@@ -33,7 +33,6 @@ const UNLOCK_GIG: Dictionary = {
 	"Research Lab": "Gig 5: Decryption Run",
 	"Decryptor": "Gig 5: Decryption Run",
 	"Encryptor": "Gig 8: Encryption Job",
-	"Compiler": "Gig 9: Package Deal",
 }
 
 var _definitions: Array[BuildingDefinition] = []

@@ -5,7 +5,7 @@
 [resource]
 script = ExtResource("1")
 source_name = "Shop Server"
-description = "Retail network hub server. Mixes Standard, Financial, and Biometric — 3 content types unlock Compiler paths. Some corrupted."
+description = "Retail network hub server. Mixes Standard, Financial, and Biometric — 3 content types in one source. Some corrupted."
 color = Color(1.0, 0.73, 0.27, 1.0)
 content_weights = {0: 0.35, 1: 0.40, 2: 0.25}
 state_weights = {0: 0.65, 2: 0.35}

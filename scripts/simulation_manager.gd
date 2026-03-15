@@ -193,8 +193,6 @@ func _rebuild_sim_kernel_meta() -> void:
 			btype = 11  # BTYPE_INLINE (storageless cable rendezvous)
 		elif def.producer != null:
 			btype = 6  # BTYPE_PRODUCER
-		elif def.compiler != null:
-			btype = 8  # BTYPE_COMPILER
 		elif def.classifier != null:
 			btype = 1  # BTYPE_CLASSIFIER
 		elif def.processor != null and def.processor.rule == "separator":
@@ -205,7 +203,7 @@ func _rebuild_sim_kernel_meta() -> void:
 			btype = 4  # BTYPE_MERGER
 		elif def.storage != null:
 			# Pure storage (no processor) — forward only
-			if def.processor == null and def.producer == null and def.compiler == null \
+			if def.processor == null and def.producer == null \
 					and def.classifier == null and def.splitter == null and def.merger == null \
 					and def.dual_input == null:
 				btype = 9  # BTYPE_STORAGE
@@ -393,7 +391,7 @@ func _advance_transit_gdscript(delta: float) -> void:
 
 func _run_sim_kernel_tick(buildings: Array[Node]) -> void:
 	## C++ SimKernel handles: generation + storage forward + trash + inline rendezvous.
-	## Processing for routing/producer/compiler/dual_input stays in GDScript for now.
+	## Processing for routing/producer/dual_input stays in GDScript for now.
 	var result: Dictionary = _sim_kernel.run_tick(_cached_conns, _splitter_next_port, {})
 	# Apply working building flags
 	for bid in result.get("working", []):
@@ -417,9 +415,9 @@ func _run_sim_kernel_tick(buildings: Array[Node]) -> void:
 			var port: String = conn.to_port
 			if not target.port_carried_types.has(port):
 				target.port_carried_types[port] = {}
-			var content: int = DataEnums.unpack_content(pkey) if not DataEnums.is_packed_packet(pkey) else -1
-			var state: int = DataEnums.unpack_state(pkey) if not DataEnums.is_packed_packet(pkey) else 0
-			var type_key: int = (content << 4) | state if content >= 0 else pkey
+			var content: int = DataEnums.unpack_content(pkey)
+			var state: int = DataEnums.unpack_state(pkey)
+			var type_key: int = (content << 4) | state
 			target.port_carried_types[port][type_key] = true
 			if target.purity_checker.is_valid():
 				var contaminated := false
@@ -1027,7 +1025,7 @@ func _update_storage_forward(buildings: Array[Node]) -> void:
 			continue
 		if b.definition.processor != null or b.definition.splitter != null or b.definition.merger != null \
 				or b.definition.producer != null or b.definition.dual_input != null \
-				or b.definition.compiler != null or b.definition.classifier != null:
+				or b.definition.classifier != null:
 			continue
 		if b.get_total_stored() <= 0:
 			continue
@@ -1040,8 +1038,6 @@ func _update_storage_forward(buildings: Array[Node]) -> void:
 				break
 			var available: int = b.stored_data[key]
 			if available <= 0:
-				continue
-			if DataEnums.is_packed_packet(key):
 				continue
 			var pushed: int = _push_data_from(b, DataEnums.unpack_content(key), DataEnums.unpack_state(key), mini(available, max_forward - sent), "", DataEnums.unpack_tier(key), DataEnums.unpack_tags(key))
 			if pushed > 0:
@@ -1058,10 +1054,7 @@ func _update_processing(buildings: Array[Node]) -> void:
 			continue
 		var processed: int = 0
 		# Component-based dispatch: check dedicated components first
-		if b.definition.compiler != null:
-			var max_process: int = int(b.get_effective_value("processing_rate"))
-			processed = _process_compiler(b, max_process)
-		elif b.definition.dual_input != null:
+		if b.definition.dual_input != null:
 			var max_process: int = int(b.get_effective_value("processing_rate"))
 			processed = _process_dual_input(b, max_process)
 		elif b.definition.producer != null:
@@ -1279,107 +1272,6 @@ func _process_dual_input_fuel_mode(b: Node2D, dual: DualInputComponent, max_proc
 	return processed
 
 
-func _process_compiler(b: Node2D, _max_process: int) -> int:
-	# Collect stored data entries (any state/tags, excluding packet keys)
-	var entries: Array[Dictionary] = []  # [{key, content, tags, amount}]
-	for key in b.stored_data:
-		if DataEnums.is_packed_packet(key):
-			continue
-		var amount: int = b.stored_data[key]
-		if amount <= 0:
-			continue
-		entries.append({"key": key, "content": DataEnums.unpack_content(key), "tags": DataEnums.unpack_tags(key), "amount": amount})
-	if entries.size() < 2:
-		return 0
-	# Find first pair of DIFFERENT entries to combine (1:1 ratio)
-	var crafted: int = 0
-	for i in range(entries.size()):
-		if crafted >= _max_process:
-			break
-		for j in range(i + 1, entries.size()):
-			if crafted >= _max_process:
-				break
-			var a: Dictionary = entries[i]
-			var bb: Dictionary = entries[j]
-			if a.amount <= 0 or bb.amount <= 0:
-				continue
-			var to_craft: int = mini(mini(a.amount, bb.amount), _max_process - crafted)
-			if to_craft <= 0:
-				continue
-			# Create packet and push to transit FIRST
-			var pkt_key: int = DataEnums.pack_packet_key(a.content, a.tags, bb.content, bb.tags)
-			var sent: int = _push_packet_from(b, pkt_key, to_craft)
-			if sent <= 0:
-				continue
-			# Only consume inputs proportional to actual output
-			b.stored_data[a.key] -= sent
-			b.stored_data[bb.key] -= sent
-			a.amount -= sent
-			bb.amount -= sent
-			crafted += sent
-			_spawn_floating_text(b, "+%d Packet" % sent, Color("#44ff88"))
-			if sound_manager:
-				sound_manager.play_process_event("compiler")
-			print("[Compiler] %d packet: %s" % [sent, DataEnums.packed_packet_label(pkt_key)])
-	return crafted
-
-
-func _push_packet_from(source: Node2D, pkt_key: int, amount: int) -> int:
-	var bid: int = source.get_instance_id()
-	var targets: Array[Dictionary] = []
-	if _conn_from.has(bid):
-		for ci in _conn_from[bid]:
-			targets.append(_cached_conns[ci])
-	if targets.is_empty():
-		return 0
-	var per_target: int = maxi(1, amount / targets.size())
-	var total_sent: int = 0
-	for conn in targets:
-		var target: Node2D = conn.to_building
-		if not target.has_method("can_accept_data"):
-			continue
-		var to_send: int = mini(per_target, amount)
-		if to_send <= 0:
-			break
-		# Skip stalled cables
-		if _is_transit_stalled(conn):
-			continue
-		# Port Purity: record packet type + check at push time (CT only)
-		if target.definition.category == "terminal":
-			var port: String = conn.to_port
-			if target.blocked_ports.has(port):
-				continue
-			if not target.port_carried_types.has(port):
-				target.port_carried_types[port] = {}
-			# Record both packet components as separate type keys
-			var ca: int = DataEnums.unpack_packet_content_a(pkt_key)
-			var sa: int = DataEnums.unpack_packet_tags_a(pkt_key)
-			var cb: int = DataEnums.unpack_packet_content_b(pkt_key)
-			var sb: int = DataEnums.unpack_packet_tags_b(pkt_key)
-			target.port_carried_types[port][(ca << 4) | sa] = true
-			target.port_carried_types[port][(cb << 4) | sb] = true
-			# Check purity for all recorded types on this port
-			if target.purity_checker.is_valid():
-				var contaminated := false
-				for tk in target.port_carried_types[port]:
-					if not target.purity_checker.call(tk >> 4, tk & 0xF):
-						contaminated = true
-						break
-				if contaminated:
-					target.blocked_ports[port] = true
-					print("[PortPurity] CT port '%s' blocked — packet carries non-matching data" % port)
-					continue
-		elif target.blocked_ports.has(conn.to_port):
-			continue
-		# Push to transit queue
-		if not conn.has("transit"):
-			conn["transit"] = []
-		conn["transit"].append({"key": pkt_key, "amount": to_send, "t": 0.0})
-		amount -= to_send
-		total_sent += to_send
-	return total_sent
-
-
 func _process_separator(b: Node2D, proc: ProcessorComponent, max_process: int) -> int:
 	var primary_port: String = b.definition.output_ports[0] if b.definition.output_ports.size() > 0 else ""
 	var secondary_port: String = b.definition.output_ports[1] if b.definition.output_ports.size() > 1 else ""
@@ -1589,14 +1481,6 @@ func _update_status_reasons(buildings: Array[Node]) -> void:
 			else:
 				b.status_reason = "No input"
 			continue
-		# Compiler
-		if b.definition.compiler != null:
-			var types: int = 0
-			for key in b.stored_data:
-				if not DataEnums.is_packed_packet(key) and b.stored_data[key] > 0:
-					types += 1
-			b.status_reason = "Need 2+ types" if types < 2 else "Output blocked"
-			continue
 		# Producer (Research Lab)
 		if b.definition.producer != null:
 			var prod: ProducerComponent = b.definition.producer
@@ -1637,8 +1521,6 @@ func _reason_has_primary(b: Node2D, dual: DualInputComponent) -> bool:
 	for key in b.stored_data:
 		if b.stored_data[key] <= 0:
 			continue
-		if DataEnums.is_packed_packet(key):
-			continue
 		var c: int = DataEnums.unpack_content(key)
 		var s: int = DataEnums.unpack_state(key)
 		if c == dual.key_content:
@@ -1655,8 +1537,6 @@ func _reason_has_keys(b: Node2D, dual: DualInputComponent) -> bool:
 	for key in b.stored_data:
 		if b.stored_data[key] <= 0:
 			continue
-		if DataEnums.is_packed_packet(key):
-			continue
 		if DataEnums.unpack_content(key) == dual.key_content:
 			return true
 	return false
@@ -1665,8 +1545,6 @@ func _reason_has_keys(b: Node2D, dual: DualInputComponent) -> bool:
 func _reason_has_fuel(b: Node2D, dual: DualInputComponent) -> bool:
 	for key in b.stored_data:
 		if b.stored_data[key] <= 0:
-			continue
-		if DataEnums.is_packed_packet(key):
 			continue
 		if DataEnums.unpack_state(key) == DataEnums.DataState.PUBLIC and DataEnums.unpack_content(key) != dual.key_content:
 			return true

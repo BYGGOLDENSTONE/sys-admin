@@ -77,14 +77,6 @@ func _get_building_polygon(r: Rect2, vtype: String) -> PackedVector2Array:
 				Vector2(x + w, y + h - notch),
 				Vector2(x + w * 0.5, y + h),
 				Vector2(x, y + h - notch)])
-		"compiler":  # Hexagon — assembly/packaging
-			var inset := w * 0.18
-			return PackedVector2Array([
-				Vector2(x + inset, y), Vector2(x + w - inset, y),
-				Vector2(x + w, y + h * 0.5),
-				Vector2(x + w - inset, y + h),
-				Vector2(x + inset, y + h),
-				Vector2(x, y + h * 0.5)])
 		"recoverer":  # Rounded rect — soft repair feel
 			var cr := w * 0.15
 			var pts := PackedVector2Array()
@@ -399,8 +391,6 @@ func _get_base_value(stat: String) -> float:
 		"processing_rate":
 			if definition.classifier:
 				return definition.classifier.throughput_rate
-			if definition.compiler:
-				return definition.compiler.processing_rate
 			if definition.dual_input:
 				return definition.dual_input.processing_rate
 			if definition.producer:
@@ -422,8 +412,6 @@ func get_center_world() -> Vector2:
 
 func _has_malware() -> bool:
 	for key in stored_data:
-		if DataEnums.is_packed_packet(key):
-			continue
 		if stored_data[key] <= 0:
 			continue
 		if DataEnums.unpack_state(key) == DataEnums.DataState.MALWARE:
@@ -434,8 +422,6 @@ func _has_malware() -> bool:
 func get_malware_amount() -> int:
 	var total: int = 0
 	for key in stored_data:
-		if DataEnums.is_packed_packet(key):
-			continue
 		if DataEnums.unpack_state(key) == DataEnums.DataState.MALWARE:
 			total += stored_data[key]
 	return total
@@ -705,8 +691,6 @@ func _draw_icon(center: Vector2, size: Vector2, accent: Color) -> void:
 			_draw_icon_splitter(icon_center, size, accent)
 		"merger":
 			_draw_icon_merger(icon_center, size, accent)
-		"compiler":
-			_draw_icon_compiler(icon_center, size, accent)
 		"terminal":
 			_draw_icon_terminal(icon_center, size, accent)
 		_:
@@ -928,47 +912,6 @@ func _draw_icon_merger(center: Vector2, size: Vector2, accent: Color) -> void:
 
 	# Center dot
 	draw_circle(center, 3.0, accent)
-
-
-# --- COMPILER: Two inputs merging into one (crafting) ---
-func _draw_icon_compiler(center: Vector2, size: Vector2, accent: Color) -> void:
-	var s: float = minf(size.x, size.y) * 0.3
-	var glow := Color(accent, ICON_GLOW_ALPHA)
-
-	# Two input arrows converging
-	var in_a := center + Vector2(-s * 0.7, -s * 0.3)
-	var in_b := center + Vector2(-s * 0.7, s * 0.3)
-	var mid := center + Vector2(-s * 0.1, 0)
-	draw_line(in_a, mid, glow, ICON_GLOW_WIDTH)
-	draw_line(in_b, mid, glow, ICON_GLOW_WIDTH)
-	draw_line(in_a, mid, accent, 1.5)
-	draw_line(in_b, mid, accent, 1.5)
-
-	# Center gear/diamond (crafting node)
-	var d: float = s * 0.25
-	var diamond := PackedVector2Array([
-		center + Vector2(0, -d),
-		center + Vector2(d, 0),
-		center + Vector2(0, d),
-		center + Vector2(-d, 0),
-		center + Vector2(0, -d),
-	])
-	draw_polygon(PackedVector2Array([
-		center + Vector2(0, -d),
-		center + Vector2(d, 0),
-		center + Vector2(0, d),
-		center + Vector2(-d, 0),
-	]), [Color(accent, 0.2)])
-	draw_polyline(diamond, glow, ICON_GLOW_WIDTH)
-	draw_polyline(diamond, accent, 2.0)
-
-	# Output arrow (packet)
-	var out_pos := center + Vector2(s * 0.7, 0)
-	draw_line(center + Vector2(d, 0), out_pos, glow, ICON_GLOW_WIDTH)
-	draw_line(center + Vector2(d, 0), out_pos, accent, 2.0)
-	# Star at output (packet symbol)
-	draw_circle(out_pos, 3.0, accent)
-	draw_circle(out_pos, 1.5, Color.WHITE)
 
 
 # --- TERMINAL: Mission hub / delivery icon ---
