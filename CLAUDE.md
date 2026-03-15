@@ -2,7 +2,7 @@
 
 ## Mevcut Asama: v4 Implementasyon — Demo hazirligi
 - **GDD:** `docs/GDD.md` (v3.0) + `docs/v4_design.md` (v4 tasarim kararlari)
-- **Kod durumu:** Faz A-J + Sprint 1-4 + Transit + Optimizasyon tamamlandi, v4 degisiklikleri basliyor
+- **Kod durumu:** Faz A-J + Sprint 1-4 + Transit + Optimizasyon + Level sistemi tamamlandi
 - **Hedef:** Steam Next Fest Haziran 2026 icin oynanabilir, polished, v4 mekanikli demo
 - **Ticari hedef:** Tam oyun icin $9.99 fiyat noktasina yakisan kalite ve guven hissi
 
@@ -35,7 +35,7 @@ Asagidaki kararlar **scope lock** kabul edilir. Claude Code bu kararlarla celise
 - Tur: **Ters Shapez — chill puzzle-factory**
 - Core loop: Contract al → kaynak bul → pipeline kur → aritstir → teslim et → yeni bina / kontrat
 - Bina maliyeti yok | Combat / power / heat / para birimi yok
-- Persistent sandbox save, run-based yapi yok
+- **Level-based ilerleme:** 9 level, CT 2x2→10x10, harita 100→800→sonsuz
 - **Compiler KALDIRILDI** — biz birlestirmiyoruz, aritiyoruz
 
 ### Demo Scope Lock (v4)
@@ -44,9 +44,11 @@ Asagidaki kararlar **scope lock** kabul edilir. Claude Code bu kararlarla celise
 - **Malware gameplay YOK** — sadece full release'de
 - Bilesik state: **Enc·Cor** demo'da var
 - Tier escalation: bilesik state'de bir state cozulunce digeri +1 tier
-- 3 faz yapisi: One-shot Tutorial → Sustain + Throughput → Persistent Network (teaser)
-- Tutorial sonrasi procedural gig generator
-- Coklu save dosyasi destegi
+- Demo = Level 1: 2x2 CT, 100x100 harita, tutorial + %100 network hedefi
+- Kazanma kosulu: tum kaynaklari CT'ye bagla (%100 network)
+- Level 2+: tum binalar acik, procedural gig, daha buyuk harita
+- Level 9: sonsuz harita, endless mode
+- Coklu save dosyasi destegi + level ilerleme kaydi
 
 ### Mekanik Kararlari
 - Source bandwidth gameplay'de gercek limit (mevcut sistem)
@@ -165,8 +167,26 @@ Asagidaki kararlar **scope lock** kabul edilir. Claude Code bu kararlarla celise
 - [x] **Berabere content dagilimi duzeltme** — Data Kiosk→Financial, Traffic Cam→Biometric, Public DB→Research, her kaynak net dominant renge sahip
 - [x] **Tooltip boyut fix** — reset_size() ile panel icerige tam oturuyor, altta bosluk kalmiyor
 
+### Faz 7: Level Sistemi ✓ TAMAMLANDI
+- [x] `level_config.gd` — 9 level tanimi (CT 2x2→10x10, harita 100→800→sonsuz)
+- [x] `level_manager.gd` — level takibi, %100 network win condition, save/load
+- [x] CT dinamik boyut — .tres 2x2 varsayilan, runtime'da level'a gore override (.duplicate())
+- [x] Sinirli harita uretimi — map_generator bounded mod, tum chunk'lar basta uretilir
+- [x] Kaynak pozisyonlari map center offset olarak (sabit degil)
+- [x] Pool filtreleme — level'in izin verdigi zorluk havuzlari
+- [x] Camera bounds — sinirli haritalarda kamera sinirlandirma
+- [x] %100 network → "Level Complete" bildirimi + level gecis ekrani
+- [x] Demo modda "Demo Complete" + Wishlist ekrani
+- [x] Top bar: "LEVEL X [NxN]" etiketi
+- [x] GigManager: Level 2+ tum binalar acik, sadece procedural gig
+- [x] Save v5 — level_state kayit/yukleme, v4→v5 migration
+- [x] Load Game: slot'larda "LVL X" gosterimi
+- [x] Level paneli — 3x3 grid, 9 level karti (kilitli/acik/tamamlandi)
+- [x] Main menu: "Level Select" butonu (ilerleme varsa gorunur)
+- [x] IS_DEMO flag — demo=true ise sadece Level 1
+
 ### Siralama
-Faz 1 → 2 → 3 → 4 → 5 → 6. Her faz sonunda oyun playable state'te kalmali.
+Faz 1 → 2 → 3 → 4 → 5 → 6 → 7. Her faz sonunda oyun playable state'te kalmali.
 
 ---
 
@@ -181,6 +201,7 @@ Detaylar git gecmisinde. `git log --oneline` ile gorulebilir.
 | Sprint 3 | Bug bash, root cause feedback, edge case fix |
 | Sprint 3.5 | Wave/prerequisite sistemi, 5 yeni gig (toplam 18) |
 | Sprint 4 | Wishlist CTA, demo bitis, tooltip, kilitli bina bilgisi |
+| Level sistemi | 9 level (CT 2x2→10x10), sinirli harita, %100 network win, level panel, demo blocker |
 | Sprint 6 kismi | Legacy temizlik, upgrade sistemi, version string, crash save |
 | Transit sistemi | Kablo uzerinde gercek veri hareketi, back-pressure, storageless inline, routing buffer |
 | Performans | Algoritmik cache'ler, C++ GDExtension (TransitSimulator, PolylineHelper, StallPropagator, DeliveryEngine, SimKernel) |
