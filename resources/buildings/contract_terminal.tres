@@ -6,10 +6,10 @@
 script = ExtResource("1")
 building_name = "Contract Terminal"
 description = "The mission hub. Deliver processed data here to complete gigs and unlock new buildings."
-grid_size = Vector2i(3, 3)
+grid_size = Vector2i(2, 2)
 color = Color(1.0, 0.75, 0.0, 1)
 category = "terminal"
 visual_type = "terminal"
 is_placeable = false
 output_ports = Array[String]([])
-input_ports = Array[String](["left_0", "left_1", "right_0", "right_1", "top_0", "top_1", "bottom_0", "bottom_1"])
+input_ports = Array[String](["left_0", "right_0", "top_0", "bottom_0"])

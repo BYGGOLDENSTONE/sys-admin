@@ -37,6 +37,8 @@ var _was_paused_before_menu: bool = false
 var _demo_complete_shown: bool = false
 var _last_cam_pos: Vector2 = Vector2.ZERO
 var _benchmark: BenchmarkRunner = null
+var _level_manager: Node = null
+var _map_center_world: Vector2 = Vector2.ZERO
 
 const WISHLIST_URL: String = "https://store.steampowered.com/app/PLACEHOLDER_APP_ID/SYS_ADMIN/"
 const FEEDBACK_URL: String = "https://store.steampowered.com/app/PLACEHOLDER_APP_ID/SYS_ADMIN/discussions/"
@@ -119,14 +121,23 @@ func _ready() -> void:
 	building_manager.source_manager = source_manager
 	building_manager.building_removed.connect(source_manager.on_building_removed)
 
+	# Setup level manager
+	_setup_level_manager()
+
 	# Determine seed: from save, command-line, or random
 	var is_loading: bool = not load_save_data.is_empty()
 	if is_loading:
 		_current_seed = int(load_save_data.get("seed", randi()))
+		# Restore level from save
+		var level_data: Dictionary = load_save_data.get("level_state", {})
+		_level_manager.load_save_data(level_data)
 	else:
 		_current_seed = _get_seed_from_args()
 
-	# Seed-based procedural map generation (infinite chunk-based)
+	# Compute map center from current level
+	_map_center_world = LevelConfig.get_map_center_world(_level_manager.current_level)
+
+	# Seed-based procedural map generation
 	_map_generator = _MapGeneratorScript.new()
 	_map_generator.generate_map(_current_seed, source_manager)
 	_last_cam_pos = camera.position
@@ -164,7 +175,6 @@ func _ready() -> void:
 			_undo_manager._redo_stack.clear()
 		load_save_data = {}
 		print("[Main] Game loaded from save")
-		# Procedural gigs — no finale check needed
 	else:
 		# NEW GAME PATH: place Contract Terminal and initialize gigs
 		_place_contract_terminal()
@@ -174,7 +184,7 @@ func _ready() -> void:
 	building_manager.building_selected.connect(_on_building_selected_for_panel)
 
 	# Center camera on map center
-	camera.position = Vector2(256 * 64 + 64, 256 * 64 + 64)
+	camera.position = _map_center_world
 
 	# Update seed in top bar
 	_top_bar.update_seed(_current_seed)
@@ -286,7 +296,7 @@ func _unhandled_input(event: InputEvent) -> void:
 				_gig_panel.toggle()
 		KEY_Q:
 			# Center camera on Contract Terminal
-			camera.center_on(Vector2(256 * 64 + 64, 256 * 64 + 64))
+			camera.center_on(_map_center_world)
 
 
 func _run_benchmark(auto_report: bool = false) -> void:
@@ -444,13 +454,19 @@ func _place_contract_terminal() -> void:
 	if terminal_def == null:
 		push_error("[Main] Cannot load Contract Terminal definition")
 		return
-	# Center the building at MAP_CENTER (offset by half grid size)
-	var center := Vector2i(256 - terminal_def.grid_size.x / 2, 256 - terminal_def.grid_size.y / 2)
+	# Override CT size and ports based on current level
+	terminal_def = terminal_def.duplicate() as BuildingDefinition
+	var level_data: Dictionary = LevelConfig.get_level(_level_manager.current_level)
+	terminal_def.grid_size = level_data.ct_size
+	terminal_def.input_ports = LevelConfig.get_ct_input_ports(_level_manager.current_level)
+	# Center the building at map center (offset by half grid size)
+	var map_center: Vector2i = LevelConfig.get_map_center(_level_manager.current_level)
+	var center := Vector2i(map_center.x - terminal_def.grid_size.x / 2, map_center.y - terminal_def.grid_size.y / 2)
 	var cell := _find_clear_cell(center, terminal_def.grid_size)
 	_contract_terminal = building_manager.place_building_at(terminal_def, cell)
 	if _contract_terminal != null and _gig_manager != null:
 		_gig_manager.set_contract_terminal(_contract_terminal)
-		print("[Main] Contract Terminal placed at (%d,%d)" % [cell.x, cell.y])
+		print("[Main] Contract Terminal placed at (%d,%d) — size %dx%d" % [cell.x, cell.y, terminal_def.grid_size.x, terminal_def.grid_size.y])
 	else:
 		push_error("[Main] Failed to place Contract Terminal")
 
@@ -669,6 +685,14 @@ func _on_cable_connected_sound(_conn: Dictionary) -> void:
 
 func _on_cable_removed_sound(_conn: Dictionary) -> void:
 	_sound_manager.play_cable_remove()
+
+
+func _setup_level_manager() -> void:
+	var LevelManagerScript = preload("res://scripts/level_manager.gd")
+	_level_manager = Node.new()
+	_level_manager.set_script(LevelManagerScript)
+	_level_manager.name = "LevelManager"
+	add_child(_level_manager)
 
 
 func _setup_save_manager() -> void:
