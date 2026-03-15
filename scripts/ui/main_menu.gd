@@ -222,7 +222,7 @@ func _format_timestamp(ts: String) -> String:
 
 func _create_slot_button(text: String) -> Button:
 	var btn := _create_menu_button(text)
-	btn.custom_minimum_size = Vector2(360, 44)
+	btn.custom_minimum_size = Vector2(480, 44)
 	btn.add_theme_font_size_override("font_size", 18)
 	return btn
 
@@ -292,9 +292,15 @@ func _on_load_game() -> void:
 		if not info.exists:
 			continue
 		var ts: String = _format_timestamp(info.get("timestamp", ""))
+		var net_connected: int = info.get("network_connected", 0)
+		var net_total: int = info.get("network_total", 0)
+		var net_str: String = ""
+		if net_total > 0:
+			var pct: int = int(float(net_connected) / float(net_total) * 100.0)
+			net_str = "  ·  NETWORK %d%%" % pct
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 8)
-		var btn := _create_slot_button("Slot %d  —  Seed %d  (%s)" % [info.slot, info.get("seed", 0), ts])
+		var btn := _create_slot_button("Slot %d  —  Seed %d  (%s)%s" % [info.slot, info.get("seed", 0), ts, net_str])
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		btn.pressed.connect(_on_slot_load.bind(info.slot))
 		row.add_child(btn)

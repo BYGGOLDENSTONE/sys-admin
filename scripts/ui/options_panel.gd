@@ -11,9 +11,18 @@ var _sfx_slider: HSlider = null
 var _ambient_slider: HSlider = null
 var _fullscreen_check: CheckButton = null
 var _crt_check: CheckButton = null
+var _autosave_option: OptionButton = null
 var _master_lbl: Label = null
 var _sfx_lbl: Label = null
 var _ambient_lbl: Label = null
+
+## Autosave interval options: [label, seconds] — 0 = disabled
+const AUTOSAVE_OPTIONS: Array = [
+	["2 min", 120],
+	["5 min", 300],
+	["10 min", 600],
+	["Off", 0],
+]
 
 
 func _ready() -> void:
@@ -89,6 +98,41 @@ func _build() -> void:
 	_crt_check.button_pressed = settings.get("crt_enabled", true)
 	_crt_check.toggled.connect(_on_setting_changed)
 	add_child(_crt_check)
+
+	# Game section
+	var sep3 := HSeparator.new()
+	sep3.modulate = Color(0.0, 0.7, 0.8, 0.4)
+	add_child(sep3)
+
+	var game_label := Label.new()
+	game_label.text = "GAME"
+	game_label.add_theme_font_size_override("font_size", 14)
+	game_label.add_theme_color_override("font_color", Color(0.4, 0.55, 0.65, 0.7))
+	add_child(game_label)
+
+	var autosave_row := HBoxContainer.new()
+	autosave_row.add_theme_constant_override("separation", 10)
+	var autosave_label := Label.new()
+	autosave_label.text = "Autosave"
+	autosave_label.add_theme_font_size_override("font_size", 15)
+	autosave_label.add_theme_color_override("font_color", Color(0.65, 0.75, 0.82))
+	autosave_label.custom_minimum_size = Vector2(80, 0)
+	autosave_row.add_child(autosave_label)
+
+	_autosave_option = OptionButton.new()
+	_autosave_option.add_theme_font_size_override("font_size", 15)
+	_autosave_option.add_theme_color_override("font_color", Color(0.7, 0.8, 0.85))
+	var current_interval: int = int(settings.get("autosave_interval", 300))
+	var selected_idx: int = 1  # default: 5 min
+	for i in range(AUTOSAVE_OPTIONS.size()):
+		_autosave_option.add_item(AUTOSAVE_OPTIONS[i][0], i)
+		if AUTOSAVE_OPTIONS[i][1] == current_interval:
+			selected_idx = i
+	_autosave_option.selected = selected_idx
+	_autosave_option.item_selected.connect(_on_setting_changed)
+	_autosave_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	autosave_row.add_child(_autosave_option)
+	add_child(autosave_row)
 
 	# Spacer + Back
 	var spacer := Control.new()
@@ -209,10 +253,13 @@ func _on_back() -> void:
 
 
 func _gather() -> Dictionary:
+	var autosave_idx: int = _autosave_option.selected if _autosave_option else 1
+	var autosave_sec: int = AUTOSAVE_OPTIONS[autosave_idx][1] if autosave_idx < AUTOSAVE_OPTIONS.size() else 300
 	return {
 		"master_volume": int(_master_slider.value),
 		"sfx_volume": int(_sfx_slider.value),
 		"ambient_volume": int(_ambient_slider.value),
 		"fullscreen": _fullscreen_check.button_pressed,
 		"crt_enabled": _crt_check.button_pressed,
+		"autosave_interval": autosave_sec,
 	}

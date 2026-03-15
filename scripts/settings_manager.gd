@@ -69,4 +69,5 @@ static func _defaults() -> Dictionary:
 		"ambient_volume": 50,
 		"fullscreen": false,
 		"crt_enabled": true,
+		"autosave_interval": 300,
 	}

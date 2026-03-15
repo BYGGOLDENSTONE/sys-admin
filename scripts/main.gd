@@ -842,6 +842,9 @@ func _on_settings_changed() -> void:
 	if post_rect and post_rect.material is ShaderMaterial:
 		var mat: ShaderMaterial = post_rect.material
 		mat.set_shader_parameter("scanlines_enabled", settings.get("crt_enabled", true))
+	# Update autosave interval
+	if _save_manager:
+		_save_manager.update_autosave_interval(int(settings.get("autosave_interval", 300)))
 
 
 # --- Demo Complete Screen ---

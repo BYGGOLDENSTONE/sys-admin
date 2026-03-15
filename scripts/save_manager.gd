@@ -48,6 +48,9 @@ static func list_slots() -> Array[Dictionary]:
 					info["seed"] = data.get("seed", 0)
 					info["timestamp"] = data.get("timestamp", "")
 					info["version"] = data.get("version", 0)
+					var net: Dictionary = data.get("network", {})
+					info["network_connected"] = int(net.get("connected", 0))
+					info["network_total"] = int(net.get("total", 0))
 					break
 		result.append(info)
 	return result
@@ -55,12 +58,23 @@ static func list_slots() -> Array[Dictionary]:
 
 func setup_autosave() -> void:
 	_autosave_timer = Timer.new()
-	_autosave_timer.wait_time = AUTOSAVE_INTERVAL
 	_autosave_timer.one_shot = false
 	_autosave_timer.timeout.connect(_on_autosave_tick)
 	add_child(_autosave_timer)
-	_autosave_timer.start()
-	print("[SaveManager] Autosave initialized — interval: %.0fs" % AUTOSAVE_INTERVAL)
+	var interval: int = SettingsManager.get_settings().get("autosave_interval", 300)
+	update_autosave_interval(interval)
+
+
+func update_autosave_interval(seconds: int) -> void:
+	if _autosave_timer == null:
+		return
+	if seconds <= 0:
+		_autosave_timer.stop()
+		print("[SaveManager] Autosave disabled")
+	else:
+		_autosave_timer.wait_time = float(seconds)
+		_autosave_timer.start()
+		print("[SaveManager] Autosave interval — %ds" % seconds)
 
 
 func _on_autosave_tick() -> void:
@@ -138,6 +152,7 @@ func capture_state() -> Dictionary:
 	data["buildings"] = _capture_buildings()
 	data["connections"] = _capture_connections()
 	data["gigs"] = _capture_gigs()
+	data["network"] = _capture_network()
 	if map_generator:
 		data["generated_chunks"] = map_generator.get_generated_chunk_keys()
 	return data
@@ -253,6 +268,21 @@ func _capture_gigs() -> Dictionary:
 		"procedural_count": gig_manager._procedural_count,
 		"next_order_index": gig_manager._next_order_index,
 	}
+
+
+func _capture_network() -> Dictionary:
+	if source_manager == null:
+		return {"connected": 0, "total": 0}
+	var all_sources: Array[Node2D] = source_manager.get_all_sources()
+	var total: int = all_sources.size()
+	var connected: int = 0
+	if connection_manager != null:
+		for source in all_sources:
+			for conn in connection_manager.connections:
+				if conn.from_building == source:
+					connected += 1
+					break
+	return {"connected": connected, "total": total}
 
 
 ## --- STATE RESTORE ---
