@@ -232,8 +232,11 @@ func _format_state_weights(weights: Dictionary) -> String:
 	for state_id in weights:
 		var pct: int = int(weights[state_id] * 100)
 		var s: int = int(state_id)
-		var color: String = DataEnums.state_color_hex(s)
-		parts.append("[color=%s]%d%% %s[/color]" % [color, pct, DataEnums.state_name(s)])
+		if s == DataEnums.DataState.ENC_COR:
+			parts.append("%d%% [color=#2288ff]Enc[/color]·[color=#ffaa00]Cor[/color]" % pct)
+		else:
+			var color: String = DataEnums.state_color_hex(s)
+			parts.append("[color=%s]%d%% %s[/color]" % [color, pct, DataEnums.state_name(s)])
 	return ", ".join(parts)
 
 
@@ -246,11 +249,14 @@ func _format_stored_data(data: Dictionary) -> String:
 		var c: int = DataEnums.unpack_content(key)
 		var s: int = DataEnums.unpack_state(key)
 		var c_color: String = DataEnums.content_color_hex(c)
-		var s_color: String = DataEnums.state_color_hex(s)
 		var label: String = DataEnums.data_label(c, s, DataEnums.unpack_tier(key), DataEnums.unpack_tags(key))
-		parts.append("[color=%s]%d[/color] [color=%s]%s[/color]" % [
-			s_color, data[key], c_color, label
-		])
+		if s == DataEnums.DataState.ENC_COR:
+			parts.append("[color=#2288ff]%d[/color] [color=%s]%s[/color] [color=#2288ff]Enc[/color]·[color=#ffaa00]Cor[/color]" % [
+				data[key], c_color, DataEnums.content_name(c)])
+		else:
+			var s_color: String = DataEnums.state_color_hex(s)
+			parts.append("[color=%s]%d[/color] [color=%s]%s[/color]" % [
+				s_color, data[key], c_color, label])
 	if parts.is_empty():
 		return "Empty"
 	return ", ".join(parts)

@@ -2,6 +2,8 @@ shader_type canvas_item;
 
 uniform sampler2D glyph_atlas : filter_linear, hint_default_black;
 uniform float atlas_cols = 10.0;
+uniform vec3 enc_color : source_color = vec3(0.133, 0.533, 1.0);  // Encrypted blue
+uniform vec3 cor_color : source_color = vec3(1.0, 0.667, 0.0);    // Corrupted yellow
 
 varying vec4 v_custom;
 
@@ -18,7 +20,8 @@ void fragment() {
 	float dist = length(cuv) * 2.0;
 
 	float glow_pulse = sin(TIME * 5.0 + pulse_phase) * 0.5 + 0.5;
-	vec3 base = COLOR.rgb;
+	float is_compound = step(0.5, v_custom.y);
+	vec3 base = mix(COLOR.rgb, mix(enc_color, cor_color, step(0.5, UV.x)), is_compound);
 
 	// === GLOW — soft circular halo ===
 	float glow = smoothstep(1.0, 0.0, dist);

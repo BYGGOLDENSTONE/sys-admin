@@ -590,6 +590,8 @@ func _req_bbcode(req, done: bool) -> String:
 		result += " " + "·".join(tag_parts)
 	elif req.state == DataEnums.DataState.PUBLIC:
 		result += " [color=#00ffaa]Public[/color]"
+	elif req.state == DataEnums.DataState.ENC_COR:
+		result += " [color=#2288ff]Enc[/color]·[color=#ffaa00]Cor[/color]"
 	elif req.state >= 0:
 		var s_hex: String = DataEnums.state_color_hex(req.state)
 		result += " [color=%s]%s[/color]" % [s_hex, DataEnums.state_name(req.state)]

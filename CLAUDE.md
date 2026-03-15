@@ -103,11 +103,12 @@ Asagidaki kararlar **scope lock** kabul edilir. Claude Code bu kararlarla celise
 - [x] decryptor.tres / recoverer.tres — primary_input_states'e ENC_COR(4) eklendi
 - [x] building_tooltip.gd — Enc·Cor kabul gosterimi
 
-### Faz 3: Bilesik State Gorselleri
-- [ ] Transit item'da yari-yariya bolunmus renk
-- [ ] Building tooltip'te bilesik state gosterimi
-- [ ] Gig panel'de bilesik state label'lari
-- **Risk:** Dusuk, sadece gorsel
+### Faz 3: Bilesik State Gorselleri ✓ TAMAMLANDI
+- [x] Transit shader: compound flag (v_custom.y), UV.x bazli split renk (mavi/sari)
+- [x] CPU draw path: ENC_COR icin split glow (sol=Encrypted mavi, sag=Corrupted sari)
+- [x] Building tooltip: stored data'da split renk label, source state dagiliminda split renk
+- [x] Gig panel: ENC_COR requirement icin "[Enc]·[Cor]" split renk gosterimi
+- [x] Decryptor/Recoverer tooltip: Enc·Cor kabul bilgisi
 
 ### Faz 4: Gig Sistemi Yeniden Tasarimi
 - [ ] Tutorial gig'leri yeniden sirala (Merger erken, Compiler yok)
@@ -122,6 +123,7 @@ Asagidaki kararlar **scope lock** kabul edilir. Claude Code bu kararlarla celise
 - **Risk:** Dusuk, mevcut sistemde zaten binalar/kablolar kalici
 
 ### Faz 6: Coklu Save + Polish + GDD Guncelleme
+- [ ] Ard arda undo yapilinca engine crash — undo stack guvenli hale getirilmeli
 - [ ] Save slot sistemi (birden fazla save dosyasi)
 - [ ] Load ekraninda slot listesi
 - [ ] Son dokunuslar
