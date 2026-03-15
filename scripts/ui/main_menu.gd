@@ -193,6 +193,33 @@ func _create_menu_button(text: String) -> Button:
 	return btn
 
 
+func _format_timestamp(ts: String) -> String:
+	## Convert "2026-03-15T06:34:18" → "Mar 15, 2026 — 6:34 AM"
+	if ts.length() < 16:
+		return ts
+	var date_part: String = ts.substr(0, 10)  # "2026-03-15"
+	var time_part: String = ts.substr(11, 5)  # "06:34"
+	var parts: PackedStringArray = date_part.split("-")
+	if parts.size() < 3:
+		return ts
+	var year: String = parts[0]
+	var month: int = int(parts[1])
+	var day: int = int(parts[2])
+	var month_names: PackedStringArray = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+	var month_str: String = month_names[month - 1] if month >= 1 and month <= 12 else str(month)
+	var time_parts: PackedStringArray = time_part.split(":")
+	var hour: int = int(time_parts[0])
+	var minute: String = time_parts[1] if time_parts.size() > 1 else "00"
+	var ampm: String = "AM"
+	if hour >= 12:
+		ampm = "PM"
+		if hour > 12:
+			hour -= 12
+	elif hour == 0:
+		hour = 12
+	return "%s %d, %s — %d:%s %s" % [month_str, day, year, hour, minute, ampm]
+
+
 func _create_slot_button(text: String) -> Button:
 	var btn := _create_menu_button(text)
 	btn.custom_minimum_size = Vector2(360, 44)
@@ -264,9 +291,7 @@ func _on_load_game() -> void:
 	for info in slots:
 		if not info.exists:
 			continue
-		var ts: String = info.get("timestamp", "")
-		if ts.length() > 16:
-			ts = ts.substr(0, 16)
+		var ts: String = _format_timestamp(info.get("timestamp", ""))
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 8)
 		var btn := _create_slot_button("Slot %d  —  Seed %d  (%s)" % [info.slot, info.get("seed", 0), ts])
