@@ -64,7 +64,7 @@ static func content_char(c: int) -> String:
 		ContentType.RESEARCH: return "?"
 		ContentType.CLASSIFIED: return "!"
 		ContentType.KEY: return "K"
-		ContentType.REPAIR_KIT: return "+"
+		ContentType.REPAIR_KIT: return "R"
 	return "0"
 
 

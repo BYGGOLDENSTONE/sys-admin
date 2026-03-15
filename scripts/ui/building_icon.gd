@@ -32,6 +32,8 @@ func _draw() -> void:
 			_draw_merger(center)
 		"terminal":
 			_draw_terminal(center)
+		"repair_lab":
+			_draw_repair_lab(center)
 		_:
 			_draw_default(center)
 
@@ -102,18 +104,28 @@ func _draw_decryptor(center: Vector2) -> void:
 	var s: float = minf(size.x, size.y) * 0.35
 	var glow := Color(accent, GLOW_ALPHA)
 
-	var lock_w: float = s * 0.8
-	var lock_h: float = s * 0.6
-	var lock_rect := Rect2(center + Vector2(-lock_w / 2, -lock_h * 0.1), Vector2(lock_w, lock_h))
+	var lock_w: float = s * 0.85
+	var lock_h: float = s * 0.65
+	var body_top := center.y + s * 0.05
+	var lock_rect := Rect2(Vector2(center.x - lock_w / 2, body_top), Vector2(lock_w, lock_h))
 	draw_rect(lock_rect, Color(accent, 0.15), true)
 	draw_rect(lock_rect, accent, false, 1.5)
 
-	_draw_arc(center + Vector2(0, -lock_h * 0.1), s * 0.3, PI, TAU, glow, GLOW_WIDTH)
-	_draw_arc(center + Vector2(0, -lock_h * 0.1), s * 0.3, PI, TAU, accent, 2.0)
+	# Shackle — shifted left, left arm connected, right arm detached
+	var sh_r := s * 0.35
+	var sh_arc_center := Vector2(center.x - sh_r * 0.35, body_top - sh_r * 0.85)
+	_draw_arc(sh_arc_center, sh_r, PI, TAU, glow, GLOW_WIDTH)
+	_draw_arc(sh_arc_center, sh_r, PI, TAU, accent, 2.5)
+	# Left arm connected
+	var arc_left := sh_arc_center + Vector2(-sh_r, 0)
+	draw_line(arc_left, Vector2(center.x - lock_w / 2 + 2, body_top), accent, 2.5)
+	# Right arm short (gap)
+	var arc_right := sh_arc_center + Vector2(sh_r, 0)
+	draw_line(arc_right, arc_right + Vector2(0, sh_r * 0.2), accent, 2.5)
 
-	draw_circle(center + Vector2(0, lock_h * 0.2), 3.0, accent)
-	var kh_bottom := center + Vector2(0, lock_h * 0.2 + 3)
-	draw_line(kh_bottom, kh_bottom + Vector2(0, 5), accent, 2.0)
+	var kh_y := body_top + lock_h * 0.35
+	draw_circle(Vector2(center.x, kh_y), 3.0, accent)
+	draw_line(Vector2(center.x, kh_y + 3), Vector2(center.x, kh_y + 8), accent, 2.0)
 
 
 # --- ENCRYPTOR: Closed lock ---
@@ -184,7 +196,7 @@ func _draw_research(center: Vector2) -> void:
 	draw_circle(center, 3.0, accent)
 
 
-# --- SPLITTER: One-to-two diverging ---
+# --- SPLITTER: One input left → two outputs right ---
 func _draw_splitter(center: Vector2) -> void:
 	var s: float = minf(size.x, size.y) * 0.4
 	var glow := Color(accent, GLOW_ALPHA)
@@ -193,28 +205,28 @@ func _draw_splitter(center: Vector2) -> void:
 	draw_line(in_pos, center, glow, GLOW_WIDTH)
 	draw_line(in_pos, center, accent, 2.0)
 
-	var out_top := center + Vector2(s * 0.6, -s * 0.4)
-	var out_bot := center + Vector2(s * 0.6, s * 0.4)
+	var out_top := center + Vector2(s * 0.6, -s * 0.55)
+	var out_bot := center + Vector2(s * 0.6, s * 0.55)
 	draw_line(center, out_top, glow, GLOW_WIDTH)
 	draw_line(center, out_bot, glow, GLOW_WIDTH)
 	draw_line(center, out_top, accent, 1.5)
 	draw_line(center, out_bot, accent, 1.5)
 
 	draw_line(out_top, out_top + Vector2(-5, 2), accent, 1.5)
-	draw_line(out_top, out_top + Vector2(-3, 5), accent, 1.5)
+	draw_line(out_top, out_top + Vector2(-4, -3), accent, 1.5)
 	draw_line(out_bot, out_bot + Vector2(-5, -2), accent, 1.5)
-	draw_line(out_bot, out_bot + Vector2(-3, -5), accent, 1.5)
+	draw_line(out_bot, out_bot + Vector2(-4, 3), accent, 1.5)
 
 	draw_circle(center, 3.0, accent)
 
 
-# --- MERGER: Two-to-one converging ---
+# --- MERGER: Two inputs left → one output right ---
 func _draw_merger(center: Vector2) -> void:
 	var s: float = minf(size.x, size.y) * 0.4
 	var glow := Color(accent, GLOW_ALPHA)
 
-	var in_top := center + Vector2(-s * 0.6, -s * 0.4)
-	var in_bot := center + Vector2(-s * 0.6, s * 0.4)
+	var in_top := center + Vector2(-s * 0.6, -s * 0.55)
+	var in_bot := center + Vector2(-s * 0.6, s * 0.55)
 	draw_line(in_top, center, glow, GLOW_WIDTH)
 	draw_line(in_bot, center, glow, GLOW_WIDTH)
 	draw_line(in_top, center, accent, 1.5)
@@ -228,6 +240,19 @@ func _draw_merger(center: Vector2) -> void:
 	draw_line(out_pos, out_pos + Vector2(-5, 3), accent, 1.5)
 
 	draw_circle(center, 3.0, accent)
+
+
+# --- REPAIR LAB: Plus/wrench ---
+func _draw_repair_lab(center: Vector2) -> void:
+	var s: float = minf(size.x, size.y) * 0.35
+	var glow := Color(accent, GLOW_ALPHA)
+
+	var arm := s * 0.55
+	draw_line(center + Vector2(-arm, 0), center + Vector2(arm, 0), glow, GLOW_WIDTH + 1)
+	draw_line(center + Vector2(0, -arm), center + Vector2(0, arm), glow, GLOW_WIDTH + 1)
+	draw_line(center + Vector2(-arm, 0), center + Vector2(arm, 0), accent, 2.5)
+	draw_line(center + Vector2(0, -arm), center + Vector2(0, arm), accent, 2.5)
+	draw_arc(center + Vector2(s * 0.35, -s * 0.35), s * 0.2, PI * 0.3, PI * 1.8, 12, accent, 1.5)
 
 
 # --- TERMINAL: Monitor + stand + arrow ---

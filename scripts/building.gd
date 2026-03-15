@@ -129,7 +129,26 @@ func _get_building_polygon(r: Rect2, vtype: String) -> PackedVector2Array:
 				Vector2(x + ch, y), Vector2(x + w, y),
 				Vector2(x + w, y + h - ch), Vector2(x + w - ch, y + h),
 				Vector2(x, y + h), Vector2(x, y + ch)])
-		_:  # Default rect for splitter, merger, trash
+		"splitter":  # Trapezoid — narrow left, wide right (data expands/splits)
+			var inset := h * 0.15
+			return PackedVector2Array([
+				Vector2(x, y + inset), Vector2(x + w, y),
+				Vector2(x + w, y + h), Vector2(x, y + h - inset)])
+		"merger":  # Trapezoid — wide left, narrow right (data converges)
+			var inset := h * 0.15
+			return PackedVector2Array([
+				Vector2(x, y), Vector2(x + w, y + inset),
+				Vector2(x + w, y + h - inset), Vector2(x, y + h)])
+		"trash":  # Diamond — hazard/warning
+			return PackedVector2Array([
+				Vector2(x + w * 0.5, y), Vector2(x + w, y + h * 0.5),
+				Vector2(x + w * 0.5, y + h), Vector2(x, y + h * 0.5)])
+		"repair_lab":  # Shield — protective/medical feel
+			return PackedVector2Array([
+				Vector2(x + w * 0.5, y), Vector2(x + w, y + h * 0.15),
+				Vector2(x + w, y + h * 0.6), Vector2(x + w * 0.5, y + h),
+				Vector2(x, y + h * 0.6), Vector2(x, y + h * 0.15)])
+		_:  # Default rect
 			return PackedVector2Array([
 				Vector2(x, y), Vector2(x + w, y),
 				Vector2(x + w, y + h), Vector2(x, y + h)])
@@ -330,7 +349,17 @@ func get_port_local_position(port_side: String) -> Vector2:
 	# Offset along the side
 	var offset: float
 	if port_idx >= 0 and count > 1:
-		offset = side_len * float(port_idx + 1) / float(count + 1)
+		# Determine grid cells along this side
+		var side_cells: int
+		match base_side:
+			"left", "right": side_cells = definition.grid_size.y
+			_: side_cells = definition.grid_size.x
+		if side_cells <= count:
+			# One port per grid cell — center each port in its cell
+			offset = side_len * (float(port_idx) + 0.5) / float(side_cells)
+		else:
+			# More cells than ports — even distribution (CT-style)
+			offset = side_len * float(port_idx + 1) / float(count + 1)
 	else:
 		offset = side_len / 2.0
 
@@ -694,7 +723,8 @@ func _draw_pcb_mode(size: Vector2, rect: Rect2, accent: Color, pulse: float) -> 
 
 func _draw_icon(center: Vector2, size: Vector2, accent: Color) -> void:
 	var vtype: String = definition.visual_type if definition else "default"
-	var icon_center := Vector2(center.x, center.y + 6)
+	## Icon centered exactly — no offset (fixes rotation/mirror misalignment)
+	var icon_center := center
 
 	match vtype:
 		"classifier":
@@ -717,13 +747,15 @@ func _draw_icon(center: Vector2, size: Vector2, accent: Color) -> void:
 			_draw_icon_merger(icon_center, size, accent)
 		"terminal":
 			_draw_icon_terminal(icon_center, size, accent)
+		"repair_lab":
+			_draw_icon_repair_lab(icon_center, size, accent)
 		_:
 			_draw_icon_default(icon_center, size, accent)
 
 
 # --- CLASSIFIER: Binary content filter (selected → right, rest → bottom) ---
 func _draw_icon_classifier(center: Vector2, size: Vector2, accent: Color) -> void:
-	var s: float = minf(size.x, size.y) * 0.3
+	var s: float = minf(size.x, size.y) * 0.38
 	var glow := Color(accent, ICON_GLOW_ALPHA)
 
 	# Input line (left)
@@ -759,7 +791,7 @@ func _draw_icon_classifier(center: Vector2, size: Vector2, accent: Color) -> voi
 
 # --- SEPARATOR: Binary state filter (selected → right, rest → bottom) ---
 func _draw_icon_separator(center: Vector2, size: Vector2, accent: Color) -> void:
-	var s: float = minf(size.x, size.y) * 0.3
+	var s: float = minf(size.x, size.y) * 0.38
 	var glow := Color(accent, ICON_GLOW_ALPHA)
 
 	# Input line (left)
@@ -784,26 +816,39 @@ func _draw_icon_separator(center: Vector2, size: Vector2, accent: Color) -> void
 	draw_circle(out_bottom, 2.0, Color(accent, 0.6))
 
 
-# --- DECRYPTOR: Lock/key symbol ---
+# --- DECRYPTOR: Open padlock — shackle tilts left, right arm detached ---
 func _draw_icon_decryptor(center: Vector2, size: Vector2, accent: Color) -> void:
-	var s: float = minf(size.x, size.y) * 0.3
+	var s: float = minf(size.x, size.y) * 0.32
 	var glow := Color(accent, ICON_GLOW_ALPHA)
 
 	# Lock body
-	var lock_w: float = s * 0.8
-	var lock_h: float = s * 0.6
-	var lock_rect := Rect2(center + Vector2(-lock_w / 2, -lock_h * 0.1), Vector2(lock_w, lock_h))
+	var lock_w: float = s * 0.85
+	var lock_h: float = s * 0.65
+	var body_top := center.y + s * 0.05
+	var lock_rect := Rect2(Vector2(center.x - lock_w / 2, body_top), Vector2(lock_w, lock_h))
 	draw_rect(lock_rect, Color(accent, 0.15), true)
 	draw_rect(lock_rect, accent, false, 1.5)
 
-	# Lock shackle (arc on top)
-	_draw_arc_segment(center + Vector2(0, -lock_h * 0.1), s * 0.3, PI, TAU, glow, ICON_GLOW_WIDTH)
-	_draw_arc_segment(center + Vector2(0, -lock_h * 0.1), s * 0.3, PI, TAU, accent, 2.0)
+	# Shackle — arc center shifted LEFT so it tilts/opens to the left
+	var sh_r := s * 0.35
+	var sh_arc_center := Vector2(center.x - sh_r * 0.35, body_top - sh_r * 0.85)
+	# Arc (upside-down U)
+	_draw_arc_segment(sh_arc_center, sh_r, PI, TAU, glow, ICON_GLOW_WIDTH)
+	_draw_arc_segment(sh_arc_center, sh_r, PI, TAU, accent, 2.5)
+	# Left arm — CONNECTED: arc left end down to body left edge
+	var arc_left := sh_arc_center + Vector2(-sh_r, 0)
+	var body_left := Vector2(center.x - lock_w / 2 + 2, body_top)
+	draw_line(arc_left, body_left, glow, ICON_GLOW_WIDTH)
+	draw_line(arc_left, body_left, accent, 2.5)
+	# Right arm — SHORT stub, clearly NOT reaching the body (open gap)
+	var arc_right := sh_arc_center + Vector2(sh_r, 0)
+	draw_line(arc_right, arc_right + Vector2(0, sh_r * 0.2), glow, ICON_GLOW_WIDTH)
+	draw_line(arc_right, arc_right + Vector2(0, sh_r * 0.2), accent, 2.5)
 
 	# Keyhole
-	draw_circle(center + Vector2(0, lock_h * 0.2), 3.0, accent)
-	var kh_bottom := center + Vector2(0, lock_h * 0.2 + 3)
-	draw_line(kh_bottom, kh_bottom + Vector2(0, 5), accent, 2.0)
+	var kh_y := body_top + lock_h * 0.35
+	draw_circle(Vector2(center.x, kh_y), 3.5, accent)
+	draw_line(Vector2(center.x, kh_y + 3.5), Vector2(center.x, kh_y + 9), accent, 2.0)
 
 
 # --- ENCRYPTOR: Closed lock symbol (reverse of Decryptor) ---
@@ -884,53 +929,53 @@ func _draw_icon_research(center: Vector2, size: Vector2, accent: Color) -> void:
 	draw_circle(center, 3.0, accent)
 
 
-# --- SPLITTER: One-to-many arrows ---
+# --- SPLITTER: One input left → two outputs right (at corners) ---
 func _draw_icon_splitter(center: Vector2, size: Vector2, accent: Color) -> void:
-	var s: float = minf(size.x, size.y) * 0.35
+	var s: float = minf(size.x, size.y) * 0.32
 	var glow := Color(accent, ICON_GLOW_ALPHA)
 
-	# Input (left)
-	var in_pos := center + Vector2(-s * 0.6, 0)
+	# Input line (left → center)
+	var in_pos := center + Vector2(-s * 0.7, 0)
 	draw_line(in_pos, center, glow, ICON_GLOW_WIDTH)
 	draw_line(in_pos, center, accent, 2.0)
 
-	# Two outputs (right, diverging)
-	var out_top := center + Vector2(s * 0.6, -s * 0.4)
-	var out_bot := center + Vector2(s * 0.6, s * 0.4)
+	# Two outputs diverging to right corners
+	var out_top := center + Vector2(s * 0.7, -s * 0.55)
+	var out_bot := center + Vector2(s * 0.7, s * 0.55)
 	draw_line(center, out_top, glow, ICON_GLOW_WIDTH)
 	draw_line(center, out_bot, glow, ICON_GLOW_WIDTH)
 	draw_line(center, out_top, accent, 1.5)
 	draw_line(center, out_bot, accent, 1.5)
 
-	# Arrow heads
+	# Arrow heads pointing right
 	draw_line(out_top, out_top + Vector2(-5, 2), accent, 1.5)
-	draw_line(out_top, out_top + Vector2(-3, 5), accent, 1.5)
+	draw_line(out_top, out_top + Vector2(-4, -3), accent, 1.5)
 	draw_line(out_bot, out_bot + Vector2(-5, -2), accent, 1.5)
-	draw_line(out_bot, out_bot + Vector2(-3, -5), accent, 1.5)
+	draw_line(out_bot, out_bot + Vector2(-4, 3), accent, 1.5)
 
 	# Center dot
 	draw_circle(center, 3.0, accent)
 
 
-# --- MERGER: Many-to-one arrows ---
+# --- MERGER: Two inputs left (at corners) → one output right ---
 func _draw_icon_merger(center: Vector2, size: Vector2, accent: Color) -> void:
-	var s: float = minf(size.x, size.y) * 0.35
+	var s: float = minf(size.x, size.y) * 0.32
 	var glow := Color(accent, ICON_GLOW_ALPHA)
 
-	# Two inputs (left, converging)
-	var in_top := center + Vector2(-s * 0.6, -s * 0.4)
-	var in_bot := center + Vector2(-s * 0.6, s * 0.4)
+	# Two inputs from left corners converging to center
+	var in_top := center + Vector2(-s * 0.7, -s * 0.55)
+	var in_bot := center + Vector2(-s * 0.7, s * 0.55)
 	draw_line(in_top, center, glow, ICON_GLOW_WIDTH)
 	draw_line(in_bot, center, glow, ICON_GLOW_WIDTH)
 	draw_line(in_top, center, accent, 1.5)
 	draw_line(in_bot, center, accent, 1.5)
 
-	# Output (right)
-	var out_pos := center + Vector2(s * 0.6, 0)
+	# Single output to right
+	var out_pos := center + Vector2(s * 0.7, 0)
 	draw_line(center, out_pos, glow, ICON_GLOW_WIDTH)
 	draw_line(center, out_pos, accent, 2.0)
 
-	# Arrow head
+	# Arrow head pointing right
 	draw_line(out_pos, out_pos + Vector2(-5, -3), accent, 1.5)
 	draw_line(out_pos, out_pos + Vector2(-5, 3), accent, 1.5)
 
@@ -965,12 +1010,57 @@ func _draw_icon_terminal(center: Vector2, size: Vector2, accent: Color) -> void:
 	draw_line(arrow_tip, arrow_tip + Vector2(4, -6), accent, 2.0)
 
 
+# --- REPAIR LAB: Wrench + plus (tool/repair feel) ---
+func _draw_icon_repair_lab(center: Vector2, size: Vector2, accent: Color) -> void:
+	var s: float = minf(size.x, size.y) * 0.3
+	var glow := Color(accent, ICON_GLOW_ALPHA)
+
+	# Plus/cross sign (repair symbol)
+	var arm := s * 0.55
+	var thick := 2.5
+	draw_line(center + Vector2(-arm, 0), center + Vector2(arm, 0), glow, ICON_GLOW_WIDTH + 1)
+	draw_line(center + Vector2(0, -arm), center + Vector2(0, arm), glow, ICON_GLOW_WIDTH + 1)
+	draw_line(center + Vector2(-arm, 0), center + Vector2(arm, 0), accent, thick)
+	draw_line(center + Vector2(0, -arm), center + Vector2(0, arm), accent, thick)
+
+	# Wrench head (small circle at top-right of cross)
+	var wrench_pos := center + Vector2(s * 0.35, -s * 0.35)
+	draw_arc(wrench_pos, s * 0.2, PI * 0.3, PI * 1.8, 12, accent, 1.5)
+	# Small notch (wrench opening)
+	draw_line(wrench_pos + Vector2(s * 0.2, 0), wrench_pos + Vector2(s * 0.12, -s * 0.08), accent, 1.5)
+
+
 # --- DEFAULT: Simple dot ---
 func _draw_icon_default(center: Vector2, _size: Vector2, accent: Color) -> void:
 	draw_circle(center, 4.0, Color(accent, 0.5))
 
 
 # --- PORTS ---
+func _get_port_outward_dir(port_side: String) -> Vector2:
+	## Returns the outward-facing direction vector for a port (after rotation/mirror).
+	var physical := _get_physical_side(port_side)
+	var base_side: String
+	var us_pos := physical.find("_")
+	if us_pos >= 0:
+		base_side = physical.substr(0, us_pos)
+	else:
+		base_side = physical
+	match base_side:
+		"right": return Vector2(1, 0)
+		"left": return Vector2(-1, 0)
+		"top": return Vector2(0, -1)
+		"bottom": return Vector2(0, 1)
+	return Vector2.ZERO
+
+
+func _is_key_fuel_port(port_side: String) -> bool:
+	## Returns true if this input port is the key/fuel port on a dual-input building.
+	if definition == null or definition.dual_input == null:
+		return false
+	# Key/fuel port is always the second input port (index 1)
+	return definition.input_ports.size() > 1 and port_side == definition.input_ports[1]
+
+
 func _draw_ports(size: Vector2, accent: Color) -> void:
 	if definition == null:
 		return
@@ -980,30 +1070,78 @@ func _draw_ports(size: Vector2, accent: Color) -> void:
 	if is_active() and is_working:
 		port_pulse = sin(_glow_time * 5.0) * 0.5 + 0.5
 
-	# Output ports (accent color)
+	# Output ports — BOLD ARROW extending OUTSIDE the building (accent color)
 	for port_side in definition.output_ports:
 		var pos := get_port_local_position(port_side)
+		var outdir := _get_port_outward_dir(port_side)
+		var perp := Vector2(-outdir.y, outdir.x)
+		# Arrow protrudes well outside building edge
+		var arrow_len := 16.0
+		var arrow_w := 8.0
+		var tip := pos + outdir * arrow_len
+		var base_l := pos + perp * arrow_w
+		var base_r := pos - perp * arrow_w
+		var tri := PackedVector2Array([tip, base_l, base_r])
 		if zoom > 0.5:
-			# Full detail: glow + solid + inner dot (3 circles)
-			var gr := PORT_GLOW_RADIUS + port_pulse * 4.0
-			draw_circle(pos, gr, Color(accent, 0.12 + port_pulse * 0.15))
-			draw_circle(pos, PORT_RADIUS, Color(accent, 0.8))
-			draw_circle(pos, PORT_RADIUS * 0.4, Color.WHITE)
-		else:
-			# Medium/far: solid + inner dot (2 circles)
-			draw_circle(pos, PORT_RADIUS, Color(accent, 0.8))
-			draw_circle(pos, PORT_RADIUS * 0.4, Color.WHITE)
-	# Input ports (white/dim)
+			# Glow arrow (larger)
+			var glow_len := arrow_len + 5.0 + port_pulse * 4.0
+			var glow_w := arrow_w + 4.0
+			var gt := pos + outdir * glow_len
+			var gl := pos + perp * glow_w - outdir * 2.0
+			var gr := pos - perp * glow_w - outdir * 2.0
+			draw_colored_polygon(PackedVector2Array([gt, gl, gr]),
+				Color(accent, 0.12 + port_pulse * 0.12))
+		# Filled arrow
+		draw_colored_polygon(tri, Color(accent, 0.9))
+		# White center line for direction
+		draw_line(pos - outdir * 2.0, pos + outdir * arrow_len * 0.6, Color.WHITE, 2.0)
+
+	# Input ports
+	var input_r := PORT_RADIUS * 1.3  # Larger than before
 	for port_side in definition.input_ports:
 		var pos := get_port_local_position(port_side)
-		if zoom > 0.5:
-			var gr := PORT_GLOW_RADIUS + port_pulse * 2.0
-			draw_circle(pos, gr, Color(1, 1, 1, 0.08 + port_pulse * 0.08))
-			draw_circle(pos, PORT_RADIUS, Color(0.6, 0.65, 0.7, 0.8))
-			draw_circle(pos, PORT_RADIUS * 0.4, Color.WHITE)
+		var is_key_port := _is_key_fuel_port(port_side)
+
+		if is_key_port:
+			# KEY/FUEL port — bold DIAMOND ARROW extending outside (gold/orange)
+			var key_color := Color("#ffaa00")
+			var label := "K"
+			if definition.dual_input != null and definition.dual_input.key_content == DataEnums.ContentType.REPAIR_KIT:
+				key_color = Color("#ff7744")
+				label = "R"
+			var outdir := _get_port_outward_dir(port_side)
+			var perp := Vector2(-outdir.y, outdir.x)
+			# Diamond arrow extending outside — same length as output arrows
+			var arrow_len := 16.0
+			var arrow_w := 7.0
+			var tip := pos + outdir * -arrow_len  # tip points INWARD (into building)
+			var outer := pos + outdir * arrow_len * 0.3  # extends outside
+			var side_l := pos + perp * arrow_w
+			var side_r := pos - perp * arrow_w
+			var diamond := PackedVector2Array([tip, side_l, outer, side_r])
+			if zoom > 0.5:
+				var glow_len := arrow_len + 4.0 + port_pulse * 3.0
+				var glow_w := arrow_w + 4.0
+				var g_tip := pos + outdir * -glow_len
+				var g_outer := pos + outdir * glow_len * 0.3
+				var g_l := pos + perp * glow_w
+				var g_r := pos - perp * glow_w
+				draw_colored_polygon(PackedVector2Array([g_tip, g_l, g_outer, g_r]),
+					Color(key_color, 0.12 + port_pulse * 0.1))
+			draw_colored_polygon(diamond, Color(key_color, 0.85))
+			# Label inside the diamond
+			var font := _MONO_FONT
+			var fs := 10
+			var ts := font.get_string_size(label, HORIZONTAL_ALIGNMENT_CENTER, -1, fs)
+			var label_pos := pos + outdir * -5.0 - Vector2(ts.x / 2.0, -ts.y / 4.0)
+			draw_string(font, label_pos, label, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color.WHITE)
 		else:
-			draw_circle(pos, PORT_RADIUS, Color(0.6, 0.65, 0.7, 0.8))
-			draw_circle(pos, PORT_RADIUS * 0.4, Color.WHITE)
+			# Normal input — filled CIRCLE (larger, gray)
+			if zoom > 0.5:
+				var gr := PORT_GLOW_RADIUS + port_pulse * 2.0
+				draw_circle(pos, gr, Color(1, 1, 1, 0.06 + port_pulse * 0.06))
+			draw_circle(pos, input_r, Color(0.55, 0.6, 0.65, 0.85))
+			draw_circle(pos, input_r * 0.4, Color.WHITE)
 
 
 # --- UTILITY: Draw arc segment ---

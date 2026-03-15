@@ -68,7 +68,7 @@ var _building_hints: Dictionary = {
 	},
 	"Merger": {
 		"id": "unlock_merger",
-		"text": "[color=#ffcc44]MERGER[/color] unlocked — combines two data streams into one.\nInput A: [color=#00ddff]left[/color]  |  Input B: [color=#00ddff]top[/color]  |  Output: [color=#00ddff]right[/color]",
+		"text": "[color=#ffcc44]MERGER[/color] unlocked — combines two data streams into one.\nTwo inputs on [color=#00ddff]left[/color]  |  Output: [color=#00ddff]right[/color]",
 		"duration": 8.0,
 	},
 	"Recoverer": {

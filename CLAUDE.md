@@ -130,7 +130,7 @@ Asagidaki kararlar **scope lock** kabul edilir. Claude Code bu kararlarla celise
 - [x] **Research Lab → Key Forge** yeniden adlandirildi (T1:Research, T2:+Biometric, T3:+Financial)
 - [x] **Repair Lab** yeni bina eklendi — Repair Kit uretir (T1:Standard, T2:+Financial, T3:+Blueprint)
 - [x] **Recoverer** fuel mode → key mode (Repair Kit kullanir, Decryptor ile simetrik)
-- [x] **REPAIR_KIT** content type eklendi (char:"+", color:#ff7744)
+- [x] **REPAIR_KIT** content type eklendi (char:"R", color:#ff7744)
 - [x] Tum UI/tooltip/hint referanslari guncellendi
 - [x] Ard arda undo yapilinca engine crash — zombie node korumasi + is_instance_valid guard
 - [x] Save slot sistemi — 5 slot, slot_N.json + slot_N_auto.json
@@ -146,6 +146,9 @@ Asagidaki kararlar **scope lock** kabul edilir. Claude Code bu kararlarla celise
 - [x] Producer tooltip dinamik (Key Forge + Repair Lab dogru gosterim)
 - [x] Recoverer tooltip output_tag ile dogru ayirt ediliyor (Repair Kit gosterimi)
 - [x] **GDD.md guncelle** — v4.0 olarak yeniden yazildi (Compiler/Uplink/Bridge kaldirildi, Key Forge + Repair Lab eklendi, bilesik state, procedural gig, 3 faz yapisi)
+- [x] **Bina gorsel yenileme** — tum binalar 2x2 (Splitter/Merger/Trash 1x1→2x2), ayirt edici polygon sekilleri, ikon merkez fix (rotate/mirror), output port oklari (disari uzayan ucgen), input port daireler, key/fuel port elmas sembol ("K"/"R"), Decryptor acik kilit / Encryptor kapali kilit, Repair Lab ikonu, Separator/Classifier buyutulmus ikon
+- [x] **Merger port layout** — iki input sol kenarda koselerde (left_0/left_1), ikon guncellendi
+- [x] **Splitter port layout** — iki output sag kenarda koselerde (right_0/right_1), ikon guncellendi
 
 ### Siralama
 Faz 1 → 2 → 3 → 4 → 5 → 6. Her faz sonunda oyun playable state'te kalmali.
