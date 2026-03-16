@@ -284,10 +284,6 @@ func _activate_next_tutorial_gig() -> void:
 	if not _tutorials_complete:
 		_tutorials_complete = true
 		print("[GigManager] All tutorials complete — procedural contracts enabled")
-		# Mark tutorial as completed globally so future new games skip it
-		var settings := SettingsManager.get_settings()
-		settings["tutorial_completed"] = true
-		SettingsManager.save(settings)
 	_fill_procedural_gigs()
 
 
