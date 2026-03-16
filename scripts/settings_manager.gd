@@ -70,4 +70,5 @@ static func _defaults() -> Dictionary:
 		"fullscreen": false,
 		"crt_enabled": true,
 		"autosave_interval": 300,
+		"tutorial_completed": false,
 	}

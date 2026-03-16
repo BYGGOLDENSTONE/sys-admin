@@ -12,7 +12,7 @@ uniform float underglow_tex_size = 512.0;
 
 // Colors — dark teal bg + cyberpunk red grid/PCB
 const vec3 BG_COLOR = vec3(0.06, 0.16, 0.20);           // Dark teal
-const vec3 GRID_COLOR = vec3(0.60, 0.12, 0.30);        // Brighter cyberpunk red
+const vec3 GRID_COLOR = vec3(0.78, 0.14, 0.32);        // Neon cyberpunk red
 const vec3 PCB_TRACE = vec3(0.48, 0.10, 0.24);
 const vec3 PCB_VIA = vec3(0.65, 0.15, 0.35);
 const vec3 PCB_PAD = vec3(0.40, 0.08, 0.20);

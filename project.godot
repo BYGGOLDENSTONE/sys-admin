@@ -36,4 +36,4 @@ theme/custom="res://resources/theme/default_theme.tres"
 [rendering]
 
 rendering_device/driver.windows="d3d12"
-environment/defaults/default_clear_color=Color(0.06, 0.16, 0.2, 1)
+environment/defaults/default_clear_color=Color(0.06, 0.16, 0.20, 1)

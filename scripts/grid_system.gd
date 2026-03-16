@@ -3,7 +3,7 @@ extends Node2D
 const TILE_SIZE: int = 64
 
 const BG_COLOR := Color(0.06, 0.16, 0.20)       # Dark teal
-const GRID_LINE_COLOR := Color(0.60, 0.12, 0.30) # Brighter cyberpunk red grid
+const GRID_LINE_COLOR := Color(0.78, 0.14, 0.32) # Neon cyberpunk red grid
 const MAP_CENTER := Vector2(256 * 64, 256 * 64)  ## Center in pixels (256,256 grid * 64px)
 
 # PCB background pattern — cyberpunk magenta-red

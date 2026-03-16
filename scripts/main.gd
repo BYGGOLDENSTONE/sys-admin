@@ -191,9 +191,10 @@ func _ready() -> void:
 		_place_contract_terminal()
 		# Setup guided tutorial BEFORE gig initialization (so Gig 1 arrows show)
 		_setup_guided_tutorial()
-		# Level 2+: skip tutorial, unlock all buildings
+		# Skip tutorial if already completed once OR if level is non-tutorial
 		var cur_level_data: Dictionary = LevelConfig.get_level(_level_manager.current_level)
-		if not cur_level_data.is_tutorial:
+		var tutorial_done: bool = SettingsManager.get_settings().get("tutorial_completed", false)
+		if not cur_level_data.is_tutorial or tutorial_done:
 			_gig_manager.skip_tutorial = true
 		_gig_manager.set_level(_level_manager.current_level)
 		_gig_manager.initialize()
