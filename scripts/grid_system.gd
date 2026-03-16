@@ -2,14 +2,14 @@ extends Node2D
 
 const TILE_SIZE: int = 64
 
-const BG_COLOR := Color("#081420")              # Cyan-tinted dark blue
-const GRID_LINE_COLOR := Color(0.28, 0.06, 0.18) # Cyberpunk magenta-red grid
+const BG_COLOR := Color(0.06, 0.16, 0.20)       # Dark teal
+const GRID_LINE_COLOR := Color(0.60, 0.12, 0.30) # Brighter cyberpunk red grid
 const MAP_CENTER := Vector2(256 * 64, 256 * 64)  ## Center in pixels (256,256 grid * 64px)
 
 # PCB background pattern — cyberpunk magenta-red
-const PCB_TRACE_COLOR := Color(0.35, 0.08, 0.20)
-const PCB_VIA_COLOR := Color(0.50, 0.12, 0.30)
-const PCB_PAD_COLOR := Color(0.28, 0.06, 0.16)
+const PCB_TRACE_COLOR := Color(0.48, 0.10, 0.24)
+const PCB_VIA_COLOR := Color(0.65, 0.15, 0.35)
+const PCB_PAD_COLOR := Color(0.40, 0.08, 0.20)
 const PCB_TRACE_WIDTH: float = 2.0
 
 var _occupied_cells: Dictionary = {}

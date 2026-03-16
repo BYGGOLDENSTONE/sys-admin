@@ -10,12 +10,12 @@ uniform float tile_size = 64.0;
 uniform sampler2D underglow_tex : filter_nearest, hint_default_black;
 uniform float underglow_tex_size = 512.0;
 
-// Colors
-const vec3 BG_COLOR = vec3(0.04, 0.12, 0.19);           // Cyan-tinted dark
-const vec3 GRID_COLOR = vec3(0.45, 0.10, 0.28);        // Brighter magenta-red
-const vec3 PCB_TRACE = vec3(0.35, 0.08, 0.20);
-const vec3 PCB_VIA = vec3(0.50, 0.12, 0.30);
-const vec3 PCB_PAD = vec3(0.28, 0.06, 0.16);
+// Colors — dark teal bg + cyberpunk red grid/PCB
+const vec3 BG_COLOR = vec3(0.06, 0.16, 0.20);           // Dark teal
+const vec3 GRID_COLOR = vec3(0.60, 0.12, 0.30);        // Brighter cyberpunk red
+const vec3 PCB_TRACE = vec3(0.48, 0.10, 0.24);
+const vec3 PCB_VIA = vec3(0.65, 0.15, 0.35);
+const vec3 PCB_PAD = vec3(0.40, 0.08, 0.20);
 
 // Hash function — deterministic pseudo-random per cell
 int pcb_hash(int x, int y, int seed_val) {
