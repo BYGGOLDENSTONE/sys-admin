@@ -154,8 +154,9 @@ func _ready() -> void:
 	# Setup save manager (before loading state)
 	_setup_save_manager()
 
-	# Setup tutorial manager BEFORE gig initialization (so Gig 1 hint is received)
-	_setup_tutorial_manager()
+	# Setup tutorial manager only on first playthrough (hints/notifications)
+	if not SettingsManager.get_settings().get("tutorial_completed", false):
+		_setup_tutorial_manager()
 
 	# Give save manager access to map generator for chunk save/load
 	_save_manager.map_generator = _map_generator
@@ -174,8 +175,9 @@ func _ready() -> void:
 				break
 		if _contract_terminal != null and _gig_manager != null:
 			_gig_manager.set_contract_terminal(_contract_terminal)
-		# Setup guided tutorial BEFORE gig panel rebuild (so it can receive signals)
-		_setup_guided_tutorial()
+		# Setup guided tutorial only on first playthrough
+		if not SettingsManager.get_settings().get("tutorial_completed", false):
+			_setup_guided_tutorial()
 		# Rebuild UI from loaded state
 		building_panel.refresh_buttons()
 		if _gig_panel:
@@ -189,18 +191,18 @@ func _ready() -> void:
 	else:
 		# NEW GAME PATH: place Contract Terminal and initialize gigs
 		_place_contract_terminal()
-		# Setup guided tutorial BEFORE gig initialization (so Gig 1 arrows show)
-		_setup_guided_tutorial()
-		# Skip tutorial if already seen once OR if level is non-tutorial
-		var cur_level_data: Dictionary = LevelConfig.get_level(_level_manager.current_level)
+		# Tutorial overlay (hints/arrows) only on first playthrough
 		var settings := SettingsManager.get_settings()
 		var tutorial_done: bool = settings.get("tutorial_completed", false)
-		if not cur_level_data.is_tutorial or tutorial_done:
-			_gig_manager.skip_tutorial = true
-		elif cur_level_data.is_tutorial and not tutorial_done:
-			# First time seeing tutorial — mark it so future new games skip
+		if not tutorial_done:
+			_setup_guided_tutorial()
+			# Mark as seen so future new games skip the overlay
 			settings["tutorial_completed"] = true
 			SettingsManager.save(settings)
+		# Level 2+: skip tutorial gigs, unlock all buildings
+		var cur_level_data: Dictionary = LevelConfig.get_level(_level_manager.current_level)
+		if not cur_level_data.is_tutorial:
+			_gig_manager.skip_tutorial = true
 		_gig_manager.set_level(_level_manager.current_level)
 		_gig_manager.initialize()
 
