@@ -12,6 +12,7 @@ state_weights = {0: 0.55, 1: 0.15, 2: 0.3}
 bandwidth = 5.0
 generation_rate = 5.0
 grid_size = Vector2i(2, 2)
+output_port_count = 4
 difficulty = "easy"
 encrypted_tier = 1
 corrupted_tier = 1

@@ -9,6 +9,7 @@ extends Resource
 @export var bandwidth: float = 5.0            ## MB/s per connected output port
 @export var generation_rate: float = 5.0      ## Data units per tick per connected port
 @export var grid_size: Vector2i = Vector2i(2, 2)  ## Rectangular footprint (width, height)
+@export var output_port_count: int = 0  ## 0 = auto from grid_size, >0 = fixed count (distributed across edges, excluding FIRE side)
 @export var difficulty: String = "easy"  ## easy, medium, hard, endgame
 @export var encrypted_tier: int = 0  ## Fixed tier: 0=none, 1=4-bit, 2=16-bit
 @export var corrupted_tier: int = 0  ## Fixed tier: 0=none, 1=Minor-Glitched, 2=Major-Glitched

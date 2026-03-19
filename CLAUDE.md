@@ -2,7 +2,7 @@
 
 ## Mevcut Asama: v5 Tasarim Revizyonu — Implementasyon oncesi
 - **GDD:** `docs/GDD.md` (v5.0 — buyuk tasarim revizyonu)
-- **Kod durumu:** v4 Faz 1-7 TAMAMLANDI, v5 Faz 1-7 TAMAMLANDI (Tier+State, Sub-Type, Scanner, FIRE, Throughput, Olasilik, Upgrade)
+- **Kod durumu:** v4 Faz 1-7 TAMAMLANDI, v5 Faz 1-8 TAMAMLANDI (Tier+State, Sub-Type, Scanner, FIRE, Throughput, Olasilik, Upgrade, Port Config)
 - **Hedef:** Steam Next Fest icin oynanabilir, polished, v5 mekanikli demo
 - **Ticari hedef:** $9.99 fiyat noktasina yakisan kalite ve guven hissi
 
@@ -224,7 +224,7 @@ Her faz sonunda oyun **playable state**'te kalmali. Fazlar sirayla yapilir, bagi
 
 ---
 
-#### FAZ 8: Kaynak Port Yapilandirmasi
+#### FAZ 8: Kaynak Port Yapilandirmasi ✓ TAMAMLANDI
 **Amac:** Kaynak zorluguna gore port sayisi (Easy 1-2, Medium 3-4, Hard 5-6, Endgame 7-8)
 **Bagimlilik:** Faz 4 (FIRE portlari ayri olmali)
 

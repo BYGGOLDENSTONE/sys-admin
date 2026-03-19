@@ -200,22 +200,41 @@ func _generate_rectangular_cells() -> void:
 
 
 func _generate_output_ports() -> void:
-	## Generate output ports: (edge_length - 1) ports per edge
+	## Generate output ports. If output_port_count > 0, distribute that many ports
+	## across edges (round-robin: top, right, bottom, left). Otherwise auto from grid_size.
 	output_ports.clear()
 	var w: int = definition.grid_size.x
 	var h: int = definition.grid_size.y
-	# Top edge: (w - 1) ports
-	for i in range(w - 1):
-		output_ports.append("top_%d" % i)
-	# Right edge: (h - 1) ports
-	for i in range(h - 1):
-		output_ports.append("right_%d" % i)
-	# Bottom edge: (w - 1) ports
-	for i in range(w - 1):
-		output_ports.append("bottom_%d" % i)
-	# Left edge: (h - 1) ports
-	for i in range(h - 1):
-		output_ports.append("left_%d" % i)
+	var target_count: int = definition.output_port_count
+	if target_count <= 0:
+		# Auto mode: (edge_length - 1) ports per edge
+		for i in range(w - 1):
+			output_ports.append("top_%d" % i)
+		for i in range(h - 1):
+			output_ports.append("right_%d" % i)
+		for i in range(w - 1):
+			output_ports.append("bottom_%d" % i)
+		for i in range(h - 1):
+			output_ports.append("left_%d" % i)
+		return
+	# Fixed count mode: distribute ports across edges round-robin
+	var sides: Array[String] = ["top", "right", "bottom", "left"]
+	# Max ports per side = edge_length - 1 (top/bottom = w-1, left/right = h-1)
+	var max_per_side: Dictionary = {"top": w - 1, "right": h - 1, "bottom": w - 1, "left": h - 1}
+	var side_counts: Dictionary = {"top": 0, "right": 0, "bottom": 0, "left": 0}
+	var placed: int = 0
+	var side_idx: int = 0
+	while placed < target_count:
+		var side: String = sides[side_idx % 4]
+		if side_counts[side] < max_per_side[side]:
+			side_counts[side] += 1
+			placed += 1
+		side_idx += 1
+		if side_idx >= 4 * target_count:
+			break  # Safety: prevent infinite loop
+	for side in sides:
+		for i in range(side_counts[side]):
+			output_ports.append("%s_%d" % [side, i])
 
 
 func get_center_world() -> Vector2:
