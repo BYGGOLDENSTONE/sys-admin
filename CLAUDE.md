@@ -263,14 +263,14 @@ Her faz sonunda oyun **playable state**'te kalmali. Fazlar sirayla yapilir, bagi
 - FIRE input portlari vs output portlari fiziksel konum planlama
 - Tutorial scripted kaynak koordinatlari v5 sistemine uyarlanmali
 
-#### v5.1 Sonrasi UI Degisiklikleri (Faz 9+)
-- Yapi/kaynak tiklama → sol panelde (Contracts) detayli bilgi gosterimi
-- CT tiklama → upgrade butonlari (claim sistemi) + stored data
-- Filtre binalari dropdown menu ile filtre secimi (Classifier/Separator/Scanner/Producer)
-- Giren/cikan veri akisi gosterimi (INPUT/OUTPUT, content renkleriyle)
-- Upgrade sistemi: sadece islenmis veri (Decrypted/Recovered) sayilir, Public = 0
-- Upgrade mapping: Standard/Financial→Routing, Blueprint/Classified→Decryption, Biometric/Research→Recovery, tumu %25→Bandwidth
-- Upgrade claim: otomatik degil, oyuncu CT'den tiklar
+#### v5.1 Sonrasi UI Degisiklikleri (Faz 9+) — TAMAMLANDI
+- [x] Yapi/kaynak tiklama → sol panelde (Contracts) detayli bilgi gosterimi
+- [x] CT tiklama → upgrade butonlari (claim sistemi) + stored data
+- [x] Filtre binalari dropdown menu ile filtre secimi (Classifier/Separator/Scanner/Producer)
+- [x] Giren/cikan veri akisi gosterimi (INPUT/OUTPUT, content renkleriyle)
+- [x] Upgrade sistemi: sadece islenmis veri (Decrypted/Recovered) sayilir, Public = 0
+- [x] Upgrade mapping: Standard/Financial→Routing, Blueprint/Classified→Decryption, Biometric/Research→Recovery, tumu %25→Bandwidth
+- [x] Upgrade claim: otomatik degil, oyuncu CT'den tiklar
 
 #### ERTELENMIS (Sonraki Tasarim Oturumu)
 - [x] ~~Gig sistemi detaylari~~ TAMAMLANDI — 9 tutorial gig, tum mekanikler ogretiliyor (F.I.R.E., Scanner, Upgrade dahil)
