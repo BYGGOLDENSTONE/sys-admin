@@ -581,6 +581,7 @@ func _update_detail() -> void:
 		# Upgrade info is shown in the claim buttons below — just update button state here
 		for cat in ["routing", "decryption", "recovery", "bandwidth"]:
 			var tier: int = _upgrade_manager.get_tier(cat)
+			var mult: float = _upgrade_manager.get_multiplier(cat)
 			var cum: float = _upgrade_manager.get_cumulative(cat)
 			var next_cost: float = _upgrade_manager.get_next_tier_cost(cat)
 			var cat_label: String = cat.capitalize()
