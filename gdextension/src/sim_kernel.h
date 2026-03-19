@@ -59,6 +59,10 @@ private:
         int64_t src_bid; // source building instance_id
         String from_port;
     };
+    struct SubTypeEntry {
+        int content;
+        int sub_type;
+    };
     struct SourceDef {
         std::vector<float> content_cdf;
         std::vector<int> content_vals;
@@ -66,6 +70,7 @@ private:
         std::vector<int> state_vals;
         int enc_tier;
         int cor_tier;
+        std::vector<SubTypeEntry> sub_type_pool;
     };
     struct BuildingSlot {
         int64_t bid;

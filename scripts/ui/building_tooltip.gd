@@ -258,6 +258,10 @@ func _format_stored_data(data: Dictionary) -> String:
 		var s: int = DataEnums.unpack_state(key)
 		var c_color: String = DataEnums.content_color_hex(c)
 		var label: String = DataEnums.data_label(c, s, DataEnums.unpack_tier(key), DataEnums.unpack_tags(key))
+		var st: int = DataEnums.unpack_sub_type(key)
+		var st_name: String = DataEnums.sub_type_name(c, st)
+		if st_name != "":
+			label = st_name + " " + label.substr(label.find(" ") + 1)  ## Replace content name with sub-type name
 		var s_color: String = DataEnums.state_color_hex(s)
 		parts.append("[color=%s]%d[/color] [color=%s]%s[/color]" % [
 			s_color, data[key], c_color, label])
@@ -289,6 +293,18 @@ func _update_source_stats() -> void:
 		lines.append(_stat("Encrypted", "[color=#44aaff]%s[/color]" % DataEnums.tier_name(def.encrypted_tier, DataEnums.DataState.ENCRYPTED)))
 	if def.corrupted_tier > 0 and sw.has(DataEnums.DataState.CORRUPTED):
 		lines.append(_stat("Corrupted", "[color=#ff8844]%s[/color]" % DataEnums.tier_name(def.corrupted_tier, DataEnums.DataState.CORRUPTED)))
+	# Sub-type info
+	if not def.sub_type_pool.is_empty():
+		var st_parts: PackedStringArray = []
+		for entry in def.sub_type_pool:
+			var c: int = int(entry.get("content", 0))
+			var st: int = int(entry.get("sub_type", 0))
+			var st_name: String = DataEnums.sub_type_name(c, st)
+			if st_name != "":
+				var c_color: String = DataEnums.content_color_hex(c)
+				st_parts.append("[color=%s]%s[/color]" % [c_color, st_name])
+		if not st_parts.is_empty():
+			lines.append(_stat("Data Types", ", ".join(st_parts)))
 	# Port info
 	var port_count: int = _target_source.output_ports.size()
 	lines.append(_stat("Output Ports", "[color=#44ff88]%d[/color]" % port_count))

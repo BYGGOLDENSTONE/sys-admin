@@ -180,6 +180,7 @@ func _rebuild_sim_kernel_meta() -> void:
 				"state_weights": inst_sw,
 				"enc_tier": src_def.encrypted_tier,
 				"cor_tier": src_def.corrupted_tier,
+				"sub_type_pool": src_def.sub_type_pool,
 			})
 	_sim_kernel.configure_sources(source_entries)
 
@@ -935,6 +936,20 @@ func _get_fixed_tier(state: int, enc_tier: int, cor_tier: int) -> int:
 	return 0
 
 
+func _roll_sub_type(content: int, src_def) -> int:
+	## Pick a random sub-type from the source's pool that matches this content
+	var pool: Array = src_def.sub_type_pool
+	if pool.is_empty():
+		return -1
+	var matching: Array[int] = []
+	for entry in pool:
+		if int(entry.get("content", -1)) == content:
+			matching.append(int(entry.get("sub_type", 0)))
+	if matching.is_empty():
+		return -1
+	return matching[randi() % matching.size()]
+
+
 # --- DISCOVERY ---
 func _check_discovery(content: int, state: int) -> void:
 	if not discovered_content.get(content, false):
@@ -948,7 +963,7 @@ func _check_discovery(content: int, state: int) -> void:
 
 
 # --- DATA PUSH (now pushes to transit instead of direct delivery) ---
-func _push_data_from(source: Node2D, content: int, state: int, amount: int, from_port: String = "", tier: int = 0, tags: int = 0) -> int:
+func _push_data_from(source: Node2D, content: int, state: int, amount: int, from_port: String = "", tier: int = 0, tags: int = 0, sub_type: int = -1) -> int:
 	var bid: int = source.get_instance_id()
 	var targets: Array[Dictionary] = []
 	if _conn_from.has(bid):
@@ -958,7 +973,7 @@ func _push_data_from(source: Node2D, content: int, state: int, amount: int, from
 				targets.append(conn)
 	if targets.is_empty():
 		return 0
-	var packed_key: int = DataEnums.pack_key(content, state, tier, tags)
+	var packed_key: int = DataEnums.pack_key(content, state, tier, tags, sub_type)
 	var per_target: int = maxi(1, amount / targets.size())
 	var total_sent: int = 0
 	for conn in targets:
@@ -1021,8 +1036,9 @@ func _update_generation(_buildings: Array[Node]) -> void:
 				var sw: Dictionary = source.instance_state_weights if not source.instance_state_weights.is_empty() else src_def.state_weights
 				var state: int = _roll_state(sw)
 				var tier: int = _get_fixed_tier(state, src_def.encrypted_tier, src_def.corrupted_tier)
+				var sub_type: int = _roll_sub_type(content, src_def)
 				_check_discovery(content, state)
-				_push_data_from(source, content, state, 1, port, tier)
+				_push_data_from(source, content, state, 1, port, tier, 0, sub_type)
 
 
 # --- STORAGE FORWARD ---

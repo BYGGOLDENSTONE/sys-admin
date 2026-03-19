@@ -15,3 +15,4 @@ grid_size = Vector2i(2, 2)
 difficulty = "easy"
 encrypted_tier = 1
 corrupted_tier = 1
+sub_type_pool = [{content = 0, sub_type = 1}, {content = 2, sub_type = 1}, {content = 2, sub_type = 0}]

@@ -12,3 +12,4 @@ extends Resource
 @export var difficulty: String = "easy"  ## easy, medium, hard, endgame
 @export var encrypted_tier: int = 0  ## Fixed tier: 0=none, 1=4-bit, 2=16-bit
 @export var corrupted_tier: int = 0  ## Fixed tier: 0=none, 1=Minor-Glitched, 2=Major-Glitched
+@export var sub_type_pool: Array[Dictionary] = []  ## [{content: int, sub_type: int}] — which sub-types this source produces

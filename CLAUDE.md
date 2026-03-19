@@ -80,7 +80,7 @@ Her faz sonunda oyun **playable state**'te kalmali. Fazlar sirayla yapilir, bagi
 
 ---
 
-#### FAZ 1: Veri Modeli Tier Sistemi + State Duzeltmesi
+#### FAZ 1: Veri Modeli Tier Sistemi + State Duzeltmesi ✓ TAMAMLANDI
 **Amac:** Encrypted/Corrupted tier isimlendirmesi, ENC_COR kaldir (demo'da yok), islenmis state'ler ekle
 **Bagimlilik:** Yok (ilk yapilmali)
 
@@ -108,7 +108,7 @@ Her faz sonunda oyun **playable state**'te kalmali. Fazlar sirayla yapilir, bagi
 
 ---
 
-#### FAZ 2: Content Sub-Type Sistemi
+#### FAZ 2: Content Sub-Type Sistemi ✓ TAMAMLANDI
 **Amac:** 6 content × 4 sub-type = 24 spesifik veri tipi
 **Bagimlilik:** Faz 1
 

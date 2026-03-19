@@ -63,6 +63,16 @@ void SimKernel::configure_sources(Array source_port_entries) {
             sd.enc_tier = (int)(int64_t)e.get("enc_tier", 0);
             sd.cor_tier = (int)(int64_t)e.get("cor_tier", 0);
 
+            // Load sub_type_pool
+            Array stp = e.get("sub_type_pool", Array());
+            for (int j = 0; j < (int)stp.size(); j++) {
+                Dictionary st_entry = stp[j];
+                SubTypeEntry ste;
+                ste.content = (int)(int64_t)st_entry.get("content", -1);
+                ste.sub_type = (int)(int64_t)st_entry.get("sub_type", 0);
+                sd.sub_type_pool.push_back(ste);
+            }
+
             sp.src_idx = (int)_source_defs.size();
             src_id_to_def[src_id] = sp.src_idx;
             _source_defs.push_back(sd);
@@ -303,7 +313,19 @@ void SimKernel::_do_generation(Array &conns, Array &ct_pushes, Array &discoverie
                 tier = sd.cor_tier;
             }
 
-            int packed_key = pack_key(content, state, tier, 0);
+            // Roll sub-type from pool matching this content
+            int sub_type = -1;
+            if (!sd.sub_type_pool.empty()) {
+                std::vector<int> matching;
+                for (auto& ste : sd.sub_type_pool) {
+                    if (ste.content == content) matching.push_back(ste.sub_type);
+                }
+                if (!matching.empty()) {
+                    sub_type = matching[UtilityFunctions::randi() % matching.size()];
+                }
+            }
+
+            int packed_key = pack_key(content, state, tier, 0, sub_type);
             _push_to_transit(conns, src_bid, packed_key, 1, from_port, ct_pushes);
 
             // Track discoveries
@@ -466,7 +488,7 @@ void SimKernel::_do_inline_rendezvous(Array &conns, Array &ct_pushes,
 
             // Push output
             int out_tags = unpack_tags(pkey) | bs.dual_output_tag;
-            int out_key = pack_key(unpack_content(pkey), bs.dual_output_state, tier, out_tags);
+            int out_key = pack_key(unpack_content(pkey), bs.dual_output_state, tier, out_tags, unpack_sub_type(pkey));
             int sent = _push_to_transit(conns, bs.bid, out_key, 1, String(), ct_pushes);
             if (sent <= 0) break;
 

@@ -21,14 +21,38 @@ const MINOR_GLITCHED: int = 1
 const MAJOR_GLITCHED: int = 2
 const CRITICAL_GLITCHED: int = 3  ## Full release only
 
-static func make_key(content: int, state: int, tier: int = 0, tags: int = 0) -> String:
-	return "%d_%d_%d_%d" % [content, state, tier, tags]
+## Sub-type names per content (index 0-3 within each content type)
+## Key and Repair Kit have no sub-types
+const SUB_TYPE_NAMES: Dictionary = {
+	ContentType.STANDARD: ["Log Files", "Config Data", "Cache Data", "Metadata"],
+	ContentType.FINANCIAL: ["Transaction Records", "Account Data", "Credit History", "Tax Records"],
+	ContentType.BIOMETRIC: ["Facial Recognition", "Fingerprint", "Retina Scan", "Voice Pattern"],
+	ContentType.BLUEPRINT: ["Schematics", "Architecture", "Network Maps", "Source Code"],
+	ContentType.RESEARCH: ["Lab Reports", "Test Data", "Clinical Trials", "Analysis"],
+	ContentType.CLASSIFIED: ["Intelligence", "Military Ops", "State Secrets", "Diplomatic Cables"],
+}
+
+static func sub_type_name(content: int, sub_type: int) -> String:
+	if content in SUB_TYPE_NAMES:
+		var names: Array = SUB_TYPE_NAMES[content]
+		if sub_type >= 0 and sub_type < names.size():
+			return names[sub_type]
+	return ""
+
+static func sub_type_count(content: int) -> int:
+	if content in SUB_TYPE_NAMES:
+		return SUB_TYPE_NAMES[content].size()
+	return 0
+
+static func make_key(content: int, state: int, tier: int = 0, tags: int = 0, sub_type: int = -1) -> String:
+	return "%d_%d_%d_%d_%d" % [content, state, tier, tags, sub_type]
 
 static func parse_key(key: String) -> Dictionary:
 	var parts = key.split("_")
 	var tier: int = int(parts[2]) if parts.size() > 2 else 0
 	var tags: int = int(parts[3]) if parts.size() > 3 else 0
-	return { "content": int(parts[0]), "state": int(parts[1]), "tier": tier, "tags": tags }
+	var sub_type: int = int(parts[4]) if parts.size() > 4 else -1
+	return { "content": int(parts[0]), "state": int(parts[1]), "tier": tier, "tags": tags, "sub_type": sub_type }
 
 static func tier_name(t: int, state: int = -1) -> String:
 	if t <= 0:
@@ -159,10 +183,11 @@ static func content_color_hex(c: int) -> String:
 
 
 ## --- PACKED INT KEYS (O13 optimization) ---
-## Key format: bits 15-12=content, 11-8=state, 7-4=tier, 3-0=tags
+## Key format: bits 19-16=sub_type(+1 offset, 0=none), 15-12=content, 11-8=state, 7-4=tier, 3-0=tags
 
-static func pack_key(content: int, state: int, tier: int = 0, tags: int = 0) -> int:
-	return (content << 12) | (state << 8) | (tier << 4) | tags
+static func pack_key(content: int, state: int, tier: int = 0, tags: int = 0, sub_type: int = -1) -> int:
+	var st_bits: int = (sub_type + 1) & 0xF  ## -1 → 0 (none), 0 → 1, 1 → 2, etc.
+	return (st_bits << 16) | (content << 12) | (state << 8) | (tier << 4) | tags
 
 static func unpack_content(key: int) -> int:
 	return (key >> 12) & 0xF
@@ -175,6 +200,9 @@ static func unpack_tier(key: int) -> int:
 
 static func unpack_tags(key: int) -> int:
 	return key & 0xF
+
+static func unpack_sub_type(key: int) -> int:
+	return ((key >> 16) & 0xF) - 1  ## 0 → -1 (none), 1 → 0, 2 → 1, etc.
 
 ## --- COMPOUND STATE TIER HELPERS ---
 ## For ENC_COR state, tier field packs two sub-tiers: enc_tier(bits 3-2) | cor_tier(bits 1-0)
