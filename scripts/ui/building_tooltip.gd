@@ -126,10 +126,29 @@ func _update_stats() -> void:
 
 	# Type-specific stats (component-based)
 	if def.classifier:
-		lines.append(_stat("Throughput", "%d MB/s" % int(b.get_effective_value("processing_rate"))))
+		var variety: int = _count_stored_variety(b, "content")
+		var base: float = def.classifier.base_throughput
+		var effective: int = maxi(1, int(base / float(maxi(variety, 1))))
+		var variety_color: String = "#44ff88" if variety <= 1 else ("#ffcc44" if variety <= 3 else "#ff6644")
+		lines.append(_stat("Throughput", "[color=%s]%d MB/s[/color] (variety: %d)" % [variety_color, effective, variety]))
 		var filter_name: String = DataEnums.content_name(b.classifier_filter_content)
 		lines.append(_stat("Right Port →", "[color=#44ff88]%s[/color]" % filter_name))
 		lines.append(_stat("Bottom Port →", "All other content"))
+	if def.scanner:
+		var variety: int = _count_stored_variety(b, "sub_type")
+		var base: float = def.scanner.base_throughput
+		var effective: int = maxi(1, int(base / float(maxi(variety, 1))))
+		var variety_color: String = "#44ff88" if variety <= 1 else ("#ffcc44" if variety <= 3 else "#ff6644")
+		lines.append(_stat("Throughput", "[color=%s]%d MB/s[/color] (variety: %d)" % [variety_color, effective, variety]))
+		if b.scanner_filter_sub_type >= 0:
+			var sc: int = b.scanner_filter_sub_type / 4
+			var so: int = b.scanner_filter_sub_type % 4
+			var st_name: String = DataEnums.sub_type_name(sc, so)
+			var sc_color: String = DataEnums.content_color_hex(sc)
+			lines.append(_stat("Right Port →", "[color=%s]%s[/color]" % [sc_color, st_name]))
+		else:
+			lines.append(_stat("Right Port →", "[color=#ffcc44]No filter (Tab)[/color]"))
+		lines.append(_stat("Bottom Port →", "All other sub-types"))
 	if def.producer:
 		lines.append(_stat("Processing", "%d production/tick" % int(b.get_effective_value("processing_rate"))))
 		var output_name: String = DataEnums.content_name(def.producer.output_content)
@@ -190,8 +209,12 @@ func _update_stats() -> void:
 		if def.storage.forward_rate > 0:
 			lines.append(_stat("Transfer", "%d MB/s" % int(def.storage.forward_rate)))
 	if def.processor:
-		lines.append(_stat("Throughput", "%d MB/s" % int(b.get_effective_value("processing_rate"))))
 		if def.processor.rule == "separator":
+			var variety: int = _count_stored_variety(b, "state")
+			var base: float = def.processor.base_throughput
+			var effective: int = maxi(1, int(base / float(maxi(variety, 1))))
+			var variety_color: String = "#44ff88" if variety <= 1 else ("#ffcc44" if variety <= 2 else "#ff6644")
+			lines.append(_stat("Throughput", "[color=%s]%d MB/s[/color] (variety: %d)" % [variety_color, effective, variety]))
 			var filter_name: String
 			if b.separator_mode == "content":
 				filter_name = DataEnums.content_name(b.separator_filter_value)
@@ -199,6 +222,8 @@ func _update_stats() -> void:
 				filter_name = DataEnums.state_name(b.separator_filter_value)
 			lines.append(_stat("Right Port →", "[color=#44ff88]%s[/color]" % filter_name))
 			lines.append(_stat("Bottom Port →", "All other data"))
+		else:
+			lines.append(_stat("Throughput", "%d MB/s" % int(b.get_effective_value("processing_rate"))))
 		elif def.processor.rule == "trash":
 			lines.append(_stat("Input", "All data types"))
 			lines.append(_stat("Mode", "Instant destruction"))
@@ -240,6 +265,24 @@ func _update_stats() -> void:
 			lines.append(_stat(cat_label, "T%d (%.0fx) — %s" % [tier, mult, progress_str]))
 
 	stats_label.text = "\n".join(lines)
+
+
+func _count_stored_variety(b: Node2D, mode: String) -> int:
+	## Count unique types in building's stored_data for throughput display.
+	var types: Dictionary = {}
+	for key in b.stored_data:
+		if b.stored_data[key] <= 0:
+			continue
+		match mode:
+			"content":
+				types[DataEnums.unpack_content(key)] = true
+			"state":
+				types[DataEnums.unpack_state(key)] = true
+			"sub_type":
+				var c: int = DataEnums.unpack_content(key)
+				var st: int = DataEnums.unpack_sub_type(key)
+				types[c * 4 + st] = true
+	return maxi(types.size(), 1)
 
 
 func _stat(label: String, value: String) -> String:

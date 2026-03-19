@@ -772,6 +772,12 @@ func _update_city_control() -> void:
 				connected += 1
 				break
 	_top_bar.update_city_control(connected, total)
+	# Update throughput display
+	var total_transit: int = 0
+	for conn in connection_manager.connections:
+		for ti in conn.get("transit", []):
+			total_transit += int(ti.amount)
+	_top_bar.update_throughput(total_transit)
 	# Check win condition (100% network)
 	if _level_manager:
 		_level_manager.check_win_condition(connected, total)
@@ -833,9 +839,13 @@ func _setup_upgrade_manager() -> void:
 	_upgrade_manager.tier_changed.connect(_on_upgrade_tier_changed)
 
 
-func _on_upgrade_tier_changed(_category: String, _new_tier: int) -> void:
+func _on_upgrade_tier_changed(category: String, new_tier: int) -> void:
 	if _sound_manager:
 		_sound_manager.play_tier_up()
+	# Show upgrade hint on first tier-up
+	if new_tier == 2 and _tutorial_manager:
+		var hint_text: String = "[color=#44ccff]UPGRADE:[/color] %s Tier %d! Delivering data to CT upgrades your infrastructure." % [category.capitalize(), new_tier]
+		_tutorial_manager.show_hint(hint_text, 8.0, "upgrade_first_%s" % category)
 
 
 func _on_gig_completed_autosave(_gig) -> void:

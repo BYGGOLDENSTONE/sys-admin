@@ -7,6 +7,7 @@ const DIVIDER_COLOR := Color("#00bbee40")
 var _speed_label: Label
 var _level_label: Label
 var _city_label: Label
+var _throughput_label: Label
 var _seed_label: Label
 var _dev_label: Label
 var _speed_tween: Tween = null
@@ -51,6 +52,11 @@ func _build_ui() -> void:
 	_city_label = _make_label("NETWORK: 0%", Color(0.4, 0.7, 0.9, 0.8), 14)
 	_city_label.visible = false
 	hbox.add_child(_city_label)
+
+	# Throughput
+	_throughput_label = _make_label("", Color(0.3, 0.8, 0.6, 0.8), 14)
+	_throughput_label.visible = false
+	hbox.add_child(_throughput_label)
 
 	# Spacer
 	var spacer := Control.new()
@@ -144,3 +150,18 @@ func update_city_control(connected: int, total: int) -> void:
 	# Color shifts from cool blue to bright green as coverage grows
 	var t: float = clampf(float(pct) / 100.0, 0.0, 1.0)
 	_city_label.add_theme_color_override("font_color", Color(0.3, 0.5 + t * 0.5, 0.7 + t * 0.3, 0.85))
+
+
+func update_throughput(total_transit: int) -> void:
+	if total_transit <= 0:
+		_throughput_label.visible = false
+		return
+	_throughput_label.visible = true
+	var label: String
+	if total_transit >= 1000000:
+		label = "FLOW: %.1f TB/s" % (float(total_transit) / 1000000.0)
+	elif total_transit >= 1000:
+		label = "FLOW: %.1f GB/s" % (float(total_transit) / 1000.0)
+	else:
+		label = "FLOW: %d MB/s" % total_transit
+	_throughput_label.text = label

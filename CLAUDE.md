@@ -2,7 +2,7 @@
 
 ## Mevcut Asama: v5 Tasarim Revizyonu — Implementasyon oncesi
 - **GDD:** `docs/GDD.md` (v5.0 — buyuk tasarim revizyonu)
-- **Kod durumu:** v4 Faz 1-7 TAMAMLANDI, v5 Faz 1-8 TAMAMLANDI (Tier+State, Sub-Type, Scanner, FIRE, Throughput, Olasilik, Upgrade, Port Config)
+- **Kod durumu:** v4 Faz 1-7 TAMAMLANDI, v5 Faz 1-9 TAMAMLANDI — tum fazlar kodlandi, playtest asamasinda
 - **Hedef:** Steam Next Fest icin oynanabilir, polished, v5 mekanikli demo
 - **Ticari hedef:** $9.99 fiyat noktasina yakisan kalite ve guven hissi
 
@@ -238,7 +238,7 @@ Her faz sonunda oyun **playable state**'te kalmali. Fazlar sirayla yapilir, bagi
 
 ---
 
-#### FAZ 9: Gorsel + UI + Ses Guncellemeleri
+#### FAZ 9: Gorsel + UI + Ses Guncellemeleri ✓ TAMAMLANDI
 **Amac:** FIRE gorselleri, throughput gostergeleri, upgrade UI polish, network throughput metrigi
 **Bagimlilik:** Faz 4-8 tamamlanmis olmali
 

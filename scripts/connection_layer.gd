@@ -241,8 +241,21 @@ func _draw_connection(conn: Dictionary, hovered: bool) -> void:
 	if hovered:
 		draw_polyline(points, HOVER_COLOR, HOVER_WIDTH * zoom_scale, true)
 
-	# Fixed neon cyan — transit data shows activity
-	draw_polyline(points, CABLE_COLOR, core_w, true)
+	# Cable color based on transit load (green→yellow→red)
+	var cable_col: Color = CABLE_COLOR
+	var transit: Array = conn.get("transit", [])
+	if not transit.is_empty():
+		var total: int = 0
+		for ti in transit:
+			total += int(ti.amount)
+		var load_ratio: float = clampf(float(total) / 50.0, 0.0, 1.0)  # 50 = bandwidth reference
+		if load_ratio > 0.7:
+			cable_col = Color(1.0, 0.3, 0.2, 0.85)   # Red — near capacity
+		elif load_ratio > 0.3:
+			cable_col = Color(1.0, 0.8, 0.2, 0.8)     # Yellow — moderate
+		else:
+			cable_col = Color(0.2, 0.9, 0.5, 0.75)     # Green — light load
+	draw_polyline(points, cable_col, core_w, true)
 
 
 func _build_polyline(conn: Dictionary) -> PackedVector2Array:

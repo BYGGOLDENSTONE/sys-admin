@@ -106,6 +106,11 @@ var _building_hints: Dictionary = {
 		"text": "[color=#ffcc44]ENCRYPTOR[/color] unlocked — re-encrypts processed data.\nData: [color=#00ddff]left[/color]  |  Key: [color=#00ddff]top[/color]  |  Output: [color=#00ddff]right[/color]",
 		"duration": 8.0,
 	},
+	"Scanner": {
+		"id": "unlock_scanner",
+		"text": "[color=#ffcc44]SCANNER[/color] unlocked — filters data by [color=#00ddff]sub-type[/color].\nPress [color=#ffcc44]TAB[/color] to cycle sub-types. Pre-filter for best throughput!",
+		"duration": 8.0,
+	},
 }
 
 
