@@ -152,8 +152,6 @@ func _build_ui() -> void:
 	tab_row.add_child(_tab_main_btn)
 	_tab_side_btn = _create_tab_btn("SIDE", 1)
 	tab_row.add_child(_tab_side_btn)
-	_tab_upgrade_btn = _create_tab_btn("UPGRADES", 2)
-	tab_row.add_child(_tab_upgrade_btn)
 
 	_tab_row_ref = tab_row
 
@@ -290,12 +288,8 @@ func _switch_tab(tab_idx: int) -> void:
 func _update_tab_visuals() -> void:
 	_style_tab_btn(_tab_main_btn, _active_tab == 0)
 	_style_tab_btn(_tab_side_btn, _active_tab == 1)
-	_style_tab_btn(_tab_upgrade_btn, _active_tab == 2)
 	_main_container.visible = (_active_tab == 0)
 	_side_container.visible = (_active_tab == 1)
-	_upgrade_container.visible = (_active_tab == 2)
-	if _active_tab == 2:
-		_refresh_upgrade_ui()
 
 
 func _update_tab_counts() -> void:
@@ -762,6 +756,12 @@ func show_building_info(building: Node2D) -> void:
 	_info_title.text = building.definition.building_name
 	_info_title.add_theme_color_override("font_color", building.definition.color)
 	_info_desc.text = building.definition.description
+	# Show upgrade buttons inline for CT
+	var is_ct: bool = building.definition.category == "terminal"
+	if is_ct and _upgrade_container.get_parent() != _info_container:
+		_upgrade_container.get_parent().remove_child(_upgrade_container)
+		_info_container.add_child(_upgrade_container)
+	_upgrade_container.visible = is_ct
 	_show_info_overlay()
 	_update_info()
 
@@ -782,6 +782,11 @@ func hide_info() -> void:
 	_info_active = false
 	_info_target = null
 	_info_container.visible = false
+	# Return upgrade container to scroll if it was reparented
+	if _upgrade_container.get_parent() == _info_container:
+		_info_container.remove_child(_upgrade_container)
+		_scroll.add_child(_upgrade_container)
+	_upgrade_container.visible = false
 	_tab_row_ref.visible = true
 	_scroll.visible = true
 	_divider.visible = true
@@ -878,10 +883,11 @@ func _update_info_building(lines: PackedStringArray, b: Node2D, def: BuildingDef
 			var label: String = DataEnums.data_label(c, s, DataEnums.unpack_tier(key), DataEnums.unpack_tags(key))
 			lines.append("  [color=%s]%d[/color] [color=%s]%s[/color]" % [DataEnums.state_color_hex(s), b.stored_data[key], DataEnums.content_color_hex(c), label])
 
-	# CT upgrade hint
-	if def.category == "terminal":
+	# CT: show upgrades inline
+	if def.category == "terminal" and _upgrade_manager:
 		lines.append("")
-		lines.append("[color=#44ccff]Check UPGRADES tab for tier progress[/color]")
+		lines.append("[color=#44ccff]── UPGRADES ──[/color]")
+		_refresh_upgrade_ui()
 
 
 func _update_info_source(lines: PackedStringArray, src: Node2D, def) -> void:
