@@ -70,6 +70,8 @@ var _detail_upgrade_dots: HBoxContainer = null
 var _detail_upgrade_stat: RichTextLabel = null
 var _detail_upgrade_btn: Button = null
 var _detail_upgrade_cap: Label = null
+var _ct_claim_container: VBoxContainer = null
+var _ct_claim_buttons: Dictionary = {}  # category → Button
 var _selected_building: Node2D = null
 var _in_detail_mode: bool = false
 
@@ -348,6 +350,41 @@ func _build_detail_ui() -> void:
 	_detail_upgrade_cap.visible = false
 	_detail_container.add_child(_detail_upgrade_cap)
 
+	# CT Upgrade claim buttons
+	_ct_claim_container = VBoxContainer.new()
+	_ct_claim_container.visible = false
+	_ct_claim_container.add_theme_constant_override("separation", 4)
+	_detail_container.add_child(_ct_claim_container)
+	var cat_labels: Dictionary = {"routing": "Routing", "decryption": "Decryption", "recovery": "Recovery", "bandwidth": "Bandwidth"}
+	for cat in ["routing", "decryption", "recovery", "bandwidth"]:
+		var btn := Button.new()
+		btn.text = "%s — CLAIM" % cat_labels[cat]
+		btn.add_theme_font_size_override("font_size", 13)
+		btn.add_theme_color_override("font_color", Color(0.2, 0.9, 0.6))
+		var style := StyleBoxFlat.new()
+		style.bg_color = Color(0.05, 0.12, 0.15, 0.9)
+		style.border_color = Color(0.2, 0.7, 0.5, 0.6)
+		style.set_border_width_all(1)
+		style.set_corner_radius_all(3)
+		style.set_content_margin_all(6)
+		btn.add_theme_stylebox_override("normal", style)
+		var hover_style := style.duplicate()
+		hover_style.bg_color = Color(0.08, 0.18, 0.2, 0.95)
+		hover_style.border_color = Color(0.3, 0.9, 0.6, 0.8)
+		btn.add_theme_stylebox_override("hover", hover_style)
+		var disabled_style := style.duplicate()
+		disabled_style.bg_color = Color(0.04, 0.06, 0.08, 0.6)
+		disabled_style.border_color = Color(0.2, 0.25, 0.3, 0.3)
+		btn.add_theme_stylebox_override("disabled", disabled_style)
+		btn.pressed.connect(_on_claim_pressed.bind(cat))
+		_ct_claim_container.add_child(btn)
+		_ct_claim_buttons[cat] = btn
+
+
+func _on_claim_pressed(category: String) -> void:
+	if _upgrade_manager and _upgrade_manager.claim_tier_up(category):
+		_update_detail()
+
 
 func setup_detail(sim_manager: Node) -> void:
 	_simulation_manager = sim_manager
@@ -503,8 +540,10 @@ func _update_detail() -> void:
 			lines.append("[color=#888888]Merging:[/color] ← Left + ↑ Top → Right")
 		elif def.processor.rule == "trash":
 			lines.append("[color=#888888]Mode:[/color] Instant destruction")
-	# CT: show upgrade categories
-	if def.category == "terminal" and _upgrade_manager:
+	# CT: show upgrade categories + claim buttons
+	var is_ct: bool = def.category == "terminal"
+	_ct_claim_container.visible = is_ct and _upgrade_manager != null
+	if is_ct and _upgrade_manager:
 		lines.append("")
 		lines.append("[color=#44ccff]── UPGRADES ──[/color]")
 		for cat in ["routing", "decryption", "recovery", "bandwidth"]:
@@ -520,6 +559,20 @@ func _update_detail() -> void:
 				progress_str = "%d / %d MB" % [int(cum), int(next_cost)]
 			var tier_color: String = "#44ff88" if tier >= 3 else ("#ffcc44" if tier >= 2 else "#aabbcc")
 			lines.append("[color=%s]%s T%d[/color] (%.0fx) — %s" % [tier_color, cat_label, tier, mult, progress_str])
+			# Update claim button state
+			if _ct_claim_buttons.has(cat):
+				var btn: Button = _ct_claim_buttons[cat]
+				var claimable: bool = _upgrade_manager.is_claimable(cat)
+				btn.disabled = not claimable
+				if next_cost < 0:
+					btn.text = "%s — MAX" % cat_label
+					btn.disabled = true
+				elif claimable:
+					btn.text = "%s — CLAIM T%d!" % [cat_label, tier + 1]
+					btn.add_theme_color_override("font_color", Color(0.2, 1.0, 0.6))
+				else:
+					btn.text = "%s T%d — %d / %d MB" % [cat_label, tier, int(cum), int(next_cost)]
+					btn.add_theme_color_override("font_color", Color(0.4, 0.5, 0.6))
 
 	# Stored data summary
 	var total_stored: int = b.get_total_stored()

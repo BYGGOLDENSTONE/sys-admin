@@ -112,24 +112,32 @@ func get_next_tier_cost(category: String) -> float:
 
 ## --- INTERNAL ---
 
+func is_claimable(category: String) -> bool:
+	## Returns true if enough data accumulated for next tier but not yet claimed.
+	if not _state.has(category):
+		return false
+	var tier: int = _state[category].tier
+	if tier >= TIER_TABLE.size():
+		return false
+	var next_cost: float = float(TIER_TABLE[tier].cost)
+	return _state[category].cumulative_data >= next_cost
+
+
+func claim_tier_up(category: String) -> bool:
+	## Player clicks to claim tier-up. Returns true if successful.
+	if not is_claimable(category):
+		return false
+	_state[category].tier += 1
+	var new_tier: int = _state[category].tier
+	print("[Upgrade] %s → Tier %d (%.1fx) — claimed" % [category, new_tier, get_multiplier(category)])
+	tier_changed.emit(category, new_tier)
+	return true
+
+
 func _add_to_category(category: String, amount: float) -> void:
 	if not _state.has(category):
 		return
 	_state[category].cumulative_data += amount
-	_check_tier_up(category)
-
-
-func _check_tier_up(category: String) -> void:
-	var current_tier: int = _state[category].tier
-	if current_tier >= TIER_TABLE.size():
-		return
-	var next_cost: float = float(TIER_TABLE[current_tier].cost)
-	if _state[category].cumulative_data >= next_cost:
-		_state[category].tier = current_tier + 1
-		print("[Upgrade] %s → Tier %d (%.1fx)" % [category, current_tier + 1, get_multiplier(category)])
-		tier_changed.emit(category, current_tier + 1)
-		# Check for double tier-up (if massive delivery)
-		_check_tier_up(category)
 
 
 ## --- SAVE/LOAD ---
