@@ -1022,7 +1022,6 @@ func _make_color_icon(color: Color) -> ImageTexture:
 	var img := Image.create(12, 12, false, Image.FORMAT_RGBA8)
 	img.fill(color)
 	return ImageTexture.create_from_image(img)
-		_info_dropdown.selected = b.selected_tier - 1
 
 
 func _on_info_filter_changed(idx: int) -> void:
