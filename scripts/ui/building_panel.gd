@@ -72,6 +72,7 @@ var _detail_upgrade_btn: Button = null
 var _detail_upgrade_cap: Label = null
 var _ct_claim_container: VBoxContainer = null
 var _ct_claim_buttons: Dictionary = {}  # category → Button
+var _ct_claim_labels: Dictionary = {}   # category → RichTextLabel
 var _selected_building: Node2D = null
 var _in_detail_mode: bool = false
 
@@ -350,31 +351,55 @@ func _build_detail_ui() -> void:
 	_detail_upgrade_cap.visible = false
 	_detail_container.add_child(_detail_upgrade_cap)
 
-	# CT Upgrade claim buttons
+	# CT Upgrade claim area: info label + button per category
 	_ct_claim_container = VBoxContainer.new()
 	_ct_claim_container.visible = false
-	_ct_claim_container.add_theme_constant_override("separation", 4)
+	_ct_claim_container.add_theme_constant_override("separation", 2)
 	_detail_container.add_child(_ct_claim_container)
-	var cat_labels: Dictionary = {"routing": "Routing", "decryption": "Decryption", "recovery": "Recovery", "bandwidth": "Bandwidth"}
+	var cat_content_map: Dictionary = {
+		"routing": [0, 1],      # Standard, Financial
+		"decryption": [3, 5],   # Blueprint, Classified
+		"recovery": [2, 4],     # Biometric, Research
+		"bandwidth": [],
+	}
 	for cat in ["routing", "decryption", "recovery", "bandwidth"]:
+		# Info label (colored content names)
+		var info := RichTextLabel.new()
+		info.bbcode_enabled = true
+		info.fit_content = true
+		info.scroll_active = false
+		info.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		info.add_theme_font_size_override("normal_font_size", 11)
+		var content_ids: Array = cat_content_map.get(cat, [])
+		var parts: PackedStringArray = []
+		for cid in content_ids:
+			parts.append("[color=%s]%s[/color]" % [DataEnums.content_color_hex(cid), DataEnums.content_name(cid)])
+		var src_text: String = ", ".join(parts) if not parts.is_empty() else "All processed (25%)"
+		info.text = "[color=#556677]%s —[/color] %s" % [cat.capitalize(), src_text]
+		_ct_claim_container.add_child(info)
+		_ct_claim_labels[cat] = info
+		# Claim button
 		var btn := Button.new()
-		btn.text = "%s — CLAIM" % cat_labels[cat]
-		btn.add_theme_font_size_override("font_size", 13)
+		btn.text = "CLAIM"
+		btn.add_theme_font_size_override("font_size", 12)
 		btn.add_theme_color_override("font_color", Color(0.2, 0.9, 0.6))
 		var style := StyleBoxFlat.new()
 		style.bg_color = Color(0.05, 0.12, 0.15, 0.9)
 		style.border_color = Color(0.2, 0.7, 0.5, 0.6)
 		style.set_border_width_all(1)
 		style.set_corner_radius_all(3)
-		style.set_content_margin_all(6)
+		style.content_margin_left = 6
+		style.content_margin_right = 6
+		style.content_margin_top = 3
+		style.content_margin_bottom = 3
 		btn.add_theme_stylebox_override("normal", style)
 		var hover_style := style.duplicate()
 		hover_style.bg_color = Color(0.08, 0.18, 0.2, 0.95)
 		hover_style.border_color = Color(0.3, 0.9, 0.6, 0.8)
 		btn.add_theme_stylebox_override("hover", hover_style)
 		var disabled_style := style.duplicate()
-		disabled_style.bg_color = Color(0.04, 0.06, 0.08, 0.6)
-		disabled_style.border_color = Color(0.2, 0.25, 0.3, 0.3)
+		disabled_style.bg_color = Color(0.04, 0.06, 0.08, 0.5)
+		disabled_style.border_color = Color(0.15, 0.2, 0.25, 0.3)
 		btn.add_theme_stylebox_override("disabled", disabled_style)
 		btn.pressed.connect(_on_claim_pressed.bind(cat))
 		_ct_claim_container.add_child(btn)
@@ -565,20 +590,30 @@ func _update_detail() -> void:
 			for cid in source_content_ids:
 				src_names.append(DataEnums.content_name(cid))
 			var src_label: String = ", ".join(src_names) if not src_names.is_empty() else "All processed 25%"
+			# Update info label
+			if _ct_claim_labels.has(cat):
+				var info: RichTextLabel = _ct_claim_labels[cat]
+				var parts: PackedStringArray = []
+				for cid in source_content_ids:
+					parts.append("[color=%s]%s[/color]" % [DataEnums.content_color_hex(cid), DataEnums.content_name(cid)])
+				var src_text: String = ", ".join(parts) if not parts.is_empty() else "All processed (25%)"
+				var tier_color: String = "#44ff88" if tier >= 3 else ("#ffcc44" if tier >= 2 else "#aabbcc")
+				info.text = "[color=%s]%s T%d[/color] (%.0fx) — %s" % [tier_color, cat_label, tier, mult, src_text]
 			# Update claim button
 			if _ct_claim_buttons.has(cat):
 				var btn: Button = _ct_claim_buttons[cat]
 				var claimable: bool = _upgrade_manager.is_claimable(cat)
 				btn.disabled = not claimable
 				if next_cost < 0:
-					btn.text = "%s T%d — MAX" % [cat_label, tier]
+					btn.text = "MAX"
 					btn.disabled = true
+					btn.add_theme_color_override("font_color", Color(0.3, 0.4, 0.5))
 				elif claimable:
-					btn.text = "%s — CLAIM T%d!" % [cat_label, tier + 1]
+					btn.text = "CLAIM T%d!  (%d/%d MB)" % [tier + 1, int(cum), int(next_cost)]
 					btn.add_theme_color_override("font_color", Color(0.2, 1.0, 0.6))
 				else:
-					btn.text = "%s T%d — %d/%d MB\n(%s)" % [cat_label, tier, int(cum), int(next_cost), src_label]
-					btn.add_theme_color_override("font_color", Color(0.5, 0.6, 0.7))
+					btn.text = "%d / %d MB" % [int(cum), int(next_cost)]
+					btn.add_theme_color_override("font_color", Color(0.4, 0.5, 0.6))
 			# Update claim button
 			if _ct_claim_buttons.has(cat):
 				var btn: Button = _ct_claim_buttons[cat]
