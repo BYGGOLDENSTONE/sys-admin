@@ -222,8 +222,6 @@ func _update_stats() -> void:
 				filter_name = DataEnums.state_name(b.separator_filter_value)
 			lines.append(_stat("Right Port →", "[color=#44ff88]%s[/color]" % filter_name))
 			lines.append(_stat("Bottom Port →", "All other data"))
-		else:
-			lines.append(_stat("Throughput", "%d MB/s" % int(b.get_effective_value("processing_rate"))))
 		elif def.processor.rule == "trash":
 			lines.append(_stat("Input", "All data types"))
 			lines.append(_stat("Mode", "Instant destruction"))
@@ -233,6 +231,8 @@ func _update_stats() -> void:
 		elif def.processor.rule == "merger":
 			lines.append(_stat("Merging", "← Left + ↑ Top"))
 			lines.append(_stat("Output", "→ Right"))
+		else:
+			lines.append(_stat("Throughput", "%d MB/s" % int(b.get_effective_value("processing_rate"))))
 	# Upgrade info
 	if def.upgrade:
 		var upg: UpgradeComponent = def.upgrade
