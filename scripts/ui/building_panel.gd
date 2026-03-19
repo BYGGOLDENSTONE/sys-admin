@@ -656,21 +656,29 @@ func _populate_filter_dropdown(building: Node2D) -> void:
 	elif def.scanner:
 		_detail_filter_container.visible = true
 		_detail_filter_label.text = "Sub-Type Filter:"
-		# Group by content: separator header + sub-types underneath
+		# Group by content with color icons
 		var sel_idx: int = 0
 		var idx: int = 0
+		var popup: PopupMenu = _detail_filter_dropdown.get_popup()
 		for c in range(6):
 			var count: int = DataEnums.sub_type_count(c)
 			if count <= 0:
 				continue
-			# Add content header as disabled separator
+			# Content header separator
 			_detail_filter_dropdown.add_separator("— %s —" % DataEnums.content_name(c))
+			# Create color swatch icon for this content
+			var color: Color = DataEnums.content_color(c)
+			var icon: ImageTexture = _make_color_icon(color)
 			for st in range(count):
 				var pid: int = c * 4 + st
 				var stn: String = DataEnums.sub_type_name(c, st)
 				if stn == "":
 					stn = "%s #%d" % [DataEnums.content_name(c), st]
-				_detail_filter_dropdown.add_item("  %s" % stn, pid)
+				_detail_filter_dropdown.add_item(stn, pid)
+				# Set icon on the popup menu item (last added)
+				var item_idx: int = popup.item_count - 1
+				popup.set_item_icon(item_idx, icon)
+				popup.set_item_icon_max_width(item_idx, 12)
 				if pid == building.scanner_filter_sub_type:
 					sel_idx = idx
 				idx += 1
@@ -706,6 +714,12 @@ func _populate_filter_dropdown(building: Node2D) -> void:
 		_detail_filter_dropdown.selected = building.selected_tier - 1
 	else:
 		_detail_filter_container.visible = false
+
+
+static func _make_color_icon(color: Color, size: int = 12) -> ImageTexture:
+	var img := Image.create(size, size, false, Image.FORMAT_RGBA8)
+	img.fill(color)
+	return ImageTexture.create_from_image(img)
 
 
 func _on_filter_selected(index: int) -> void:
