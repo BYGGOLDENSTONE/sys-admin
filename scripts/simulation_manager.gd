@@ -450,10 +450,8 @@ func _run_sim_kernel_tick(buildings: Array[Node]) -> void:
 			var content: int = DataEnums.unpack_content(pkey)
 			var state: int = DataEnums.unpack_state(pkey)
 			var p_tags: int = DataEnums.unpack_tags(pkey)
-			# Base rule: raw Encrypted/Corrupted (no processing tags) → REJECT
+			# Base rule: raw Encrypted/Corrupted (no processing tags) → skip
 			if state != DataEnums.DataState.PUBLIC and p_tags == 0:
-				target.blocked_ports[port] = true
-				print("[PortPurity] CT port '%s' blocked — raw %s data (process first)" % [port, DataEnums.state_name(state)])
 				continue
 			if not target.port_carried_types.has(port):
 				target.port_carried_types[port] = {}
@@ -565,13 +563,13 @@ func _deliver_conn_gdscript(conn: Dictionary) -> void:
 		# Inline processor: leave in transit for rendezvous
 		if _is_inline_processor(target):
 			break
-		# CT raw data block: unprocessed Encrypted/Corrupted stays stuck in transit
-		if target.definition != null and target.definition.category == "terminal":
+		# CT raw data block: unprocessed data can't enter CT — stays in transit
+		if target.definition != null and target.definition is BuildingDefinition and target.definition.category == "terminal":
 			var ikey: int = int(item.key)
 			var d_state: int = DataEnums.unpack_state(ikey)
 			var d_tags: int = DataEnums.unpack_tags(ikey)
 			if d_state != DataEnums.DataState.PUBLIC and d_tags == 0:
-				break  # Raw data — stays at t=1.0, visually stuck
+				break  # Raw data — blocked at CT entrance
 		# Reserve capacity for secondary input (keys/fuel)
 		if not _dual_input_can_accept(target, item):
 			break
@@ -755,10 +753,18 @@ func _try_passthrough(building: Node2D, item: Dictionary) -> bool:
 	if not _output_ports.has(bid) or not _output_ports[bid].has(output_port):
 		return false
 	var out_conn: Dictionary = _cached_conns[_output_ports[bid][output_port]]
-	# Allow queueing — items pile up behind stuck front item (visual backpressure)
+	# CT acceptance check: raw Encrypted/Corrupted can't pass through to CT
+	var out_target: Node2D = out_conn.to_building
+	if is_instance_valid(out_target) and out_target.definition is BuildingDefinition and out_target.definition.category == "terminal":
+		var ikey: int = int(item.key)
+		var d_state: int = DataEnums.unpack_state(ikey)
+		var d_tags: int = DataEnums.unpack_tags(ikey)
+		if d_state != DataEnums.DataState.PUBLIC and d_tags == 0:
+			return false  # Raw data — stays in building, building fills up and stalls
+	# Cable queue limit
 	var out_transit: Array = out_conn.get("transit", [])
 	if out_transit.size() >= 8:
-		return false  # Cable queue full — backpressure stops passthrough
+		return false
 	# Forward the transit item to output cable at t=0
 	if not out_conn.has("transit"):
 		out_conn["transit"] = []
@@ -1173,18 +1179,10 @@ func _push_data_from(source: Node2D, content: int, state: int, amount: int, from
 		# Static type filter (building definition check)
 		if not target.accepts_data(content, state):
 			continue
-		# Port Purity: CT only accepts processed data
-		if target.definition.category == "terminal":
-			var port: String = conn.to_port
-			if target.blocked_ports.has(port):
-				continue
-			# Base rule: raw Encrypted/Corrupted (no processing tags) → REJECT
-			# Acceptable: Public, or any data with DECRYPTED/RECOVERED/ENCRYPTED tag
+		# CT acceptance: only processed data passes (Public, or with DECRYPTED/RECOVERED/ENCRYPTED tag)
+		if target.definition is BuildingDefinition and target.definition.category == "terminal":
 			if state != DataEnums.DataState.PUBLIC and tags == 0:
-				# Raw encrypted or corrupted — block this port
-				target.blocked_ports[port] = true
-				print("[PortPurity] CT port '%s' blocked — raw %s data (process first)" % [port, DataEnums.state_name(state)])
-				continue
+				continue  # Raw data — silently skip, stays in building's stored_data
 			# Record this data type on the cable (packed int key: content<<4|state)
 			if not target.port_carried_types.has(port):
 				target.port_carried_types[port] = {}
