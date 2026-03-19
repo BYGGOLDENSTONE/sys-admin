@@ -1052,16 +1052,20 @@ func _update_info_flow(b: Node2D) -> void:
 
 	if not input_types.is_empty():
 		lines.append("[color=#44ccff]INPUT ←[/color]")
+		var seen_input: Dictionary = {}
 		for key in input_types:
 			var c: int = DataEnums.unpack_content(key)
 			var s: int = DataEnums.unpack_state(key)
 			var st: int = DataEnums.unpack_sub_type(key)
+			var label_key: String = "%d_%d_%d" % [c, s, st]
+			if seen_input.has(label_key):
+				continue
+			seen_input[label_key] = true
 			var cc: String = DataEnums.content_color_hex(c)
 			var sc: String = DataEnums.state_color_hex(s)
 			var st_name: String = DataEnums.sub_type_name(c, st) if st >= 0 else DataEnums.content_name(c)
 			var s_name: String = DataEnums.state_name(s)
-			lines.append("  [color=%s]%d[/color] [color=%s]%s[/color] [color=%s]%s[/color]" % [
-				sc, input_types[key], cc, st_name, sc, s_name])
+			lines.append("  [color=%s]%s[/color] [color=%s]%s[/color]" % [cc, st_name, sc, s_name])
 
 	# Output: data types on cables going FROM this building
 	var output_types: Dictionary = {}
@@ -1079,17 +1083,22 @@ func _update_info_flow(b: Node2D) -> void:
 		lines.append("[color=#44ff88]OUTPUT →[/color]")
 		for port in output_types:
 			var port_label: String = port.replace("_", " ").capitalize()
-			lines.append("  [color=#667788]%s:[/color]" % port_label)
+			var seen_output: Dictionary = {}
+			var port_parts: PackedStringArray = []
 			for key in output_types[port]:
 				var c: int = DataEnums.unpack_content(key)
 				var s: int = DataEnums.unpack_state(key)
 				var st: int = DataEnums.unpack_sub_type(key)
+				var label_key: String = "%d_%d_%d" % [c, s, st]
+				if seen_output.has(label_key):
+					continue
+				seen_output[label_key] = true
 				var cc: String = DataEnums.content_color_hex(c)
 				var sc: String = DataEnums.state_color_hex(s)
 				var st_name: String = DataEnums.sub_type_name(c, st) if st >= 0 else DataEnums.content_name(c)
 				var s_name: String = DataEnums.state_name(s)
-				lines.append("    [color=%s]%d[/color] [color=%s]%s[/color] [color=%s]%s[/color]" % [
-					sc, output_types[port][key], cc, st_name, sc, s_name])
+				port_parts.append("[color=%s]%s[/color] [color=%s]%s[/color]" % [cc, st_name, sc, s_name])
+			lines.append("  [color=#667788]%s:[/color] %s" % [port_label, ", ".join(port_parts)])
 
 	_info_flow.text = "\n".join(lines)
 
