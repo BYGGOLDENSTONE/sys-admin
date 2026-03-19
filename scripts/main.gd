@@ -794,7 +794,7 @@ func _toggle_dev_mode() -> void:
 	_update_shortcut_hints()
 	# Unlock all buildings + disable gigs in dev mode
 	if _dev_mode:
-		gig_manager._unlock_all_buildings()
+		_gig_manager._unlock_all_buildings()
 		building_panel.refresh_building_list()
 	print("[Main] Dev mode: %s — all buildings %s" % [
 		"ON" if _dev_mode else "OFF",
