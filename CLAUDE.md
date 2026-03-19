@@ -276,8 +276,12 @@ Her faz sonunda oyun **playable state**'te kalmali. Fazlar sirayla yapilir, bagi
 - [ ] Gig sistemi detaylari (yol gosterici hedefler — baglanti icin yonlendirme)
 - [ ] Tutorial gig'leri FIRE/Scanner/loop/upgrade icin yeniden yazma
 - [ ] Bina acilma tetikleyicileri (gig-based kalacak, dev mode ile bypass)
-- [ ] **Network Bar hesabi:** Mevcut kod "kaynaktan kablo var mi" sayiyor. Dogru hesap: "kaynaktan CT'ye aktif veri akisi var mi" olmali (GDD tanimi: tum content tipleri CT'ye akiyor = bagli)
-- [ ] **CT Port Purity bug:** Encrypted veri direkt CT'ye kabul ediliyor. CT sadece Public, Decrypted, Recovered, Dec·Enc, Rec·Enc kabul etmeli. Encrypted/Corrupted islenmeden CT'ye giremez. Mevcut purity checker calismiyormus — kontrol edilmeli
+- [ ] **Network Bar hesabi:** Mevcut kod "kaynaktan kablo var mi" sayiyor. Dogru hesap cok daha karmasik:
+  - Bir kaynak "bagli" sayilmasi icin: o kaynaktaki TUM content tiplerinin TUM state'lerdeki verileri CT'nin kabul edecegi formda (Public/Decrypted/Recovered) CT'ye akiyor olmali
+  - Ornek: Archive'da Financial(Public+Encrypted) + Biometric(Public+Corrupted) varsa → Financial Public, Financial Decrypted, Biometric Public, Biometric Recovered hepsi CT'ye akmali
+  - Yan kaynaklar da sayilmali: Medium kaynagi besleyen Easy kaynak da "bagli" sayilir (FIRE bagimlilik zincirinin parcasi)
+  - Merger ile tek kabloda da verilebilir — onemli olan CT'ye ulasan veri tipleri
+- [x] ~~**CT Port Purity bug:**~~ DUZELTILDI — Raw Encrypted/Corrupted (tags=0) artik CT'ye giremez
 
 ### Full Game Backlog
 - Malware Cleaner + Malware state | Triple bilesik state: Enc·Cor·Mal

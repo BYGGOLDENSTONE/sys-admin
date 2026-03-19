@@ -448,10 +448,16 @@ func _run_sim_kernel_tick(buildings: Array[Node]) -> void:
 			continue
 		if target.definition.category == "terminal":
 			var port: String = conn.to_port
-			if not target.port_carried_types.has(port):
-				target.port_carried_types[port] = {}
 			var content: int = DataEnums.unpack_content(pkey)
 			var state: int = DataEnums.unpack_state(pkey)
+			var p_tags: int = DataEnums.unpack_tags(pkey)
+			# Base rule: raw Encrypted/Corrupted (no processing tags) → REJECT
+			if state != DataEnums.DataState.PUBLIC and p_tags == 0:
+				target.blocked_ports[port] = true
+				print("[PortPurity] CT port '%s' blocked — raw %s data (process first)" % [port, DataEnums.state_name(state)])
+				continue
+			if not target.port_carried_types.has(port):
+				target.port_carried_types[port] = {}
 			var type_key: int = (content << 4) | state
 			target.port_carried_types[port][type_key] = true
 			if target.purity_checker.is_valid():
@@ -1158,17 +1164,24 @@ func _push_data_from(source: Node2D, content: int, state: int, amount: int, from
 		# Static type filter (building definition check)
 		if not target.accepts_data(content, state):
 			continue
-		# Port Purity: record cable data type + check at push time (CT only)
+		# Port Purity: CT only accepts processed data
 		if target.definition.category == "terminal":
 			var port: String = conn.to_port
 			if target.blocked_ports.has(port):
+				continue
+			# Base rule: raw Encrypted/Corrupted (no processing tags) → REJECT
+			# Acceptable: Public, or any data with DECRYPTED/RECOVERED/ENCRYPTED tag
+			if state != DataEnums.DataState.PUBLIC and tags == 0:
+				# Raw encrypted or corrupted — block this port
+				target.blocked_ports[port] = true
+				print("[PortPurity] CT port '%s' blocked — raw %s data (process first)" % [port, DataEnums.state_name(state)])
 				continue
 			# Record this data type on the cable (packed int key: content<<4|state)
 			if not target.port_carried_types.has(port):
 				target.port_carried_types[port] = {}
 			var type_key: int = (content << 4) | state
 			target.port_carried_types[port][type_key] = true
-			# Check purity: if ANY recorded type doesn't match gig → block
+			# Check purity vs gig requirements
 			if target.purity_checker.is_valid():
 				var contaminated := false
 				for tk in target.port_carried_types[port]:
