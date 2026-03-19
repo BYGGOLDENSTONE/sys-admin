@@ -1,7 +1,8 @@
 class_name DualInputComponent
 extends Resource
 
-@export var processing_rate: float = 4.0  ## MB/s
+@export var processing_rate: float = 4.0  ## MB/s (base rate for tier 1)
+@export var speed_by_tier: Array[float] = [1.0, 0.5]  ## Speed multiplier per tier [T1, T2] — higher tier = slower
 @export var primary_input_states: Array[int] = []  ## Accepted states for main input (e.g. ENCRYPTED)
 @export var key_content: int = 6  ## ContentType used as key (default: KEY)
 @export var key_cost: int = 1  ## Keys consumed per data unit (base / T1)

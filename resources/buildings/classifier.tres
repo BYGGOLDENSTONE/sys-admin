@@ -8,6 +8,7 @@
 [sub_resource type="Resource" id="cls1"]
 script = ExtResource("2")
 throughput_rate = 5.0
+base_throughput = 10.0
 
 [sub_resource type="Resource" id="stor1"]
 script = ExtResource("3")

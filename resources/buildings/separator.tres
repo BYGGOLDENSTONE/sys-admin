@@ -7,6 +7,7 @@
 [sub_resource type="Resource" id="proc1"]
 script = ExtResource("2")
 processing_rate = 5.0
+base_throughput = 10.0
 input_states = Array[int]([0, 1, 2, 3])
 output_state = -1
 rule = "separator"

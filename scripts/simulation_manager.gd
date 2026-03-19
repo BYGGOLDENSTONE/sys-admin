@@ -7,6 +7,7 @@ signal speed_changed(multiplier: int, paused: bool)
 
 const TILE_SIZE: int = 64
 const TRANSIT_GRIDS_PER_SEC: float = 3.0  ## Data transit speed: 3 grid cells per second
+const CABLE_BANDWIDTH_LIMIT: int = 50  ## Max MB per cable per tick (placeholder — tune via playtest)
 
 var _tick_count: int = 0
 var speed_multiplier: int = 1
@@ -42,6 +43,11 @@ var _conn_from: Dictionary = {}    # building_instance_id → Array[int] conn in
 var _conn_to: Dictionary = {}      # building_instance_id → Array[int] conn indices
 var _output_ports: Dictionary = {} # building_instance_id → {port_name → conn_index}
 var _conn_cache_dirty: bool = true
+
+# --- THROUGHPUT BUDGET (per-tick, variety-based for filter buildings) ---
+var _filter_variety: Dictionary = {}    # bid → int variety count
+var _filter_budget: Dictionary = {}     # bid → int max items this tick
+var _filter_processed: Dictionary = {}  # bid → int items processed this tick
 
 @onready var _sim_timer: Timer = $SimTimer
 
@@ -360,6 +366,8 @@ func _on_sim_tick() -> void:
 		buildings[i].is_working = false
 	# 0. FIRE regen tick (hard/endgame sources decay progress)
 	_process_fire_regen()
+	# 0b. Compute filter variety budgets for this tick
+	_compute_filter_budgets(buildings)
 	# 1. Deliver arrived transit items to target buildings
 	_deliver_arrived()
 	# 2. Normal simulation: generate → forward → process
@@ -618,6 +626,79 @@ func _process_fire_regen() -> void:
 		_conn_cache_dirty = true  # Rebuild sim kernel meta to start/stop generation
 
 
+func _compute_filter_budgets(buildings: Array[Node]) -> void:
+	## Compute per-tick throughput budget for filter buildings based on input variety.
+	## variety = unique content (Classifier), state (Separator), or sub-type (Scanner) count
+	_filter_variety.clear()
+	_filter_budget.clear()
+	_filter_processed.clear()
+	for b in buildings:
+		var def = b.definition
+		if def == null:
+			continue
+		var bid: int = b.get_instance_id()
+		var base: float = 0.0
+		var variety: int = 1
+		if def.classifier != null:
+			base = def.classifier.base_throughput
+			variety = _count_input_variety(b, "content")
+		elif def.scanner != null:
+			base = def.scanner.base_throughput
+			variety = _count_input_variety(b, "sub_type")
+		elif def.processor != null and def.processor.rule == "separator":
+			base = def.processor.base_throughput
+			variety = _count_input_variety(b, "state")
+		else:
+			continue
+		_filter_variety[bid] = variety
+		_filter_budget[bid] = maxi(1, int(base / float(variety)))
+		_filter_processed[bid] = 0
+
+
+func _count_input_variety(b: Node2D, mode: String) -> int:
+	## Count unique types in stored_data + incoming transit items.
+	var types: Dictionary = {}
+	# From stored_data
+	for key in b.stored_data:
+		if b.stored_data[key] <= 0:
+			continue
+		types[_extract_variety_key(key, mode)] = true
+	# From incoming transit items
+	var bid: int = b.get_instance_id()
+	for ci in _conn_to.get(bid, []):
+		if ci >= _cached_conns.size():
+			continue
+		var conn: Dictionary = _cached_conns[ci]
+		for item in conn.get("transit", []):
+			types[_extract_variety_key(int(item.key), mode)] = true
+	return maxi(types.size(), 1)
+
+
+func _extract_variety_key(packed_key: int, mode: String) -> int:
+	match mode:
+		"content":
+			return DataEnums.unpack_content(packed_key)
+		"state":
+			return DataEnums.unpack_state(packed_key)
+		"sub_type":
+			var c: int = DataEnums.unpack_content(packed_key)
+			var st: int = DataEnums.unpack_sub_type(packed_key)
+			return c * 4 + st if st >= 0 else c * 4
+	return 0
+
+
+func _get_dominant_tier(b: Node2D) -> int:
+	## Returns the highest tier among stored data items (for tier-based speed scaling).
+	var max_tier: int = 0
+	for key in b.stored_data:
+		if b.stored_data[key] <= 0:
+			continue
+		var t: int = DataEnums.unpack_tier(key)
+		if t > max_tier:
+			max_tier = t
+	return max_tier
+
+
 func _dual_input_can_accept(target: Node2D, item: Dictionary) -> bool:
 	## For dual-input buildings (Decryptor, Encryptor, Recoverer), reserve capacity
 	## for secondary input (keys/fuel). Primary data stops at 75% to prevent deadlock.
@@ -647,8 +728,14 @@ func _try_passthrough(building: Node2D, item: Dictionary) -> bool:
 	var output_port: String = _get_passthrough_port(building, item)
 	if output_port == "":
 		return false
-	# Find output connection for this port (O(1) cache lookup)
+	# Throughput budget check for filter buildings (variety-based slowdown)
 	var bid: int = building.get_instance_id()
+	if _filter_budget.has(bid):
+		var budget: int = _filter_budget[bid]
+		var used: int = _filter_processed.get(bid, 0)
+		if used >= budget:
+			return false  # Over budget — data queues up (backpressure)
+	# Find output connection for this port (O(1) cache lookup)
 	if not _output_ports.has(bid) or not _output_ports[bid].has(output_port):
 		return false
 	var out_conn: Dictionary = _cached_conns[_output_ports[bid][output_port]]
@@ -657,8 +744,12 @@ func _try_passthrough(building: Node2D, item: Dictionary) -> bool:
 	# Forward the transit item to output cable at t=0
 	if not out_conn.has("transit"):
 		out_conn["transit"] = []
-	out_conn["transit"].append({"key": int(item.key), "amount": int(item.amount), "t": 0.0})
+	var amt: int = int(item.amount)
+	out_conn["transit"].append({"key": int(item.key), "amount": amt, "t": 0.0})
 	building.is_working = true
+	# Deduct from throughput budget
+	if _filter_budget.has(bid):
+		_filter_processed[bid] = _filter_processed.get(bid, 0) + amt
 	return true
 
 
@@ -1051,6 +1142,12 @@ func _push_data_from(source: Node2D, content: int, state: int, amount: int, from
 		# Skip stalled cables (front item waiting at destination)
 		if _is_transit_stalled(conn):
 			continue
+		# Cable bandwidth limit — cap total data in transit per cable
+		var transit_total: int = 0
+		for ti in conn.get("transit", []):
+			transit_total += int(ti.amount)
+		if transit_total >= CABLE_BANDWIDTH_LIMIT:
+			continue
 		# Static type filter (building definition check)
 		if not target.accepts_data(content, state):
 			continue
@@ -1147,24 +1244,42 @@ func _update_processing(buildings: Array[Node]) -> void:
 		# Component-based dispatch: check dedicated components first
 		if b.definition.dual_input != null:
 			var max_process: int = int(b.get_effective_value("processing_rate"))
+			# Tier-based speed: higher tier = slower processing
+			var dual: DualInputComponent = b.definition.dual_input
+			var dom_tier: int = _get_dominant_tier(b)
+			if dom_tier > 0 and dom_tier <= dual.speed_by_tier.size():
+				max_process = maxi(1, int(float(max_process) * dual.speed_by_tier[dom_tier - 1]))
 			processed = _process_dual_input(b, max_process)
 		elif b.definition.producer != null:
 			var max_process: int = int(b.get_effective_value("processing_rate"))
+			# Tier-based speed: higher tier recipe = slower production
+			var prod: ProducerComponent = b.definition.producer
+			var sel_tier: int = b.selected_tier
+			if sel_tier > 0 and sel_tier <= prod.speed_by_tier.size():
+				max_process = maxi(1, int(float(max_process) * prod.speed_by_tier[sel_tier - 1]))
 			processed = _process_producer(b, max_process)
 		elif b.definition.classifier != null:
-			processed = _process_classifier(b, int(b.get_effective_value("processing_rate")))
+			var bid: int = b.get_instance_id()
+			var remaining: int = maxi(0, _filter_budget.get(bid, 10) - _filter_processed.get(bid, 0))
+			processed = _process_classifier(b, remaining)
+			_filter_processed[bid] = _filter_processed.get(bid, 0) + processed
 		elif b.definition.scanner != null:
-			processed = _process_scanner(b, int(b.definition.scanner.throughput_rate))
+			var bid: int = b.get_instance_id()
+			var remaining: int = maxi(0, _filter_budget.get(bid, 10) - _filter_processed.get(bid, 0))
+			processed = _process_scanner(b, remaining)
+			_filter_processed[bid] = _filter_processed.get(bid, 0) + processed
 		elif b.definition.splitter != null:
 			processed = _process_splitter(b, int(b.definition.splitter.throughput_rate))
 		elif b.definition.merger != null:
 			processed = _process_merger(b, int(b.definition.merger.throughput_rate))
 		elif b.definition.processor != null:
 			var proc: ProcessorComponent = b.definition.processor
-			var max_process: int = int(b.get_effective_value("processing_rate"))
 			match proc.rule:
 				"separator":
-					processed = _process_separator(b, proc, max_process)
+					var bid: int = b.get_instance_id()
+					var remaining: int = maxi(0, _filter_budget.get(bid, 10) - _filter_processed.get(bid, 0))
+					processed = _process_separator(b, proc, remaining)
+					_filter_processed[bid] = _filter_processed.get(bid, 0) + processed
 				"trash":
 					processed = _process_trash(b)
 		else:

@@ -2,7 +2,7 @@
 
 ## Mevcut Asama: v5 Tasarim Revizyonu — Implementasyon oncesi
 - **GDD:** `docs/GDD.md` (v5.0 — buyuk tasarim revizyonu)
-- **Kod durumu:** v4 Faz 1-7 TAMAMLANDI, v5 Faz 1-4 TAMAMLANDI (Tier+State, Sub-Type, Scanner, FIRE)
+- **Kod durumu:** v4 Faz 1-7 TAMAMLANDI, v5 Faz 1-5 TAMAMLANDI (Tier+State, Sub-Type, Scanner, FIRE, Throughput)
 - **Hedef:** Steam Next Fest icin oynanabilir, polished, v5 mekanikli demo
 - **Ticari hedef:** $9.99 fiyat noktasina yakisan kalite ve guven hissi
 
@@ -168,7 +168,7 @@ Her faz sonunda oyun **playable state**'te kalmali. Fazlar sirayla yapilir, bagi
 
 ---
 
-#### FAZ 5: Throughput Sistemi
+#### FAZ 5: Throughput Sistemi ✓ TAMAMLANDI
 **Amac:** Filtre hizi (variety), isleme hizi (bit-depth/severity), kablo kapasitesi
 **Bagimlilik:** Faz 1 (isim degisiklikleri)
 

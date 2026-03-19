@@ -8,6 +8,7 @@
 [sub_resource type="Resource" id="dual1"]
 script = ExtResource("2")
 processing_rate = 4.0
+speed_by_tier = Array[float]([1.0, 0.5])
 primary_input_states = Array[int]([1, 4])
 key_content = 6
 key_cost = 1
