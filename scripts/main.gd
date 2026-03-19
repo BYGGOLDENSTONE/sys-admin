@@ -852,6 +852,8 @@ func _setup_upgrade_manager() -> void:
 	building_panel._upgrade_manager = _upgrade_manager
 	if _gig_panel:
 		_gig_panel._upgrade_manager = _upgrade_manager
+		_gig_panel._simulation_manager = simulation_manager
+		_gig_panel._connection_manager = connection_manager
 	# Wire tier-up sound
 	_upgrade_manager.tier_changed.connect(_on_upgrade_tier_changed)
 

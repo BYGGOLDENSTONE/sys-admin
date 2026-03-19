@@ -50,10 +50,14 @@ var _info_container: VBoxContainer = null
 var _info_title: Label = null
 var _info_desc: Label = null
 var _info_stats: RichTextLabel = null
+var _info_flow: RichTextLabel = null  ## Input/output data flow display
+var _info_dropdown: OptionButton = null  ## Filter selection dropdown
 var _info_back_btn: Button = null
 var _info_active: bool = false
 var _info_target: Node2D = null  ## Currently inspected building or source
 var _tab_row_ref: HBoxContainer = null
+var _simulation_manager: Node = null
+var _connection_manager: Node = null
 var _no_main_label: Label = null
 var _no_side_label: Label = null
 var _main_count_pending: int = 0
@@ -192,6 +196,20 @@ func _build_ui() -> void:
 	_info_stats.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_info_stats.add_theme_font_size_override("normal_font_size", 14)
 	_info_container.add_child(_info_stats)
+	# Filter dropdown (shown for Classifier/Separator/Scanner/Producer)
+	_info_dropdown = OptionButton.new()
+	_info_dropdown.add_theme_font_size_override("font_size", 14)
+	_info_dropdown.visible = false
+	_info_dropdown.item_selected.connect(_on_info_filter_changed)
+	_info_container.add_child(_info_dropdown)
+	# Data flow display (input → output)
+	_info_flow = RichTextLabel.new()
+	_info_flow.bbcode_enabled = true
+	_info_flow.fit_content = true
+	_info_flow.scroll_active = false
+	_info_flow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_info_flow.add_theme_font_size_override("normal_font_size", 13)
+	_info_container.add_child(_info_flow)
 
 	# Scroll container — fills remaining space
 	_scroll = ScrollContainer.new()
@@ -813,8 +831,12 @@ func _update_info() -> void:
 	var def = _info_target.definition
 	if def is BuildingDefinition:
 		_update_info_building(lines, _info_target, def)
+		_populate_info_dropdown(_info_target, def)
+		_update_info_flow(_info_target)
 	else:
 		_update_info_source(lines, _info_target, def)
+		_info_dropdown.visible = false
+		_info_flow.text = ""
 	_info_stats.text = "\n".join(lines)
 
 
@@ -935,6 +957,141 @@ func _update_info_source(lines: PackedStringArray, src: Node2D, def) -> void:
 			var c: int = int(entry.get("content", 0))
 			var st: int = int(entry.get("sub_type", 0))
 			lines.append("  [color=%s]%s[/color]" % [DataEnums.content_color_hex(c), DataEnums.sub_type_name(c, st)])
+
+
+# ── Filter Dropdown + Data Flow ────────────────────────────────
+
+func _populate_info_dropdown(b: Node2D, def: BuildingDefinition) -> void:
+	_info_dropdown.clear()
+	_info_dropdown.visible = false
+	if def.classifier:
+		_info_dropdown.visible = true
+		for c in range(6):  # 6 content types
+			_info_dropdown.add_item(DataEnums.content_name(c), c)
+		_info_dropdown.selected = b.classifier_filter_content
+	elif def.processor and def.processor.rule == "separator":
+		_info_dropdown.visible = true
+		if b.separator_mode == "state":
+			for s in [0, 1, 2]:
+				_info_dropdown.add_item(DataEnums.state_name(s), s)
+			var idx: int = [0, 1, 2].find(b.separator_filter_value)
+			_info_dropdown.selected = maxi(idx, 0)
+		else:
+			for c in range(6):
+				_info_dropdown.add_item(DataEnums.content_name(c), c)
+			_info_dropdown.selected = b.separator_filter_value
+	elif def.scanner:
+		_info_dropdown.visible = true
+		# Show detected sub-types from stored data + transit
+		var seen: Dictionary = {}
+		for key in b.stored_data:
+			if b.stored_data[key] > 0:
+				var c: int = DataEnums.unpack_content(key)
+				var st: int = DataEnums.unpack_sub_type(key)
+				if st >= 0:
+					seen[c * 4 + st] = true
+		# Add items
+		var idx: int = 0
+		var sel: int = 0
+		for pid in seen:
+			var c: int = pid / 4
+			var st: int = pid % 4
+			var name: String = DataEnums.sub_type_name(c, st)
+			if name.is_empty():
+				name = "%s #%d" % [DataEnums.content_name(c), st]
+			_info_dropdown.add_item(name, pid)
+			if pid == b.scanner_filter_sub_type:
+				sel = idx
+			idx += 1
+		if _info_dropdown.item_count > 0:
+			_info_dropdown.selected = sel
+	elif def.producer and def.producer.max_tier > 1:
+		_info_dropdown.visible = true
+		for t in range(1, def.producer.max_tier + 1):
+			_info_dropdown.add_item("Tier %d" % t, t)
+		_info_dropdown.selected = b.selected_tier - 1
+
+
+func _on_info_filter_changed(idx: int) -> void:
+	if _info_target == null or not is_instance_valid(_info_target):
+		return
+	var def = _info_target.definition
+	if not (def is BuildingDefinition):
+		return
+	var value: int = _info_dropdown.get_item_id(idx)
+	if def.classifier:
+		_info_target.classifier_filter_content = value
+	elif def.processor and def.processor.rule == "separator":
+		_info_target.separator_filter_value = value
+	elif def.scanner:
+		_info_target.scanner_filter_sub_type = value
+	elif def.producer:
+		_info_target.selected_tier = value
+	_update_info()
+
+
+func _update_info_flow(b: Node2D) -> void:
+	## Show input data types and output data types based on connections.
+	if _connection_manager == null:
+		_info_flow.text = ""
+		return
+	var bid: int = b.get_instance_id()
+	var lines: PackedStringArray = []
+
+	# Input: data types on cables coming INTO this building
+	var input_types: Dictionary = {}  # packed_key → total amount
+	for conn in _connection_manager.connections:
+		if conn.to_building == b:
+			for ti in conn.get("transit", []):
+				var key: int = int(ti.key)
+				input_types[key] = input_types.get(key, 0) + int(ti.amount)
+	# Also count stored data as "input waiting"
+	for key in b.stored_data:
+		if b.stored_data[key] > 0:
+			input_types[key] = input_types.get(key, 0) + b.stored_data[key]
+
+	if not input_types.is_empty():
+		lines.append("[color=#44ccff]INPUT ←[/color]")
+		for key in input_types:
+			var c: int = DataEnums.unpack_content(key)
+			var s: int = DataEnums.unpack_state(key)
+			var st: int = DataEnums.unpack_sub_type(key)
+			var cc: String = DataEnums.content_color_hex(c)
+			var sc: String = DataEnums.state_color_hex(s)
+			var st_name: String = DataEnums.sub_type_name(c, st) if st >= 0 else DataEnums.content_name(c)
+			var s_name: String = DataEnums.state_name(s)
+			lines.append("  [color=%s]%d[/color] [color=%s]%s[/color] [color=%s]%s[/color]" % [
+				sc, input_types[key], cc, st_name, sc, s_name])
+
+	# Output: data types on cables going FROM this building
+	var output_types: Dictionary = {}
+	for conn in _connection_manager.connections:
+		if conn.from_building == b:
+			for ti in conn.get("transit", []):
+				var key: int = int(ti.key)
+				var port: String = conn.from_port
+				if not output_types.has(port):
+					output_types[port] = {}
+				output_types[port][key] = output_types[port].get(key, 0) + int(ti.amount)
+
+	if not output_types.is_empty():
+		lines.append("")
+		lines.append("[color=#44ff88]OUTPUT →[/color]")
+		for port in output_types:
+			var port_label: String = port.replace("_", " ").capitalize()
+			lines.append("  [color=#667788]%s:[/color]" % port_label)
+			for key in output_types[port]:
+				var c: int = DataEnums.unpack_content(key)
+				var s: int = DataEnums.unpack_state(key)
+				var st: int = DataEnums.unpack_sub_type(key)
+				var cc: String = DataEnums.content_color_hex(c)
+				var sc: String = DataEnums.state_color_hex(s)
+				var st_name: String = DataEnums.sub_type_name(c, st) if st >= 0 else DataEnums.content_name(c)
+				var s_name: String = DataEnums.state_name(s)
+				lines.append("    [color=%s]%d[/color] [color=%s]%s[/color] [color=%s]%s[/color]" % [
+					sc, output_types[port][key], cc, st_name, sc, s_name])
+
+	_info_flow.text = "\n".join(lines)
 
 
 # ── Upgrade Tab ────────────────────────────────────────────────
