@@ -455,12 +455,12 @@ func _run_sim_kernel_tick(buildings: Array[Node]) -> void:
 				continue
 			if not target.port_carried_types.has(port):
 				target.port_carried_types[port] = {}
-			var type_key: int = (content << 4) | state
+			var type_key: int = (content << 8) | (state << 4) | p_tags
 			target.port_carried_types[port][type_key] = true
 			if target.purity_checker.is_valid():
 				var contaminated := false
 				for tk in target.port_carried_types[port]:
-					if not target.purity_checker.call(tk >> 4, tk & 0xF):
+					if not target.purity_checker.call((tk >> 8) & 0xF, (tk >> 4) & 0xF, tk & 0xF):
 						contaminated = true
 						break
 				if contaminated:
@@ -1183,17 +1183,17 @@ func _push_data_from(source: Node2D, content: int, state: int, amount: int, from
 		if target.definition is BuildingDefinition and target.definition.category == "terminal":
 			if state != DataEnums.DataState.PUBLIC and tags == 0:
 				continue  # Raw data — silently skip, stays in building's stored_data
-			# Record this data type on the cable (packed int key: content<<4|state)
+			# Record this data type on the cable (packed int key: content<<8|state<<4|tags)
 			var port: String = conn.to_port
 			if not target.port_carried_types.has(port):
 				target.port_carried_types[port] = {}
-			var type_key: int = (content << 4) | state
+			var type_key: int = (content << 8) | (state << 4) | tags
 			target.port_carried_types[port][type_key] = true
 			# Check purity vs gig requirements
 			if target.purity_checker.is_valid():
 				var contaminated := false
 				for tk in target.port_carried_types[port]:
-					if not target.purity_checker.call(tk >> 4, tk & 0xF):
+					if not target.purity_checker.call((tk >> 8) & 0xF, (tk >> 4) & 0xF, tk & 0xF):
 						contaminated = true
 						break
 				if contaminated:

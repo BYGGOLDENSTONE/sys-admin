@@ -424,13 +424,10 @@ func _restore_buildings(buildings_data: Array) -> Dictionary:
 				ikey = DataEnums.pack_key(c, DataEnums.DataState.CORRUPTED, t, tg)
 			building.stored_data[ikey] = int(saved_data[key])
 
-		# Restore CT port purity state
-		var saved_blocked: Dictionary = entry.get("blocked_ports", {})
-		if not saved_blocked.is_empty():
-			building.blocked_ports = saved_blocked.duplicate()
-		var saved_pct: Dictionary = entry.get("port_carried_types", {})
-		if not saved_pct.is_empty():
-			building.port_carried_types = _deserialize_port_carried_types(saved_pct)
+		# Port purity state — clear on load, will rebuild naturally as data flows
+		# (type_key encoding changed: old=content<<4|state, new=content<<8|state<<4|tags)
+		building.blocked_ports.clear()
+		building.port_carried_types.clear()
 
 		var map_key: String = "%d_%d" % [cell.x, cell.y]
 		building_map[map_key] = building

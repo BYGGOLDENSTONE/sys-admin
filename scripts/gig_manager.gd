@@ -152,7 +152,7 @@ func evaluate_ct_connections() -> void:
 	for port in _contract_terminal.port_carried_types:
 		var types: Dictionary = _contract_terminal.port_carried_types[port]
 		for type_key in types:
-			if not _output_matches_any_requirement(type_key >> 4, type_key & 0xF):
+			if not _output_matches_any_requirement((type_key >> 8) & 0xF, (type_key >> 4) & 0xF, type_key & 0xF):
 				_contract_terminal.blocked_ports[port] = true
 				break
 
@@ -168,6 +168,7 @@ func on_ct_connection_added(conn: Dictionary) -> void:
 	var port: String = conn.to_port
 	var upstream: Node2D = conn.from_building
 	# Pre-populate for data sources (composition fully known)
+	# Sources produce raw data (tags=0), so type_key includes tags=0
 	if upstream.definition is DataSourceDefinition:
 		var src_def: DataSourceDefinition = upstream.definition
 		var sw: Dictionary = upstream.instance_state_weights if not upstream.instance_state_weights.is_empty() else src_def.state_weights
@@ -179,7 +180,7 @@ func on_ct_connection_added(conn: Dictionary) -> void:
 			for s_id in sw:
 				if sw[s_id] <= 0.0:
 					continue
-				_contract_terminal.port_carried_types[port][(int(c_id) << 4) | int(s_id)] = true
+				_contract_terminal.port_carried_types[port][(int(c_id) << 8) | (int(s_id) << 4) | 0] = true
 		# Evaluate immediately — block before first tick
 		evaluate_ct_connections()
 
@@ -196,21 +197,21 @@ func on_ct_connection_removed(conn: Dictionary) -> void:
 	print("[PortPurity] CT port '%s' cleared — cable disconnected" % port)
 
 
-## Check if a (content, state) is acceptable at the Contract Terminal.
+## Check if a (content, state, tags) is acceptable at the Contract Terminal.
 ## Used as callable (purity_checker) by SimulationManager at push time.
 ## Rules:
-##   - Content matches a gig requirement AND state matches → allow (counts toward gig)
-##   - Content matches a gig requirement BUT state is wrong → REJECT (force state filtering)
+##   - Content matches a gig requirement AND state+tags match → allow (counts toward gig)
+##   - Content matches a gig requirement BUT state or tags wrong → REJECT (force proper processing)
 ##   - Content doesn't match any gig requirement → allow (irrelevant data, will be trashed)
-func _output_matches_any_requirement(content: int, state: int) -> bool:
+func _output_matches_any_requirement(content: int, state: int, tags: int = 0) -> bool:
 	var content_relevant: bool = false
 	for gig in _active_gigs:
 		for req in gig.requirements:
 			if req.content == content:
 				content_relevant = true
-				if req.state < 0 or req.state == state:
+				if (req.state < 0 or req.state == state) and req.tags == tags:
 					return true  # Exact match — allow
-	# Content matched a requirement but state didn't → reject (force state filtering)
+	# Content matched a requirement but state/tags didn't → reject (force proper processing)
 	if content_relevant:
 		return false
 	# Content doesn't match any requirement → irrelevant, allow (will be trashed by CT)

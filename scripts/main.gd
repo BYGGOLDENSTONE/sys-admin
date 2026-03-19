@@ -352,7 +352,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		KEY_F7:
 			_run_benchmark()
 		KEY_F10:
-			_toggle_dev_mode()
+			if OS.is_debug_build():
+				_toggle_dev_mode()
 		KEY_H:
 			_toggle_shortcut_hints()
 		KEY_G:
@@ -783,14 +784,38 @@ func _setup_sound_manager() -> void:
 func _update_city_control() -> void:
 	if _top_bar == null or source_manager == null:
 		return
+	# Build reverse adjacency map: to_building → [from_buildings]
+	var reverse_adj: Dictionary = {}
+	for conn in connection_manager.connections:
+		var to_bid: int = conn.to_building.get_instance_id()
+		if not reverse_adj.has(to_bid):
+			reverse_adj[to_bid] = []
+		reverse_adj[to_bid].append(conn.from_building)
+	# BFS backward from CT to find all reachable buildings
+	var reachable: Dictionary = {}
+	var queue: Array = []
+	if _contract_terminal:
+		var ct_bid: int = _contract_terminal.get_instance_id()
+		reachable[ct_bid] = true
+		queue.append(_contract_terminal)
+	while not queue.is_empty():
+		var current: Node2D = queue.pop_front()
+		var bid: int = current.get_instance_id()
+		for from_b in reverse_adj.get(bid, []):
+			var from_bid: int = from_b.get_instance_id()
+			if not reachable.has(from_bid):
+				reachable[from_bid] = true
+				queue.append(from_b)
+	# Count sources that can reach CT with unblocked FIRE
 	var all_sources: Array[Node2D] = source_manager.get_all_sources()
 	var total: int = all_sources.size()
 	var connected: int = 0
 	for source in all_sources:
-		for conn in connection_manager.connections:
-			if conn.from_building == source:
-				connected += 1
-				break
+		if not reachable.has(source.get_instance_id()):
+			continue
+		if source.fire_active:
+			continue  # FIRE blocking output — data not flowing
+		connected += 1
 	_top_bar.update_city_control(connected, total)
 	# Update throughput display
 	var total_transit: int = 0

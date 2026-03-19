@@ -276,12 +276,9 @@ Her faz sonunda oyun **playable state**'te kalmali. Fazlar sirayla yapilir, bagi
 - [ ] Gig sistemi detaylari (yol gosterici hedefler — baglanti icin yonlendirme)
 - [ ] Tutorial gig'leri FIRE/Scanner/loop/upgrade icin yeniden yazma
 - [ ] Bina acilma tetikleyicileri (gig-based kalacak, dev mode ile bypass)
-- [ ] **Network Bar hesabi:** Mevcut kod "kaynaktan kablo var mi" sayiyor. Dogru hesap cok daha karmasik:
-  - Bir kaynak "bagli" sayilmasi icin: o kaynaktaki TUM content tiplerinin TUM state'lerdeki verileri CT'nin kabul edecegi formda (Public/Decrypted/Recovered) CT'ye akiyor olmali
-  - Ornek: Archive'da Financial(Public+Encrypted) + Biometric(Public+Corrupted) varsa → Financial Public, Financial Decrypted, Biometric Public, Biometric Recovered hepsi CT'ye akmali
-  - Yan kaynaklar da sayilmali: Medium kaynagi besleyen Easy kaynak da "bagli" sayilir (FIRE bagimlilik zincirinin parcasi)
-  - Merger ile tek kabloda da verilebilir — onemli olan CT'ye ulasan veri tipleri
-- [x] ~~**CT Port Purity bug:**~~ DUZELTILDI — Raw Encrypted/Corrupted (tags=0) artik CT'ye giremez
+- [x] ~~**Network Bar hesabi:**~~ DUZELTILDI — BFS ile CT'ye erisilebilirlik + FIRE durumu kontrolu. Eski "kablo var mi" mantigi yerine gercek graf traversal. Tam content-bazli kontrol (tum state'ler akmali) henuz yok, full release icin planli.
+- [x] ~~**CT Port Purity bug:**~~ DUZELTILDI — type_key encoding'e tags eklendi (content<<8|state<<4|tags). Raw Encrypted/Corrupted (tags=0) artik CT'ye giremez, purity checker tags-aware.
+- [x] ~~**Dev Mode release'de acik:**~~ DUZELTILDI — OS.is_debug_build() kontrolu eklendi, release build'de F10 devre disi.
 
 ### Full Game Backlog
 - Malware Cleaner + Malware state | Triple bilesik state: Enc·Cor·Mal
