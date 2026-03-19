@@ -410,14 +410,15 @@ func show_building_detail(building: Node2D) -> void:
 	# Show/hide filter dropdown
 	_populate_filter_dropdown(building)
 
-	# Show/hide upgrade section
-	var has_upgrade: bool = building.definition.upgrade != null
+	# Show/hide building upgrade section (hide for CT — CT uses claim buttons instead)
+	var is_terminal: bool = building.definition.category == "terminal"
+	var has_upgrade: bool = building.definition.upgrade != null and not is_terminal
 	_detail_upgrade_header.visible = has_upgrade
 	_detail_upgrade_dots.visible = has_upgrade
 	_detail_upgrade_stat.visible = has_upgrade
 	_detail_upgrade_btn.visible = has_upgrade
 	_detail_upgrade_cap.visible = false
-	if not has_upgrade:
+	if not has_upgrade and not is_terminal:
 		_detail_upgrade_cap.visible = true
 		_detail_upgrade_cap.text = "No upgrades available"
 
@@ -552,31 +553,32 @@ func _update_detail() -> void:
 			"recovery": [2, 4],     # Biometric, Research
 			"bandwidth": [],        # 25% of all processed
 		}
-		lines.append("")
-		lines.append("[color=#44ccff]── UPGRADES ──[/color]")
+		# Upgrade info is shown in the claim buttons below — just update button state here
 		for cat in ["routing", "decryption", "recovery", "bandwidth"]:
 			var tier: int = _upgrade_manager.get_tier(cat)
-			var mult: float = _upgrade_manager.get_multiplier(cat)
 			var cum: float = _upgrade_manager.get_cumulative(cat)
 			var next_cost: float = _upgrade_manager.get_next_tier_cost(cat)
 			var cat_label: String = cat.capitalize()
-			var tier_color: String = "#44ff88" if tier >= 3 else ("#ffcc44" if tier >= 2 else "#aabbcc")
-			var progress_str: String
-			if next_cost < 0:
-				progress_str = "[color=#44ff88]MAX[/color]"
-			else:
-				progress_str = "%d / %d MB" % [int(cum), int(next_cost)]
-			lines.append("[color=%s]%s T%d[/color] (%.0fx) — %s" % [tier_color, cat_label, tier, mult, progress_str])
-			# Detailed: show which content types feed this category (full names + colors)
+			# Build content source label
 			var source_content_ids: Array = cat_sources.get(cat, [])
-			if not source_content_ids.is_empty():
-				var content_parts: PackedStringArray = []
-				for cid in source_content_ids:
-					var cc: String = DataEnums.content_color_hex(cid)
-					content_parts.append("[color=%s]%s[/color]" % [cc, DataEnums.content_name(cid)])
-				lines.append("  [color=#556677]Needs:[/color] %s [color=#556677](Decrypted/Recovered)[/color]" % ", ".join(content_parts))
-			else:
-				lines.append("  [color=#556677]Needs:[/color] Any processed data (25%)")
+			var src_names: PackedStringArray = []
+			for cid in source_content_ids:
+				src_names.append(DataEnums.content_name(cid))
+			var src_label: String = ", ".join(src_names) if not src_names.is_empty() else "All processed 25%"
+			# Update claim button
+			if _ct_claim_buttons.has(cat):
+				var btn: Button = _ct_claim_buttons[cat]
+				var claimable: bool = _upgrade_manager.is_claimable(cat)
+				btn.disabled = not claimable
+				if next_cost < 0:
+					btn.text = "%s T%d — MAX" % [cat_label, tier]
+					btn.disabled = true
+				elif claimable:
+					btn.text = "%s — CLAIM T%d!" % [cat_label, tier + 1]
+					btn.add_theme_color_override("font_color", Color(0.2, 1.0, 0.6))
+				else:
+					btn.text = "%s T%d — %d/%d MB\n(%s)" % [cat_label, tier, int(cum), int(next_cost), src_label]
+					btn.add_theme_color_override("font_color", Color(0.5, 0.6, 0.7))
 			# Update claim button
 			if _ct_claim_buttons.has(cat):
 				var btn: Button = _ct_claim_buttons[cat]
