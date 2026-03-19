@@ -11,3 +11,5 @@ extends Resource
 @export var output_tag: int = 1  ## ProcessingTag to add (1=DECRYPTED, 2=RECOVERED, 4=ENCRYPTED)
 @export var fuel_matches_content: bool = false  ## If true, fuel must be same content as data (Recoverer mode)
 @export var required_fuel_tags: Array[int] = []  ## Per-tier required fuel tags: [T1_tags, T2_tags, T3_tags, T4_tags]
+@export var success_rate_by_tier: Array[float] = []  ## Per-tier success chance [T1, T2, T3, T4]. Empty = always succeed.
+@export var consumes_on_fail: bool = true  ## If true, key/fuel consumed even on failure

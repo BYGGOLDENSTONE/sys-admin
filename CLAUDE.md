@@ -2,7 +2,7 @@
 
 ## Mevcut Asama: v5 Tasarim Revizyonu — Implementasyon oncesi
 - **GDD:** `docs/GDD.md` (v5.0 — buyuk tasarim revizyonu)
-- **Kod durumu:** v4 Faz 1-7 TAMAMLANDI, v5 Faz 1-5 TAMAMLANDI (Tier+State, Sub-Type, Scanner, FIRE, Throughput)
+- **Kod durumu:** v4 Faz 1-7 TAMAMLANDI, v5 Faz 1-6 TAMAMLANDI (Tier+State, Sub-Type, Scanner, FIRE, Throughput, Olasilik)
 - **Hedef:** Steam Next Fest icin oynanabilir, polished, v5 mekanikli demo
 - **Ticari hedef:** $9.99 fiyat noktasina yakisan kalite ve guven hissi
 
@@ -188,7 +188,7 @@ Her faz sonunda oyun **playable state**'te kalmali. Fazlar sirayla yapilir, bagi
 
 ---
 
-#### FAZ 6: Olasiliksal Isleme (Key Basari Orani + Recovery Loop)
+#### FAZ 6: Olasiliksal Isleme (Key Basari Orani + Recovery Loop) ✓ TAMAMLANDI
 **Amac:** Decryptor Key basari orani, Recoverer kismi recovery
 **Bagimlilik:** Faz 5 (throughput sistemi)
 

@@ -1449,18 +1449,39 @@ func _process_dual_input_key_mode(b: Node2D, dual: DualInputComponent, max_proce
 		if to_process <= 0:
 			continue
 		var out_tags: int = p_tags | dual.output_tag
-		var sent: int = _push_data_from(b, p_content, out_state, to_process, "", out_tier, out_tags)
+		# Success rate check — roll per batch
+		var success_rate: float = 1.0
+		if not dual.success_rate_by_tier.is_empty() and effective_tier > 0 and effective_tier <= dual.success_rate_by_tier.size():
+			success_rate = dual.success_rate_by_tier[effective_tier - 1]
+		var succeeded: int = 0
+		var failed: int = 0
+		for _i in range(to_process):
+			if randf() < success_rate:
+				succeeded += 1
+			else:
+				failed += 1
+		# Push only succeeded data
+		var sent: int = 0
+		if succeeded > 0:
+			sent = _push_data_from(b, p_content, out_state, succeeded, "", out_tier, out_tags)
+		# Remove processed data from storage (both succeeded and failed)
+		var total_attempted: int = sent + failed
+		if total_attempted > 0:
+			b.stored_data[key] -= total_attempted
+			processed += total_attempted
+			# Consume keys for ALL attempts (success + fail)
+			fuel_consumed[key_key] = fuel_consumed.get(key_key, 0) + total_attempted * actual_key_cost
 		if sent > 0:
-			b.stored_data[key] -= sent
-			processed += sent
-			fuel_consumed[key_key] = fuel_consumed.get(key_key, 0) + sent * actual_key_cost
 			_spawn_floating_text(b, "+%d %s" % [sent, DataEnums.tags_label(out_tags)], Color("#44ff88"))
+		if failed > 0:
+			_spawn_floating_text(b, "-%d FAIL" % failed, Color("#ff4444"))
+		if total_attempted > 0:
 			if sound_manager:
 				sound_manager.play_process_event(b.definition.visual_type)
-			print("[DualInput] %s: %d MB → %s (-%d T%d Key)" % [
-				b.definition.building_name, sent,
+			print("[DualInput] %s: %d/%d success → %s (-%d T%d Key)" % [
+				b.definition.building_name, sent, total_attempted,
 				DataEnums.data_label(p_content, out_state, out_tier, out_tags),
-				sent * actual_key_cost, key_tier])
+				total_attempted * actual_key_cost, key_tier])
 	return processed
 
 
@@ -1498,18 +1519,41 @@ func _process_dual_input_fuel_mode(b: Node2D, dual: DualInputComponent, max_proc
 		if to_process <= 0:
 			continue
 		var out_tags: int = p_tags | dual.output_tag
-		var sent: int = _push_data_from(b, p_content, dual.output_state, to_process, "", p_tier, out_tags)
-		if sent > 0:
-			b.stored_data[key] -= sent
-			processed += sent
-			fuel_consumed[fuel_key] = fuel_consumed.get(fuel_key, 0) + sent * actual_fuel_cost
-			_spawn_floating_text(b, "+%d %s" % [sent, DataEnums.tags_label(out_tags)], Color("#44ff88"))
+		# Success rate check — roll per batch
+		var success_rate: float = 1.0
+		if not dual.success_rate_by_tier.is_empty() and effective_tier > 0 and effective_tier <= dual.success_rate_by_tier.size():
+			success_rate = dual.success_rate_by_tier[effective_tier - 1]
+		var succeeded: int = 0
+		var failed: int = 0
+		for _i in range(to_process):
+			if randf() < success_rate:
+				succeeded += 1
+			else:
+				failed += 1
+		# Push succeeded data as RECOVERED
+		var sent_ok: int = 0
+		if succeeded > 0:
+			sent_ok = _push_data_from(b, p_content, dual.output_state, succeeded, "", p_tier, out_tags)
+		# Push failed data back as still-CORRUPTED (player needs Separator loop)
+		var sent_fail: int = 0
+		if failed > 0:
+			sent_fail = _push_data_from(b, p_content, p_state, failed, "", p_tier, p_tags)
+		var total_out: int = sent_ok + sent_fail
+		if total_out > 0:
+			b.stored_data[key] -= total_out
+			processed += total_out
+			# Consume fuel for ALL attempts
+			fuel_consumed[fuel_key] = fuel_consumed.get(fuel_key, 0) + total_out * actual_fuel_cost
+		if sent_ok > 0:
+			_spawn_floating_text(b, "+%d %s" % [sent_ok, DataEnums.tags_label(out_tags)], Color("#44ff88"))
+		if sent_fail > 0:
+			_spawn_floating_text(b, "%d STILL CORRUPTED" % sent_fail, Color("#ff8844"))
+		if total_out > 0:
 			if sound_manager:
 				sound_manager.play_process_event(b.definition.visual_type)
-			print("[DualInput] %s: %d MB → %s (-%d fuel)" % [
-				b.definition.building_name, sent,
-				DataEnums.data_label(p_content, dual.output_state, p_tier, out_tags),
-				sent * actual_fuel_cost])
+			print("[DualInput] %s: %d/%d recovered (-%d fuel)" % [
+				b.definition.building_name, sent_ok, total_out,
+				total_out * actual_fuel_cost])
 	return processed
 
 

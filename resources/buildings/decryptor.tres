@@ -9,6 +9,8 @@
 script = ExtResource("2")
 processing_rate = 4.0
 speed_by_tier = Array[float]([1.0, 0.5])
+success_rate_by_tier = Array[float]([0.8, 0.4])
+consumes_on_fail = true
 primary_input_states = Array[int]([1, 4])
 key_content = 6
 key_cost = 1
