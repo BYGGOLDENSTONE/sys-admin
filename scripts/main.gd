@@ -343,7 +343,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			simulation_manager.set_speed(8)
 		KEY_F7:
 			_run_benchmark()
-		KEY_F9:
+		KEY_F10:
 			_toggle_dev_mode()
 		KEY_H:
 			_toggle_shortcut_hints()
