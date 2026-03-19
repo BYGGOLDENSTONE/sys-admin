@@ -343,6 +343,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			simulation_manager.set_speed(8)
 		KEY_F7:
 			_run_benchmark()
+		KEY_F9:
+			_toggle_dev_mode()
 		KEY_H:
 			_toggle_shortcut_hints()
 		KEY_G:
@@ -790,7 +792,13 @@ func _toggle_dev_mode() -> void:
 	source_manager.set_dev_mode(_dev_mode)
 	_top_bar.set_dev_visible(_dev_mode)
 	_update_shortcut_hints()
-	print("[Main] Dev mode: %s" % ("ON" if _dev_mode else "OFF"))
+	# Unlock all buildings + disable gigs in dev mode
+	if _dev_mode:
+		gig_manager._unlock_all_buildings()
+		building_panel.refresh_building_list()
+	print("[Main] Dev mode: %s — all buildings %s" % [
+		"ON" if _dev_mode else "OFF",
+		"unlocked" if _dev_mode else "normal"])
 
 
 # --- Pause Menu ---

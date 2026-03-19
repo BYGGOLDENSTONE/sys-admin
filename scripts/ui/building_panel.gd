@@ -126,6 +126,9 @@ func refresh_buttons() -> void:
 	_rebuild_buttons()
 
 
+func refresh_building_list() -> void:
+	_rebuild_buttons()
+
 func _rebuild_buttons() -> void:
 	if _button_container_ref == null:
 		return
