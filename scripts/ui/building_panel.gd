@@ -566,10 +566,9 @@ func _update_detail() -> void:
 			lines.append("[color=#888888]Merging:[/color] ← Left + ↑ Top → Right")
 		elif def.processor.rule == "trash":
 			lines.append("[color=#888888]Mode:[/color] Instant destruction")
-	# CT: show upgrade categories + claim buttons
+	# CT: upgrades moved to Contracts panel UPGRADES tab
 	var is_ct: bool = def.category == "terminal"
-	# CT: show upgrade categories with content-colored source labels
-	_ct_claim_container.visible = is_ct and _upgrade_manager != null
+	_ct_claim_container.visible = false
 	if is_ct and _upgrade_manager:
 		# Content color mapping per category
 		var cat_sources: Dictionary = {

@@ -24,6 +24,7 @@ const TAB_ACTIVE_BG := Color(0.08, 0.14, 0.22, 1.0)
 const TAB_INACTIVE_BG := Color(0.04, 0.06, 0.09, 0.5)
 
 var _gig_manager: Node = null
+var _upgrade_manager: Node = null
 var _cards: Dictionary = {}   ## order_index -> { root, bars[], name_l, gig, tab }
 var _tracked_order: int = -1
 var _stall_timers: Dictionary = {}
@@ -34,11 +35,15 @@ var _expanded: bool = false
 var _title_btn: Button = null
 
 # Tab system
-var _active_tab: int = 0  ## 0 = MAIN, 1 = SIDE
+var _active_tab: int = 0  ## 0 = MAIN, 1 = SIDE, 2 = UPGRADES
 var _tab_main_btn: Button = null
 var _tab_side_btn: Button = null
+var _tab_upgrade_btn: Button = null
 var _main_container: VBoxContainer = null
 var _side_container: VBoxContainer = null
+var _upgrade_container: VBoxContainer = null
+var _upgrade_claim_buttons: Dictionary = {}  # category → Button
+var _upgrade_info_labels: Dictionary = {}    # category → RichTextLabel
 var _no_main_label: Label = null
 var _no_side_label: Label = null
 var _main_count_pending: int = 0
@@ -137,6 +142,8 @@ func _build_ui() -> void:
 	tab_row.add_child(_tab_main_btn)
 	_tab_side_btn = _create_tab_btn("SIDE", 1)
 	tab_row.add_child(_tab_side_btn)
+	_tab_upgrade_btn = _create_tab_btn("UPGRADES", 2)
+	tab_row.add_child(_tab_upgrade_btn)
 
 	_divider = ColorRect.new()
 	_divider.color = Color(ACCENT, 0.25)
@@ -175,6 +182,14 @@ func _build_ui() -> void:
 	_no_side_label.add_theme_font_size_override("font_size", 14)
 	_no_side_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_side_container.add_child(_no_side_label)
+
+	# Upgrade container
+	_upgrade_container = VBoxContainer.new()
+	_upgrade_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_upgrade_container.add_theme_constant_override("separation", 6)
+	_upgrade_container.visible = false
+	_scroll.add_child(_upgrade_container)
+	_build_upgrade_ui()
 
 	_update_tab_visuals()
 
@@ -230,8 +245,12 @@ func _switch_tab(tab_idx: int) -> void:
 func _update_tab_visuals() -> void:
 	_style_tab_btn(_tab_main_btn, _active_tab == 0)
 	_style_tab_btn(_tab_side_btn, _active_tab == 1)
+	_style_tab_btn(_tab_upgrade_btn, _active_tab == 2)
 	_main_container.visible = (_active_tab == 0)
 	_side_container.visible = (_active_tab == 1)
+	_upgrade_container.visible = (_active_tab == 2)
+	if _active_tab == 2:
+		_refresh_upgrade_ui()
 
 
 func _update_tab_counts() -> void:
@@ -686,3 +705,108 @@ func _init_stall_tracking(order: int, req_count: int) -> void:
 	for _i in range(req_count):
 		timers.append(0.0)
 	_stall_timers[order] = timers
+
+
+# ── Upgrade Tab ────────────────────────────────────────────────
+
+func _build_upgrade_ui() -> void:
+	var cat_data: Array[Dictionary] = [
+		{"key": "routing", "label": "ROUTING", "desc": "Separator, Classifier, Scanner speed", "content": [0, 1]},
+		{"key": "decryption", "label": "DECRYPTION", "desc": "Decryptor, Encryptor, Key Forge speed + Key success rate", "content": [3, 5]},
+		{"key": "recovery", "label": "RECOVERY", "desc": "Recoverer, Repair Lab speed + Recovery success rate", "content": [2, 4]},
+		{"key": "bandwidth", "label": "BANDWIDTH", "desc": "Source generation speed + cable capacity", "content": []},
+	]
+	for cd in cat_data:
+		var cat: String = cd.key
+		# Category header with content colors
+		var header := RichTextLabel.new()
+		header.bbcode_enabled = true
+		header.fit_content = true
+		header.scroll_active = false
+		header.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		header.add_theme_font_size_override("normal_font_size", 15)
+		_upgrade_container.add_child(header)
+		_upgrade_info_labels[cat] = header
+		# Description
+		var desc := Label.new()
+		desc.text = cd.desc
+		desc.add_theme_font_size_override("font_size", 11)
+		desc.add_theme_color_override("font_color", DIM)
+		desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_upgrade_container.add_child(desc)
+		# Needs label (which content types)
+		var needs := RichTextLabel.new()
+		needs.bbcode_enabled = true
+		needs.fit_content = true
+		needs.scroll_active = false
+		needs.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		needs.add_theme_font_size_override("normal_font_size", 12)
+		var parts: PackedStringArray = []
+		for cid in cd.content:
+			parts.append("[color=%s]%s[/color]" % [DataEnums.content_color_hex(cid), DataEnums.content_name(cid)])
+		var needs_text: String = ", ".join(parts) if not parts.is_empty() else "All processed data (25%)"
+		needs.text = "[color=#556677]Needs:[/color] %s [color=#556677](Decrypted / Recovered)[/color]" % needs_text
+		_upgrade_container.add_child(needs)
+		# Claim button
+		var btn := Button.new()
+		btn.add_theme_font_size_override("font_size", 14)
+		var style := StyleBoxFlat.new()
+		style.bg_color = Color(0.05, 0.12, 0.18, 0.9)
+		style.border_color = Color(0.15, 0.5, 0.4, 0.6)
+		style.set_border_width_all(1)
+		style.set_corner_radius_all(4)
+		style.content_margin_left = 10
+		style.content_margin_right = 10
+		style.content_margin_top = 6
+		style.content_margin_bottom = 6
+		btn.add_theme_stylebox_override("normal", style)
+		var hover := style.duplicate()
+		hover.bg_color = Color(0.08, 0.2, 0.25, 0.95)
+		hover.border_color = Color(0.3, 0.9, 0.6, 0.8)
+		btn.add_theme_stylebox_override("hover", hover)
+		var dis := style.duplicate()
+		dis.bg_color = Color(0.04, 0.07, 0.1, 0.6)
+		dis.border_color = Color(0.12, 0.16, 0.2, 0.3)
+		btn.add_theme_stylebox_override("disabled", dis)
+		btn.pressed.connect(_on_upgrade_claim.bind(cat))
+		_upgrade_container.add_child(btn)
+		_upgrade_claim_buttons[cat] = btn
+		# Spacer
+		var spacer := HSeparator.new()
+		spacer.add_theme_constant_override("separation", 4)
+		spacer.add_theme_stylebox_override("separator", StyleBoxEmpty.new())
+		_upgrade_container.add_child(spacer)
+
+
+func _on_upgrade_claim(category: String) -> void:
+	if _upgrade_manager and _upgrade_manager.claim_tier_up(category):
+		_refresh_upgrade_ui()
+
+
+func _refresh_upgrade_ui() -> void:
+	if _upgrade_manager == null:
+		return
+	for cat in ["routing", "decryption", "recovery", "bandwidth"]:
+		var tier: int = _upgrade_manager.get_tier(cat)
+		var mult: float = _upgrade_manager.get_multiplier(cat)
+		var cum: float = _upgrade_manager.get_cumulative(cat)
+		var next_cost: float = _upgrade_manager.get_next_tier_cost(cat)
+		var claimable: bool = _upgrade_manager.is_claimable(cat)
+		var tier_color: String = "#44ff88" if tier >= 3 else ("#ffcc44" if tier >= 2 else "#44ccff")
+		# Update header
+		if _upgrade_info_labels.has(cat):
+			_upgrade_info_labels[cat].text = "[color=%s]%s  T%d[/color]  [color=#aabbcc](%.0fx speed)[/color]" % [tier_color, cat.to_upper(), tier, mult]
+		# Update button
+		if _upgrade_claim_buttons.has(cat):
+			var btn: Button = _upgrade_claim_buttons[cat]
+			btn.disabled = not claimable
+			if next_cost < 0:
+				btn.text = "MAXED OUT"
+				btn.disabled = true
+				btn.add_theme_color_override("font_color", Color(0.3, 0.4, 0.5))
+			elif claimable:
+				btn.text = ">> CLAIM T%d <<   (%d / %d MB)" % [tier + 1, int(cum), int(next_cost)]
+				btn.add_theme_color_override("font_color", Color(0.2, 1.0, 0.6))
+			else:
+				btn.text = "%d / %d MB" % [int(cum), int(next_cost)]
+				btn.add_theme_color_override("font_color", Color(0.4, 0.55, 0.65))
