@@ -49,6 +49,8 @@ func get_building_button_rect(building_name: String) -> Rect2:
 var _definitions: Array[BuildingDefinition] = []
 var _gig_manager: Node = null
 var _simulation_manager: Node = null
+var _upgrade_manager: Node = null
+var _selected_source: Node2D = null  ## Currently selected data source
 var _button_container_ref: VBoxContainer = null
 var _panel_tween: Tween = null
 var _is_panel_visible: bool = false
@@ -85,6 +87,8 @@ func _ready() -> void:
 func refresh_detail() -> void:
 	if _in_detail_mode and _selected_building != null:
 		_update_detail()
+	elif _in_detail_mode and _selected_source != null:
+		_update_source_detail()
 
 
 func _play_slide_in() -> void:
@@ -352,9 +356,6 @@ func setup_detail(sim_manager: Node) -> void:
 func show_building_detail(building: Node2D) -> void:
 	if building == null or building.definition == null:
 		return
-	# Don't show detail for Contract Terminal
-	if building.definition.visual_type == "terminal":
-		return
 	_selected_building = building
 	_in_detail_mode = true
 
@@ -386,8 +387,36 @@ func show_building_detail(building: Node2D) -> void:
 	_update_detail()
 
 
+func show_source_detail(source: Node2D) -> void:
+	if source == null or source.definition == null:
+		return
+	_selected_building = null
+	_selected_source = source
+	_in_detail_mode = true
+
+	_scroll_container_ref.visible = false
+	_detail_container.visible = true
+	_title_label_ref.text = "// %s" % source.definition.source_name.to_upper()
+	_title_label_ref.add_theme_color_override("font_color", source.definition.color)
+
+	_detail_name.text = source.definition.source_name
+	_detail_name.add_theme_color_override("font_color", source.definition.color)
+	_detail_desc.text = source.definition.description
+
+	# Hide building-specific UI
+	_detail_filter_container.visible = false
+	_detail_upgrade_header.visible = false
+	_detail_upgrade_dots.visible = false
+	_detail_upgrade_stat.visible = false
+	_detail_upgrade_btn.visible = false
+	_detail_upgrade_cap.visible = false
+
+	_update_source_detail()
+
+
 func hide_building_detail() -> void:
 	_selected_building = null
+	_selected_source = null
 	_in_detail_mode = false
 
 	# Swap views back
@@ -474,6 +503,24 @@ func _update_detail() -> void:
 			lines.append("[color=#888888]Merging:[/color] ← Left + ↑ Top → Right")
 		elif def.processor.rule == "trash":
 			lines.append("[color=#888888]Mode:[/color] Instant destruction")
+	# CT: show upgrade categories
+	if def.category == "terminal" and _upgrade_manager:
+		lines.append("")
+		lines.append("[color=#44ccff]── UPGRADES ──[/color]")
+		for cat in ["routing", "decryption", "recovery", "bandwidth"]:
+			var tier: int = _upgrade_manager.get_tier(cat)
+			var mult: float = _upgrade_manager.get_multiplier(cat)
+			var cum: float = _upgrade_manager.get_cumulative(cat)
+			var next_cost: float = _upgrade_manager.get_next_tier_cost(cat)
+			var cat_label: String = cat.capitalize()
+			var progress_str: String
+			if next_cost < 0:
+				progress_str = "[color=#44ff88]MAX[/color]"
+			else:
+				progress_str = "%d / %d MB" % [int(cum), int(next_cost)]
+			var tier_color: String = "#44ff88" if tier >= 3 else ("#ffcc44" if tier >= 2 else "#aabbcc")
+			lines.append("[color=%s]%s T%d[/color] (%.0fx) — %s" % [tier_color, cat_label, tier, mult, progress_str])
+
 	# Stored data summary
 	var total_stored: int = b.get_total_stored()
 	if total_stored > 0:
@@ -482,6 +529,17 @@ func _update_detail() -> void:
 			lines.append("[color=#888888]Stored:[/color] %d / %d MB" % [total_stored, cap])
 		else:
 			lines.append("[color=#888888]Stored:[/color] %d MB" % total_stored)
+		# Show data breakdown for CT
+		if def.category == "terminal":
+			for key in b.stored_data:
+				if b.stored_data[key] <= 0:
+					continue
+				var c: int = DataEnums.unpack_content(key)
+				var s: int = DataEnums.unpack_state(key)
+				var c_color: String = DataEnums.content_color_hex(c)
+				var s_color: String = DataEnums.state_color_hex(s)
+				var label: String = DataEnums.data_label(c, s, DataEnums.unpack_tier(key), DataEnums.unpack_tags(key))
+				lines.append("  [color=%s]%d[/color] [color=%s]%s[/color]" % [s_color, b.stored_data[key], c_color, label])
 
 	_detail_stats.text = "\n".join(lines)
 
@@ -642,6 +700,72 @@ func _style_cell(cell: PanelContainer, accent_color: Color) -> void:
 	cell.mouse_exited.connect(func() -> void:
 		cell.add_theme_stylebox_override("panel", normal_style)
 	)
+
+
+func _update_source_detail() -> void:
+	if _selected_source == null or _selected_source.definition == null:
+		hide_building_detail()
+		return
+	var src: Node2D = _selected_source
+	var def = src.definition
+	var lines: PackedStringArray = []
+
+	# Difficulty
+	var diff_colors: Dictionary = {"easy": "#44ff66", "medium": "#ffee44", "hard": "#ff9933", "endgame": "#ff4444"}
+	var diff_color: String = diff_colors.get(def.difficulty, "#aabbcc")
+	lines.append("[color=%s]%s[/color] | %d MB/s" % [diff_color, def.difficulty.to_upper(), int(def.bandwidth)])
+
+	# FIRE status
+	if src.has_fire():
+		var fire_color: String = "#ff4422" if src.fire_active else "#44ff66"
+		var fire_status: String = "ACTIVE" if src.fire_active else "BREACHED"
+		var fire_type_label: String = "Threshold" if def.fire_type == "threshold" else "Regenerating"
+		lines.append("[color=%s]FIRE: %s[/color] (%s)" % [fire_color, fire_status, fire_type_label])
+		for req in def.fire_requirements:
+			var st: int = int(req.sub_type)
+			var content: int = st / 4
+			var offset: int = st % 4
+			var req_name: String = DataEnums.sub_type_name(content, offset)
+			var c_color: String = DataEnums.content_color_hex(content)
+			var cur: float = src.fire_progress.get(st, 0.0)
+			var needed: float = float(req.amount)
+			lines.append("  [color=%s]%s[/color] — %d / %d MB" % [c_color, req_name, int(cur), int(needed)])
+
+	# Content weights
+	lines.append("")
+	lines.append("[color=#667788]Content:[/color]")
+	for content_id in def.content_weights:
+		var pct: int = int(def.content_weights[content_id] * 100)
+		var c: int = int(content_id)
+		var c_color: String = DataEnums.content_color_hex(c)
+		lines.append("  [color=%s]%d%% %s[/color]" % [c_color, pct, DataEnums.content_name(c)])
+
+	# State weights
+	var sw: Dictionary = src.instance_state_weights if not src.instance_state_weights.is_empty() else def.state_weights
+	lines.append("[color=#667788]State:[/color]")
+	for state_id in sw:
+		var pct: int = int(sw[state_id] * 100)
+		var s: int = int(state_id)
+		var s_color: String = DataEnums.state_color_hex(s)
+		lines.append("  [color=%s]%d%% %s[/color]" % [s_color, pct, DataEnums.state_name(s)])
+
+	# Sub-types
+	if not def.sub_type_pool.is_empty():
+		lines.append("[color=#667788]Sub-Types:[/color]")
+		for entry in def.sub_type_pool:
+			var c: int = int(entry.get("content", 0))
+			var st: int = int(entry.get("sub_type", 0))
+			var st_name: String = DataEnums.sub_type_name(c, st)
+			var c_color: String = DataEnums.content_color_hex(c)
+			lines.append("  [color=%s]%s[/color]" % [c_color, st_name])
+
+	# Ports
+	lines.append("")
+	lines.append("[color=#667788]Output Ports:[/color] %d" % src.output_ports.size())
+	if not src.fire_input_ports.is_empty():
+		lines.append("[color=#667788]FIRE Ports:[/color] %d" % src.fire_input_ports.size())
+
+	_detail_stats.text = "\n".join(lines)
 
 
 func _populate_filter_dropdown(building: Node2D) -> void:

@@ -214,8 +214,10 @@ func _ready() -> void:
 		_gig_manager.set_level(_level_manager.current_level)
 		_gig_manager.initialize()
 
-	# Wire terminal click to gig panel
+	# Wire terminal click to gig panel + source detail
 	building_manager.building_selected.connect(_on_building_selected_for_panel)
+	building_manager.source_selected.connect(building_panel.show_source_detail)
+	building_manager.building_deselected.connect(building_panel.hide_building_detail)
 
 	# Center camera on map center, zoom out a bit so ISP Backbone is visible
 	camera.position = _map_center_world
@@ -835,6 +837,7 @@ func _setup_upgrade_manager() -> void:
 		_gig_manager.upgrade_manager = _upgrade_manager
 	if _tooltip:
 		_tooltip.upgrade_manager = _upgrade_manager
+	building_panel._upgrade_manager = _upgrade_manager
 	# Wire tier-up sound
 	_upgrade_manager.tier_changed.connect(_on_upgrade_tier_changed)
 

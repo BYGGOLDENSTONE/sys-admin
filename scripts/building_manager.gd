@@ -8,6 +8,7 @@ signal building_selected(building: Node2D)
 signal building_deselected()
 signal source_hovered(source: Node2D)
 signal source_unhovered()
+signal source_selected(source: Node2D)
 signal building_state_changed()
 
 enum State { IDLE, PLACING, CONNECTING, MOVING, BOX_SELECTING, COPYING }
@@ -200,15 +201,21 @@ func _handle_idle_input(event: InputEvent) -> void:
 			_start_connecting(input_port_info.building, input_port_info.side, true)
 			return
 
-		# Click on building: select it
+		# Click on building or source: select it
 		var cell: Vector2i = grid_system.world_to_grid(world_pos)
 		var clicked: Node = grid_system.get_building_at(cell)
 		if clicked != null:
 			_select_building(clicked)
 		else:
-			_deselect_building()
-			_clear_box_selection()
-			_update_selection_overlay()
+			# Check if clicking on a source
+			var clicked_source: Node2D = grid_system.get_source_at(cell) if grid_system.has_method("get_source_at") else null
+			if clicked_source != null:
+				_deselect_building()
+				source_selected.emit(clicked_source)
+			else:
+				_deselect_building()
+				_clear_box_selection()
+				_update_selection_overlay()
 
 	elif event.button_index == MOUSE_BUTTON_RIGHT:
 		# Try to delete a cable first
