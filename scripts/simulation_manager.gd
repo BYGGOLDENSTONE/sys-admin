@@ -410,14 +410,13 @@ func _advance_transit_gdscript(delta: float) -> void:
 		if not conn.has("transit") or conn["transit"].is_empty():
 			continue
 		var transit: Array = conn["transit"]
-		# If front item is stuck at destination, freeze entire cable
-		if transit[0].t >= 1.0:
-			continue
 		var cable_grids: float = _get_cable_length_grids(conn)
 		var t_advance: float = (TRANSIT_GRIDS_PER_SEC * float(speed_multiplier) * delta) / cable_grids
 		var min_spacing: float = TRANSIT_MIN_SPACING_GRIDS / cable_grids
-		# Advance front-to-back: each item can't get closer than min_spacing to the one ahead
+		# Advance front-to-back: items queue behind stuck front item (backpressure visual)
 		for i in range(transit.size()):
+			if i == 0 and transit[0].t >= 1.0:
+				continue  # Front item stuck at destination — don't move it
 			var new_t: float = minf(transit[i].t + t_advance, 1.0)
 			if i > 0:
 				new_t = minf(new_t, transit[i - 1].t - min_spacing)
@@ -756,8 +755,10 @@ func _try_passthrough(building: Node2D, item: Dictionary) -> bool:
 	if not _output_ports.has(bid) or not _output_ports[bid].has(output_port):
 		return false
 	var out_conn: Dictionary = _cached_conns[_output_ports[bid][output_port]]
-	if _is_transit_stalled(out_conn):
-		return false
+	# Allow queueing — items pile up behind stuck front item (visual backpressure)
+	var out_transit: Array = out_conn.get("transit", [])
+	if out_transit.size() >= 8:
+		return false  # Cable queue full — backpressure stops passthrough
 	# Forward the transit item to output cable at t=0
 	if not out_conn.has("transit"):
 		out_conn["transit"] = []
@@ -1156,9 +1157,10 @@ func _push_data_from(source: Node2D, content: int, state: int, amount: int, from
 		var to_send: int = mini(per_target, amount)
 		if to_send <= 0:
 			break
-		# Skip stalled cables (front item waiting at destination)
-		if _is_transit_stalled(conn):
-			continue
+		# Cable queue limit — allow items to pile up (visual backpressure)
+		var cable_transit: Array = conn.get("transit", [])
+		if cable_transit.size() >= 8:
+			continue  # Queue full
 		# Cable bandwidth limit — cap total data in transit per cable
 		var bw_limit: int = CABLE_BANDWIDTH_LIMIT
 		if upgrade_manager:
