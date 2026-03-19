@@ -566,6 +566,13 @@ func _deliver_conn_gdscript(conn: Dictionary) -> void:
 		# Inline processor: leave in transit for rendezvous
 		if _is_inline_processor(target):
 			break
+		# CT raw data block: unprocessed Encrypted/Corrupted stays stuck in transit
+		if target.definition != null and target.definition.category == "terminal":
+			var ikey: int = int(item.key)
+			var d_state: int = DataEnums.unpack_state(ikey)
+			var d_tags: int = DataEnums.unpack_tags(ikey)
+			if d_state != DataEnums.DataState.PUBLIC and d_tags == 0:
+				break  # Raw data — stays at t=1.0, visually stuck
 		# Reserve capacity for secondary input (keys/fuel)
 		if not _dual_input_can_accept(target, item):
 			break

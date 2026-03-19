@@ -966,23 +966,28 @@ func _populate_info_dropdown(b: Node2D, def: BuildingDefinition) -> void:
 	_info_dropdown.visible = false
 	if def.classifier:
 		_info_dropdown.visible = true
-		for c in range(6):  # 6 content types
-			_info_dropdown.add_item(DataEnums.content_name(c), c)
+		for c in range(6):
+			var label: String = "%s  %s" % [DataEnums.content_char(c), DataEnums.content_name(c)]
+			_info_dropdown.add_item(label, c)
+			_info_dropdown.set_item_icon(c, _make_color_icon(DataEnums.content_color(c)))
 		_info_dropdown.selected = b.classifier_filter_content
 	elif def.processor and def.processor.rule == "separator":
 		_info_dropdown.visible = true
 		if b.separator_mode == "state":
-			for s in [0, 1, 2]:
-				_info_dropdown.add_item(DataEnums.state_name(s), s)
-			var idx: int = [0, 1, 2].find(b.separator_filter_value)
+			var states: Array[int] = [0, 1, 2]
+			for i in range(states.size()):
+				_info_dropdown.add_item(DataEnums.state_name(states[i]), states[i])
+				_info_dropdown.set_item_icon(i, _make_color_icon(DataEnums.state_color(states[i])))
+			var idx: int = states.find(b.separator_filter_value)
 			_info_dropdown.selected = maxi(idx, 0)
 		else:
 			for c in range(6):
-				_info_dropdown.add_item(DataEnums.content_name(c), c)
+				var label: String = "%s  %s" % [DataEnums.content_char(c), DataEnums.content_name(c)]
+				_info_dropdown.add_item(label, c)
+				_info_dropdown.set_item_icon(c, _make_color_icon(DataEnums.content_color(c)))
 			_info_dropdown.selected = b.separator_filter_value
 	elif def.scanner:
 		_info_dropdown.visible = true
-		# Show detected sub-types from stored data + transit
 		var seen: Dictionary = {}
 		for key in b.stored_data:
 			if b.stored_data[key] > 0:
@@ -990,16 +995,16 @@ func _populate_info_dropdown(b: Node2D, def: BuildingDefinition) -> void:
 				var st: int = DataEnums.unpack_sub_type(key)
 				if st >= 0:
 					seen[c * 4 + st] = true
-		# Add items
 		var idx: int = 0
 		var sel: int = 0
 		for pid in seen:
 			var c: int = pid / 4
 			var st: int = pid % 4
-			var name: String = DataEnums.sub_type_name(c, st)
-			if name.is_empty():
-				name = "%s #%d" % [DataEnums.content_name(c), st]
-			_info_dropdown.add_item(name, pid)
+			var sname: String = DataEnums.sub_type_name(c, st)
+			if sname.is_empty():
+				sname = "%s #%d" % [DataEnums.content_name(c), st]
+			_info_dropdown.add_item("%s  %s" % [DataEnums.content_char(c), sname], pid)
+			_info_dropdown.set_item_icon(idx, _make_color_icon(DataEnums.content_color(c)))
 			if pid == b.scanner_filter_sub_type:
 				sel = idx
 			idx += 1
@@ -1009,6 +1014,14 @@ func _populate_info_dropdown(b: Node2D, def: BuildingDefinition) -> void:
 		_info_dropdown.visible = true
 		for t in range(1, def.producer.max_tier + 1):
 			_info_dropdown.add_item("Tier %d" % t, t)
+		_info_dropdown.selected = b.selected_tier - 1
+
+
+func _make_color_icon(color: Color) -> ImageTexture:
+	## Create a small colored square icon for dropdown items.
+	var img := Image.create(12, 12, false, Image.FORMAT_RGBA8)
+	img.fill(color)
+	return ImageTexture.create_from_image(img)
 		_info_dropdown.selected = b.selected_tier - 1
 
 

@@ -88,6 +88,7 @@ func _ready() -> void:
 	# Building detail view — shows in Contracts panel (left), not Structures (right)
 	building_panel.setup_detail(simulation_manager)
 	building_manager.building_state_changed.connect(_tooltip.refresh)
+	building_manager.building_state_changed.connect(_on_building_state_changed_refresh)
 
 	# Setup gig manager
 	_setup_gig_manager()
@@ -525,6 +526,11 @@ func _on_source_selected_for_info(source: Node2D) -> void:
 func _on_building_deselected_for_info() -> void:
 	if _gig_panel:
 		_gig_panel.hide_info()
+
+
+func _on_building_state_changed_refresh() -> void:
+	if _gig_panel and _gig_panel._info_active:
+		_gig_panel._update_info()
 
 
 func _place_contract_terminal() -> void:
