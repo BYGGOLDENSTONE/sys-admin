@@ -44,6 +44,16 @@ var _side_container: VBoxContainer = null
 var _upgrade_container: VBoxContainer = null
 var _upgrade_claim_buttons: Dictionary = {}  # category → Button
 var _upgrade_info_labels: Dictionary = {}    # category → RichTextLabel
+
+# Info overlay (building/source detail — replaces tab content when active)
+var _info_container: VBoxContainer = null
+var _info_title: Label = null
+var _info_desc: Label = null
+var _info_stats: RichTextLabel = null
+var _info_back_btn: Button = null
+var _info_active: bool = false
+var _info_target: Node2D = null  ## Currently inspected building or source
+var _tab_row_ref: HBoxContainer = null
 var _no_main_label: Label = null
 var _no_side_label: Label = null
 var _main_count_pending: int = 0
@@ -145,10 +155,45 @@ func _build_ui() -> void:
 	_tab_upgrade_btn = _create_tab_btn("UPGRADES", 2)
 	tab_row.add_child(_tab_upgrade_btn)
 
+	_tab_row_ref = tab_row
+
 	_divider = ColorRect.new()
 	_divider.color = Color(ACCENT, 0.25)
 	_divider.custom_minimum_size = Vector2(0, 1)
 	_body_container.add_child(_divider)
+
+	# Info overlay (building/source detail — hidden by default)
+	_info_container = VBoxContainer.new()
+	_info_container.visible = false
+	_info_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_info_container.add_theme_constant_override("separation", 6)
+	_body_container.add_child(_info_container)
+	_info_back_btn = Button.new()
+	_info_back_btn.text = "<< Back to Contracts"
+	_info_back_btn.flat = true
+	_info_back_btn.add_theme_font_size_override("font_size", 12)
+	_info_back_btn.add_theme_color_override("font_color", ACCENT)
+	_info_back_btn.add_theme_color_override("font_hover_color", BRIGHT)
+	_info_back_btn.pressed.connect(hide_info)
+	_info_container.add_child(_info_back_btn)
+	_info_title = Label.new()
+	_info_title.add_theme_font_size_override("font_size", 18)
+	_info_container.add_child(_info_title)
+	_info_desc = Label.new()
+	_info_desc.add_theme_font_size_override("font_size", 12)
+	_info_desc.add_theme_color_override("font_color", DIM)
+	_info_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_info_container.add_child(_info_desc)
+	var info_sep := HSeparator.new()
+	info_sep.add_theme_stylebox_override("separator", StyleBoxEmpty.new())
+	_info_container.add_child(info_sep)
+	_info_stats = RichTextLabel.new()
+	_info_stats.bbcode_enabled = true
+	_info_stats.fit_content = true
+	_info_stats.scroll_active = false
+	_info_stats.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_info_stats.add_theme_font_size_override("normal_font_size", 14)
+	_info_container.add_child(_info_stats)
 
 	# Scroll container — fills remaining space
 	_scroll = ScrollContainer.new()
@@ -705,6 +750,185 @@ func _init_stall_tracking(order: int, req_count: int) -> void:
 	for _i in range(req_count):
 		timers.append(0.0)
 	_stall_timers[order] = timers
+
+
+# ── Info Overlay (Building/Source Detail) ──────────────────────
+
+func show_building_info(building: Node2D) -> void:
+	if building == null or building.definition == null:
+		return
+	_info_target = building
+	_info_active = true
+	_info_title.text = building.definition.building_name
+	_info_title.add_theme_color_override("font_color", building.definition.color)
+	_info_desc.text = building.definition.description
+	_show_info_overlay()
+	_update_info()
+
+
+func show_source_info(source: Node2D) -> void:
+	if source == null or source.definition == null:
+		return
+	_info_target = source
+	_info_active = true
+	_info_title.text = source.definition.source_name
+	_info_title.add_theme_color_override("font_color", source.definition.color)
+	_info_desc.text = source.definition.description
+	_show_info_overlay()
+	_update_info()
+
+
+func hide_info() -> void:
+	_info_active = false
+	_info_target = null
+	_info_container.visible = false
+	_tab_row_ref.visible = true
+	_scroll.visible = true
+	_divider.visible = true
+	_update_tab_visuals()
+
+
+func _show_info_overlay() -> void:
+	## Show info, hide tabs and scroll
+	_info_container.visible = true
+	_tab_row_ref.visible = false
+	_scroll.visible = false
+	_divider.visible = false
+	# Ensure panel is visible and expanded
+	if not _expanded:
+		_toggle_expanded()
+	show_panel()
+
+
+func _update_info() -> void:
+	if _info_target == null or not is_instance_valid(_info_target):
+		hide_info()
+		return
+	var lines: PackedStringArray = []
+	var def = _info_target.definition
+	if def is BuildingDefinition:
+		_update_info_building(lines, _info_target, def)
+	else:
+		_update_info_source(lines, _info_target, def)
+	_info_stats.text = "\n".join(lines)
+
+
+func _update_info_building(lines: PackedStringArray, b: Node2D, def: BuildingDefinition) -> void:
+	# Status
+	if b.is_working:
+		lines.append("[color=#44ff88]● Working[/color]")
+	else:
+		var reason: String = b.status_reason if b.status_reason != "" else ""
+		lines.append("[color=#ffcc44]● Idle%s[/color]" % (" — " + reason if reason != "" else ""))
+
+	# Throughput / type info
+	if def.classifier:
+		lines.append("[color=#667788]Throughput:[/color] %d MB/s" % int(b.get_effective_value("processing_rate")))
+		lines.append("[color=#667788]Filter:[/color] [color=#44ff88]%s[/color] → right, rest → bottom" % DataEnums.content_name(b.classifier_filter_content))
+	if def.scanner:
+		lines.append("[color=#667788]Throughput:[/color] %d MB/s" % int(def.scanner.throughput_rate))
+		if b.scanner_filter_sub_type >= 0:
+			var sc: int = b.scanner_filter_sub_type / 4
+			var so: int = b.scanner_filter_sub_type % 4
+			lines.append("[color=#667788]Filter:[/color] [color=%s]%s[/color] → right, rest → bottom" % [DataEnums.content_color_hex(sc), DataEnums.sub_type_name(sc, so)])
+		else:
+			lines.append("[color=#667788]Filter:[/color] [color=#ffcc44]None (press Tab)[/color]")
+	if def.processor and def.processor.rule == "separator":
+		lines.append("[color=#667788]Throughput:[/color] %d MB/s" % int(b.get_effective_value("processing_rate")))
+		var fname: String = DataEnums.state_name(b.separator_filter_value) if b.separator_mode == "state" else DataEnums.content_name(b.separator_filter_value)
+		lines.append("[color=#667788]Filter:[/color] [color=#44ff88]%s[/color] → right, rest → bottom" % fname)
+	if def.dual_input:
+		lines.append("[color=#667788]Throughput:[/color] %d MB/s" % int(b.get_effective_value("processing_rate")))
+		if def.dual_input.fuel_matches_content:
+			lines.append("[color=#667788]Mode:[/color] Recoverer — Repair Kit from top")
+		elif def.dual_input.output_tag == 4:
+			lines.append("[color=#667788]Mode:[/color] Encryptor — Key from top")
+		else:
+			lines.append("[color=#667788]Mode:[/color] Decryptor — Key from top")
+		# Key/Kit stock
+		var cname: String = DataEnums.content_name(def.dual_input.key_content)
+		var stock_parts: PackedStringArray = []
+		for kt in range(1, 4):
+			var kk: int = DataEnums.pack_key(def.dual_input.key_content, DataEnums.DataState.PUBLIC, kt, 0)
+			var count: int = b.stored_data.get(kk, 0)
+			if count > 0:
+				stock_parts.append("T%d: %d" % [kt, count])
+		lines.append("[color=#667788]%s Stock:[/color] %s" % [cname, ", ".join(stock_parts) if not stock_parts.is_empty() else "[color=#ff6644]0[/color]"])
+	if def.producer:
+		lines.append("[color=#667788]Rate:[/color] %d/tick" % int(b.get_effective_value("processing_rate")))
+		lines.append("[color=#667788]Tier:[/color] T%d" % b.selected_tier)
+	if def.processor and def.processor.rule == "trash":
+		lines.append("[color=#667788]Mode:[/color] Instant destruction")
+	if def.splitter:
+		lines.append("[color=#667788]Mode:[/color] Split 50/50")
+	if def.merger:
+		lines.append("[color=#667788]Mode:[/color] Merge inputs → right")
+
+	# Stored data
+	var total: int = b.get_total_stored()
+	if total > 0:
+		var cap: int = int(b.get_effective_value("capacity")) if b.has_method("get_effective_value") else 0
+		lines.append("")
+		lines.append("[color=#667788]Stored:[/color] %d%s MB" % [total, " / %d" % cap if cap > 0 else ""])
+		for key in b.stored_data:
+			if b.stored_data[key] <= 0:
+				continue
+			var c: int = DataEnums.unpack_content(key)
+			var s: int = DataEnums.unpack_state(key)
+			var label: String = DataEnums.data_label(c, s, DataEnums.unpack_tier(key), DataEnums.unpack_tags(key))
+			lines.append("  [color=%s]%d[/color] [color=%s]%s[/color]" % [DataEnums.state_color_hex(s), b.stored_data[key], DataEnums.content_color_hex(c), label])
+
+	# CT upgrade hint
+	if def.category == "terminal":
+		lines.append("")
+		lines.append("[color=#44ccff]Check UPGRADES tab for tier progress[/color]")
+
+
+func _update_info_source(lines: PackedStringArray, src: Node2D, def) -> void:
+	# Difficulty
+	var diff_colors: Dictionary = {"easy": "#44ff66", "medium": "#ffee44", "hard": "#ff9933", "endgame": "#ff4444"}
+	var dc: String = diff_colors.get(def.difficulty, "#aabbcc")
+	lines.append("[color=%s]%s[/color]  |  %d MB/s  |  %d ports" % [dc, def.difficulty.to_upper(), int(def.bandwidth), src.output_ports.size()])
+
+	# FIRE
+	if src.has_fire():
+		lines.append("")
+		var fc: String = "#ff4422" if src.fire_active else "#44ff66"
+		var fs: String = "ACTIVE" if src.fire_active else "BREACHED"
+		var ft: String = "Threshold" if def.fire_type == "threshold" else "Regenerating"
+		lines.append("[color=%s]FIRE: %s[/color] (%s)" % [fc, fs, ft])
+		for req in def.fire_requirements:
+			var st: int = int(req.sub_type)
+			var content: int = st / 4
+			var offset: int = st % 4
+			var rn: String = DataEnums.sub_type_name(content, offset)
+			var cc: String = DataEnums.content_color_hex(content)
+			var cur: float = src.fire_progress.get(st, 0.0)
+			lines.append("  Needs [color=%s]%s[/color] — %d / %d MB" % [cc, rn, int(cur), int(req.amount)])
+		if def.fire_type == "regen":
+			lines.append("  [color=#ff8844]Regen: %.0f MB/s[/color]" % def.fire_regen_rate)
+
+	# Content
+	lines.append("")
+	lines.append("[color=#667788]Content:[/color]")
+	for cid in def.content_weights:
+		var pct: int = int(def.content_weights[cid] * 100)
+		lines.append("  [color=%s]%d%% %s[/color]" % [DataEnums.content_color_hex(int(cid)), pct, DataEnums.content_name(int(cid))])
+
+	# State
+	var sw: Dictionary = src.instance_state_weights if not src.instance_state_weights.is_empty() else def.state_weights
+	lines.append("[color=#667788]State:[/color]")
+	for sid in sw:
+		var pct: int = int(sw[sid] * 100)
+		lines.append("  [color=%s]%d%% %s[/color]" % [DataEnums.state_color_hex(int(sid)), pct, DataEnums.state_name(int(sid))])
+
+	# Sub-types
+	if not def.sub_type_pool.is_empty():
+		lines.append("[color=#667788]Sub-Types:[/color]")
+		for entry in def.sub_type_pool:
+			var c: int = int(entry.get("content", 0))
+			var st: int = int(entry.get("sub_type", 0))
+			lines.append("  [color=%s]%s[/color]" % [DataEnums.content_color_hex(c), DataEnums.sub_type_name(c, st)])
 
 
 # ── Upgrade Tab ────────────────────────────────────────────────

@@ -85,11 +85,8 @@ func _ready() -> void:
 	simulation_manager.content_discovered.connect(_on_content_discovered)
 	simulation_manager.state_discovered.connect(_on_state_discovered)
 
-	# Setup building detail view (upgrade panel integrated into building panel)
+	# Building detail view — shows in Contracts panel (left), not Structures (right)
 	building_panel.setup_detail(simulation_manager)
-	building_manager.building_selected.connect(building_panel.show_building_detail)
-	building_manager.building_deselected.connect(building_panel.hide_building_detail)
-	building_manager.building_state_changed.connect(building_panel.refresh_detail)
 	building_manager.building_state_changed.connect(_tooltip.refresh)
 
 	# Setup gig manager
@@ -214,10 +211,10 @@ func _ready() -> void:
 		_gig_manager.set_level(_level_manager.current_level)
 		_gig_manager.initialize()
 
-	# Wire terminal click to gig panel + source detail
-	building_manager.building_selected.connect(_on_building_selected_for_panel)
-	building_manager.source_selected.connect(building_panel.show_source_detail)
-	building_manager.building_deselected.connect(building_panel.hide_building_detail)
+	# Wire building/source clicks to Contracts panel (left) for info display
+	building_manager.building_selected.connect(_on_building_selected_for_info)
+	building_manager.source_selected.connect(_on_source_selected_for_info)
+	building_manager.building_deselected.connect(_on_building_deselected_for_info)
 
 	# Center camera on map center, zoom out a bit so ISP Backbone is visible
 	camera.position = _map_center_world
@@ -513,6 +510,21 @@ func _setup_gig_panel() -> void:
 func _on_building_selected_for_panel(building: Node2D) -> void:
 	if building == _contract_terminal and _gig_panel:
 		_gig_panel.show_panel()
+
+
+func _on_building_selected_for_info(building: Node2D) -> void:
+	if _gig_panel:
+		_gig_panel.show_building_info(building)
+
+
+func _on_source_selected_for_info(source: Node2D) -> void:
+	if _gig_panel:
+		_gig_panel.show_source_info(source)
+
+
+func _on_building_deselected_for_info() -> void:
+	if _gig_panel:
+		_gig_panel.hide_info()
 
 
 func _place_contract_terminal() -> void:
