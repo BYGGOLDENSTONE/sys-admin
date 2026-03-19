@@ -30,6 +30,7 @@ var _contract_terminal: Node2D = null
 var _tutorial_manager: Node = null
 var _guided_tutorial: Node = null
 var _save_manager: Node = null
+var _upgrade_manager: Node = null
 var _pause_overlay: CanvasLayer = null
 var _pause_buttons: VBoxContainer = null
 var _pause_options: VBoxContainer = null
@@ -154,6 +155,9 @@ func _ready() -> void:
 
 	# Setup save manager (before loading state)
 	_setup_save_manager()
+
+	# Setup upgrade manager
+	_setup_upgrade_manager()
 
 	# Setup tutorial manager only on first playthrough (hints/notifications)
 	if not SettingsManager.get_settings().get("tutorial_completed", false):
@@ -809,7 +813,29 @@ func _setup_save_manager() -> void:
 	_save_manager.simulation_manager = simulation_manager
 	_save_manager.current_seed = _current_seed
 	_save_manager.level_manager = _level_manager
+	_save_manager.upgrade_manager = _upgrade_manager
 	add_child(_save_manager)
+
+
+func _setup_upgrade_manager() -> void:
+	var UpgradeManagerScript = preload("res://scripts/upgrade_manager.gd")
+	_upgrade_manager = Node.new()
+	_upgrade_manager.set_script(UpgradeManagerScript)
+	_upgrade_manager.name = "UpgradeManager"
+	add_child(_upgrade_manager)
+	# Wire to simulation manager, gig manager, and tooltip
+	simulation_manager.upgrade_manager = _upgrade_manager
+	if _gig_manager:
+		_gig_manager.upgrade_manager = _upgrade_manager
+	if _tooltip:
+		_tooltip.upgrade_manager = _upgrade_manager
+	# Wire tier-up sound
+	_upgrade_manager.tier_changed.connect(_on_upgrade_tier_changed)
+
+
+func _on_upgrade_tier_changed(_category: String, _new_tier: int) -> void:
+	if _sound_manager:
+		_sound_manager.play_tier_up()
 
 
 func _on_gig_completed_autosave(_gig) -> void:

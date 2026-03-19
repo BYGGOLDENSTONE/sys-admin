@@ -20,6 +20,7 @@ var source_manager: Node = null
 var sound_manager: Node = null
 var connection_stalled: Dictionary = {}  # conn_idx → true if stalled
 var _splitter_next_port: Dictionary = {}  # building instance_id → next output port index
+var upgrade_manager: Node = null  ## UpgradeManager reference for throughput/success multipliers
 
 # --- BUILDING CACHE (event-based, avoids get_children() every tick) ---
 var _building_cache: Array[Node] = []
@@ -650,6 +651,9 @@ func _compute_filter_budgets(buildings: Array[Node]) -> void:
 			variety = _count_input_variety(b, "state")
 		else:
 			continue
+		# Apply Routing upgrade multiplier
+		if upgrade_manager:
+			base *= upgrade_manager.get_multiplier("routing")
 		_filter_variety[bid] = variety
 		_filter_budget[bid] = maxi(1, int(base / float(variety)))
 		_filter_processed[bid] = 0
@@ -1143,10 +1147,13 @@ func _push_data_from(source: Node2D, content: int, state: int, amount: int, from
 		if _is_transit_stalled(conn):
 			continue
 		# Cable bandwidth limit — cap total data in transit per cable
+		var bw_limit: int = CABLE_BANDWIDTH_LIMIT
+		if upgrade_manager:
+			bw_limit = int(float(CABLE_BANDWIDTH_LIMIT) * upgrade_manager.get_multiplier("bandwidth"))
 		var transit_total: int = 0
 		for ti in conn.get("transit", []):
 			transit_total += int(ti.amount)
-		if transit_total >= CABLE_BANDWIDTH_LIMIT:
+		if transit_total >= bw_limit:
 			continue
 		# Static type filter (building definition check)
 		if not target.accepts_data(content, state):
@@ -1190,7 +1197,10 @@ func _update_generation(_buildings: Array[Node]) -> void:
 		if source.fire_active:
 			continue
 		var src_def: DataSourceDefinition = source.definition
-		var amount: int = int(src_def.generation_rate)
+		var gen_rate: float = src_def.generation_rate
+		if upgrade_manager:
+			gen_rate *= upgrade_manager.get_multiplier("bandwidth")
+		var amount: int = int(gen_rate)
 		var src_id: int = source.get_instance_id()
 		# Each connected port generates independently at full rate
 		for port in source.output_ports:
@@ -1249,6 +1259,10 @@ func _update_processing(buildings: Array[Node]) -> void:
 			var dom_tier: int = _get_dominant_tier(b)
 			if dom_tier > 0 and dom_tier <= dual.speed_by_tier.size():
 				max_process = maxi(1, int(float(max_process) * dual.speed_by_tier[dom_tier - 1]))
+			# Apply upgrade multiplier (Decryption or Recovery)
+			if upgrade_manager:
+				var cat: String = "recovery" if dual.fuel_matches_content else "decryption"
+				max_process = maxi(1, int(float(max_process) * upgrade_manager.get_multiplier(cat)))
 			processed = _process_dual_input(b, max_process)
 		elif b.definition.producer != null:
 			var max_process: int = int(b.get_effective_value("processing_rate"))
@@ -1257,6 +1271,10 @@ func _update_processing(buildings: Array[Node]) -> void:
 			var sel_tier: int = b.selected_tier
 			if sel_tier > 0 and sel_tier <= prod.speed_by_tier.size():
 				max_process = maxi(1, int(float(max_process) * prod.speed_by_tier[sel_tier - 1]))
+			# Apply upgrade multiplier (Key Forge → Decryption, Repair Lab → Recovery)
+			if upgrade_manager:
+				var cat: String = "recovery" if prod.output_content == 7 else "decryption"
+				max_process = maxi(1, int(float(max_process) * upgrade_manager.get_multiplier(cat)))
 			processed = _process_producer(b, max_process)
 		elif b.definition.classifier != null:
 			var bid: int = b.get_instance_id()
@@ -1449,10 +1467,12 @@ func _process_dual_input_key_mode(b: Node2D, dual: DualInputComponent, max_proce
 		if to_process <= 0:
 			continue
 		var out_tags: int = p_tags | dual.output_tag
-		# Success rate check — roll per batch
+		# Success rate check — roll per batch (with upgrade bonus)
 		var success_rate: float = 1.0
 		if not dual.success_rate_by_tier.is_empty() and effective_tier > 0 and effective_tier <= dual.success_rate_by_tier.size():
 			success_rate = dual.success_rate_by_tier[effective_tier - 1]
+			if upgrade_manager:
+				success_rate = minf(0.98, success_rate + upgrade_manager.get_success_bonus("decryption"))
 		var succeeded: int = 0
 		var failed: int = 0
 		for _i in range(to_process):
@@ -1519,10 +1539,12 @@ func _process_dual_input_fuel_mode(b: Node2D, dual: DualInputComponent, max_proc
 		if to_process <= 0:
 			continue
 		var out_tags: int = p_tags | dual.output_tag
-		# Success rate check — roll per batch
+		# Success rate check — roll per batch (with upgrade bonus)
 		var success_rate: float = 1.0
 		if not dual.success_rate_by_tier.is_empty() and effective_tier > 0 and effective_tier <= dual.success_rate_by_tier.size():
 			success_rate = dual.success_rate_by_tier[effective_tier - 1]
+			if upgrade_manager:
+				success_rate = minf(0.98, success_rate + upgrade_manager.get_success_bonus("recovery"))
 		var succeeded: int = 0
 		var failed: int = 0
 		for _i in range(to_process):

@@ -11,6 +11,7 @@ const OFFSET := Vector2(16, 16)
 
 var _target_building: Node2D = null
 var _target_source: Node2D = null
+var upgrade_manager: Node = null  ## Set from main.gd for CT upgrade display
 
 var _slide_offset := Vector2.ZERO
 var _anim_tween: Tween = null
@@ -220,6 +221,23 @@ func _update_stats() -> void:
 	var malware_amount: int = b.get_malware_amount()
 	if malware_amount > 0 and not (def.processor and def.processor.rule == "trash"):
 		lines.append(_stat("Malware", "[color=#ff4466]%d MB — Route to Trash![/color]" % malware_amount))
+
+	# CT Upgrade status
+	if def.category == "terminal" and upgrade_manager:
+		lines.append("")
+		lines.append("[color=#44ccff]── UPGRADES ──[/color]")
+		for cat in ["routing", "decryption", "recovery", "bandwidth"]:
+			var tier: int = upgrade_manager.get_tier(cat)
+			var mult: float = upgrade_manager.get_multiplier(cat)
+			var cum: float = upgrade_manager.get_cumulative(cat)
+			var next_cost: float = upgrade_manager.get_next_tier_cost(cat)
+			var cat_label: String = cat.capitalize()
+			var progress_str: String
+			if next_cost < 0:
+				progress_str = "[color=#44ff88]MAX[/color]"
+			else:
+				progress_str = "%d/%d MB" % [int(cum), int(next_cost)]
+			lines.append(_stat(cat_label, "T%d (%.0fx) — %s" % [tier, mult, progress_str]))
 
 	stats_label.text = "\n".join(lines)
 

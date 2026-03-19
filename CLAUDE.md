@@ -2,7 +2,7 @@
 
 ## Mevcut Asama: v5 Tasarim Revizyonu — Implementasyon oncesi
 - **GDD:** `docs/GDD.md` (v5.0 — buyuk tasarim revizyonu)
-- **Kod durumu:** v4 Faz 1-7 TAMAMLANDI, v5 Faz 1-6 TAMAMLANDI (Tier+State, Sub-Type, Scanner, FIRE, Throughput, Olasilik)
+- **Kod durumu:** v4 Faz 1-7 TAMAMLANDI, v5 Faz 1-7 TAMAMLANDI (Tier+State, Sub-Type, Scanner, FIRE, Throughput, Olasilik, Upgrade)
 - **Hedef:** Steam Next Fest icin oynanabilir, polished, v5 mekanikli demo
 - **Ticari hedef:** $9.99 fiyat noktasina yakisan kalite ve guven hissi
 
@@ -205,7 +205,7 @@ Her faz sonunda oyun **playable state**'te kalmali. Fazlar sirayla yapilir, bagi
 
 ---
 
-#### FAZ 7: Upgrade Sistemi
+#### FAZ 7: Upgrade Sistemi ✓ TAMAMLANDI
 **Amac:** 4 kategori, CT'ye teslim = upgrade kaynagi
 **Bagimlilik:** Faz 5+6 (throughput + olasilik gerekli)
 

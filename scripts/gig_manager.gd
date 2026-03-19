@@ -24,6 +24,7 @@ var _starter_buildings: PackedStringArray = ["Trash", "Splitter"]
 
 var building_container: Node2D = null
 var _contract_terminal: Node2D = null
+var upgrade_manager: Node = null  ## UpgradeManager reference for CT delivery upgrades
 var skip_tutorial: bool = false  ## Level 2+: all buildings unlocked, procedural only
 
 
@@ -120,7 +121,14 @@ func process_deliveries() -> void:
 		var amount: int = _contract_terminal.stored_data[key]
 		if amount <= 0:
 			continue
-		_count_delivery(DataEnums.unpack_content(key), DataEnums.unpack_state(key), DataEnums.unpack_tier(key), DataEnums.unpack_tags(key), amount)
+		var c: int = DataEnums.unpack_content(key)
+		var s: int = DataEnums.unpack_state(key)
+		var t: int = DataEnums.unpack_tier(key)
+		var tg: int = DataEnums.unpack_tags(key)
+		_count_delivery(c, s, t, tg, amount)
+		# Feed upgrade system
+		if upgrade_manager:
+			upgrade_manager.add_data(c, s, tg, amount)
 
 	# Consume all delivered data (Shapez model)
 	_contract_terminal.stored_data.clear()

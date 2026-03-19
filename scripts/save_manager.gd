@@ -16,6 +16,7 @@ var building_container: Node2D = null
 var connection_manager: Node = null
 var source_manager: Node = null
 var gig_manager: Node = null
+var upgrade_manager: Node = null
 var simulation_manager: Node = null
 var current_seed: int = 0
 var current_slot: int = 1  ## Active save slot (1-based)
@@ -158,6 +159,8 @@ func capture_state() -> Dictionary:
 	data["gigs"] = _capture_gigs()
 	data["network"] = _capture_network()
 	data["fire_state"] = _capture_fire_state()
+	if upgrade_manager:
+		data["upgrades"] = upgrade_manager.get_save_data()
 	if map_generator:
 		data["generated_chunks"] = map_generator.get_generated_chunk_keys()
 	if level_manager:
@@ -358,6 +361,10 @@ func apply_state(data: Dictionary) -> bool:
 
 	# 5. Restore FIRE state (must be after sources are regenerated from chunks)
 	_restore_fire_state(data.get("fire_state", []))
+
+	# 6. Restore upgrade state
+	if upgrade_manager and data.has("upgrades"):
+		upgrade_manager.load_save_data(data["upgrades"])
 
 	game_loaded.emit()
 	print("[SaveManager] Game state restored")

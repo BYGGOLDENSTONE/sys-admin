@@ -92,6 +92,10 @@ func play_fire_breach() -> void:
 	play("fire_breach", -4.0, 0.0)
 
 
+func play_tier_up() -> void:
+	play("tier_up", -3.0, 0.0)
+
+
 func play_ui_hover() -> void:
 	play("ui_hover", -20.0, 0.1)
 
@@ -158,6 +162,8 @@ func _generate_sounds() -> void:
 	_sounds["process_research"] = _gen(330.0, 0.1, 0.12, "sine", 660.0)
 	# FIRE
 	_sounds["fire_breach"] = _gen_rich_chime([220.0, 440.0, 660.0, 880.0, 1100.0], 0.1, 0.25, 3, 0.4)
+	# Upgrade
+	_sounds["tier_up"] = _gen_rich_chime([330.0, 440.0, 550.0, 660.0, 880.0, 1100.0], 0.08, 0.22, 3, 0.35)
 	# UI
 	_sounds["ui_hover"] = _gen(3200.0, 0.015, 0.06, "square")
 	_sounds["ui_click"] = _gen(1800.0, 0.035, 0.12, "square")
