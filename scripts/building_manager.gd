@@ -811,6 +811,10 @@ func _cycle_building_filter(building: Node2D) -> void:
 		# Cycle through data content types (0-5, skip KEY=6)
 		building.classifier_filter_content = (building.classifier_filter_content + 1) % 6
 		print("[BuildingManager] Classifier filter → %s" % DataEnums.content_name(building.classifier_filter_content))
+	elif def.scanner:
+		# Cycle through sub-types (0-3) for the current content context
+		building.scanner_filter_sub_type = (building.scanner_filter_sub_type + 1) % 4
+		print("[BuildingManager] Scanner filter → sub-type %d" % building.scanner_filter_sub_type)
 	elif def.processor and def.processor.rule == "separator":
 		if building.separator_mode == "state":
 			# Cycle: PUBLIC(0) → ENCRYPTED(1) → CORRUPTED(2), skip MALWARE(3) & ENC_COR(4)

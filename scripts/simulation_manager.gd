@@ -130,6 +130,11 @@ func _rebuild_delivery_meta() -> void:
 			_conn_target_filters[i] = target.classifier_filter_content
 			if not _target_ports.has(bid):
 				_target_ports[bid] = def.output_ports.duplicate()
+		elif def.scanner != null:
+			_conn_target_types[i] = 8  # BTYPE_SCANNER
+			_conn_target_filters[i] = target.scanner_filter_sub_type
+			if not _target_ports.has(bid):
+				_target_ports[bid] = def.output_ports.duplicate()
 		elif def.processor != null and def.processor.rule == "separator":
 			if target.separator_mode == "state":
 				_conn_target_types[i] = 2
@@ -200,6 +205,8 @@ func _rebuild_sim_kernel_meta() -> void:
 			btype = 6  # BTYPE_PRODUCER
 		elif def.classifier != null:
 			btype = 1  # BTYPE_CLASSIFIER
+		elif def.scanner != null:
+			btype = 8  # BTYPE_SCANNER
 		elif def.processor != null and def.processor.rule == "separator":
 			btype = 2  # BTYPE_SEPARATOR
 		elif def.splitter != null:
@@ -1085,6 +1092,8 @@ func _update_processing(buildings: Array[Node]) -> void:
 			processed = _process_producer(b, max_process)
 		elif b.definition.classifier != null:
 			processed = _process_classifier(b, int(b.get_effective_value("processing_rate")))
+		elif b.definition.scanner != null:
+			processed = _process_scanner(b, int(b.definition.scanner.throughput_rate))
 		elif b.definition.splitter != null:
 			processed = _process_splitter(b, int(b.definition.splitter.throughput_rate))
 		elif b.definition.merger != null:
@@ -1131,7 +1140,33 @@ func _process_classifier(b: Node2D, max_process: int) -> int:
 		var c: int = DataEnums.unpack_content(key)
 		var to_process: int = mini(available, max_process - processed)
 		var target_port: String = primary_port if c == filter_content else secondary_port
-		var sent: int = _push_data_from(b, c, DataEnums.unpack_state(key), to_process, target_port, DataEnums.unpack_tier(key), DataEnums.unpack_tags(key))
+		var sent: int = _push_data_from(b, c, DataEnums.unpack_state(key), to_process, target_port, DataEnums.unpack_tier(key), DataEnums.unpack_tags(key), DataEnums.unpack_sub_type(key))
+		if sent > 0:
+			b.stored_data[key] -= sent
+			processed += sent
+	return processed
+
+
+func _process_scanner(b: Node2D, max_process: int) -> int:
+	var processed: int = 0
+	var output_ports: Array[String] = b.definition.output_ports
+	if output_ports.size() < 2:
+		return 0
+	var primary_port: String = output_ports[0]   # right — selected sub-type
+	var secondary_port: String = output_ports[1]  # bottom — everything else
+	if not _has_output_connection(b, primary_port) or not _has_output_connection(b, secondary_port):
+		return 0
+	var filter_st: int = b.scanner_filter_sub_type
+	for key in b.stored_data:
+		if processed >= max_process:
+			break
+		var available: int = b.stored_data.get(key, 0)
+		if available <= 0:
+			continue
+		var st: int = DataEnums.unpack_sub_type(key)
+		var to_process: int = mini(available, max_process - processed)
+		var target_port: String = primary_port if st == filter_st else secondary_port
+		var sent: int = _push_data_from(b, DataEnums.unpack_content(key), DataEnums.unpack_state(key), to_process, target_port, DataEnums.unpack_tier(key), DataEnums.unpack_tags(key), st)
 		if sent > 0:
 			b.stored_data[key] -= sent
 			processed += sent

@@ -25,6 +25,7 @@ public:
     static constexpr int TYPE_MERGER = 5;
     static constexpr int TYPE_TRASH = 6;
     static constexpr int TYPE_INLINE = 7;
+    static constexpr int TYPE_SCANNER = 8;
 
     DeliveryEngine();
     ~DeliveryEngine();

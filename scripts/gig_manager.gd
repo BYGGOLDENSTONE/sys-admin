@@ -51,7 +51,7 @@ func set_level(level: int) -> void:
 func _unlock_all_buildings() -> void:
 	## Unlock all placeable buildings (for Level 2+)
 	var all_names: PackedStringArray = [
-		"Trash", "Splitter", "Merger", "Classifier", "Separator",
+		"Trash", "Splitter", "Merger", "Classifier", "Scanner", "Separator",
 		"Decryptor", "Encryptor", "Recoverer", "Key Forge", "Repair Lab"
 	]
 	for b_name in all_names:

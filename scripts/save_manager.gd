@@ -198,6 +198,7 @@ func _capture_buildings() -> Array:
 			"mirror_v": building.mirror_v,
 			"stored_data": building.stored_data.duplicate(),
 			"classifier_filter_content": building.classifier_filter_content,
+			"scanner_filter_sub_type": building.scanner_filter_sub_type,
 			"separator_mode": building.separator_mode,
 			"separator_filter_value": building.separator_filter_value,
 			"selected_tier": building.selected_tier,
@@ -351,6 +352,7 @@ func _restore_buildings(buildings_data: Array) -> Dictionary:
 		building.mirror_h = entry.get("mirror_h", false)
 		building.mirror_v = entry.get("mirror_v", false)
 		building.classifier_filter_content = int(entry.get("classifier_filter_content", 0))
+		building.scanner_filter_sub_type = int(entry.get("scanner_filter_sub_type", 0))
 		building.separator_mode = entry.get("separator_mode", "state")
 		var sfv: int = int(entry.get("separator_filter_value", 0))
 		if building.separator_mode == "state" and sfv == DataEnums.DataState.ENC_COR:

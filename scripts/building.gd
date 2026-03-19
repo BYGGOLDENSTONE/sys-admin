@@ -38,6 +38,7 @@ var status_reason: String = ""  ## Why the building is idle (set by SimulationMa
 var separator_mode: String = "state"  ## For separator: "state" or "content"
 var separator_filter_value: int = 0  ## Filter value for separator (state or content int)
 var classifier_filter_content: int = 0  ## Filter value for classifier (content int)
+var scanner_filter_sub_type: int = 0  ## Filter value for scanner (sub-type int 0-3)
 var selected_tier: int = 1  ## For producer: which tier to produce (1-3)
 var upgrade_level: int = 0  ## Current upgrade level (0 = base)
 
@@ -79,6 +80,15 @@ func _get_building_polygon(r: Rect2, vtype: String) -> PackedVector2Array:
 				Vector2(x + w, y + h - notch),
 				Vector2(x + w * 0.5, y + h),
 				Vector2(x, y + h - notch)])
+		"scanner":  # Bottom pointed + top notch — scan/filter feel
+			var notch := h * 0.12
+			return PackedVector2Array([
+				Vector2(x + w * 0.5, y),
+				Vector2(x + w, y + notch),
+				Vector2(x + w, y + h - notch),
+				Vector2(x + w * 0.5, y + h),
+				Vector2(x, y + h - notch),
+				Vector2(x, y + notch)])
 		"recoverer":  # Rounded rect — soft repair feel
 			var cr := w * 0.15
 			var pts := PackedVector2Array()
@@ -728,6 +738,8 @@ func _draw_icon(center: Vector2, size: Vector2, accent: Color) -> void:
 	match vtype:
 		"classifier":
 			_draw_icon_classifier(icon_center, size, accent)
+		"scanner":
+			_draw_icon_scanner(icon_center, size, accent)
 		"separator":
 			_draw_icon_separator(icon_center, size, accent)
 		"decryptor":
@@ -750,6 +762,34 @@ func _draw_icon(center: Vector2, size: Vector2, accent: Color) -> void:
 			_draw_icon_repair_lab(icon_center, size, accent)
 		_:
 			_draw_icon_default(icon_center, size, accent)
+
+
+# --- SCANNER: Binary sub-type filter (selected → right, rest → bottom) ---
+func _draw_icon_scanner(center: Vector2, size: Vector2, accent: Color) -> void:
+	var s: float = minf(size.x, size.y) * 0.38
+	var glow := Color(accent, ICON_GLOW_ALPHA)
+	# Input line (left)
+	var in_start := center + Vector2(-s * 0.8, 0)
+	var in_end := center + Vector2(-s * 0.2, 0)
+	draw_line(in_start, in_end, glow, ICON_GLOW_WIDTH)
+	draw_line(in_start, in_end, accent, 2.0)
+	# Center circle (scan node)
+	var r: float = s * 0.25
+	draw_arc(center, r, 0, TAU, 24, glow, ICON_GLOW_WIDTH)
+	draw_arc(center, r, 0, TAU, 24, accent, 2.0)
+	# Crosshair inside circle
+	draw_line(center + Vector2(-r * 0.6, 0), center + Vector2(r * 0.6, 0), accent, 1.5)
+	draw_line(center + Vector2(0, -r * 0.6), center + Vector2(0, r * 0.6), accent, 1.5)
+	# Right output (selected sub-type) — bright
+	var out_right := center + Vector2(s * 0.8, 0)
+	draw_line(center + Vector2(r, 0), out_right, glow, ICON_GLOW_WIDTH)
+	draw_line(center + Vector2(r, 0), out_right, accent, 2.0)
+	draw_circle(out_right, 3.0, accent)
+	# Bottom output (rest) — dimmer
+	var out_bottom := center + Vector2(0, s * 0.8)
+	draw_line(center + Vector2(0, r), out_bottom, Color(accent, 0.4), ICON_GLOW_WIDTH)
+	draw_line(center + Vector2(0, r), out_bottom, Color(accent, 0.6), 1.5)
+	draw_circle(out_bottom, 2.0, Color(accent, 0.6))
 
 
 # --- CLASSIFIER: Binary content filter (selected → right, rest → bottom) ---

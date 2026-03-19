@@ -14,6 +14,8 @@ func _draw() -> void:
 	match visual_type:
 		"classifier":
 			_draw_classifier(center)
+		"scanner":
+			_draw_scanner(center)
 		"separator":
 			_draw_separator(center)
 		"decryptor":
@@ -73,6 +75,29 @@ func _draw_classifier(center: Vector2) -> void:
 	var out_bottom := center + Vector2(0, s * 0.8)
 	draw_line(center + Vector2(0, d), out_bottom, Color(accent, 0.4), GLOW_WIDTH)
 	draw_line(center + Vector2(0, d), out_bottom, Color(accent, 0.6), 1.5)
+	draw_circle(out_bottom, 2.0, Color(accent, 0.6))
+
+
+# --- SCANNER: Circle + crosshair filter ---
+func _draw_scanner(center: Vector2) -> void:
+	var s: float = minf(size.x, size.y) * 0.35
+	var glow := Color(accent, GLOW_ALPHA)
+	var in_start := center + Vector2(-s * 0.8, 0)
+	var in_end := center + Vector2(-s * 0.2, 0)
+	draw_line(in_start, in_end, glow, GLOW_WIDTH)
+	draw_line(in_start, in_end, accent, 2.0)
+	var r: float = s * 0.3
+	draw_arc(center, r, 0, TAU, 24, glow, GLOW_WIDTH)
+	draw_arc(center, r, 0, TAU, 24, accent, 2.0)
+	draw_line(center + Vector2(-r * 0.6, 0), center + Vector2(r * 0.6, 0), accent, 1.5)
+	draw_line(center + Vector2(0, -r * 0.6), center + Vector2(0, r * 0.6), accent, 1.5)
+	var out_right := center + Vector2(s * 0.8, 0)
+	draw_line(center + Vector2(r, 0), out_right, glow, GLOW_WIDTH)
+	draw_line(center + Vector2(r, 0), out_right, accent, 2.0)
+	draw_circle(out_right, 3.0, accent)
+	var out_bottom := center + Vector2(0, s * 0.8)
+	draw_line(center + Vector2(0, r), out_bottom, Color(accent, 0.4), GLOW_WIDTH)
+	draw_line(center + Vector2(0, r), out_bottom, Color(accent, 0.6), 1.5)
 	draw_circle(out_bottom, 2.0, Color(accent, 0.6))
 
 

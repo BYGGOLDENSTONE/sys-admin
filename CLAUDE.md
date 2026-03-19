@@ -128,7 +128,7 @@ Her faz sonunda oyun **playable state**'te kalmali. Fazlar sirayla yapilir, bagi
 
 ---
 
-#### FAZ 3: Scanner Binasi
+#### FAZ 3: Scanner Binasi ✓ TAMAMLANDI
 **Amac:** Sub-type binary filtre binasi
 **Bagimlilik:** Faz 2
 

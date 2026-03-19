@@ -20,7 +20,7 @@ const CELL_ICON_SIZE: float = 48.0
 ## Display order for buildings (consistent layout)
 const BUILDING_ORDER: PackedStringArray = [
 	"Trash", "Splitter",
-	"Separator", "Classifier", "Merger", "Recoverer",
+	"Separator", "Classifier", "Scanner", "Merger", "Recoverer",
 	"Key Forge", "Repair Lab", "Decryptor", "Encryptor",
 ]
 
@@ -419,6 +419,16 @@ func _update_detail() -> void:
 		var filter_name: String = DataEnums.content_name(b.classifier_filter_content)
 		lines.append("[color=#888888]Right →[/color] [color=#44ff88]%s[/color]" % filter_name)
 		lines.append("[color=#888888]Bottom →[/color] All other content")
+	if def.scanner:
+		lines.append("[color=#888888]Throughput:[/color] %d MB/s" % int(def.scanner.throughput_rate))
+		var st_label: String = "Sub-Type %d" % b.scanner_filter_sub_type
+		for c in range(6):
+			var name: String = DataEnums.sub_type_name(c, b.scanner_filter_sub_type)
+			if name != "":
+				st_label = name
+				break
+		lines.append("[color=#888888]Right →[/color] [color=#44ff88]%s[/color]" % st_label)
+		lines.append("[color=#888888]Bottom →[/color] All other sub-types")
 	if def.producer:
 		lines.append("[color=#888888]Rate:[/color] %d/tick" % int(b.get_effective_value("processing_rate")))
 		var tier_names: Array[String] = ["T1 Key", "T2 Strong Key", "T3 Master Key"]
@@ -638,6 +648,20 @@ func _populate_filter_dropdown(building: Node2D) -> void:
 		for i in range(6):
 			_detail_filter_dropdown.add_item(DataEnums.content_name(i), i)
 		_detail_filter_dropdown.selected = building.classifier_filter_content
+	elif def.scanner:
+		_detail_filter_container.visible = true
+		_detail_filter_label.text = "Sub-Type Filter:"
+		for i in range(4):
+			# Show generic sub-type labels (smart tab would detect from input)
+			var label: String = "Sub-Type %d" % i
+			# Try to find a name from any content that has this sub-type
+			for c in range(6):
+				var st_name: String = DataEnums.sub_type_name(c, i)
+				if st_name != "":
+					label = st_name
+					break
+			_detail_filter_dropdown.add_item(label, i)
+		_detail_filter_dropdown.selected = building.scanner_filter_sub_type
 	elif def.processor and def.processor.rule == "separator":
 		_detail_filter_container.visible = true
 		if building.separator_mode == "state":
@@ -675,6 +699,8 @@ func _on_filter_selected(index: int) -> void:
 	var id: int = _detail_filter_dropdown.get_item_id(index)
 	if def.classifier:
 		_selected_building.classifier_filter_content = id
+	elif def.scanner:
+		_selected_building.scanner_filter_sub_type = id
 	elif def.processor and def.processor.rule == "separator":
 		_selected_building.separator_filter_value = id
 	elif def.producer and def.producer.max_tier > 1:

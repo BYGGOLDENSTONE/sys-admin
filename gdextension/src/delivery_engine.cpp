@@ -125,6 +125,17 @@ bool DeliveryEngine::_try_routing(
             output_port = (item_content == filter) ? p0 : p1;
             break;
         }
+        case TYPE_SCANNER: {
+            if (ports.size() < 2) return false;
+            if (!output_ports.has(bid)) return false;
+            Dictionary bid_ports = output_ports[bid];
+            String p0 = ports[0];
+            String p1 = ports[1];
+            if (!bid_ports.has(p0) || !bid_ports.has(p1)) return false;
+            int item_sub_type = unpack_sub_type(packed_key);
+            output_port = (item_sub_type == filter) ? p0 : p1;
+            break;
+        }
         case TYPE_SEPARATOR_STATE: {
             if (ports.size() < 2) return false;
             if (!output_ports.has(bid)) return false;

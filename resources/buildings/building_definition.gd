@@ -15,6 +15,7 @@ extends Resource
 @export var storage: StorageComponent
 @export var processor: ProcessorComponent
 @export var classifier: ClassifierComponent
+@export var scanner: ScannerComponent
 @export var producer: ProducerComponent
 @export var dual_input: DualInputComponent
 @export var splitter: SplitterComponent
