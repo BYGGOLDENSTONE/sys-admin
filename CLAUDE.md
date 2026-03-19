@@ -2,7 +2,7 @@
 
 ## Mevcut Asama: v5 Tasarim Revizyonu — Implementasyon oncesi
 - **GDD:** `docs/GDD.md` (v5.0 — buyuk tasarim revizyonu)
-- **Kod durumu:** v4 Faz 1-7 TAMAMLANDI, v5 Faz 1-9 TAMAMLANDI — tum fazlar kodlandi, playtest asamasinda
+- **Kod durumu:** v4 Faz 1-7 TAMAMLANDI, v5 Faz 1-9 TAMAMLANDI + UI polish — playtest asamasinda
 - **Hedef:** Steam Next Fest icin oynanabilir, polished, v5 mekanikli demo
 - **Ticari hedef:** $9.99 fiyat noktasina yakisan kalite ve guven hissi
 
@@ -262,6 +262,15 @@ Her faz sonunda oyun **playable state**'te kalmali. Fazlar sirayla yapilir, bagi
 - Port sayilari tekrar elden gecirilmeli (grid_size ile uyum, buyuk kaynaklarda port yerlesimi)
 - FIRE input portlari vs output portlari fiziksel konum planlama
 - Tutorial scripted kaynak koordinatlari v5 sistemine uyarlanmali
+
+#### v5.1 Sonrasi UI Degisiklikleri (Faz 9+)
+- Yapi/kaynak tiklama → sol panelde (Contracts) detayli bilgi gosterimi
+- CT tiklama → upgrade butonlari (claim sistemi) + stored data
+- Filtre binalari dropdown menu ile filtre secimi (Classifier/Separator/Scanner/Producer)
+- Giren/cikan veri akisi gosterimi (INPUT/OUTPUT, content renkleriyle)
+- Upgrade sistemi: sadece islenmis veri (Decrypted/Recovered) sayilir, Public = 0
+- Upgrade mapping: Standard/Financial→Routing, Blueprint/Classified→Decryption, Biometric/Research→Recovery, tumu %25→Bandwidth
+- Upgrade claim: otomatik degil, oyuncu CT'den tiklar
 
 #### ERTELENMIS (Sonraki Tasarim Oturumu)
 - [ ] Gig sistemi detaylari (yol gosterici hedefler — baglanti icin yonlendirme)
