@@ -656,44 +656,27 @@ func _populate_filter_dropdown(building: Node2D) -> void:
 	elif def.scanner:
 		_detail_filter_container.visible = true
 		_detail_filter_label.text = "Sub-Type Filter:"
-		# Collect all sub-types: from stored data + from connected sources
-		var seen: Dictionary = {}  # packed_id → {content, sub_type, name, has_data}
-		# 1) Stored data — currently flowing
-		for key in building.stored_data:
-			if building.stored_data[key] <= 0:
+		# Group by content: separator header + sub-types underneath
+		var sel_idx: int = 0
+		var idx: int = 0
+		for c in range(6):
+			var count: int = DataEnums.sub_type_count(c)
+			if count <= 0:
 				continue
-			var c: int = DataEnums.unpack_content(key)
-			var st: int = DataEnums.unpack_sub_type(key)
-			if st < 0:
-				continue
-			var pid: int = c * 4 + st
-			if not seen.has(pid):
+			# Add content header as disabled separator
+			_detail_filter_dropdown.add_separator("— %s —" % DataEnums.content_name(c))
+			for st in range(count):
+				var pid: int = c * 4 + st
 				var stn: String = DataEnums.sub_type_name(c, st)
 				if stn == "":
 					stn = "%s #%d" % [DataEnums.content_name(c), st]
-				seen[pid] = {"content": c, "sub_type": st, "name": stn, "has_data": true}
-		# 2) All content types with known sub-types (show full palette)
-		for c in range(6):
-			var count: int = DataEnums.sub_type_count(c)
-			for st in range(count):
-				var pid: int = c * 4 + st
-				if not seen.has(pid):
-					var stn: String = DataEnums.sub_type_name(c, st)
-					if stn != "":
-						seen[pid] = {"content": c, "sub_type": st, "name": stn, "has_data": false}
-		if seen.is_empty():
-			_detail_filter_dropdown.add_item("(no data)", 0)
-		else:
-			var sel_idx: int = 0
-			var idx: int = 0
-			var sorted_keys: Array = seen.keys()
-			sorted_keys.sort()
-			for pid in sorted_keys:
-				var info: Dictionary = seen[pid]
-				_detail_filter_dropdown.add_item(info.name, pid)
+				_detail_filter_dropdown.add_item("  %s" % stn, pid)
 				if pid == building.scanner_filter_sub_type:
 					sel_idx = idx
 				idx += 1
+		if idx == 0:
+			_detail_filter_dropdown.add_item("(no data)", 0)
+		else:
 			_detail_filter_dropdown.selected = mini(sel_idx, idx - 1)
 	elif def.processor and def.processor.rule == "separator":
 		_detail_filter_container.visible = true
