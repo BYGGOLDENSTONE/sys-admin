@@ -1184,6 +1184,7 @@ func _push_data_from(source: Node2D, content: int, state: int, amount: int, from
 			if state != DataEnums.DataState.PUBLIC and tags == 0:
 				continue  # Raw data — silently skip, stays in building's stored_data
 			# Record this data type on the cable (packed int key: content<<4|state)
+			var port: String = conn.to_port
 			if not target.port_carried_types.has(port):
 				target.port_carried_types[port] = {}
 			var type_key: int = (content << 4) | state
