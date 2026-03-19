@@ -49,25 +49,35 @@ func _reset_state() -> void:
 
 ## --- PUBLIC API ---
 
-func add_data(content: int, state: int, tags: int, amount: int) -> void:
-	## Called when data is delivered to CT. Routes to appropriate category.
-	## Public → Routing. Decrypted/Encrypted tag → Decryption. Recovered → Recovery. ALL → Bandwidth.
+## Content → Category mapping
+## Only PROCESSED data counts (must have DECRYPTED or RECOVERED tag).
+## Public data = 0 upgrade value.
+const CONTENT_CATEGORY: Dictionary = {
+	0: "routing",     # Standard → Routing
+	1: "routing",     # Financial → Routing
+	2: "recovery",    # Biometric → Recovery
+	3: "decryption",  # Blueprint → Decryption
+	4: "recovery",    # Research → Recovery
+	5: "decryption",  # Classified → Decryption
+}
+const BANDWIDTH_RATIO: float = 0.25  ## All processed data → 25% Bandwidth
+
+
+func add_data(content: int, _state: int, tags: int, amount: int) -> void:
+	## Called when data is delivered to CT. Only processed data counts.
+	## Content type determines primary category. Bandwidth gets 25% of all processed.
+	var is_processed: bool = (tags & 1) or (tags & 2) or (tags & 4)  # DECRYPTED | RECOVERED | ENCRYPTED
+	if not is_processed:
+		return  # Public unprocessed data = no upgrade value
 	var amt: float = float(amount)
 
-	# Bandwidth: ALL deliveries count
-	_add_to_category("bandwidth", amt)
+	# Primary category based on content type
+	var cat: String = CONTENT_CATEGORY.get(content, "")
+	if cat != "":
+		_add_to_category(cat, amt)
 
-	# Routing: Public state data
-	if state == DataEnums.DataState.PUBLIC:
-		_add_to_category("routing", amt)
-
-	# Decryption: data with DECRYPTED or ENCRYPTED tag
-	if tags & 1 or tags & 4:  # DECRYPTED=1, ENCRYPTED=4
-		_add_to_category("decryption", amt)
-
-	# Recovery: data with RECOVERED tag
-	if tags & 2:  # RECOVERED=2
-		_add_to_category("recovery", amt)
+	# Bandwidth: 25% of all processed deliveries
+	_add_to_category("bandwidth", amt * BANDWIDTH_RATIO)
 
 
 func get_multiplier(category: String) -> float:

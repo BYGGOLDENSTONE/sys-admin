@@ -247,8 +247,11 @@ func _update_stats() -> void:
 	if malware_amount > 0 and not (def.processor and def.processor.rule == "trash"):
 		lines.append(_stat("Malware", "[color=#ff4466]%d MB — Route to Trash![/color]" % malware_amount))
 
-	# CT Upgrade status
+	# CT Upgrade status (with content-colored source labels)
 	if def.category == "terminal" and upgrade_manager:
+		var cat_sources: Dictionary = {
+			"routing": [0, 1], "decryption": [3, 5], "recovery": [2, 4], "bandwidth": [],
+		}
 		lines.append("")
 		lines.append("[color=#44ccff]── UPGRADES ──[/color]")
 		for cat in ["routing", "decryption", "recovery", "bandwidth"]:
@@ -257,12 +260,12 @@ func _update_stats() -> void:
 			var cum: float = upgrade_manager.get_cumulative(cat)
 			var next_cost: float = upgrade_manager.get_next_tier_cost(cat)
 			var cat_label: String = cat.capitalize()
-			var progress_str: String
-			if next_cost < 0:
-				progress_str = "[color=#44ff88]MAX[/color]"
-			else:
-				progress_str = "%d/%d MB" % [int(cum), int(next_cost)]
-			lines.append(_stat(cat_label, "T%d (%.0fx) — %s" % [tier, mult, progress_str]))
+			var source_parts: PackedStringArray = []
+			for cid in cat_sources.get(cat, []):
+				source_parts.append("[color=%s]%s[/color]" % [DataEnums.content_color_hex(cid), DataEnums.content_char(cid)])
+			var src_str: String = " ".join(source_parts) if not source_parts.is_empty() else "[color=#667788]all[/color]"
+			var progress_str: String = "[color=#44ff88]MAX[/color]" if next_cost < 0 else "%d/%d" % [int(cum), int(next_cost)]
+			lines.append(_stat("%s %s" % [cat_label, src_str], "T%d (%.0fx) %s" % [tier, mult, progress_str]))
 
 	stats_label.text = "\n".join(lines)
 

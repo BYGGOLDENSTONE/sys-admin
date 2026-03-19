@@ -542,8 +542,16 @@ func _update_detail() -> void:
 			lines.append("[color=#888888]Mode:[/color] Instant destruction")
 	# CT: show upgrade categories + claim buttons
 	var is_ct: bool = def.category == "terminal"
+	# CT: show upgrade categories with content-colored source labels
 	_ct_claim_container.visible = is_ct and _upgrade_manager != null
 	if is_ct and _upgrade_manager:
+		# Content color mapping per category
+		var cat_sources: Dictionary = {
+			"routing": [0, 1],      # Standard, Financial
+			"decryption": [3, 5],   # Blueprint, Classified
+			"recovery": [2, 4],     # Biometric, Research
+			"bandwidth": [],        # 25% of all processed
+		}
 		lines.append("")
 		lines.append("[color=#44ccff]── UPGRADES ──[/color]")
 		for cat in ["routing", "decryption", "recovery", "bandwidth"]:
@@ -552,14 +560,20 @@ func _update_detail() -> void:
 			var cum: float = _upgrade_manager.get_cumulative(cat)
 			var next_cost: float = _upgrade_manager.get_next_tier_cost(cat)
 			var cat_label: String = cat.capitalize()
+			var tier_color: String = "#44ff88" if tier >= 3 else ("#ffcc44" if tier >= 2 else "#aabbcc")
+			# Source content labels with colors
+			var source_parts: PackedStringArray = []
+			for cid in cat_sources.get(cat, []):
+				var cc: String = DataEnums.content_color_hex(cid)
+				source_parts.append("[color=%s]%s[/color]" % [cc, DataEnums.content_char(cid)])
+			var source_label: String = " ".join(source_parts) if not source_parts.is_empty() else "[color=#667788]all 25%[/color]"
 			var progress_str: String
 			if next_cost < 0:
 				progress_str = "[color=#44ff88]MAX[/color]"
 			else:
-				progress_str = "%d / %d MB" % [int(cum), int(next_cost)]
-			var tier_color: String = "#44ff88" if tier >= 3 else ("#ffcc44" if tier >= 2 else "#aabbcc")
-			lines.append("[color=%s]%s T%d[/color] (%.0fx) — %s" % [tier_color, cat_label, tier, mult, progress_str])
-			# Update claim button state
+				progress_str = "%d/%d" % [int(cum), int(next_cost)]
+			lines.append("[color=%s]%s T%d[/color] (%.0fx) %s — %s" % [tier_color, cat_label, tier, mult, source_label, progress_str])
+			# Update claim button
 			if _ct_claim_buttons.has(cat):
 				var btn: Button = _ct_claim_buttons[cat]
 				var claimable: bool = _upgrade_manager.is_claimable(cat)
