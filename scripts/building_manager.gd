@@ -812,9 +812,30 @@ func _cycle_building_filter(building: Node2D) -> void:
 		building.classifier_filter_content = (building.classifier_filter_content + 1) % 6
 		print("[BuildingManager] Classifier filter → %s" % DataEnums.content_name(building.classifier_filter_content))
 	elif def.scanner:
-		# Cycle through sub-types (0-3) for the current content context
-		building.scanner_filter_sub_type = (building.scanner_filter_sub_type + 1) % 4
-		print("[BuildingManager] Scanner filter → sub-type %d" % building.scanner_filter_sub_type)
+		# Cycle through detected sub-types (from stored data + all known)
+		var pids: Array[int] = []
+		for key in building.stored_data:
+			if building.stored_data[key] <= 0:
+				continue
+			var c: int = DataEnums.unpack_content(key)
+			var st: int = DataEnums.unpack_sub_type(key)
+			if st >= 0:
+				var pid: int = c * 4 + st
+				if pid not in pids:
+					pids.append(pid)
+		pids.sort()
+		if pids.is_empty():
+			# No data yet — cycle all 24
+			building.scanner_filter_sub_type = (building.scanner_filter_sub_type + 1) % 24
+		else:
+			var idx: int = pids.find(building.scanner_filter_sub_type)
+			building.scanner_filter_sub_type = pids[(idx + 1) % pids.size()]
+		var fc: int = building.scanner_filter_sub_type / 4
+		var fst: int = building.scanner_filter_sub_type % 4
+		var label: String = DataEnums.sub_type_name(fc, fst)
+		if label == "":
+			label = "pid %d" % building.scanner_filter_sub_type
+		print("[BuildingManager] Scanner filter → %s" % label)
 	elif def.processor and def.processor.rule == "separator":
 		if building.separator_mode == "state":
 			# Cycle: PUBLIC(0) → ENCRYPTED(1) → CORRUPTED(2), skip MALWARE(3) & ENC_COR(4)

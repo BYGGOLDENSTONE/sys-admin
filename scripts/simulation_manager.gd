@@ -132,7 +132,7 @@ func _rebuild_delivery_meta() -> void:
 				_target_ports[bid] = def.output_ports.duplicate()
 		elif def.scanner != null:
 			_conn_target_types[i] = 8  # BTYPE_SCANNER
-			_conn_target_filters[i] = target.scanner_filter_sub_type
+			_conn_target_filters[i] = target.scanner_filter_sub_type  # packed content*4+sub_type
 			if not _target_ports.has(bid):
 				_target_ports[bid] = def.output_ports.duplicate()
 		elif def.processor != null and def.processor.rule == "separator":
@@ -1156,16 +1156,18 @@ func _process_scanner(b: Node2D, max_process: int) -> int:
 	var secondary_port: String = output_ports[1]  # bottom — everything else
 	if not _has_output_connection(b, primary_port) or not _has_output_connection(b, secondary_port):
 		return 0
-	var filter_st: int = b.scanner_filter_sub_type
+	var filter_pid: int = b.scanner_filter_sub_type  # packed: content*4 + sub_type
 	for key in b.stored_data:
 		if processed >= max_process:
 			break
 		var available: int = b.stored_data.get(key, 0)
 		if available <= 0:
 			continue
+		var c: int = DataEnums.unpack_content(key)
 		var st: int = DataEnums.unpack_sub_type(key)
+		var data_pid: int = c * 4 + st if st >= 0 else -1
 		var to_process: int = mini(available, max_process - processed)
-		var target_port: String = primary_port if st == filter_st else secondary_port
+		var target_port: String = primary_port if data_pid == filter_pid else secondary_port
 		var sent: int = _push_data_from(b, DataEnums.unpack_content(key), DataEnums.unpack_state(key), to_process, target_port, DataEnums.unpack_tier(key), DataEnums.unpack_tags(key), st)
 		if sent > 0:
 			b.stored_data[key] -= sent

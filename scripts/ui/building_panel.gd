@@ -424,12 +424,14 @@ func _update_detail() -> void:
 		lines.append("[color=#888888]Bottom →[/color] All other content")
 	if def.scanner:
 		lines.append("[color=#888888]Throughput:[/color] %d MB/s" % int(def.scanner.throughput_rate))
-		var st_label: String = "Sub-Type %d" % b.scanner_filter_sub_type
-		for c in range(6):
-			var name: String = DataEnums.sub_type_name(c, b.scanner_filter_sub_type)
-			if name != "":
-				st_label = name
-				break
+		var pid: int = b.scanner_filter_sub_type
+		var st_label: String = "(no filter)"
+		if pid >= 0:
+			var fc: int = pid / 4
+			var fst: int = pid % 4
+			var stn: String = DataEnums.sub_type_name(fc, fst)
+			if stn != "":
+				st_label = stn
 		lines.append("[color=#888888]Right →[/color] [color=#44ff88]%s[/color]" % st_label)
 		lines.append("[color=#888888]Bottom →[/color] All other sub-types")
 	if def.producer:
@@ -654,17 +656,45 @@ func _populate_filter_dropdown(building: Node2D) -> void:
 	elif def.scanner:
 		_detail_filter_container.visible = true
 		_detail_filter_label.text = "Sub-Type Filter:"
-		for i in range(4):
-			# Show generic sub-type labels (smart tab would detect from input)
-			var label: String = "Sub-Type %d" % i
-			# Try to find a name from any content that has this sub-type
-			for c in range(6):
-				var st_name: String = DataEnums.sub_type_name(c, i)
-				if st_name != "":
-					label = st_name
-					break
-			_detail_filter_dropdown.add_item(label, i)
-		_detail_filter_dropdown.selected = building.scanner_filter_sub_type
+		# Collect all sub-types: from stored data + from connected sources
+		var seen: Dictionary = {}  # packed_id → {content, sub_type, name, has_data}
+		# 1) Stored data — currently flowing
+		for key in building.stored_data:
+			if building.stored_data[key] <= 0:
+				continue
+			var c: int = DataEnums.unpack_content(key)
+			var st: int = DataEnums.unpack_sub_type(key)
+			if st < 0:
+				continue
+			var pid: int = c * 4 + st
+			if not seen.has(pid):
+				var stn: String = DataEnums.sub_type_name(c, st)
+				if stn == "":
+					stn = "%s #%d" % [DataEnums.content_name(c), st]
+				seen[pid] = {"content": c, "sub_type": st, "name": stn, "has_data": true}
+		# 2) All content types with known sub-types (show full palette)
+		for c in range(6):
+			var count: int = DataEnums.sub_type_count(c)
+			for st in range(count):
+				var pid: int = c * 4 + st
+				if not seen.has(pid):
+					var stn: String = DataEnums.sub_type_name(c, st)
+					if stn != "":
+						seen[pid] = {"content": c, "sub_type": st, "name": stn, "has_data": false}
+		if seen.is_empty():
+			_detail_filter_dropdown.add_item("(no data)", 0)
+		else:
+			var sel_idx: int = 0
+			var idx: int = 0
+			var sorted_keys: Array = seen.keys()
+			sorted_keys.sort()
+			for pid in sorted_keys:
+				var info: Dictionary = seen[pid]
+				_detail_filter_dropdown.add_item(info.name, pid)
+				if pid == building.scanner_filter_sub_type:
+					sel_idx = idx
+				idx += 1
+			_detail_filter_dropdown.selected = mini(sel_idx, idx - 1)
 	elif def.processor and def.processor.rule == "separator":
 		_detail_filter_container.visible = true
 		if building.separator_mode == "state":
@@ -703,7 +733,7 @@ func _on_filter_selected(index: int) -> void:
 	if def.classifier:
 		_selected_building.classifier_filter_content = id
 	elif def.scanner:
-		_selected_building.scanner_filter_sub_type = id
+		_selected_building.scanner_filter_sub_type = id  # packed_id = content*4 + sub_type
 	elif def.processor and def.processor.rule == "separator":
 		_selected_building.separator_filter_value = id
 	elif def.producer and def.producer.max_tier > 1:

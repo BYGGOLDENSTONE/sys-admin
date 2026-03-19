@@ -38,7 +38,7 @@ var status_reason: String = ""  ## Why the building is idle (set by SimulationMa
 var separator_mode: String = "state"  ## For separator: "state" or "content"
 var separator_filter_value: int = 0  ## Filter value for separator (state or content int)
 var classifier_filter_content: int = 0  ## Filter value for classifier (content int)
-var scanner_filter_sub_type: int = 0  ## Filter value for scanner (sub-type int 0-3)
+var scanner_filter_sub_type: int = -1  ## Filter: packed content*4+sub_type, -1=none
 var selected_tier: int = 1  ## For producer: which tier to produce (1-3)
 var upgrade_level: int = 0  ## Current upgrade level (0 = base)
 

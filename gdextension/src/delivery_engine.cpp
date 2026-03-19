@@ -132,8 +132,9 @@ bool DeliveryEngine::_try_routing(
             String p0 = ports[0];
             String p1 = ports[1];
             if (!bid_ports.has(p0) || !bid_ports.has(p1)) return false;
-            int item_sub_type = unpack_sub_type(packed_key);
-            output_port = (item_sub_type == filter) ? p0 : p1;
+            int item_st = unpack_sub_type(packed_key);
+            int item_pid = item_content * 4 + item_st;  // packed content*4+sub_type
+            output_port = (item_pid == filter) ? p0 : p1;
             break;
         }
         case TYPE_SEPARATOR_STATE: {
