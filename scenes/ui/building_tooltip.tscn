@@ -19,20 +19,21 @@ text = "Building Name"
 
 [node name="DescLabel" type="Label" parent="MarginContainer/VBoxContainer" unique_id=1006531706]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.6, 0.65, 0.7, 1)
-theme_override_font_sizes/font_size = 11
+theme_override_colors/font_color = Color(0.65, 0.7, 0.75, 1)
+theme_override_font_sizes/font_size = 12
 text = "Description text here"
 autowrap_mode = 2
 
 [node name="InfoLabel" type="Label" parent="MarginContainer/VBoxContainer" unique_id=1345763841]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.5, 0.55, 0.6, 1)
-theme_override_font_sizes/font_size = 10
+theme_override_colors/font_color = Color(0.55, 0.6, 0.65, 1)
+theme_override_font_sizes/font_size = 12
 text = "CATEGORY | 100 CR"
 
 [node name="StatsLabel" type="RichTextLabel" parent="MarginContainer/VBoxContainer" unique_id=458194565]
 custom_minimum_size = Vector2(200, 0)
 layout_mode = 2
+theme_override_font_sizes/normal_font_size = 13
 bbcode_enabled = true
 fit_content = true
 scroll_active = false

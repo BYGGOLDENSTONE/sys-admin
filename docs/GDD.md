@@ -1170,19 +1170,21 @@ Gig sistemi oyuncuya yön veren soft-guide mekanizmasıdır. Contract Terminal'd
 
 ### Tutorial Gig'ler (Yeniden Tasarlanacak)
 
-Mevcut tutorial gig'lerin yeni sistemlerle (FIRE, Scanner, feedback loop) uyumlu hale getirilmesi gerekiyor. Yeni tutorial akışı:
+Tutorial sistemi 9 gig ile tüm mekanikleri öğretir. Her gig tek bir konsept, miktarlar pipeline gözlemlemeye yetecek kadar büyük:
 
-1. Temel bağlantı (easy kaynak, FIRE yok)
-2. Classifier (content filtreleme)
-3. Separator (state filtreleme)
-4. FIRE kırma (medium kaynak)
-5. Scanner (sub-type filtreleme)
-6. Decryptor + Key Forge (4-bit)
-7. Recoverer feedback loop + Repair Lab
-8. Encryptor
-9. Yüksek bit-depth / severity challenge
+| # | Gig | Mekanik | Miktar | Unlock |
+|---|-----|---------|--------|--------|
+| 1 | First Connection | Kablo çekme | 50 MB | Separator |
+| 2 | Clean Stream | State filtre (Separator) | 100 MB | Classifier |
+| 3 | Content Split | Content filtre + Merger | 80+80 MB | Merger, Scanner |
+| 4 | Deep Scan | Scanner sub-type filtre | 100 MB | — |
+| 5 | Break the Firewall | F.I.R.E. sistemi | 120 MB | Repair Lab, Recoverer |
+| 6 | Data Recovery | Recoverer + Repair Lab | 150 MB | Key Forge, Decryptor |
+| 7 | Crack the Code | Key Forge + Decryptor | 150 MB | Encryptor |
+| 8 | Secure Transfer | Encryptor + tag stacking | 120 MB | — |
+| 9 | Master Pipeline | Throughput + Upgrade + Capstone | 200+150+100 MB | — |
 
-**Detaylar sonraki tasarım oturumunda kesinleşecek.**
+Tutorial sonrası hedef: Network Bar %100 (tüm kaynakların tüm content'leri aktif kullanımda).
 
 ### Procedural Gig Generator (Tutorial Sonrası)
 
@@ -1217,7 +1219,8 @@ Tutorial bitince procedural gig generator devreye girer. Her zaman **3 aktif pro
 - **Amaç:** Haritadaki sunucuları bağlayıp sürekli akışı sürdürmek
 - **Kritik fark:** Gig tamamlanınca pipeline KALIR ve çalışmaya devam eder. Ağ sadece büyür.
 - **Progress:** "NETWORK: X/Y (Z%)" göstergesi — bağlı kaynak / toplam kaynak oranı
-- **FIRE regen:** Hard kaynaklarda sürekli throughput koruma = daimi mühendislik
+- **Bağlı sayılma kuralı:** Bir kaynak "connected" sayılır ancak TÜM content tipleri ağda aktif kullanıldığında. Aktif kullanım = CT'ye teslim, F.I.R.E. besleme, Key/Kit üretiminde tüketim, veya Decryptor/Recoverer/Encryptor'da işleme. Trash'e yönlendirmek SAYMAZ.
+- **F.I.R.E. regen:** Hard kaynaklarda sürekli throughput koruma = daimi mühendislik
 - **Endgame:** Tüm veriler aynı anda akıyor, devasa cyber web
 
 ### Faz Geçişleri

@@ -29,7 +29,7 @@ var _gig_hints: Dictionary = {
 	},
 	2: {
 		"id": "gig2_intro",
-		"text": "The ATM mixes Public and Corrupted data. Your new [color=#ffcc44]Separator[/color] filters by [color=#00ddff]state[/color].\nSet it to [color=#00ddff]Public[/color] with [color=#ffcc44]TAB[/color] — clean data exits [color=#00ddff]right[/color], Corrupted exits [color=#00ddff]bottom[/color].",
+		"text": "The ATM mixes [color=#00ffaa]Public[/color] and [color=#ff8844]Corrupted[/color] data. Use your new [color=#ffcc44]Separator[/color] to filter by state.\nSet it to [color=#00ffaa]Public[/color] with [color=#ffcc44]TAB[/color] — clean data exits [color=#00ddff]right[/color], Corrupted exits [color=#00ddff]bottom[/color].",
 		"duration": 14.0,
 	},
 	3: {
@@ -39,28 +39,33 @@ var _gig_hints: Dictionary = {
 	},
 	4: {
 		"id": "gig4_intro",
-		"text": "Find a [color=#00ddff]medium-difficulty source[/color] that carries [color=#9955ff]Research[/color] data — like a Hospital or Biotech Lab.\nFilter and deliver the clean Research data.",
+		"text": "The [color=#ffcc44]Scanner[/color] filters by [color=#00ddff]sub-type[/color] — more precise than Classifier.\nPlace it after your Classifier and press [color=#ffcc44]TAB[/color] to select [color=#00ddff]Transaction Records[/color].",
 		"duration": 14.0,
 	},
 	5: {
 		"id": "gig5_intro",
-		"text": "The [color=#ffcc44]Recoverer[/color] repairs Corrupted data using [color=#00ddff]Repair Kits[/color].\nFeed [color=#00ddff]Corrupted data[/color] from the left, [color=#00ddff]Repair Kit[/color] from the top (built by [color=#ffcc44]Repair Lab[/color]).",
+		"text": "The Hospital Terminal is locked behind a [color=#ff4422]FIRE[/color] wall. Check its tooltip to see what it needs.\nFind the required data type and route it to the Hospital's [color=#ffcc44]FIRE input port[/color] to breach it.",
 		"duration": 14.0,
 	},
 	6: {
 		"id": "gig6_intro",
-		"text": "The [color=#ffcc44]Key Forge[/color] crafts Keys from [color=#9955ff]Research[/color] data.\nThe [color=#ffcc44]Decryptor[/color] needs [color=#2288ff]Encrypted[/color] data on the [color=#00ddff]left[/color] and a [color=#ffcc44]Key[/color] on the [color=#00ddff]top[/color].",
+		"text": "The [color=#ffcc44]Repair Lab[/color] makes [color=#00ddff]Repair Kits[/color] from Standard data.\nThe [color=#ffcc44]Recoverer[/color] needs [color=#ff8844]Corrupted[/color] data on the [color=#00ddff]left[/color] and a Kit on the [color=#00ddff]top[/color].",
 		"duration": 14.0,
 	},
 	7: {
 		"id": "gig7_intro",
-		"text": "The [color=#ffcc44]Encryptor[/color] re-encrypts processed data. Feed [color=#00ddff]Decrypted[/color] data from the left and a [color=#ffcc44]Key[/color] from the top.\nDecrypt first, then encrypt — the data gains both tags.",
+		"text": "The [color=#ffcc44]Key Forge[/color] crafts Keys from [color=#9955ff]Research[/color] data.\nThe [color=#ffcc44]Decryptor[/color] needs [color=#2288ff]Encrypted[/color] data on the [color=#00ddff]left[/color] and a [color=#ffcc44]Key[/color] on the [color=#00ddff]top[/color].",
 		"duration": 14.0,
 	},
 	8: {
 		"id": "gig8_intro",
-		"text": "All tools are yours now. Multiple data types, multiple processing chains.\nBuild the network you need — contracts will keep coming after this.",
-		"duration": 12.0,
+		"text": "The [color=#ffcc44]Encryptor[/color] re-encrypts processed data. Feed [color=#00ddff]Decrypted[/color] data from the left and a [color=#ffcc44]Key[/color] from the top.\nDecrypt first, then encrypt — both steps consume Keys.",
+		"duration": 14.0,
+	},
+	9: {
+		"id": "gig9_intro",
+		"text": "Three pipelines at once — your [color=#00ddff]final test[/color]. If data moves slowly, use [color=#ffcc44]Splitter[/color] to parallelize.\nWhen enough data is delivered, check the [color=#ffcc44]UPGRADES[/color] tab on the Contract Terminal.",
+		"duration": 14.0,
 	},
 }
 
@@ -275,13 +280,14 @@ func on_gig_activated(gig) -> void:
 ## Completion messages per tutorial gig
 var _completion_hints: Dictionary = {
 	1: "Data flowing! Next: learn to filter dirty data.",
-	2: "Filtering mastered! Next: chain filters for complex sources.",
-	3: "Filter chain built! Next: find new data sources.",
-	4: "Research data delivered! Next: repair corrupted data.",
-	5: "Recovery mastered! Next: crack encrypted data.",
-	6: "Decryption online! Next: re-encrypt for secure delivery.",
-	7: "Encryption chain complete! One more tutorial to go.",
-	8: "All tools mastered! Contracts will now generate automatically — build your network.",
+	2: "State filtering mastered! Next: split content types.",
+	3: "Filter chain built! Next: precision filtering with the Scanner.",
+	4: "Sub-type scan complete! Next: breach a locked source.",
+	5: "FIRE breached! Next: repair corrupted data.",
+	6: "Recovery mastered! Next: crack encrypted data.",
+	7: "Decryption online! Next: re-encrypt for secure delivery.",
+	8: "Encryption chain complete! One final challenge.",
+	9: "All tools mastered! Your goal: connect every source on the map. Watch the NETWORK bar grow.",
 }
 
 

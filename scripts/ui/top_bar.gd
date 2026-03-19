@@ -54,7 +54,7 @@ func _build_ui() -> void:
 	hbox.add_child(_city_label)
 
 	# Throughput
-	_throughput_label = _make_label("", Color(0.3, 0.8, 0.6, 0.8), 14)
+	_throughput_label = _make_label("", Color(0.35, 0.85, 0.65, 0.9), 14)
 	_throughput_label.visible = false
 	hbox.add_child(_throughput_label)
 
@@ -70,7 +70,7 @@ func _build_ui() -> void:
 	hbox.add_child(_dev_label)
 
 	# Seed
-	_seed_label = _make_label("SEED: 0", Color(0.5, 0.5, 0.5, 0.7), 14)
+	_seed_label = _make_label("SEED: 0", Color(0.5, 0.55, 0.6, 0.8), 14)
 	hbox.add_child(_seed_label)
 
 

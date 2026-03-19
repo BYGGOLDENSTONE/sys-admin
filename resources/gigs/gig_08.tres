@@ -1,28 +1,21 @@
-[gd_resource type="Resource" load_steps=4 format=3]
+[gd_resource type="Resource" load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://resources/gigs/gig_definition.gd" id="1"]
 [ext_resource type="Script" path="res://resources/gigs/gig_requirement.gd" id="2"]
 
 [sub_resource type="Resource" id="req1"]
 script = ExtResource("2")
-content = 2
+content = 1
 state = 0
-amount = 12
-label = "Biometric Public"
-
-[sub_resource type="Resource" id="req2"]
-script = ExtResource("2")
-content = 0
-state = 0
-tags = 2
-amount = 8
-label = "Standard Recovered"
+tags = 5
+amount = 120
+label = "Financial Dec\u00b7Enc"
 
 [resource]
 script = ExtResource("1")
-gig_name = "Open Network"
-description = "ARCHIVE_X: Multiple clients need different things. Biometric data flowing clean, Standard data recovered from corruption.\n\nUse everything you've learned. Build the network, connect sources, and get it all delivered."
+gig_name = "Secure Transfer"
+description = "ARCHIVE_X: I need Financial data that's been decrypted AND re-encrypted. Secure transfer protocol — no shortcuts.\n\nDecrypt first with the Decryptor, then re-encrypt through the Encryptor. Both steps consume Keys from the Key Forge."
 order_index = 8
 is_tutorial = true
-requirements = Array[Resource]([SubResource("req1"), SubResource("req2")])
+requirements = Array[Resource]([SubResource("req1")])
 reward_buildings = Array[String]([])

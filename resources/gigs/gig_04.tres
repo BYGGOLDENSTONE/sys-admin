@@ -5,16 +5,17 @@
 
 [sub_resource type="Resource" id="req1"]
 script = ExtResource("2")
-content = 4
+content = 1
 state = 0
-amount = 10
-label = "Research Public"
+sub_type = 0
+amount = 100
+label = "Transaction Records"
 
 [resource]
 script = ExtResource("1")
-gig_name = "Research Collection"
-description = "CIPHER_QUEEN: I need raw Research data from a hospital or lab. Find a source that carries it and filter out the noise.\n\nResearch data appears in medium-difficulty sources like Hospitals and Biotech Labs. Use your tools to isolate it."
+gig_name = "Deep Scan"
+description = "CIPHER_QUEEN: I don't just need Financial data — I need Transaction Records specifically. Your Scanner can filter by sub-type.\n\nPlace a Scanner after your Classifier. Press TAB to select the Transaction Records sub-type."
 order_index = 4
 is_tutorial = true
 requirements = Array[Resource]([SubResource("req1")])
-reward_buildings = Array[String](["Repair Lab", "Recoverer"])
+reward_buildings = Array[String]([])

@@ -16,19 +16,18 @@ var camera_ref: Camera2D = null
 var connection_manager: Node = null
 
 
+var _redraw_timer: Timer = null
+
+
 func _ready() -> void:
 	custom_minimum_size = Vector2(MINIMAP_SIZE, MINIMAP_SIZE)
 	mouse_filter = Control.MOUSE_FILTER_STOP
-
-
-var _redraw_timer: float = 0.0
-const REDRAW_INTERVAL: float = 0.1  # 10 FPS for minimap
-
-func _process(delta: float) -> void:
-	_redraw_timer += delta
-	if _redraw_timer >= REDRAW_INTERVAL:
-		_redraw_timer = 0.0
-		queue_redraw()
+	# Timer-based redraw at ~10 FPS instead of _process() per frame
+	_redraw_timer = Timer.new()
+	_redraw_timer.wait_time = 0.1
+	_redraw_timer.timeout.connect(queue_redraw)
+	add_child(_redraw_timer)
+	_redraw_timer.start()
 
 
 func _draw() -> void:

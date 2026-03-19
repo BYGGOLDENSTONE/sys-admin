@@ -7,14 +7,14 @@
 script = ExtResource("2")
 content = 1
 state = 0
-amount = 10
+amount = 100
 label = "Financial Public"
 
 [resource]
 script = ExtResource("1")
-gig_name = "Clean Data Only"
-description = "BROKER_7: The ATM line is dirty — Corrupted junk mixed with clean Financial data. I only want the clean stuff.\n\nUse your Separator to filter by state. Set it to Public with TAB — clean data exits right, Corrupted exits bottom."
+gig_name = "Clean Stream"
+description = "BROKER_7: The ATM line is dirty — Corrupted junk mixed with clean Financial data. I only want the clean stuff.\n\nUse a Separator to filter by state. Set it to Public with TAB — clean data exits right, Corrupted exits bottom."
 order_index = 2
 is_tutorial = true
 requirements = Array[Resource]([SubResource("req1")])
-reward_buildings = Array[String](["Merger"])
+reward_buildings = Array[String](["Classifier"])

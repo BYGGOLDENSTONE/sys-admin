@@ -5,17 +5,17 @@
 
 [sub_resource type="Resource" id="req1"]
 script = ExtResource("2")
-content = 1
+content = 2
 state = 0
-tags = 5
-amount = 8
-label = "Financial Decrypted·Encrypted"
+tags = 1
+amount = 150
+label = "Biometric Decrypted"
 
 [resource]
 script = ExtResource("1")
-gig_name = "Encryption Job"
-description = "CIPHER_QUEEN: I need Financial data that's been decrypted AND re-encrypted. Secure transfer protocol.\n\nDecrypt the data first with your Decryptor, then run it through the Encryptor. Both need Keys from the Key Forge."
+gig_name = "Crack the Code"
+description = "CIPHER_QUEEN: Encrypted Biometric data is piling up. Crack it open — I need it clean and decrypted.\n\nBuild a Key Forge (needs Research data) to produce Keys. Feed Encrypted data and a matching Key into the Decryptor."
 order_index = 7
 is_tutorial = true
 requirements = Array[Resource]([SubResource("req1")])
-reward_buildings = Array[String]([])
+reward_buildings = Array[String](["Encryptor"])

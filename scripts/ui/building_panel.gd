@@ -26,14 +26,15 @@ const BUILDING_ORDER: PackedStringArray = [
 
 ## Which gig unlocks each building (for locked tooltip)
 const UNLOCK_GIG: Dictionary = {
-	"Separator": "Gig 1: First Extraction",
-	"Classifier": "Gig 1: First Extraction",
-	"Merger": "Gig 2: Clean Data Only",
-	"Repair Lab": "Gig 4: Research Collection",
-	"Recoverer": "Gig 4: Research Collection",
-	"Key Forge": "Gig 5: Data Recovery",
-	"Decryptor": "Gig 5: Data Recovery",
-	"Encryptor": "Gig 6: Decryption Run",
+	"Separator": "Gig 1: First Connection",
+	"Classifier": "Gig 2: Clean Stream",
+	"Merger": "Gig 3: Content Split",
+	"Scanner": "Gig 3: Content Split",
+	"Repair Lab": "Gig 5: Break the Firewall",
+	"Recoverer": "Gig 5: Break the Firewall",
+	"Key Forge": "Gig 6: Data Recovery",
+	"Decryptor": "Gig 6: Data Recovery",
+	"Encryptor": "Gig 7: Crack the Code",
 }
 
 ## Cell references for guided tutorial arrow targeting
@@ -77,6 +78,9 @@ var _selected_building: Node2D = null
 var _in_detail_mode: bool = false
 
 
+var _refresh_timer: Timer = null
+
+
 func _ready() -> void:
 	_setup_panel_style()
 	_load_definitions()
@@ -85,9 +89,20 @@ func _ready() -> void:
 	_create_buttons()
 	_build_detail_ui()
 	_play_slide_in()
+	# Throttled detail refresh — avoids recalculating stats every simulation tick
+	_refresh_timer = Timer.new()
+	_refresh_timer.wait_time = 0.2
+	_refresh_timer.one_shot = true
+	_refresh_timer.timeout.connect(_do_refresh_detail)
+	add_child(_refresh_timer)
 
 
 func refresh_detail() -> void:
+	if _refresh_timer and _refresh_timer.is_stopped():
+		_refresh_timer.start()
+
+
+func _do_refresh_detail() -> void:
 	if _in_detail_mode and _selected_building != null:
 		_update_detail()
 	elif _in_detail_mode and _selected_source != null:
@@ -219,12 +234,12 @@ func _create_cell(def: BuildingDefinition, unlocked: bool) -> PanelContainer:
 	label.text = def.building_name if unlocked else "???"
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	label.add_theme_font_size_override("font_size", 10)
+	label.add_theme_font_size_override("font_size", 12)
 	label.mouse_filter = Control.MOUSE_FILTER_PASS
 	if unlocked:
 		label.add_theme_color_override("font_color", Color(0.8, 0.85, 0.9, 0.9))
 	else:
-		label.add_theme_color_override("font_color", Color(0.45, 0.5, 0.58, 0.8))
+		label.add_theme_color_override("font_color", Color(0.5, 0.55, 0.6, 0.8))
 	vbox.add_child(label)
 
 	# Style the cell
@@ -277,8 +292,8 @@ func _build_detail_ui() -> void:
 
 	# Description
 	_detail_desc = Label.new()
-	_detail_desc.add_theme_font_size_override("font_size", 12)
-	_detail_desc.add_theme_color_override("font_color", Color(0.5, 0.6, 0.7, 0.8))
+	_detail_desc.add_theme_font_size_override("font_size", 13)
+	_detail_desc.add_theme_color_override("font_color", Color(0.55, 0.65, 0.75, 0.9))
 	_detail_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_detail_container.add_child(_detail_desc)
 
@@ -346,8 +361,8 @@ func _build_detail_ui() -> void:
 
 	# Demo cap label
 	_detail_upgrade_cap = Label.new()
-	_detail_upgrade_cap.add_theme_font_size_override("font_size", 12)
-	_detail_upgrade_cap.add_theme_color_override("font_color", Color(0.4, 0.45, 0.55, 0.7))
+	_detail_upgrade_cap.add_theme_font_size_override("font_size", 13)
+	_detail_upgrade_cap.add_theme_color_override("font_color", Color(0.5, 0.55, 0.65, 0.8))
 	_detail_upgrade_cap.visible = false
 	_detail_container.add_child(_detail_upgrade_cap)
 
@@ -369,7 +384,7 @@ func _build_detail_ui() -> void:
 		info.fit_content = true
 		info.scroll_active = false
 		info.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		info.add_theme_font_size_override("normal_font_size", 11)
+		info.add_theme_font_size_override("normal_font_size", 12)
 		var content_ids: Array = cat_content_map.get(cat, [])
 		var parts: PackedStringArray = []
 		for cid in content_ids:
@@ -510,12 +525,12 @@ func _update_detail() -> void:
 
 	# Type-specific live info
 	if def.classifier:
-		lines.append("[color=#888888]Throughput:[/color] %d MB/s" % int(b.get_effective_value("processing_rate")))
+		lines.append("[color=#8899aa]Throughput:[/color] %d MB/s" % int(b.get_effective_value("processing_rate")))
 		var filter_name: String = DataEnums.content_name(b.classifier_filter_content)
-		lines.append("[color=#888888]Right →[/color] [color=#44ff88]%s[/color]" % filter_name)
-		lines.append("[color=#888888]Bottom →[/color] All other content")
+		lines.append("[color=#8899aa]Right →[/color] [color=#44ff88]%s[/color]" % filter_name)
+		lines.append("[color=#8899aa]Bottom →[/color] All other content")
 	if def.scanner:
-		lines.append("[color=#888888]Throughput:[/color] %d MB/s" % int(def.scanner.throughput_rate))
+		lines.append("[color=#8899aa]Throughput:[/color] %d MB/s" % int(def.scanner.throughput_rate))
 		var pid: int = b.scanner_filter_sub_type
 		var st_label: String = "(no filter)"
 		if pid >= 0:
@@ -524,21 +539,21 @@ func _update_detail() -> void:
 			var stn: String = DataEnums.sub_type_name(fc, fst)
 			if stn != "":
 				st_label = stn
-		lines.append("[color=#888888]Right →[/color] [color=#44ff88]%s[/color]" % st_label)
-		lines.append("[color=#888888]Bottom →[/color] All other sub-types")
+		lines.append("[color=#8899aa]Right →[/color] [color=#44ff88]%s[/color]" % st_label)
+		lines.append("[color=#8899aa]Bottom →[/color] All other sub-types")
 	if def.producer:
-		lines.append("[color=#888888]Rate:[/color] %d/tick" % int(b.get_effective_value("processing_rate")))
+		lines.append("[color=#8899aa]Rate:[/color] %d/tick" % int(b.get_effective_value("processing_rate")))
 		var tier_names: Array[String] = ["T1 Key", "T2 Strong Key", "T3 Master Key"]
 		var tier_label: String = tier_names[b.selected_tier - 1] if b.selected_tier <= tier_names.size() else "T%d Key" % b.selected_tier
-		lines.append("[color=#888888]Mode:[/color] [color=#ffaa00]%s[/color]" % tier_label)
+		lines.append("[color=#8899aa]Mode:[/color] [color=#ffaa00]%s[/color]" % tier_label)
 		var recipe: String = "[color=#aa77ff]%d MB Research[/color]" % def.producer.consume_amount
 		if b.selected_tier >= 2 and def.producer.tier2_extra_content >= 0:
 			recipe += " + [color=#ffcc00]%d MB %s[/color]" % [def.producer.tier2_extra_amount, DataEnums.content_name(def.producer.tier2_extra_content)]
 		if b.selected_tier >= 3 and def.producer.tier3_extra_content >= 0:
 			recipe += " + [color=#ff33aa]%d MB %s[/color]" % [def.producer.tier3_extra_amount, DataEnums.content_name(def.producer.tier3_extra_content)]
-		lines.append("[color=#888888]Recipe:[/color] %s" % recipe)
+		lines.append("[color=#8899aa]Recipe:[/color] %s" % recipe)
 	if def.dual_input:
-		lines.append("[color=#888888]Throughput:[/color] %d MB/s" % int(b.get_effective_value("processing_rate")))
+		lines.append("[color=#8899aa]Throughput:[/color] %d MB/s" % int(b.get_effective_value("processing_rate")))
 		if not def.dual_input.fuel_matches_content:
 			var key_parts: PackedStringArray = []
 			for kt in range(1, 4):
@@ -547,25 +562,25 @@ func _update_detail() -> void:
 				if count > 0:
 					key_parts.append("T%d:%d" % [kt, count])
 			if key_parts.is_empty():
-				lines.append("[color=#888888]Key Stock:[/color] [color=#ff6644]0[/color]")
+				lines.append("[color=#8899aa]Key Stock:[/color] [color=#ff6644]0[/color]")
 			else:
-				lines.append("[color=#888888]Key Stock:[/color] [color=#ffaa00]%s[/color]" % ", ".join(key_parts))
+				lines.append("[color=#8899aa]Key Stock:[/color] [color=#ffaa00]%s[/color]" % ", ".join(key_parts))
 	if def.processor:
 		if def.processor.rule == "separator":
-			lines.append("[color=#888888]Throughput:[/color] %d MB/s" % int(b.get_effective_value("processing_rate")))
+			lines.append("[color=#8899aa]Throughput:[/color] %d MB/s" % int(b.get_effective_value("processing_rate")))
 			var filter_name: String
 			if b.separator_mode == "content":
 				filter_name = DataEnums.content_name(b.separator_filter_value)
 			else:
 				filter_name = DataEnums.state_name(b.separator_filter_value)
-			lines.append("[color=#888888]Right →[/color] [color=#44ff88]%s[/color]" % filter_name)
-			lines.append("[color=#888888]Bottom →[/color] All other data")
+			lines.append("[color=#8899aa]Right →[/color] [color=#44ff88]%s[/color]" % filter_name)
+			lines.append("[color=#8899aa]Bottom →[/color] All other data")
 		elif def.processor.rule == "splitter":
-			lines.append("[color=#888888]Distribution:[/color] Equal (50/50)")
+			lines.append("[color=#8899aa]Distribution:[/color] Equal (50/50)")
 		elif def.processor.rule == "merger":
-			lines.append("[color=#888888]Merging:[/color] ← Left + ↑ Top → Right")
+			lines.append("[color=#8899aa]Merging:[/color] ← Left + ↑ Top → Right")
 		elif def.processor.rule == "trash":
-			lines.append("[color=#888888]Mode:[/color] Instant destruction")
+			lines.append("[color=#8899aa]Mode:[/color] Instant destruction")
 	# CT: upgrades moved to Contracts panel UPGRADES tab
 	var is_ct: bool = def.category == "terminal"
 	_ct_claim_container.visible = false
@@ -605,21 +620,6 @@ func _update_detail() -> void:
 				var claimable: bool = _upgrade_manager.is_claimable(cat)
 				btn.disabled = not claimable
 				if next_cost < 0:
-					btn.text = "MAX"
-					btn.disabled = true
-					btn.add_theme_color_override("font_color", Color(0.3, 0.4, 0.5))
-				elif claimable:
-					btn.text = "CLAIM T%d!  (%d/%d MB)" % [tier + 1, int(cum), int(next_cost)]
-					btn.add_theme_color_override("font_color", Color(0.2, 1.0, 0.6))
-				else:
-					btn.text = "%d / %d MB" % [int(cum), int(next_cost)]
-					btn.add_theme_color_override("font_color", Color(0.4, 0.5, 0.6))
-			# Update claim button
-			if _ct_claim_buttons.has(cat):
-				var btn: Button = _ct_claim_buttons[cat]
-				var claimable: bool = _upgrade_manager.is_claimable(cat)
-				btn.disabled = not claimable
-				if next_cost < 0:
 					btn.text = "%s — MAX" % cat_label
 					btn.disabled = true
 				elif claimable:
@@ -634,9 +634,9 @@ func _update_detail() -> void:
 	if total_stored > 0:
 		var cap: int = int(b.get_effective_value("capacity")) if b.has_method("get_effective_value") else 0
 		if cap > 0:
-			lines.append("[color=#888888]Stored:[/color] %d / %d MB" % [total_stored, cap])
+			lines.append("[color=#8899aa]Stored:[/color] %d / %d MB" % [total_stored, cap])
 		else:
-			lines.append("[color=#888888]Stored:[/color] %d MB" % total_stored)
+			lines.append("[color=#8899aa]Stored:[/color] %d MB" % total_stored)
 		# Show data breakdown for CT
 		if def.category == "terminal":
 			for key in b.stored_data:

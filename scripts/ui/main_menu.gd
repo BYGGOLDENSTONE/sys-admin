@@ -78,7 +78,7 @@ func _build_ui() -> void:
 	var subtitle := Label.new()
 	subtitle.text = "Data Pipeline Puzzle"
 	subtitle.add_theme_font_size_override("font_size", 18)
-	subtitle.add_theme_color_override("font_color", Color(0.4, 0.55, 0.65, 0.7))
+	subtitle.add_theme_color_override("font_color", Color(0.45, 0.6, 0.7, 0.8))
 	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	main_box.add_child(subtitle)
 
@@ -148,8 +148,8 @@ func _build_ui() -> void:
 	# Version label
 	var version_lbl := Label.new()
 	version_lbl.text = "Demo v1.0"
-	version_lbl.add_theme_font_size_override("font_size", 12)
-	version_lbl.add_theme_color_override("font_color", Color(0.3, 0.4, 0.5, 0.5))
+	version_lbl.add_theme_font_size_override("font_size", 13)
+	version_lbl.add_theme_color_override("font_color", Color(0.35, 0.45, 0.55, 0.6))
 	version_lbl.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
 	version_lbl.offset_right = -16.0
 	version_lbl.offset_bottom = -12.0

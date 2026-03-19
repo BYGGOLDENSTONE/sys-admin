@@ -1,0 +1,36 @@
+[gd_resource type="Resource" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://resources/gigs/gig_definition.gd" id="1"]
+[ext_resource type="Script" path="res://resources/gigs/gig_requirement.gd" id="2"]
+
+[sub_resource type="Resource" id="req1"]
+script = ExtResource("2")
+content = 2
+state = 0
+amount = 200
+label = "Biometric Public"
+
+[sub_resource type="Resource" id="req2"]
+script = ExtResource("2")
+content = 4
+state = 0
+tags = 2
+amount = 150
+label = "Research Recovered"
+
+[sub_resource type="Resource" id="req3"]
+script = ExtResource("2")
+content = 0
+state = 0
+tags = 1
+amount = 100
+label = "Standard Decrypted"
+
+[resource]
+script = ExtResource("1")
+gig_name = "Master Pipeline"
+description = "FIXER_NULL: Last job before I cut you loose. Three pipelines, three data types, all at once. Show me you can handle the network.\n\nUse Splitter to parallelize slow chains. When enough data flows, check the UPGRADES tab on the Contract Terminal."
+order_index = 9
+is_tutorial = true
+requirements = Array[Resource]([SubResource("req1"), SubResource("req2"), SubResource("req3")])
+reward_buildings = Array[String]([])

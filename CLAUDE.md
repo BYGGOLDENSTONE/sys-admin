@@ -35,7 +35,7 @@ SYS_ADMIN:   Karmasik kaynak → guvenlik as → ayikla/coz/onar → saf veri �
 - **Encrypted tier'lari:** 4-bit, 16-bit (demo) | 32-bit (full release). Paralel Key Forge = genislik bulmacasi
 - **Corrupted tier'lari:** Minor-Glitched, Major-Glitched (demo) | Critical-Glitched (full release). Recoverer feedback loop = derinlik bulmacasi
 - **Recoverer feedback loop:** Kismi recovery + Separator dongusu, her deneme Kit tuketir
-- **Network Bar:** Aktif veri akisi olan kaynak sayisi / toplam kaynak = ilerleme metrigi
+- **Network Bar:** Kaynak "connected" = TUM content tipleri agda aktif kullaniliyor (CT teslim, F.I.R.E. besleme, Key/Kit uretimi, Decryptor/Recoverer isleme). Trash saymaz. Bar = connected / total
 - **Throughput:** Maks 1.5s islem suresi. Paralel bina = cozum. Degerler placeholder, playtest ile ayarlanacak
 
 ### Demo Scope Lock
@@ -273,10 +273,10 @@ Her faz sonunda oyun **playable state**'te kalmali. Fazlar sirayla yapilir, bagi
 - Upgrade claim: otomatik degil, oyuncu CT'den tiklar
 
 #### ERTELENMIS (Sonraki Tasarim Oturumu)
-- [ ] Gig sistemi detaylari (yol gosterici hedefler — baglanti icin yonlendirme)
-- [ ] Tutorial gig'leri FIRE/Scanner/loop/upgrade icin yeniden yazma
+- [x] ~~Gig sistemi detaylari~~ TAMAMLANDI — 9 tutorial gig, tum mekanikler ogretiliyor (F.I.R.E., Scanner, Upgrade dahil)
+- [x] ~~Tutorial gig'leri FIRE/Scanner/loop/upgrade icin yeniden yazma~~ TAMAMLANDI
 - [ ] Bina acilma tetikleyicileri (gig-based kalacak, dev mode ile bypass)
-- [x] ~~**Network Bar hesabi:**~~ DUZELTILDI — BFS ile CT'ye erisilebilirlik + FIRE durumu kontrolu. Eski "kablo var mi" mantigi yerine gercek graf traversal. Tam content-bazli kontrol (tum state'ler akmali) henuz yok, full release icin planli.
+- [x] ~~**Network Bar hesabi:**~~ YENIDEN YAZILDI — Content-bazli aktif kullanim kontrolu. Kaynak "connected" = tum content tipleri CT/F.I.R.E./Producer/Processor tarafindan tuketiliyor. Trash saymaz.
 - [x] ~~**CT Port Purity bug:**~~ DUZELTILDI — type_key encoding'e tags eklendi (content<<8|state<<4|tags). Raw Encrypted/Corrupted (tags=0) artik CT'ye giremez, purity checker tags-aware.
 - [x] ~~**Dev Mode release'de acik:**~~ DUZELTILDI — OS.is_debug_build() kontrolu eklendi, release build'de F10 devre disi.
 

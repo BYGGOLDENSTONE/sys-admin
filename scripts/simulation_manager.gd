@@ -22,6 +22,11 @@ var connection_stalled: Dictionary = {}  # conn_idx → true if stalled
 var _splitter_next_port: Dictionary = {}  # building instance_id → next output port index
 var upgrade_manager: Node = null  ## UpgradeManager reference for throughput/success multipliers
 
+## Network tracking: which content types are actively consumed by useful buildings this tick.
+## Used by main.gd to compute Network Bar (source connectivity).
+## Key = content_id (int), Value = true. Rebuilt each tick. Trash does NOT count.
+var network_active_contents: Dictionary = {}
+
 # --- BUILDING CACHE (event-based, avoids get_children() every tick) ---
 var _building_cache: Array[Node] = []
 var _building_cache_dirty: bool = true
@@ -353,6 +358,7 @@ func _get_buildings() -> Array[Node]:
 
 func _on_sim_tick() -> void:
 	var _tick_t0: int = Time.get_ticks_usec()
+	network_active_contents.clear()
 	_rebuild_conn_cache()
 	var buildings: Array[Node] = _get_buildings()
 	_tick_count += 1
@@ -612,6 +618,7 @@ func _deliver_fire_input(conn: Dictionary, source: Node2D) -> void:
 		if sub_type_offset >= 0:
 			var global_sub_type: int = content * 4 + sub_type_offset
 			source.feed_fire(global_sub_type, float(item.amount))
+		network_active_contents[content] = true  # F.I.R.E. feeding = useful
 		transit.remove_at(0)
 	## FIRE state changed — rebuild meta so source starts/stops generating
 	if source.fire_active != was_active:
@@ -1420,13 +1427,16 @@ func _process_producer(b: Node2D, max_process: int) -> int:
 	# Consume base input proportional to actual output
 	var consumed: int = sent * prod.consume_amount
 	b.stored_data[input_key] -= consumed
+	network_active_contents[prod.input_content] = true  # Production input = useful
 	# Consume extra inputs proportional to actual output
 	if selected >= 2 and prod.tier2_extra_content >= 0:
 		var extra2_key: int = DataEnums.pack_key(prod.tier2_extra_content, prod.input_state)
 		b.stored_data[extra2_key] -= sent * prod.tier2_extra_amount
+		network_active_contents[prod.tier2_extra_content] = true
 	if selected >= 3 and prod.tier3_extra_content >= 0:
 		var extra3_key: int = DataEnums.pack_key(prod.tier3_extra_content, prod.input_state)
 		b.stored_data[extra3_key] -= sent * prod.tier3_extra_amount
+		network_active_contents[prod.tier3_extra_content] = true
 	var tier_label: String = "T%d " % selected if selected > 0 else ""
 	print("[Producer] %s: %d MB consumed → %d %sKey produced" % [
 		b.definition.building_name, consumed,
@@ -1512,6 +1522,8 @@ func _process_dual_input_key_mode(b: Node2D, dual: DualInputComponent, max_proce
 			processed += total_attempted
 			# Consume keys for ALL attempts (success + fail)
 			fuel_consumed[key_key] = fuel_consumed.get(key_key, 0) + total_attempted * actual_key_cost
+			network_active_contents[p_content] = true  # Dual-input processing = useful
+			network_active_contents[dual.key_content] = true  # Key/fuel consumed = useful
 		if sent > 0:
 			_spawn_floating_text(b, "+%d %s" % [sent, DataEnums.tags_label(out_tags)], Color("#44ff88"))
 		if failed > 0:
@@ -1587,6 +1599,7 @@ func _process_dual_input_fuel_mode(b: Node2D, dual: DualInputComponent, max_proc
 			processed += total_out
 			# Consume fuel for ALL attempts
 			fuel_consumed[fuel_key] = fuel_consumed.get(fuel_key, 0) + total_out * actual_fuel_cost
+			network_active_contents[p_content] = true  # Recoverer processing = useful
 		if sent_ok > 0:
 			_spawn_floating_text(b, "+%d %s" % [sent_ok, DataEnums.tags_label(out_tags)], Color("#44ff88"))
 		if sent_fail > 0:

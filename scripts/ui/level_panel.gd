@@ -113,8 +113,8 @@ func _create_level_card(level: int) -> PanelContainer:
 		map_label.text = "ENDLESS"
 	else:
 		map_label.text = "%dx%d" % [data.map_size, data.map_size]
-	map_label.add_theme_font_size_override("font_size", 12)
-	var map_color: Color = Color(0.25, 0.3, 0.35, 0.4) if not is_unlocked else Color(0.5, 0.6, 0.7, 0.7)
+	map_label.add_theme_font_size_override("font_size", 13)
+	var map_color: Color = Color(0.35, 0.4, 0.45, 0.5) if not is_unlocked else Color(0.55, 0.65, 0.75, 0.8)
 	map_label.add_theme_color_override("font_color", map_color)
 	map_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(map_label)
@@ -123,15 +123,15 @@ func _create_level_card(level: int) -> PanelContainer:
 	if is_completed:
 		var status := Label.new()
 		status.text = "COMPLETE"
-		status.add_theme_font_size_override("font_size", 11)
-		status.add_theme_color_override("font_color", Color(0.0, 0.8, 0.4, 0.8))
+		status.add_theme_font_size_override("font_size", 12)
+		status.add_theme_color_override("font_color", Color(0.0, 0.8, 0.4, 0.9))
 		status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		vbox.add_child(status)
 	elif not is_unlocked:
 		var lock := Label.new()
 		lock.text = "LOCKED"
-		lock.add_theme_font_size_override("font_size", 11)
-		lock.add_theme_color_override("font_color", Color(0.4, 0.3, 0.3, 0.5))
+		lock.add_theme_font_size_override("font_size", 12)
+		lock.add_theme_color_override("font_color", Color(0.45, 0.38, 0.38, 0.6))
 		lock.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		vbox.add_child(lock)
 

@@ -7,21 +7,21 @@
 script = ExtResource("2")
 content = 1
 state = 0
-amount = 8
+amount = 80
 label = "Financial Public"
 
 [sub_resource type="Resource" id="req2"]
 script = ExtResource("2")
 content = 2
 state = 0
-amount = 8
+amount = 80
 label = "Biometric Public"
 
 [resource]
 script = ExtResource("1")
-gig_name = "Full Filter Chain"
-description = "DR_PATCH: The Bank Terminal has Financial and Biometric, but some of it is Corrupted. I need both types — clean only.\n\nChain your tools: Separator to remove Corrupted, Classifier to split content types. Use Merger to combine sources if needed."
+gig_name = "Content Split"
+description = "DR_PATCH: The Bank Terminal has Financial and Biometric, but some of it is Corrupted. I need both types — clean only.\n\nChain Separator + Classifier to split state and content. Use Merger to combine sources if needed."
 order_index = 3
 is_tutorial = true
 requirements = Array[Resource]([SubResource("req1"), SubResource("req2")])
-reward_buildings = Array[String]([])
+reward_buildings = Array[String](["Merger", "Scanner"])

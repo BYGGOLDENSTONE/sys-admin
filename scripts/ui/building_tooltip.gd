@@ -15,18 +15,27 @@ var upgrade_manager: Node = null  ## Set from main.gd for CT upgrade display
 
 var _slide_offset := Vector2.ZERO
 var _anim_tween: Tween = null
+var _refresh_timer: Timer = null
 
 
 func _ready() -> void:
 	visible = false
 	modulate = Color(1, 1, 1, 0)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	set_process(false)
 	_setup_style()
+	# Throttled refresh — avoids recalculating stats every simulation tick
+	_refresh_timer = Timer.new()
+	_refresh_timer.wait_time = 0.2
+	_refresh_timer.one_shot = true
+	_refresh_timer.timeout.connect(_do_refresh)
+	add_child(_refresh_timer)
 
 
 func _show_animated() -> void:
 	if visible and modulate.a > 0.9: return
 	visible = true
+	set_process(true)
 	if _anim_tween: _anim_tween.kill()
 	if modulate.a == 0.0:
 		_slide_offset = Vector2(0, 15)
@@ -76,10 +85,18 @@ func hide_tooltip() -> void:
 	if _anim_tween: _anim_tween.kill()
 	_anim_tween = create_tween().set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_IN)
 	_anim_tween.tween_property(self, "modulate", Color(1, 1, 1, 0), 0.15)
-	_anim_tween.tween_callback(func(): visible = false)
+	_anim_tween.tween_callback(func():
+		visible = false
+		set_process(false)
+	)
 
 
 func refresh() -> void:
+	if _refresh_timer and _refresh_timer.is_stopped():
+		_refresh_timer.start()
+
+
+func _do_refresh() -> void:
 	if _target_building != null:
 		_update_stats()
 		reset_size()
@@ -263,7 +280,7 @@ func _update_stats() -> void:
 			var source_parts: PackedStringArray = []
 			for cid in cat_sources.get(cat, []):
 				source_parts.append("[color=%s]%s[/color]" % [DataEnums.content_color_hex(cid), DataEnums.content_char(cid)])
-			var src_str: String = " ".join(source_parts) if not source_parts.is_empty() else "[color=#667788]all[/color]"
+			var src_str: String = " ".join(source_parts) if not source_parts.is_empty() else "[color=#8899aa]all[/color]"
 			var progress_str: String = "[color=#44ff88]MAX[/color]" if next_cost < 0 else "%d/%d" % [int(cum), int(next_cost)]
 			lines.append(_stat("%s %s" % [cat_label, src_str], "T%d (%.0fx) %s" % [tier, mult, progress_str]))
 
@@ -289,7 +306,7 @@ func _count_stored_variety(b: Node2D, mode: String) -> int:
 
 
 func _stat(label: String, value: String) -> String:
-	return "[color=#667788]%s:[/color]  %s" % [label, value]
+	return "[color=#8899aa]%s:[/color]  %s" % [label, value]
 
 
 func _format_content_weights(weights: Dictionary) -> String:

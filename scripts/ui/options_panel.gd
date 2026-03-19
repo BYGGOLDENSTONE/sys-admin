@@ -49,7 +49,7 @@ func _build() -> void:
 	var audio_label := Label.new()
 	audio_label.text = "AUDIO"
 	audio_label.add_theme_font_size_override("font_size", 14)
-	audio_label.add_theme_color_override("font_color", Color(0.4, 0.55, 0.65, 0.7))
+	audio_label.add_theme_color_override("font_color", Color(0.5, 0.6, 0.7, 0.8))
 	add_child(audio_label)
 
 	var settings := SettingsManager.get_settings()
@@ -80,7 +80,7 @@ func _build() -> void:
 	var display_label := Label.new()
 	display_label.text = "DISPLAY"
 	display_label.add_theme_font_size_override("font_size", 14)
-	display_label.add_theme_color_override("font_color", Color(0.4, 0.55, 0.65, 0.7))
+	display_label.add_theme_color_override("font_color", Color(0.5, 0.6, 0.7, 0.8))
 	add_child(display_label)
 
 	_fullscreen_check = CheckButton.new()
@@ -107,7 +107,7 @@ func _build() -> void:
 	var game_label := Label.new()
 	game_label.text = "GAME"
 	game_label.add_theme_font_size_override("font_size", 14)
-	game_label.add_theme_color_override("font_color", Color(0.4, 0.55, 0.65, 0.7))
+	game_label.add_theme_color_override("font_color", Color(0.5, 0.6, 0.7, 0.8))
 	add_child(game_label)
 
 	var autosave_row := HBoxContainer.new()

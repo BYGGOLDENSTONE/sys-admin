@@ -125,7 +125,8 @@ func process_deliveries() -> void:
 		var s: int = DataEnums.unpack_state(key)
 		var t: int = DataEnums.unpack_tier(key)
 		var tg: int = DataEnums.unpack_tags(key)
-		_count_delivery(c, s, t, tg, amount)
+		var st: int = DataEnums.unpack_sub_type(key)
+		_count_delivery(c, s, t, tg, amount, st)
 		# Feed upgrade system
 		if upgrade_manager:
 			upgrade_manager.add_data(c, s, tg, amount)
@@ -218,7 +219,7 @@ func _output_matches_any_requirement(content: int, state: int, tags: int = 0) ->
 	return true
 
 
-func _count_delivery(content: int, state: int, tier: int, tags: int, amount: int) -> void:
+func _count_delivery(content: int, state: int, tier: int, tags: int, amount: int, sub_type: int = -1) -> void:
 	for gig in _active_gigs:
 		var progress_arr: Array = _progress.get(gig.order_index, [])
 		for i in range(gig.requirements.size()):
@@ -229,6 +230,9 @@ func _count_delivery(content: int, state: int, tier: int, tags: int, amount: int
 				continue
 			# Check tags: exact match — different tag combo = different product
 			if tags != req.tags:
+				continue
+			# Check sub-type if requirement specifies one
+			if req.sub_type >= 0 and sub_type != req.sub_type:
 				continue
 			# Check minimum tier if specified
 			if req.min_tier > 0 and tier < req.min_tier:

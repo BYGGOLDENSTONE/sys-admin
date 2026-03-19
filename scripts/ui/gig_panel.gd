@@ -12,7 +12,7 @@ const BAR_BG := Color(0.1, 0.12, 0.16, 1.0)
 const BAR_FILL := Color(0.0, 0.55, 0.8, 1.0)
 const DONE_CLR := Color("#44ff88")
 const REWARD_CLR := Color("#aa77ff")
-const DIM := Color(0.45, 0.5, 0.55, 1.0)
+const DIM := Color(0.55, 0.6, 0.65, 1.0)
 const BRIGHT := Color(0.85, 0.9, 0.95, 1.0)
 const CARD_BG := Color(0.06, 0.08, 0.12, 0.8)
 const TRACKED_GLOW := Color(0.0, 0.6, 0.8, 0.12)
@@ -64,9 +64,18 @@ var _main_count_pending: int = 0
 var _side_count_pending: int = 0
 
 
+var _stall_check_timer: Timer = null
+
+
 func _ready() -> void:
 	_setup_style()
 	_build_ui()
+	# Timer-based stall check every 1s instead of _process() per frame
+	_stall_check_timer = Timer.new()
+	_stall_check_timer.wait_time = 1.0
+	_stall_check_timer.timeout.connect(_check_stalls)
+	add_child(_stall_check_timer)
+	_stall_check_timer.start()
 
 
 func setup(gig_manager: Node) -> void:
@@ -182,7 +191,7 @@ func _build_ui() -> void:
 	_info_title.add_theme_font_size_override("font_size", 18)
 	_info_container.add_child(_info_title)
 	_info_desc = Label.new()
-	_info_desc.add_theme_font_size_override("font_size", 12)
+	_info_desc.add_theme_font_size_override("font_size", 13)
 	_info_desc.add_theme_color_override("font_color", DIM)
 	_info_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_info_container.add_child(_info_desc)
@@ -370,20 +379,20 @@ func _add_card(gig) -> void:
 		if parts.size() == 2:
 			var client_l := Label.new()
 			client_l.text = parts[0]
-			client_l.add_theme_font_size_override("font_size", 12)
+			client_l.add_theme_font_size_override("font_size", 13)
 			client_l.add_theme_color_override("font_color", CLIENT_CLR)
 			client_l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 			cv.add_child(client_l)
 			var desc := Label.new()
 			desc.text = parts[1]
-			desc.add_theme_font_size_override("font_size", 12)
+			desc.add_theme_font_size_override("font_size", 13)
 			desc.add_theme_color_override("font_color", DIM)
 			desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 			cv.add_child(desc)
 		else:
 			var desc := Label.new()
 			desc.text = gig.description
-			desc.add_theme_font_size_override("font_size", 12)
+			desc.add_theme_font_size_override("font_size", 13)
 			desc.add_theme_color_override("font_color", DIM)
 			desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 			cv.add_child(desc)
@@ -451,7 +460,7 @@ func _add_card(gig) -> void:
 
 		var stall_l := Label.new()
 		stall_l.text = ""
-		stall_l.add_theme_font_size_override("font_size", 11)
+		stall_l.add_theme_font_size_override("font_size", 12)
 		stall_l.add_theme_color_override("font_color", STALL_CLR)
 		stall_l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		stall_l.visible = false
@@ -717,18 +726,19 @@ func _lbl(text: String, color: Color, font_size: int) -> Label:
 
 const STALL_HINTS: Dictionary = {
 	1: ["Draw a cable from a source's output port to the Contract Terminal"],
-	2: ["Use a Separator (set to Public with E) to filter out Corrupted data"],
+	2: ["Use a Separator (set to Public with TAB) to filter out Corrupted data"],
 	3: ["Chain Separator + Classifier to filter both state and content", "Both Financial and Biometric need to reach the Terminal"],
-	4: ["Find a source carrying Research data — Hospital Terminal is south of center"],
-	5: ["Recoverer needs TWO inputs: Corrupted data from left, Repair Kit from top (Repair Lab makes kits)"],
-	6: ["Decryptor needs Encrypted data from left, Key from top (Key Forge makes Keys from Research data)"],
-	7: ["Decrypt first, then Encrypt — both need Keys. The data gets Decrypted AND Encrypted tags"],
-	8: ["Use all your tools — multiple sources and processing chains may be needed"],
+	4: ["Place a Scanner after your Classifier — press TAB to select Transaction Records"],
+	5: ["Hospital Terminal is locked by FIRE — check its tooltip to see what data the FIRE port needs"],
+	6: ["Recoverer needs TWO inputs: Corrupted data from left, Repair Kit from top (Repair Lab makes kits from Standard data)"],
+	7: ["Decryptor needs Encrypted data from left, Key from top (Key Forge makes Keys from Research data)"],
+	8: ["Decrypt first, then Encrypt — both need Keys. The data gets Decrypted AND Encrypted tags"],
+	9: ["Three parallel pipelines needed — use Splitter to parallelize slow chains", "Check UPGRADES tab on the Contract Terminal", "Standard Decrypted needs an Encrypted Standard source + Decryptor chain"],
 }
 
 
-func _process(delta: float) -> void:
-	# Update stall timers for active cards
+func _check_stalls() -> void:
+	# Update stall timers for active cards (called every 1s via Timer)
 	for order in _cards:
 		var cd: Dictionary = _cards[order]
 		var gig = cd.gig
@@ -741,7 +751,7 @@ func _process(delta: float) -> void:
 			var tgt: int = gig.requirements[i].amount if i < gig.requirements.size() else 1
 			if cur >= tgt:
 				continue
-			timers[i] += delta
+			timers[i] += 1.0  # Timer interval = 1 second
 			if timers[i] >= STALL_TIME and i < cd.bars.size():
 				var stall_l: Label = cd.bars[i].get("stall_l")
 				if stall_l and not stall_l.visible:
@@ -850,28 +860,28 @@ func _update_info_building(lines: PackedStringArray, b: Node2D, def: BuildingDef
 
 	# Throughput / type info
 	if def.classifier:
-		lines.append("[color=#667788]Throughput:[/color] %d MB/s" % int(b.get_effective_value("processing_rate")))
-		lines.append("[color=#667788]Filter:[/color] [color=#44ff88]%s[/color] → right, rest → bottom" % DataEnums.content_name(b.classifier_filter_content))
+		lines.append("[color=#8899aa]Throughput:[/color] %d MB/s" % int(b.get_effective_value("processing_rate")))
+		lines.append("[color=#8899aa]Filter:[/color] [color=#44ff88]%s[/color] → right, rest → bottom" % DataEnums.content_name(b.classifier_filter_content))
 	if def.scanner:
-		lines.append("[color=#667788]Throughput:[/color] %d MB/s" % int(def.scanner.throughput_rate))
+		lines.append("[color=#8899aa]Throughput:[/color] %d MB/s" % int(def.scanner.throughput_rate))
 		if b.scanner_filter_sub_type >= 0:
 			var sc: int = b.scanner_filter_sub_type / 4
 			var so: int = b.scanner_filter_sub_type % 4
-			lines.append("[color=#667788]Filter:[/color] [color=%s]%s[/color] → right, rest → bottom" % [DataEnums.content_color_hex(sc), DataEnums.sub_type_name(sc, so)])
+			lines.append("[color=#8899aa]Filter:[/color] [color=%s]%s[/color] → right, rest → bottom" % [DataEnums.content_color_hex(sc), DataEnums.sub_type_name(sc, so)])
 		else:
-			lines.append("[color=#667788]Filter:[/color] [color=#ffcc44]None (press Tab)[/color]")
+			lines.append("[color=#8899aa]Filter:[/color] [color=#ffcc44]None (press Tab)[/color]")
 	if def.processor and def.processor.rule == "separator":
-		lines.append("[color=#667788]Throughput:[/color] %d MB/s" % int(b.get_effective_value("processing_rate")))
+		lines.append("[color=#8899aa]Throughput:[/color] %d MB/s" % int(b.get_effective_value("processing_rate")))
 		var fname: String = DataEnums.state_name(b.separator_filter_value) if b.separator_mode == "state" else DataEnums.content_name(b.separator_filter_value)
-		lines.append("[color=#667788]Filter:[/color] [color=#44ff88]%s[/color] → right, rest → bottom" % fname)
+		lines.append("[color=#8899aa]Filter:[/color] [color=#44ff88]%s[/color] → right, rest → bottom" % fname)
 	if def.dual_input:
-		lines.append("[color=#667788]Throughput:[/color] %d MB/s" % int(b.get_effective_value("processing_rate")))
+		lines.append("[color=#8899aa]Throughput:[/color] %d MB/s" % int(b.get_effective_value("processing_rate")))
 		if def.dual_input.fuel_matches_content:
-			lines.append("[color=#667788]Mode:[/color] Recoverer — Repair Kit from top")
+			lines.append("[color=#8899aa]Mode:[/color] Recoverer — Repair Kit from top")
 		elif def.dual_input.output_tag == 4:
-			lines.append("[color=#667788]Mode:[/color] Encryptor — Key from top")
+			lines.append("[color=#8899aa]Mode:[/color] Encryptor — Key from top")
 		else:
-			lines.append("[color=#667788]Mode:[/color] Decryptor — Key from top")
+			lines.append("[color=#8899aa]Mode:[/color] Decryptor — Key from top")
 		# Key/Kit stock
 		var cname: String = DataEnums.content_name(def.dual_input.key_content)
 		var stock_parts: PackedStringArray = []
@@ -880,23 +890,23 @@ func _update_info_building(lines: PackedStringArray, b: Node2D, def: BuildingDef
 			var count: int = b.stored_data.get(kk, 0)
 			if count > 0:
 				stock_parts.append("T%d: %d" % [kt, count])
-		lines.append("[color=#667788]%s Stock:[/color] %s" % [cname, ", ".join(stock_parts) if not stock_parts.is_empty() else "[color=#ff6644]0[/color]"])
+		lines.append("[color=#8899aa]%s Stock:[/color] %s" % [cname, ", ".join(stock_parts) if not stock_parts.is_empty() else "[color=#ff6644]0[/color]"])
 	if def.producer:
-		lines.append("[color=#667788]Rate:[/color] %d/tick" % int(b.get_effective_value("processing_rate")))
-		lines.append("[color=#667788]Tier:[/color] T%d" % b.selected_tier)
+		lines.append("[color=#8899aa]Rate:[/color] %d/tick" % int(b.get_effective_value("processing_rate")))
+		lines.append("[color=#8899aa]Tier:[/color] T%d" % b.selected_tier)
 	if def.processor and def.processor.rule == "trash":
-		lines.append("[color=#667788]Mode:[/color] Instant destruction")
+		lines.append("[color=#8899aa]Mode:[/color] Instant destruction")
 	if def.splitter:
-		lines.append("[color=#667788]Mode:[/color] Split 50/50")
+		lines.append("[color=#8899aa]Mode:[/color] Split 50/50")
 	if def.merger:
-		lines.append("[color=#667788]Mode:[/color] Merge inputs → right")
+		lines.append("[color=#8899aa]Mode:[/color] Merge inputs → right")
 
 	# Stored data
 	var total: int = b.get_total_stored()
 	if total > 0:
 		var cap: int = int(b.get_effective_value("capacity")) if b.has_method("get_effective_value") else 0
 		lines.append("")
-		lines.append("[color=#667788]Stored:[/color] %d%s MB" % [total, " / %d" % cap if cap > 0 else ""])
+		lines.append("[color=#8899aa]Stored:[/color] %d%s MB" % [total, " / %d" % cap if cap > 0 else ""])
 		for key in b.stored_data:
 			if b.stored_data[key] <= 0:
 				continue
@@ -938,21 +948,21 @@ func _update_info_source(lines: PackedStringArray, src: Node2D, def) -> void:
 
 	# Content
 	lines.append("")
-	lines.append("[color=#667788]Content:[/color]")
+	lines.append("[color=#8899aa]Content:[/color]")
 	for cid in def.content_weights:
 		var pct: int = int(def.content_weights[cid] * 100)
 		lines.append("  [color=%s]%d%% %s[/color]" % [DataEnums.content_color_hex(int(cid)), pct, DataEnums.content_name(int(cid))])
 
 	# State
 	var sw: Dictionary = src.instance_state_weights if not src.instance_state_weights.is_empty() else def.state_weights
-	lines.append("[color=#667788]State:[/color]")
+	lines.append("[color=#8899aa]State:[/color]")
 	for sid in sw:
 		var pct: int = int(sw[sid] * 100)
 		lines.append("  [color=%s]%d%% %s[/color]" % [DataEnums.state_color_hex(int(sid)), pct, DataEnums.state_name(int(sid))])
 
 	# Sub-types
 	if not def.sub_type_pool.is_empty():
-		lines.append("[color=#667788]Sub-Types:[/color]")
+		lines.append("[color=#8899aa]Sub-Types:[/color]")
 		for entry in def.sub_type_pool:
 			var c: int = int(entry.get("content", 0))
 			var st: int = int(entry.get("sub_type", 0))
@@ -1110,7 +1120,7 @@ func _update_info_flow(b: Node2D) -> void:
 				var st_name: String = DataEnums.sub_type_name(c, st) if st >= 0 else DataEnums.content_name(c)
 				var s_name: String = DataEnums.state_name(s)
 				port_parts.append("[color=%s]%s[/color] [color=%s]%s[/color]" % [cc, st_name, sc, s_name])
-			lines.append("  [color=#667788]%s:[/color] %s" % [port_label, ", ".join(port_parts)])
+			lines.append("  [color=#8899aa]%s:[/color] %s" % [port_label, ", ".join(port_parts)])
 
 	_info_flow.text = "\n".join(lines)
 
@@ -1138,7 +1148,7 @@ func _build_upgrade_ui() -> void:
 		# Description
 		var desc := Label.new()
 		desc.text = cd.desc
-		desc.add_theme_font_size_override("font_size", 11)
+		desc.add_theme_font_size_override("font_size", 12)
 		desc.add_theme_color_override("font_color", DIM)
 		desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		_upgrade_container.add_child(desc)
@@ -1153,7 +1163,7 @@ func _build_upgrade_ui() -> void:
 		for cid in cd.content:
 			parts.append("[color=%s]%s[/color]" % [DataEnums.content_color_hex(cid), DataEnums.content_name(cid)])
 		var needs_text: String = ", ".join(parts) if not parts.is_empty() else "All processed data (25%)"
-		needs.text = "[color=#556677]Needs:[/color] %s [color=#556677](Decrypted / Recovered)[/color]" % needs_text
+		needs.text = "[color=#778899]Needs:[/color] %s [color=#778899](Decrypted / Recovered)[/color]" % needs_text
 		_upgrade_container.add_child(needs)
 		# Claim button
 		var btn := Button.new()

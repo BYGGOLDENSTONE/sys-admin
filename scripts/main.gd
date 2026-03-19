@@ -599,12 +599,20 @@ func _find_clear_cell(center: Vector2i, building_size: Vector2i) -> Vector2i:
 
 func _on_tick_for_gig(_tick_count: int) -> void:
 	if _gig_manager:
+		# Mark CT-delivered content as network-active before consuming
+		if _contract_terminal and not _contract_terminal.stored_data.is_empty():
+			for key in _contract_terminal.stored_data:
+				if _contract_terminal.stored_data[key] > 0:
+					simulation_manager.network_active_contents[DataEnums.unpack_content(key)] = true
 		_gig_manager.process_deliveries()
 
 
 func _on_tick_refresh_ui(_tick_count: int) -> void:
 	_tooltip.refresh()
 	building_panel.refresh_detail()
+	# Update network bar every 5 ticks (not every tick — performance)
+	if _tick_count % 5 == 0:
+		_update_city_control()
 
 
 func _on_gig_completed(gig) -> void:
@@ -806,7 +814,13 @@ func _update_city_control() -> void:
 			if not reachable.has(from_bid):
 				reachable[from_bid] = true
 				queue.append(from_b)
-	# Count sources that can reach CT with unblocked FIRE
+	# Count sources where ALL content types are actively used in the network.
+	# A source is "connected" when:
+	#   1. BFS reachable from CT
+	#   2. F.I.R.E. breached (or no F.I.R.E.)
+	#   3. Every content type the source produces is in network_active_contents
+	#      (consumed by CT, F.I.R.E., Producer, or Dual-input — NOT Trash)
+	var active_contents: Dictionary = simulation_manager.network_active_contents
 	var all_sources: Array[Node2D] = source_manager.get_all_sources()
 	var total: int = all_sources.size()
 	var connected: int = 0
@@ -814,8 +828,17 @@ func _update_city_control() -> void:
 		if not reachable.has(source.get_instance_id()):
 			continue
 		if source.fire_active:
-			continue  # FIRE blocking output — data not flowing
-		connected += 1
+			continue  # F.I.R.E. blocking output — data not flowing
+		# Check: every content this source produces must be actively used
+		var all_content_used: bool = true
+		for content_id in source.definition.content_weights:
+			if source.definition.content_weights[content_id] <= 0.0:
+				continue
+			if not active_contents.has(int(content_id)):
+				all_content_used = false
+				break
+		if all_content_used:
+			connected += 1
 	_top_bar.update_city_control(connected, total)
 	# Update throughput display
 	var total_transit: int = 0
