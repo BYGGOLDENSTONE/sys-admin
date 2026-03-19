@@ -561,18 +561,22 @@ func _update_detail() -> void:
 			var next_cost: float = _upgrade_manager.get_next_tier_cost(cat)
 			var cat_label: String = cat.capitalize()
 			var tier_color: String = "#44ff88" if tier >= 3 else ("#ffcc44" if tier >= 2 else "#aabbcc")
-			# Source content labels with colors
-			var source_parts: PackedStringArray = []
-			for cid in cat_sources.get(cat, []):
-				var cc: String = DataEnums.content_color_hex(cid)
-				source_parts.append("[color=%s]%s[/color]" % [cc, DataEnums.content_char(cid)])
-			var source_label: String = " ".join(source_parts) if not source_parts.is_empty() else "[color=#667788]all 25%[/color]"
 			var progress_str: String
 			if next_cost < 0:
 				progress_str = "[color=#44ff88]MAX[/color]"
 			else:
-				progress_str = "%d/%d" % [int(cum), int(next_cost)]
-			lines.append("[color=%s]%s T%d[/color] (%.0fx) %s — %s" % [tier_color, cat_label, tier, mult, source_label, progress_str])
+				progress_str = "%d / %d MB" % [int(cum), int(next_cost)]
+			lines.append("[color=%s]%s T%d[/color] (%.0fx) — %s" % [tier_color, cat_label, tier, mult, progress_str])
+			# Detailed: show which content types feed this category (full names + colors)
+			var source_content_ids: Array = cat_sources.get(cat, [])
+			if not source_content_ids.is_empty():
+				var content_parts: PackedStringArray = []
+				for cid in source_content_ids:
+					var cc: String = DataEnums.content_color_hex(cid)
+					content_parts.append("[color=%s]%s[/color]" % [cc, DataEnums.content_name(cid)])
+				lines.append("  [color=#556677]Needs:[/color] %s [color=#556677](Decrypted/Recovered)[/color]" % ", ".join(content_parts))
+			else:
+				lines.append("  [color=#556677]Needs:[/color] Any processed data (25%)")
 			# Update claim button
 			if _ct_claim_buttons.has(cat):
 				var btn: Button = _ct_claim_buttons[cat]
