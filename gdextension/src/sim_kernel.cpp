@@ -60,8 +60,8 @@ void SimKernel::configure_sources(Array source_port_entries) {
                 sd.state_cdf.push_back(cum);
                 sd.state_vals.push_back(sid);
             }
-            sd.enc_max_tier = (int)(int64_t)e.get("enc_max_tier", 0);
-            sd.cor_max_tier = (int)(int64_t)e.get("cor_max_tier", 0);
+            sd.enc_tier = (int)(int64_t)e.get("enc_tier", 0);
+            sd.cor_tier = (int)(int64_t)e.get("cor_tier", 0);
 
             sp.src_idx = (int)_source_defs.size();
             src_id_to_def[src_id] = sp.src_idx;
@@ -297,12 +297,10 @@ void SimKernel::_do_generation(Array &conns, Array &ct_pushes, Array &discoverie
             }
             // Roll tier
             int tier = 0;
-            if (state == 1 && sd.enc_max_tier > 0) { // ENCRYPTED
-                tier = UtilityFunctions::randi_range(1, sd.enc_max_tier > 1 ? sd.enc_max_tier : 1);
-            } else if (state == 2 && sd.cor_max_tier > 0) { // CORRUPTED
-                tier = UtilityFunctions::randi_range(1, sd.cor_max_tier > 1 ? sd.cor_max_tier : 1);
-            } else if (state == 3) { // MALWARE
-                tier = 1;
+            if (state == 1 && sd.enc_tier > 0) { // ENCRYPTED — fixed tier
+                tier = sd.enc_tier;
+            } else if (state == 2 && sd.cor_tier > 0) { // CORRUPTED — fixed tier
+                tier = sd.cor_tier;
             }
 
             int packed_key = pack_key(content, state, tier, 0);

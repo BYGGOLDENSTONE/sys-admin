@@ -425,22 +425,11 @@ func _draw_transit_items(conn: Dictionary, _conn_index: int) -> void:
 
 		var glow_pulse: float = sin(Time.get_ticks_msec() / 120.0 + float(pi) * 1.7) * 0.5 + 0.5
 
-		if i_state == DataEnums.DataState.ENC_COR:
-			# Split glow: left=Encrypted blue, right=Corrupted yellow
-			var enc_col: Color = DataEnums.state_color(DataEnums.DataState.ENCRYPTED)
-			var cor_col: Color = DataEnums.state_color(DataEnums.DataState.CORRUPTED)
-			var outer_r: float = (10.0 + glow_pulse * 4.0) * (0.8 + intensity * 0.4) * inv_zoom
-			draw_circle(pos + Vector2(-outer_r * 0.2, 0), outer_r, Color(enc_col, (0.08 + glow_pulse * 0.06) * intensity))
-			draw_circle(pos + Vector2(outer_r * 0.2, 0), outer_r, Color(cor_col, (0.08 + glow_pulse * 0.06) * intensity))
-			var inner_r: float = 6.0 * inv_zoom
-			draw_circle(pos + Vector2(-inner_r * 0.15, 0), inner_r, Color(enc_col, 0.25 + 0.15 * intensity))
-			draw_circle(pos + Vector2(inner_r * 0.15, 0), inner_r, Color(cor_col, 0.25 + 0.15 * intensity))
-		else:
-			# Outer glow halo — scales with throughput intensity + zoom
-			var outer_r: float = (10.0 + glow_pulse * 4.0) * (0.8 + intensity * 0.4) * inv_zoom
-			draw_circle(pos, outer_r, Color(base_color, (0.08 + glow_pulse * 0.06) * intensity))
-			# Inner glow
-			draw_circle(pos, 6.0 * inv_zoom, Color(base_color, 0.25 + 0.15 * intensity))
+		# Outer glow halo — scales with throughput intensity + zoom
+		var outer_r: float = (10.0 + glow_pulse * 4.0) * (0.8 + intensity * 0.4) * inv_zoom
+		draw_circle(pos, outer_r, Color(base_color, (0.08 + glow_pulse * 0.06) * intensity))
+		# Inner glow
+		draw_circle(pos, 6.0 * inv_zoom, Color(base_color, 0.25 + 0.15 * intensity))
 
 		# Dark background pill behind character for contrast
 		var bg_rect := Rect2(pos + Vector2(-half_fs * 0.45, -half_fs * 0.55), Vector2(half_fs * 0.9, half_fs * 1.1))
@@ -657,12 +646,11 @@ func _update_transit_multimesh() -> void:
 			_transit_mm.set_instance_transform_2d(instance_idx, xf)
 			_transit_mm.set_instance_color(instance_idx, base_color)
 			# Custom data encoded in 0-1 range (Color clamps to 0-1!)
-			# x = glyph_index / 10.0 (0.0-0.9), y = compound flag (1.0 for ENC_COR), z = fract(phase), w = intensity
+			# x = glyph_index / 10.0 (0.0-0.9), y = reserved, z = fract(phase), w = intensity
 			var encoded_glyph: float = float(glyph_idx) / 10.0
 			var encoded_phase: float = fmod(float(pi) * 0.17, 1.0)
-			var compound_flag: float = 1.0 if DataEnums.unpack_state(mkey) == DataEnums.DataState.ENC_COR else 0.0
 			_transit_mm.set_instance_custom_data(instance_idx,
-				Color(encoded_glyph, compound_flag, encoded_phase, intensity))
+				Color(encoded_glyph, 0.0, encoded_phase, intensity))
 
 			instance_idx += 1
 

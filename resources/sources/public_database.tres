@@ -13,5 +13,5 @@ bandwidth = 6.0
 generation_rate = 6.0
 grid_size = Vector2i(2, 2)
 difficulty = "easy"
-encrypted_max_tier = 1
-corrupted_max_tier = 1
+encrypted_tier = 1
+corrupted_tier = 1

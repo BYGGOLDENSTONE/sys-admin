@@ -5,13 +5,13 @@
 [resource]
 script = ExtResource("1")
 source_name = "Military Network"
-description = "Active military comms network. Valuable Blueprint and Classified data with T3 encryption. Requires advanced decryption pipelines."
+description = "Active military comms network. Valuable Blueprint and Classified data with deep encryption. Requires advanced decryption pipelines."
 color = Color(0.95, 0.6, 0.05, 1.0)
 content_weights = {3: 0.35, 4: 0.25, 5: 0.40}
-state_weights = {1: 0.55, 4: 0.45}
+state_weights = {1: 0.75, 2: 0.25}
 bandwidth = 12.0
 generation_rate = 6.0
 grid_size = Vector2i(3, 4)
 difficulty = "endgame"
-encrypted_max_tier = 3
-corrupted_max_tier = 2
+encrypted_tier = 2
+corrupted_tier = 2

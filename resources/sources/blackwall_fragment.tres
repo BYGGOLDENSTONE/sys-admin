@@ -5,7 +5,7 @@
 [resource]
 script = ExtResource("1")
 source_name = "Blackwall Fragment"
-description = "Remnant of the old Blackwall firewall. Packed with Classified and Research data, mostly T4 encrypted. Ultimate optimization challenge."
+description = "Remnant of the old Blackwall firewall. Packed with Classified and Research data, heavily encrypted. Ultimate optimization challenge."
 color = Color(0.47, 0.13, 0.53, 1.0)
 content_weights = {0: 0.05, 1: 0.05, 2: 0.05, 3: 0.20, 4: 0.30, 5: 0.35}
 state_weights = {0: 0.09, 1: 0.64, 2: 0.27}
@@ -13,5 +13,5 @@ bandwidth = 15.0
 generation_rate = 6.0
 grid_size = Vector2i(4, 4)
 difficulty = "endgame"
-encrypted_max_tier = 4
-corrupted_max_tier = 3
+encrypted_tier = 2
+corrupted_tier = 2

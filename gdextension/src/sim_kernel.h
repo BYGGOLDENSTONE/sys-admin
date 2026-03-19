@@ -64,8 +64,8 @@ private:
         std::vector<int> content_vals;
         std::vector<float> state_cdf;
         std::vector<int> state_vals;
-        int enc_max_tier;
-        int cor_max_tier;
+        int enc_tier;
+        int cor_tier;
     };
     struct BuildingSlot {
         int64_t bid;

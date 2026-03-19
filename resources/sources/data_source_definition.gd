@@ -10,5 +10,5 @@ extends Resource
 @export var generation_rate: float = 5.0      ## Data units per tick per connected port
 @export var grid_size: Vector2i = Vector2i(2, 2)  ## Rectangular footprint (width, height)
 @export var difficulty: String = "easy"  ## easy, medium, hard, endgame
-@export var encrypted_max_tier: int = 1  ## Max tier for Encrypted state (T1-T4)
-@export var corrupted_max_tier: int = 1  ## Max tier for Corrupted state (T1-T4)
+@export var encrypted_tier: int = 0  ## Fixed tier: 0=none, 1=4-bit, 2=16-bit
+@export var corrupted_tier: int = 0  ## Fixed tier: 0=none, 1=Minor-Glitched, 2=Major-Glitched

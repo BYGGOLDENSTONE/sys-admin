@@ -12,7 +12,7 @@ var _tick_count: int = 0
 var speed_multiplier: int = 1
 var is_paused: bool = false
 var discovered_content: Dictionary = {0: true, 1: false, 2: false, 3: false, 4: false, 5: false}
-var discovered_states: Dictionary = {0: true, 1: false, 2: false, 3: false}
+var discovered_states: Dictionary = {0: true, 1: false, 2: false}
 var connection_manager: Node = null
 var building_container: Node2D = null
 var source_manager: Node = null
@@ -178,8 +178,8 @@ func _rebuild_sim_kernel_meta() -> void:
 				"src_id": src_id,
 				"content_weights": src_def.content_weights,
 				"state_weights": inst_sw,
-				"enc_max_tier": src_def.encrypted_max_tier,
-				"cor_max_tier": src_def.corrupted_max_tier,
+				"enc_tier": src_def.encrypted_tier,
+				"cor_tier": src_def.corrupted_tier,
 			})
 	_sim_kernel.configure_sources(source_entries)
 
@@ -926,18 +926,12 @@ func _roll_state(weights: Dictionary) -> int:
 	return DataEnums.DataState.PUBLIC
 
 
-func _roll_tier(state: int, enc_max: int, cor_max: int) -> int:
+func _get_fixed_tier(state: int, enc_tier: int, cor_tier: int) -> int:
 	match state:
 		DataEnums.DataState.ENCRYPTED:
-			return randi_range(1, maxi(1, enc_max)) if enc_max > 0 else 1
+			return maxi(enc_tier, 1)
 		DataEnums.DataState.CORRUPTED:
-			return randi_range(1, maxi(1, cor_max)) if cor_max > 0 else 1
-		DataEnums.DataState.ENC_COR:
-			var et: int = randi_range(1, maxi(1, enc_max)) if enc_max > 0 else 1
-			var ct: int = randi_range(1, maxi(1, cor_max)) if cor_max > 0 else 1
-			return DataEnums.make_compound_tier(et, ct)
-		DataEnums.DataState.MALWARE:
-			return 1
+			return maxi(cor_tier, 1)
 	return 0
 
 
@@ -1026,7 +1020,7 @@ func _update_generation(_buildings: Array[Node]) -> void:
 				var content: int = _roll_content(src_def.content_weights)
 				var sw: Dictionary = source.instance_state_weights if not source.instance_state_weights.is_empty() else src_def.state_weights
 				var state: int = _roll_state(sw)
-				var tier: int = _roll_tier(state, src_def.encrypted_max_tier, src_def.corrupted_max_tier)
+				var tier: int = _get_fixed_tier(state, src_def.encrypted_tier, src_def.corrupted_tier)
 				_check_discovery(content, state)
 				_push_data_from(source, content, state, 1, port, tier)
 
@@ -1206,23 +1200,10 @@ func _process_dual_input_key_mode(b: Node2D, dual: DualInputComponent, max_proce
 			continue
 		if not dual.primary_input_states.is_empty() and p_state not in dual.primary_input_states:
 			continue
-		# Compound state: determine which state this building removes
+		# Match data tier to required key/kit tier
 		var effective_tier: int = p_tier
 		var out_state: int = dual.output_state
 		var out_tier: int = p_tier
-		if p_state == DataEnums.DataState.ENC_COR:
-			var enc_t: int = DataEnums.compound_enc_tier(p_tier)
-			var cor_t: int = DataEnums.compound_cor_tier(p_tier)
-			if DataEnums.DataState.ENCRYPTED in dual.primary_input_states:
-				# Decryptor: removes Encrypted → Corrupted remains
-				effective_tier = enc_t
-				out_state = DataEnums.DataState.CORRUPTED
-				out_tier = cor_t + 1
-			elif DataEnums.DataState.CORRUPTED in dual.primary_input_states:
-				# Recoverer: removes Corrupted → Encrypted remains
-				effective_tier = cor_t
-				out_state = DataEnums.DataState.ENCRYPTED
-				out_tier = enc_t + 1
 		# Match Key tier to data tier (min T1)
 		var key_tier: int = maxi(effective_tier, 1)
 		var key_key: int = DataEnums.pack_key(dual.key_content, DataEnums.DataState.PUBLIC, key_tier, 0)

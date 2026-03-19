@@ -11,6 +11,16 @@ enum ProcessingTag {
 	ENCRYPTED = 4,   ## Applied by Encryptor
 }
 
+## Encrypted tiers (bit-depth)
+const BIT_4: int = 1
+const BIT_16: int = 2
+const BIT_32: int = 3  ## Full release only
+
+## Corrupted tiers (glitch severity)
+const MINOR_GLITCHED: int = 1
+const MAJOR_GLITCHED: int = 2
+const CRITICAL_GLITCHED: int = 3  ## Full release only
+
 static func make_key(content: int, state: int, tier: int = 0, tags: int = 0) -> String:
 	return "%d_%d_%d_%d" % [content, state, tier, tags]
 
@@ -20,9 +30,21 @@ static func parse_key(key: String) -> Dictionary:
 	var tags: int = int(parts[3]) if parts.size() > 3 else 0
 	return { "content": int(parts[0]), "state": int(parts[1]), "tier": tier, "tags": tags }
 
-static func tier_name(t: int) -> String:
+static func tier_name(t: int, state: int = -1) -> String:
 	if t <= 0:
 		return ""
+	if state == DataState.ENCRYPTED:
+		match t:
+			BIT_4: return "4-bit"
+			BIT_16: return "16-bit"
+			BIT_32: return "32-bit"
+		return "%d-bit" % (4 * (1 << (t - 1)))
+	if state == DataState.CORRUPTED:
+		match t:
+			MINOR_GLITCHED: return "Minor-Glitched"
+			MAJOR_GLITCHED: return "Major-Glitched"
+			CRITICAL_GLITCHED: return "Critical-Glitched"
+		return "Glitch-T%d" % t
 	return "T%d" % t
 
 static func content_name(c: int) -> String:
@@ -115,9 +137,9 @@ static func data_label(content: int, state: int, tier: int = 0, tags: int = 0) -
 		var et: int = compound_enc_tier(tier)
 		var ct: int = compound_cor_tier(tier)
 		if et > 0 or ct > 0:
-			label += " T%d·T%d" % [et, ct]
+			label += " %s·%s" % [tier_name(et, DataState.ENCRYPTED), tier_name(ct, DataState.CORRUPTED)]
 	else:
-		var t: String = tier_name(tier)
+		var t: String = tier_name(tier, state)
 		if t != "":
 			label += " " + t
 	return label

@@ -5,7 +5,7 @@
 [resource]
 script = ExtResource("1")
 source_name = "Corporate Server"
-description = "Encrypted corporate network. Rich in Financial and Blueprint data, but heavily encrypted. T1-T2 Encrypted — may need parallel Decryptor lines."
+description = "Encrypted corporate network. Rich in Financial and Blueprint data, but heavily encrypted. 16-bit encryption — needs parallel Decryptor lines."
 color = Color(1.0, 0.55, 0.1, 1.0)
 content_weights = {1: 0.40, 3: 0.35, 5: 0.25}
 state_weights = {1: 0.75, 2: 0.25}
@@ -13,5 +13,5 @@ bandwidth = 6.0
 generation_rate = 6.0
 grid_size = Vector2i(3, 3)
 difficulty = "hard"
-encrypted_max_tier = 2
-corrupted_max_tier = 1
+encrypted_tier = 2
+corrupted_tier = 1

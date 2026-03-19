@@ -476,7 +476,7 @@ func _update_detail() -> void:
 			_detail_filter_dropdown.selected = b.classifier_filter_content
 		elif def.processor and def.processor.rule == "separator":
 			if b.separator_mode == "state":
-				var state_cycle: Array[int] = [0, 1, 2, 4]
+				var state_cycle: Array[int] = [0, 1, 2]
 				_detail_filter_dropdown.selected = maxi(state_cycle.find(b.separator_filter_value), 0)
 			else:
 				_detail_filter_dropdown.selected = b.separator_filter_value
@@ -642,7 +642,7 @@ func _populate_filter_dropdown(building: Node2D) -> void:
 		_detail_filter_container.visible = true
 		if building.separator_mode == "state":
 			_detail_filter_label.text = "State Filter:"
-			var state_cycle: Array[int] = [0, 1, 2, 4]
+			var state_cycle: Array[int] = [0, 1, 2]
 			for s in state_cycle:
 				_detail_filter_dropdown.add_item(DataEnums.state_name(s), s)
 			# Find the dropdown index for current value
@@ -656,10 +656,13 @@ func _populate_filter_dropdown(building: Node2D) -> void:
 	elif def.producer and def.producer.max_tier > 1:
 		_detail_filter_container.visible = true
 		_detail_filter_label.text = "Tier:"
-		var tier_names: Array[String] = ["T1 Key", "T2 Strong Key", "T3 Master Key"]
+		var tier_state: int = DataEnums.DataState.ENCRYPTED if def.producer.output_content == DataEnums.ContentType.KEY else DataEnums.DataState.CORRUPTED
+		var output_name: String = DataEnums.content_name(def.producer.output_content)
 		for t in range(1, def.producer.max_tier + 1):
-			var label: String = tier_names[t - 1] if t <= tier_names.size() else "T%d Key" % t
-			_detail_filter_dropdown.add_item(label, t)
+			var tier_str: String = DataEnums.tier_name(t, tier_state)
+			if tier_str.is_empty():
+				tier_str = "T%d" % t
+			_detail_filter_dropdown.add_item("%s %s" % [tier_str, output_name], t)
 		_detail_filter_dropdown.selected = building.selected_tier - 1
 	else:
 		_detail_filter_container.visible = false

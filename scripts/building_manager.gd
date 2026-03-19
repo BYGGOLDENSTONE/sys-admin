@@ -813,8 +813,8 @@ func _cycle_building_filter(building: Node2D) -> void:
 		print("[BuildingManager] Classifier filter → %s" % DataEnums.content_name(building.classifier_filter_content))
 	elif def.processor and def.processor.rule == "separator":
 		if building.separator_mode == "state":
-			# Cycle: PUBLIC(0) → ENCRYPTED(1) → CORRUPTED(2) → ENC_COR(4), skip MALWARE(3)
-			var state_cycle: Array[int] = [0, 1, 2, 4]
+			# Cycle: PUBLIC(0) → ENCRYPTED(1) → CORRUPTED(2), skip MALWARE(3) & ENC_COR(4)
+			var state_cycle: Array[int] = [0, 1, 2]
 			var idx: int = state_cycle.find(building.separator_filter_value)
 			building.separator_filter_value = state_cycle[(idx + 1) % state_cycle.size()]
 			print("[BuildingManager] Separator filter → %s" % DataEnums.state_name(building.separator_filter_value))
@@ -824,8 +824,7 @@ func _cycle_building_filter(building: Node2D) -> void:
 	elif def.producer and def.producer.max_tier > 1:
 		# Cycle through Key tiers (1 to max_tier)
 		building.selected_tier = (building.selected_tier % def.producer.max_tier) + 1
-		var tier_names: Array[String] = ["T1 Key", "T2 Strong Key", "T3 Master Key"]
-		var label: String = tier_names[building.selected_tier - 1] if building.selected_tier <= tier_names.size() else "T%d Key" % building.selected_tier
+		var label: String = DataEnums.tier_name(building.selected_tier, DataEnums.DataState.ENCRYPTED) + " Key"
 		print("[BuildingManager] %s tier → %s" % [def.building_name, label])
 	building_state_changed.emit()
 

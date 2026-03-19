@@ -352,15 +352,25 @@ func _restore_buildings(buildings_data: Array) -> Dictionary:
 		building.mirror_v = entry.get("mirror_v", false)
 		building.classifier_filter_content = int(entry.get("classifier_filter_content", 0))
 		building.separator_mode = entry.get("separator_mode", "state")
-		building.separator_filter_value = int(entry.get("separator_filter_value", 0))
+		var sfv: int = int(entry.get("separator_filter_value", 0))
+		if building.separator_mode == "state" and sfv == DataEnums.DataState.ENC_COR:
+			sfv = DataEnums.DataState.CORRUPTED  # Migrate ENC_COR → CORRUPTED
+		building.separator_filter_value = sfv
 		building.selected_tier = int(entry.get("selected_tier", 1))
 		building.upgrade_level = int(entry.get("upgrade_level", 0))
 
-		# Restore stored data (packed int keys)
+		# Restore stored data (packed int keys) — migrate ENC_COR(4) → CORRUPTED(2)
 		var saved_data: Dictionary = entry.get("stored_data", {})
 		building.stored_data.clear()
 		for key in saved_data:
-			building.stored_data[int(key)] = int(saved_data[key])
+			var ikey: int = int(key)
+			var s: int = DataEnums.unpack_state(ikey)
+			if s == DataEnums.DataState.ENC_COR:
+				var c: int = DataEnums.unpack_content(ikey)
+				var t: int = DataEnums.unpack_tier(ikey)
+				var tg: int = DataEnums.unpack_tags(ikey)
+				ikey = DataEnums.pack_key(c, DataEnums.DataState.CORRUPTED, t, tg)
+			building.stored_data[ikey] = int(saved_data[key])
 
 		# Restore CT port purity state
 		var saved_blocked: Dictionary = entry.get("blocked_ports", {})
@@ -485,7 +495,11 @@ func _restore_simulation(sim_data: Dictionary) -> void:
 		simulation_manager.discovered_content[int(k)] = dc[k]
 	var ds: Dictionary = sim_data.get("discovered_states", {})
 	for k in ds:
-		simulation_manager.discovered_states[int(k)] = ds[k]
+		var ki: int = int(k)
+		if ki == DataEnums.DataState.MALWARE or ki == DataEnums.DataState.ENC_COR:
+			continue  # Skip MALWARE/ENC_COR — not in demo
+		if ki in simulation_manager.discovered_states:
+			simulation_manager.discovered_states[ki] = ds[k]
 
 
 ## --- MIGRATION ---

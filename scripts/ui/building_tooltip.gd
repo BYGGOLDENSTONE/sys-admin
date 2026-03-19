@@ -133,7 +133,11 @@ func _update_stats() -> void:
 		lines.append(_stat("Processing", "%d production/tick" % int(b.get_effective_value("processing_rate"))))
 		var output_name: String = DataEnums.content_name(def.producer.output_content)
 		var output_color: String = DataEnums.content_color_hex(def.producer.output_content)
-		var tier_label: String = "[color=%s]T%d %s[/color]" % [output_color, b.selected_tier, output_name]
+		var tier_state: int = DataEnums.DataState.ENCRYPTED if def.producer.output_content == DataEnums.ContentType.KEY else DataEnums.DataState.CORRUPTED
+		var tier_str: String = DataEnums.tier_name(b.selected_tier, tier_state)
+		if tier_str.is_empty():
+			tier_str = "T%d" % b.selected_tier
+		var tier_label: String = "[color=%s]%s %s[/color]" % [output_color, tier_str, output_name]
 		lines.append(_stat("Mode", tier_label))
 		var input_name: String = DataEnums.content_name(def.producer.input_content)
 		var input_color: String = DataEnums.content_color_hex(def.producer.input_content)
@@ -239,11 +243,8 @@ func _format_state_weights(weights: Dictionary) -> String:
 	for state_id in weights:
 		var pct: int = int(weights[state_id] * 100)
 		var s: int = int(state_id)
-		if s == DataEnums.DataState.ENC_COR:
-			parts.append("%d%% [color=#2288ff]Enc[/color]·[color=#ffaa00]Cor[/color]" % pct)
-		else:
-			var color: String = DataEnums.state_color_hex(s)
-			parts.append("[color=%s]%d%% %s[/color]" % [color, pct, DataEnums.state_name(s)])
+		var color: String = DataEnums.state_color_hex(s)
+		parts.append("[color=%s]%d%% %s[/color]" % [color, pct, DataEnums.state_name(s)])
 	return ", ".join(parts)
 
 
@@ -257,13 +258,9 @@ func _format_stored_data(data: Dictionary) -> String:
 		var s: int = DataEnums.unpack_state(key)
 		var c_color: String = DataEnums.content_color_hex(c)
 		var label: String = DataEnums.data_label(c, s, DataEnums.unpack_tier(key), DataEnums.unpack_tags(key))
-		if s == DataEnums.DataState.ENC_COR:
-			parts.append("[color=#2288ff]%d[/color] [color=%s]%s[/color] [color=#2288ff]Enc[/color]·[color=#ffaa00]Cor[/color]" % [
-				data[key], c_color, DataEnums.content_name(c)])
-		else:
-			var s_color: String = DataEnums.state_color_hex(s)
-			parts.append("[color=%s]%d[/color] [color=%s]%s[/color]" % [
-				s_color, data[key], c_color, label])
+		var s_color: String = DataEnums.state_color_hex(s)
+		parts.append("[color=%s]%d[/color] [color=%s]%s[/color]" % [
+			s_color, data[key], c_color, label])
 	if parts.is_empty():
 		return "Empty"
 	return ", ".join(parts)
@@ -288,10 +285,10 @@ func _update_source_stats() -> void:
 	if not sw.is_empty():
 		lines.append(_stat("State", _format_state_weights(sw)))
 	# Show tier info for encrypted/corrupted
-	if def.encrypted_max_tier > 0 and sw.has(DataEnums.DataState.ENCRYPTED):
-		lines.append(_stat("Encrypted Tier", "[color=#44aaff]T1%s[/color]" % ("-T%d" % def.encrypted_max_tier if def.encrypted_max_tier > 1 else "")))
-	if def.corrupted_max_tier > 0 and sw.has(DataEnums.DataState.CORRUPTED):
-		lines.append(_stat("Corrupted Tier", "[color=#ff8844]T1%s[/color]" % ("-T%d" % def.corrupted_max_tier if def.corrupted_max_tier > 1 else "")))
+	if def.encrypted_tier > 0 and sw.has(DataEnums.DataState.ENCRYPTED):
+		lines.append(_stat("Encrypted", "[color=#44aaff]%s[/color]" % DataEnums.tier_name(def.encrypted_tier, DataEnums.DataState.ENCRYPTED)))
+	if def.corrupted_tier > 0 and sw.has(DataEnums.DataState.CORRUPTED):
+		lines.append(_stat("Corrupted", "[color=#ff8844]%s[/color]" % DataEnums.tier_name(def.corrupted_tier, DataEnums.DataState.CORRUPTED)))
 	# Port info
 	var port_count: int = _target_source.output_ports.size()
 	lines.append(_stat("Output Ports", "[color=#44ff88]%d[/color]" % port_count))

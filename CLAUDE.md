@@ -32,18 +32,22 @@ SYS_ADMIN:   Karmasik kaynak → guvenlik as → ayikla/coz/onar → saf veri �
 - **FIRE (Forced Isolation & Restriction Enforcer):** Medium+ kaynak guvenligi, Easy→Medium→Hard bagimlilik zinciri
 - **Content Sub-Types:** 6 content × 4 sub-type = 24 spesifik veri tipi
 - **Scanner binasi:** Sub-type binary filtre (uc katmanli filtre: Separator/Classifier/Scanner)
-- **Encrypted → Bit-Depth:** 4-bit/16-bit/32-bit, paralel Key Forge (genislik bulmacasi)
-- **Corrupted → Glitched:** Minor/Major/Critical, Recoverer feedback loop (derinlik bulmacasi)
+- **Encrypted tier'lari:** 4-bit, 16-bit (demo) | 32-bit (full release). Paralel Key Forge = genislik bulmacasi
+- **Corrupted tier'lari:** Minor-Glitched, Major-Glitched (demo) | Critical-Glitched (full release). Recoverer feedback loop = derinlik bulmacasi
 - **Recoverer feedback loop:** Kismi recovery + Separator dongusu, her deneme Kit tuketir
-- **Throughput:** Bina islem suresi sabit, paralel bina = cozum (detaylar TBD)
+- **Network Bar:** Aktif veri akisi olan kaynak sayisi / toplam kaynak = ilerleme metrigi
+- **Throughput:** Maks 1.5s islem suresi. Paralel bina = cozum. Degerler placeholder, playtest ile ayarlanacak
 
 ### Demo Scope Lock
 - Demo Level 1 only (2x2 CT, 100x100 harita)
 - Roster: Classifier, Separator, Scanner, Recoverer, Key Forge, Repair Lab, Decryptor, Encryptor, Splitter, Merger, Trash, Contract Terminal (12 bina)
-- State: Public, Encrypted (4-bit, 16-bit), Glitched (Minor, Major), Enc·Glitch
+- State: Public, Encrypted (4-bit, 16-bit), Corrupted (Minor-Glitched, Major-Glitched)
+- CT kabul: Public, Decrypted, Recovered, Dec·Enc, Rec·Enc
+- Enc·Cor (birlesik state): demo'da YOK — sadece full release
 - FIRE: Easy (yok) + Medium (sabit esik) + Hard (regenerating)
 - **Malware gameplay YOK** — sadece full release'de
 - Coklu save (5 slot) + level ilerleme kaydi
+- **Dev Mode:** Tum binalar acik, gig'ler devre disi — hizli test icin
 
 ### Mekanik Kararlari
 - Grid kablo routing = ana bulmaca (dik kesisim serbest)
@@ -51,15 +55,19 @@ SYS_ADMIN:   Karmasik kaynak → guvenlik as → ayikla/coz/onar → saf veri �
 - CT Port Purity | Kaynaklar dogrudan output portlu (FIRE korumasina tabi)
 - Gig tamamlaninca pipeline KALIR (persistent network)
 - Sinirli harita (levels 1-8): bolge-grid tabanli esit kaynak dagitimi + gorunur sinir
-- Encrypted = genislik (paralel Key Forge), Glitched = derinlik (feedback loop)
+- Encrypted = genislik (paralel Key Forge), Corrupted = derinlik (feedback loop)
 - FIRE kapaninca veri akisi aninda kesilir
+- **Network Bar:** Kaynak bagli = tum content tipleri CT'ye aktif akiyor. Bar = bagli kaynak / toplam kaynak
+- **CT Istatistik Paneli:** CT'ye tiklayinca tum zamanlar kumulatif veri dokumu (content + state bazli, gercek zamanli)
 
 ### Gorsel Dil
-- Public=Yesil, Encrypted=Mavi, Glitched=Turuncu, Enc·Glitch=Bolunmus mavi/turuncu
+- Public=Yesil, Encrypted=Mavi, Corrupted=Turuncu
+- Sub-type gorseli: kablo/haritada sadece parent content sembolu ($ @ # ? ! 1). Sub-type detayi sadece bina panellerinde (hover/info)
 - Procedural-first sanat, siluet/ikon/glow/motion/flow feedback
 
 ### Demo'da Yapilmayacaklar
-- Malware Cleaner, 64-bit Encrypted, Critical Glitch, Workshop/mod, Multiplayer
+- Malware Cleaner, 32-bit Encrypted, Critical-Glitched, Enc·Cor birlesik state
+- Workshop/mod, Multiplayer
 - Buyuk hikaye/campaign, Tech tree/currency/upgrade, Level 2-9 ilerleme
 
 ---
@@ -72,25 +80,31 @@ Her faz sonunda oyun **playable state**'te kalmali. Fazlar sirayla yapilir, bagi
 
 ---
 
-#### FAZ 1: Veri Modeli Yeniden Adlandirma
-**Amac:** Corrupted→Glitched, T1/T2/T3→bit-depth/severity isimlendirmesi
+#### FAZ 1: Veri Modeli Tier Sistemi + State Duzeltmesi
+**Amac:** Encrypted/Corrupted tier isimlendirmesi, ENC_COR kaldir (demo'da yok), islenmis state'ler ekle
 **Bagimlilik:** Yok (ilk yapilmali)
 
-**Dosyalar:**
-- `scripts/data_enums.gd` — CORRUPTED→GLITCHED, ENC_COR→ENC_GLITCH enum degerleri. Yeni sabitler: BIT_4/BIT_16/BIT_32, MINOR/MAJOR/CRITICAL. Gorsel isim mapleri guncelle.
-- `resources/buildings/*.tres` — Tum bina tanimlarinda state referanslari (processor.input_states, dual_input.primary_input_states)
-- `resources/sources/*.tres` — state_weights key'leri (2→GLITCHED, 4→ENC_GLITCH)
-- `resources/gigs/*.tres` — GigRequirement state alanlari
-- `scripts/building.gd` — separator_mode gorsel etiketleri, _draw icindeki renk mapleri
-- `scripts/simulation_manager.gd` — State karsilastirma, delivery logic
-- `scripts/gig_manager.gd` — process_deliveries state kontrolleri
-- `scripts/ui/building_panel.gd` — Separator filtre etiketleri (Public/Encrypted/Glitched/Enc·Glitch)
-- `scripts/ui/gig_panel.gd` — Gig label'lari
-- `scripts/tutorial_manager.gd` — Hint metinleri icinde "Corrupted" → "Glitched"
-- `scripts/save_manager.gd` — Eski save uyumlulugu: load sirasinda CORRUPTED→GLITCHED migration
-- `scripts/connection_layer.gd` — State renk mapleri
+**Degisiklikler:**
+- State'ler: Public, Encrypted, Corrupted (3 ana state — Corrupted KALIR, rename YOK)
+- Encrypted tier: BIT_4, BIT_16 (demo) | BIT_32 (full)
+- Corrupted tier: MINOR_GLITCHED, MAJOR_GLITCHED (demo) | CRITICAL_GLITCHED (full)
+- Islenmis state'ler: DECRYPTED, RECOVERED, DEC_ENC, REC_ENC
+- ENC_COR: demo'dan KALDIR, full release notu olarak birak
 
-**Test:** Mevcut save dosyasi yuklenebilmeli (migration), yeni oyun baslatilabilmeli, tum gig'ler tamamlanabilmeli.
+**Dosyalar:**
+- `scripts/data_enums.gd` — ENC_COR kaldir. Tier sabitleri ekle (BIT_4/BIT_16, MINOR_GLITCHED/MAJOR_GLITCHED). Islenmis state enum'lari (DECRYPTED, RECOVERED, DEC_ENC, REC_ENC). Gorsel isim mapleri guncelle.
+- `resources/buildings/*.tres` — state referanslarini guncelle (ENC_COR kaldir)
+- `resources/sources/*.tres` — state_weights: ENC_COR key'lerini kaldir
+- `resources/gigs/*.tres` — GigRequirement state alanlari guncelle
+- `scripts/building.gd` — separator_mode etiketleri (Public/Encrypted/Corrupted), renk mapleri
+- `scripts/simulation_manager.gd` — State karsilastirma, delivery logic, tier kontrolleri
+- `scripts/gig_manager.gd` — process_deliveries state kontrolleri
+- `scripts/ui/building_panel.gd` — Separator filtre etiketleri (Public/Encrypted/Corrupted)
+- `scripts/ui/gig_panel.gd` — Gig label'lari
+- `scripts/save_manager.gd` — Eski save uyumlulugu: ENC_COR migration
+- `scripts/connection_layer.gd` — State renk mapleri (Corrupted=Turuncu kalir)
+
+**Test:** Mevcut save yuklenebilmeli, yeni oyun baslatilabilmeli, tum gig'ler tamamlanabilmeli.
 
 ---
 
@@ -179,15 +193,15 @@ Her faz sonunda oyun **playable state**'te kalmali. Fazlar sirayla yapilir, bagi
 **Bagimlilik:** Faz 5 (throughput sistemi)
 
 **Dosyalar:**
-- `resources/components/dual_input_component.gd` — Yeni: `success_rate_by_tier: Array[float]`. Decryptor: [0.8, 0.4, 0.2] (4-bit/16-bit/32-bit). Recoverer: [0.75, 0.45, 0.25] (Minor/Major/Critical). `consumes_on_fail: bool` (her iki bina icin true).
-- `scripts/simulation_manager.gd` — DualInput isleme logic degisiklik: basari oranina gore Random kontrol. Basarisiz: tuketilebilir harcanir, Decryptor'da veri kalir / Recoverer'da veri cikisa gider ama GLITCHED state korunur.
-- `resources/buildings/decryptor.tres` — success_rate_by_tier = [0.8, 0.4, 0.2]
-- `resources/buildings/recoverer.tres` — success_rate_by_tier = [0.75, 0.45, 0.25]. Cikis artik KARISIK: bir kisim RECOVERED, bir kisim hala GLITCHED. Oyuncu Separator ile ayirir.
+- `resources/components/dual_input_component.gd` — Yeni: `success_rate_by_tier: Array[float]`. Decryptor: [0.8, 0.4] (4-bit/16-bit, demo). Recoverer: [0.75, 0.45] (Minor-Glitched/Major-Glitched, demo). `consumes_on_fail: bool` (her iki bina icin true).
+- `scripts/simulation_manager.gd` — DualInput isleme logic degisiklik: basari oranina gore Random kontrol. Basarisiz: tuketilebilir harcanir, Decryptor'da veri kalir / Recoverer'da veri cikisa gider ama CORRUPTED state korunur.
+- `resources/buildings/decryptor.tres` — success_rate_by_tier = [0.8, 0.4] (demo)
+- `resources/buildings/recoverer.tres` — success_rate_by_tier = [0.75, 0.45] (demo). Cikis artik KARISIK: bir kisim RECOVERED, bir kisim hala CORRUPTED. Oyuncu Separator ile ayirir.
 - `scripts/building.gd` — Basari/basarisizlik gorsel feedback (flash rengi)
 
 **Not:** Recoverer feedback loop fiziksel kablo + Separator ile oyuncunun kendisinin kurmasi gereken bir yapi. Kod degisikligi minimal — sadece Recoverer cikisinda veriyi kismi olarak donustur.
 
-**Test:** 4-bit Key → %80 basari, cogu calisiyor. 16-bit Key → %40, cok key harcanir. Recoverer Minor → cogu recover, Major → yari recover + yari glitched cikis. Separator loop kurulabilmeli.
+**Test:** 4-bit Key → %80 basari, cogu calisiyor. 16-bit Key → %40, cok key harcanir. Recoverer Minor-Glitched → cogu recover, Major-Glitched → yari recover + yari corrupted cikis. Separator loop kurulabilmeli.
 
 ---
 
@@ -241,21 +255,22 @@ Her faz sonunda oyun **playable state**'te kalmali. Fazlar sirayla yapilir, bagi
 
 #### GORSEL TASARIM NOTLARI (Faz 9 oncesi konusulacak)
 - **Renk paleti:** Cyberpunk neon — kirmizi, cyan/teal, sari ana renkler. Cok fazla farkli renk KULLANMA. Mevcut 12 bina rengi fazla olabilir, 3-4 ana neon renge sadellestir.
-- **Content sembolleri:** Simdi content icin $ @ # ? ! 1 kullaniyoruz. Sub-type'lar icin ne kullanacagiz? Financial=$, ama Transaction Records icin? Secenekler:
-  - (A) ASCII/Unicode karakter (₮ ₿ ↯ ◎ gibi) — kolay implement, font bagimli
-  - (B) Custom pixel-art ikon (16x16) — en guzel ama asset uretimi gerekli
-  - (C) Parent sembol + kucuk modifier ($ ile kucuk T, kucuk A gibi) — hibrit
-  - (D) Sub-type sembolu yok, sadece renk/sekil farki — en basit
-- **Karar bekliyor:** Hangi yaklasim sub-type icin? Custom asset yapabilir miyiz yoksa prosedural mi kalmali?
+- **Sub-type gosterimi:** KARARLASTI — kablo/haritada sadece parent content sembolu. Sub-type detayi sadece bina info panellerinde gosterilir.
+
+#### KAYNAK HARITA NOTU (Faz 8 sirasinda konusulacak)
+- Kaynaklarin haritadaki dizilimi (Easy→Medium→Hard zonlama, FIRE bagimlilik zinciriyle uyumlu komsuluk)
+- Port sayilari tekrar elden gecirilmeli (grid_size ile uyum, buyuk kaynaklarda port yerlesimi)
+- FIRE input portlari vs output portlari fiziksel konum planlama
+- Tutorial scripted kaynak koordinatlari v5 sistemine uyarlanmali
 
 #### ERTELENMIS (Sonraki Tasarim Oturumu)
-- [ ] Gig sistemi yeniden tasarimi (soft-guide yaklasimi)
+- [ ] Gig sistemi detaylari (yol gosterici hedefler — baglanti icin yonlendirme)
 - [ ] Tutorial gig'leri FIRE/Scanner/loop/upgrade icin yeniden yazma
-- [ ] Bina acilma tetikleyicileri (gig-based → ilerleme-based?)
+- [ ] Bina acilma tetikleyicileri (gig-based kalacak, dev mode ile bypass)
 
 ### Full Game Backlog
-- Malware Cleaner + Malware state | Triple bilesik state: Enc·Glitch·Mal
-- 32-bit Encrypted + Critical Glitch (tam oyun)
+- Malware Cleaner + Malware state | Triple bilesik state: Enc·Cor·Mal
+- 32-bit Encrypted + Critical-Glitched + Enc·Cor birlesik state (tam oyun)
 - Ara zorluk kademeleri: Hard+, Hard++, Medium+ (full release)
 - Building batch rendering, chunk unloading, far-object virtualization
 - Upgrade Tier 8+ sinirsiz (endgame)
