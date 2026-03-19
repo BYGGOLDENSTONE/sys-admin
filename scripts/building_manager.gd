@@ -657,13 +657,21 @@ func _find_port_at(world_pos: Vector2, output_only: bool) -> Dictionary:
 		if not output_only and port.is_output:
 			continue
 		return {"building": building, "side": port.side, "is_output": port.is_output}
-	# Check source output ports (sources only have outputs — for cable start)
-	if output_only and source_manager:
+	# Check source ports (outputs for cable start, FIRE inputs for cable end)
+	if source_manager:
 		for source in source_manager.get_all_sources():
 			var local_pos: Vector2 = world_pos - source.global_position
-			var port: Dictionary = source.get_port_at(local_pos)
-			if not port.is_empty() and port.is_output:
-				return {"building": source, "side": port.side, "is_output": true}
+			if output_only:
+				# Source output ports
+				var port: Dictionary = source.get_port_at(local_pos)
+				if not port.is_empty() and port.is_output:
+					return {"building": source, "side": port.side, "is_output": true}
+			else:
+				# FIRE input ports — check directly to avoid overlap with output ports
+				for fire_port in source.fire_input_ports:
+					var pos: Vector2 = source.get_port_local_position(fire_port)
+					if local_pos.distance_to(pos) <= source.PORT_HIT_RADIUS:
+						return {"building": source, "side": fire_port, "is_output": false, "is_fire": true}
 	return {}
 
 

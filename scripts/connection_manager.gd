@@ -114,6 +114,9 @@ func get_port_exit_vertices(building: Node2D, port_side: String) -> Array[Vector
 
 	# Get physical side accounting for rotation
 	var physical: String = building._get_physical_side(port_side)
+	# Strip "fire_" prefix for FIRE input ports (e.g., "fire_left_0" → "left_0")
+	if physical.begins_with("fire_"):
+		physical = physical.substr(5)
 	var base_side: String
 	var us_pos: int = physical.find("_")
 	if us_pos >= 0:

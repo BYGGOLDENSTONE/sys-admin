@@ -2,7 +2,7 @@
 
 ## Mevcut Asama: v5 Tasarim Revizyonu — Implementasyon oncesi
 - **GDD:** `docs/GDD.md` (v5.0 — buyuk tasarim revizyonu)
-- **Kod durumu:** v4 Faz 1-7 TAMAMLANDI, v5 degisiklikleri henuz kodlanmadi
+- **Kod durumu:** v4 Faz 1-7 TAMAMLANDI, v5 Faz 1-4 TAMAMLANDI (Tier+State, Sub-Type, Scanner, FIRE)
 - **Hedef:** Steam Next Fest icin oynanabilir, polished, v5 mekanikli demo
 - **Ticari hedef:** $9.99 fiyat noktasina yakisan kalite ve guven hissi
 
@@ -147,7 +147,7 @@ Her faz sonunda oyun **playable state**'te kalmali. Fazlar sirayla yapilir, bagi
 
 ---
 
-#### FAZ 4: FIRE Sistemi
+#### FAZ 4: FIRE Sistemi ✓ TAMAMLANDI
 **Amac:** Kaynak guvenlik duvari + bagimlilik zinciri
 **Bagimlilik:** Faz 2 (sub-type'lar FIRE gereksinimi icin lazim)
 
@@ -267,6 +267,8 @@ Her faz sonunda oyun **playable state**'te kalmali. Fazlar sirayla yapilir, bagi
 - [ ] Gig sistemi detaylari (yol gosterici hedefler — baglanti icin yonlendirme)
 - [ ] Tutorial gig'leri FIRE/Scanner/loop/upgrade icin yeniden yazma
 - [ ] Bina acilma tetikleyicileri (gig-based kalacak, dev mode ile bypass)
+- [ ] **Network Bar hesabi:** Mevcut kod "kaynaktan kablo var mi" sayiyor. Dogru hesap: "kaynaktan CT'ye aktif veri akisi var mi" olmali (GDD tanimi: tum content tipleri CT'ye akiyor = bagli)
+- [ ] **CT Port Purity bug:** Encrypted veri direkt CT'ye kabul ediliyor. CT sadece Public, Decrypted, Recovered, Dec·Enc, Rec·Enc kabul etmeli. Encrypted/Corrupted islenmeden CT'ye giremez. Mevcut purity checker calismiyormus — kontrol edilmeli
 
 ### Full Game Backlog
 - Malware Cleaner + Malware state | Triple bilesik state: Enc·Cor·Mal

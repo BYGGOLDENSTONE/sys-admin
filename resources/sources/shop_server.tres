@@ -16,3 +16,6 @@ difficulty = "medium"
 encrypted_tier = 1
 corrupted_tier = 1
 sub_type_pool = [{"content": 1, "sub_type": 0}, {"content": 0, "sub_type": 1}, {"content": 3, "sub_type": 3}]
+fire_type = "threshold"
+fire_requirements = [{"sub_type": 4, "amount": 40}]
+fire_regen_rate = 0.0

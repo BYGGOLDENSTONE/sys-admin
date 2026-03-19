@@ -121,6 +121,7 @@ func _ready() -> void:
 	source_manager.source_container = source_container
 	building_manager.source_manager = source_manager
 	building_manager.building_removed.connect(source_manager.on_building_removed)
+	source_manager.source_placed.connect(_on_source_placed)
 
 	# Setup level manager
 	_setup_level_manager()
@@ -175,6 +176,8 @@ func _ready() -> void:
 				break
 		if _contract_terminal != null and _gig_manager != null:
 			_gig_manager.set_contract_terminal(_contract_terminal)
+		# Setup FIRE input ports (based on CT position)
+		_setup_fire_ports()
 		# Setup guided tutorial only on first playthrough
 		if not SettingsManager.get_settings().get("tutorial_completed", false):
 			_setup_guided_tutorial()
@@ -191,6 +194,7 @@ func _ready() -> void:
 	else:
 		# NEW GAME PATH: place Contract Terminal and initialize gigs
 		_place_contract_terminal()
+		_setup_fire_ports()
 		# Tutorial overlay (hints/arrows) only on first playthrough
 		var settings := SettingsManager.get_settings()
 		var tutorial_done: bool = settings.get("tutorial_completed", false)
@@ -525,6 +529,32 @@ func _place_contract_terminal() -> void:
 		print("[Main] Contract Terminal placed at (%d,%d) — size %dx%d" % [cell.x, cell.y, terminal_def.grid_size.x, terminal_def.grid_size.y])
 	else:
 		push_error("[Main] Failed to place Contract Terminal")
+
+
+func _setup_fire_ports() -> void:
+	## Setup FIRE input ports on all sources (positioned opposite to CT direction)
+	if _contract_terminal == null or source_manager == null:
+		return
+	var ct_pos: Vector2 = _get_ct_center()
+	var fire_count: int = 0
+	for source in source_manager.get_all_sources():
+		if source.has_fire():
+			source.setup_fire_ports(ct_pos)
+			fire_count += 1
+	if fire_count > 0:
+		print("[Main] FIRE ports setup — %d sources with FIRE protection" % fire_count)
+
+
+func _on_source_placed(source: Node2D) -> void:
+	## When a new source is placed (e.g., lazy chunk), setup FIRE ports if needed
+	if _contract_terminal != null and source.has_fire():
+		source.setup_fire_ports(_get_ct_center())
+
+
+func _get_ct_center() -> Vector2:
+	return _contract_terminal.global_position + Vector2(
+		_contract_terminal.definition.grid_size.x * 64.0 / 2.0,
+		_contract_terminal.definition.grid_size.y * 64.0 / 2.0)
 
 
 func _find_clear_cell(center: Vector2i, building_size: Vector2i) -> Vector2i:

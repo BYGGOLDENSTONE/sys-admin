@@ -13,3 +13,8 @@ extends Resource
 @export var encrypted_tier: int = 0  ## Fixed tier: 0=none, 1=4-bit, 2=16-bit
 @export var corrupted_tier: int = 0  ## Fixed tier: 0=none, 1=Minor-Glitched, 2=Major-Glitched
 @export var sub_type_pool: Array[Dictionary] = []  ## [{content: int, sub_type: int}] — which sub-types this source produces
+
+## FIRE (Forced Isolation & Restriction Enforcer)
+@export var fire_type: String = "none"  ## "none" / "threshold" / "regen"
+@export var fire_requirements: Array[Dictionary] = []  ## [{sub_type: int, amount: int}] — sub_type = content*4+offset
+@export var fire_regen_rate: float = 0.0  ## MB/s — only for "regen" type, how fast FIRE regenerates when feed stops

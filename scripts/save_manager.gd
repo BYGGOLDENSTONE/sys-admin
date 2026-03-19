@@ -157,6 +157,7 @@ func capture_state() -> Dictionary:
 	data["connections"] = _capture_connections()
 	data["gigs"] = _capture_gigs()
 	data["network"] = _capture_network()
+	data["fire_state"] = _capture_fire_state()
 	if map_generator:
 		data["generated_chunks"] = map_generator.get_generated_chunk_keys()
 	if level_manager:
@@ -293,6 +294,45 @@ func _capture_network() -> Dictionary:
 	return {"connected": connected, "total": total}
 
 
+func _capture_fire_state() -> Array:
+	## Save FIRE progress for each source with active FIRE system.
+	if source_manager == null:
+		return []
+	var result: Array = []
+	for source in source_manager.get_all_sources():
+		if not source.has_fire():
+			continue
+		var progress: Dictionary = {}
+		for st in source.fire_progress:
+			progress[str(st)] = source.fire_progress[st]
+		result.append({
+			"cell_x": source.grid_cell.x,
+			"cell_y": source.grid_cell.y,
+			"fire_active": source.fire_active,
+			"fire_progress": progress,
+		})
+	return result
+
+
+func _restore_fire_state(fire_data: Array) -> void:
+	## Restore FIRE progress per source (matched by grid_cell position).
+	if source_manager == null or fire_data.is_empty():
+		return
+	var source_map: Dictionary = {}
+	for source in source_manager.get_all_sources():
+		var key: String = "%d_%d" % [source.grid_cell.x, source.grid_cell.y]
+		source_map[key] = source
+	for entry in fire_data:
+		var key: String = "%d_%d" % [int(entry.get("cell_x", 0)), int(entry.get("cell_y", 0))]
+		var source: Node2D = source_map.get(key, null)
+		if source == null or not source.has_fire():
+			continue
+		source.fire_active = entry.get("fire_active", true)
+		var progress: Dictionary = entry.get("fire_progress", {})
+		for st_str in progress:
+			source.fire_progress[int(st_str)] = float(progress[st_str])
+
+
 ## --- STATE RESTORE ---
 
 func apply_state(data: Dictionary) -> bool:
@@ -315,6 +355,9 @@ func apply_state(data: Dictionary) -> bool:
 
 	# 4. Restore simulation state
 	_restore_simulation(data.get("simulation", {}))
+
+	# 5. Restore FIRE state (must be after sources are regenerated from chunks)
+	_restore_fire_state(data.get("fire_state", []))
 
 	game_loaded.emit()
 	print("[SaveManager] Game state restored")
@@ -403,6 +446,10 @@ func _restore_connections(connections_data: Array, building_map: Dictionary) -> 
 			var from_cell := Vector2i(int(entry.get("from_x", 0)), int(entry.get("from_y", 0)))
 			from_building = grid_system.get_source_at(from_cell)
 		var to_building: Node2D = building_map.get(to_key, null)
+		# If to_building not found, try looking up as a data source (FIRE input port connections)
+		if to_building == null and grid_system != null:
+			var to_cell := Vector2i(int(entry.get("to_x", 0)), int(entry.get("to_y", 0)))
+			to_building = grid_system.get_source_at(to_cell)
 		if from_building == null or to_building == null:
 			push_warning("[SaveManager] Connection skipped — node not found: %s → %s" % [from_key, to_key])
 			continue

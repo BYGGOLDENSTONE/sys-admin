@@ -305,6 +305,23 @@ func _update_source_stats() -> void:
 				st_parts.append("[color=%s]%s[/color]" % [c_color, st_name])
 		if not st_parts.is_empty():
 			lines.append(_stat("Data Types", ", ".join(st_parts)))
+	# FIRE info
+	if _target_source.has_fire():
+		var fire_color: String = "#ff4422" if _target_source.fire_active else "#44ff66"
+		var fire_status: String = "ACTIVE" if _target_source.fire_active else "BREACHED"
+		var fire_type_label: String = "Threshold" if def.fire_type == "threshold" else "Regenerating"
+		lines.append(_stat("FIRE", "[color=%s]%s[/color] (%s)" % [fire_color, fire_status, fire_type_label]))
+		for req in def.fire_requirements:
+			var st: int = int(req.sub_type)
+			var content: int = st / 4
+			var offset: int = st % 4
+			var req_name: String = DataEnums.sub_type_name(content, offset)
+			var c_color: String = DataEnums.content_color_hex(content)
+			var cur: float = _target_source.fire_progress.get(st, 0.0)
+			var needed: float = float(req.amount)
+			lines.append(_stat("  Needs", "[color=%s]%s[/color] — %d/%d MB" % [c_color, req_name, int(cur), int(needed)]))
+		if def.fire_type == "regen":
+			lines.append(_stat("  Regen", "[color=#ff8844]%.0f MB/s[/color]" % def.fire_regen_rate))
 	# Port info
 	var port_count: int = _target_source.output_ports.size()
 	lines.append(_stat("Output Ports", "[color=#44ff88]%d[/color]" % port_count))

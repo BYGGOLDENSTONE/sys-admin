@@ -88,6 +88,10 @@ func play_process_event(building_type: String) -> void:
 			play("process_tick", -16.0)
 
 
+func play_fire_breach() -> void:
+	play("fire_breach", -4.0, 0.0)
+
+
 func play_ui_hover() -> void:
 	play("ui_hover", -20.0, 0.1)
 
@@ -152,6 +156,8 @@ func _generate_sounds() -> void:
 	_sounds["process_recover"] = _gen(220.0, 0.15, 0.15, "sine", 440.0)
 	_sounds["process_classify"] = _gen(1500.0, 0.04, 0.1, "square")
 	_sounds["process_research"] = _gen(330.0, 0.1, 0.12, "sine", 660.0)
+	# FIRE
+	_sounds["fire_breach"] = _gen_rich_chime([220.0, 440.0, 660.0, 880.0, 1100.0], 0.1, 0.25, 3, 0.4)
 	# UI
 	_sounds["ui_hover"] = _gen(3200.0, 0.015, 0.06, "square")
 	_sounds["ui_click"] = _gen(1800.0, 0.035, 0.12, "square")

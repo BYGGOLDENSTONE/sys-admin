@@ -26,6 +26,14 @@ var instance_state_weights: Dictionary = {}
 ## Output port system — generated from grid_size
 var output_ports: Array[String] = []
 
+## --- FIRE (Forced Isolation & Restriction Enforcer) ---
+var fire_active: bool = false           ## true = FIRE blocking output, false = breached/no FIRE
+var fire_progress: Dictionary = {}      ## {sub_type_id: current_amount_float}
+var fire_regen_accumulator: float = 0.0 ## For regen type: accumulated regen since last feed
+var fire_input_ports: Array[String] = [] ## Generated FIRE input port names (e.g. "fire_left_0")
+var _fire_port_side: String = ""        ## Which side FIRE ports are on (opposite of CT direction)
+var _fire_breach_flash: float = 0.0     ## Visual flash timer when FIRE is breached
+
 
 func _process(delta: float) -> void:
 	if definition == null:
@@ -61,7 +69,108 @@ func setup(def: DataSourceDefinition, origin: Vector2i) -> void:
 	_dominant_color = _compute_dominant_color()
 	_generate_rectangular_cells()
 	_generate_output_ports()
+	_init_fire_state()
 	queue_redraw()
+
+
+## --- FIRE SYSTEM ---
+
+func _init_fire_state() -> void:
+	if not has_fire():
+		fire_active = false
+		return
+	fire_active = true
+	fire_progress.clear()
+	for req in definition.fire_requirements:
+		fire_progress[int(req.sub_type)] = 0.0
+
+
+func has_fire() -> bool:
+	return definition != null and definition.fire_type != "none" and not definition.fire_requirements.is_empty()
+
+
+func is_fire_breached() -> bool:
+	if not has_fire():
+		return true
+	return not fire_active
+
+
+func setup_fire_ports(ct_world_pos: Vector2) -> void:
+	## Calculate FIRE input port side: opposite of CT direction
+	if not has_fire():
+		return
+	var my_center := get_center_world()
+	var dir := ct_world_pos - my_center
+	if absf(dir.x) >= absf(dir.y):
+		_fire_port_side = "left" if dir.x > 0 else "right"
+	else:
+		_fire_port_side = "top" if dir.y > 0 else "bottom"
+	_generate_fire_input_ports()
+	## Remove output ports from the FIRE side (dedicated FIRE-only edge)
+	var fire_prefix: String = _fire_port_side + "_"
+	var new_output: Array[String] = []
+	for p in output_ports:
+		if not p.begins_with(fire_prefix):
+			new_output.append(p)
+	output_ports = new_output
+	queue_redraw()
+
+
+func _generate_fire_input_ports() -> void:
+	fire_input_ports.clear()
+	if _fire_port_side.is_empty():
+		return
+	## One FIRE input port per requirement
+	var count: int = definition.fire_requirements.size()
+	for i in range(count):
+		fire_input_ports.append("fire_%s_%d" % [_fire_port_side, i])
+
+
+func feed_fire(sub_type: int, amount: float) -> void:
+	## Feed data into FIRE. Only matching sub-types count.
+	if not fire_active:
+		return
+	if fire_progress.has(sub_type):
+		fire_progress[sub_type] += amount
+	_check_fire_breach()
+
+
+func _check_fire_breach() -> void:
+	if not fire_active:
+		return
+	for req in definition.fire_requirements:
+		var st: int = int(req.sub_type)
+		var needed: float = float(req.amount)
+		if fire_progress.get(st, 0.0) < needed:
+			return
+	## All requirements met — breach FIRE
+	fire_active = false
+	_fire_breach_flash = 1.0
+	print("[FIRE] Breached — %s" % definition.source_name)
+
+
+func process_fire_regen(delta: float) -> void:
+	## For regen type: FIRE regenerates over time. Must be called each sim tick.
+	if definition.fire_type != "regen":
+		return
+	if not fire_active:
+		## Already breached — check if regen should re-activate
+		## Regen decays progress over time; if any requirement drops below threshold, re-activate
+		var should_reactivate: bool = false
+		for req in definition.fire_requirements:
+			var st: int = int(req.sub_type)
+			var needed: float = float(req.amount)
+			fire_progress[st] = maxf(0.0, fire_progress.get(st, 0.0) - definition.fire_regen_rate * delta)
+			if fire_progress[st] < needed:
+				should_reactivate = true
+		if should_reactivate:
+			fire_active = true
+			print("[FIRE] Reactivated — %s (regen closed)" % definition.source_name)
+	else:
+		## Active FIRE — also decay progress (player must continuously feed)
+		for req in definition.fire_requirements:
+			var st: int = int(req.sub_type)
+			fire_progress[st] = maxf(0.0, fire_progress.get(st, 0.0) - definition.fire_regen_rate * delta)
 
 
 func _compute_dominant_color() -> Color:
@@ -131,18 +240,31 @@ func _count_ports_on_side(base_side: String) -> int:
 	return count
 
 
+func _count_fire_ports_on_side(base_side: String) -> int:
+	var prefix: String = "fire_%s_" % base_side
+	var count: int = 0
+	for p in fire_input_ports:
+		if p.begins_with(prefix):
+			count += 1
+	return count
+
+
 func get_port_local_position(port_side: String) -> Vector2:
+	## Handles both output ports ("left_0") and FIRE input ports ("fire_left_0")
+	var is_fire: bool = port_side.begins_with("fire_")
+	var stripped: String = port_side.substr(5) if is_fire else port_side
+
 	var base_side: String
 	var port_idx: int = 0
-	var us_pos: int = port_side.find("_")
+	var us_pos: int = stripped.find("_")
 	if us_pos >= 0:
-		base_side = port_side.substr(0, us_pos)
-		port_idx = int(port_side.substr(us_pos + 1))
+		base_side = stripped.substr(0, us_pos)
+		port_idx = int(stripped.substr(us_pos + 1))
 	else:
-		base_side = port_side
+		base_side = stripped
 
 	var size := Vector2(definition.grid_size.x * TILE_SIZE, definition.grid_size.y * TILE_SIZE)
-	var count: int = _count_ports_on_side(base_side)
+	var count: int = _count_fire_ports_on_side(base_side) if is_fire else _count_ports_on_side(base_side)
 
 	# Side length
 	var side_len: float
@@ -172,11 +294,15 @@ func get_port_world_position(port_side: String) -> Vector2:
 
 
 func get_port_at(local_pos: Vector2) -> Dictionary:
-	## Hit-test for output ports (used by BuildingManager for cable start)
+	## Hit-test for output ports and FIRE input ports
 	for port_side in output_ports:
 		var port_pos := get_port_local_position(port_side)
 		if local_pos.distance_to(port_pos) <= PORT_HIT_RADIUS:
 			return {"side": port_side, "is_output": true}
+	for port_side in fire_input_ports:
+		var port_pos := get_port_local_position(port_side)
+		if local_pos.distance_to(port_pos) <= PORT_HIT_RADIUS:
+			return {"side": port_side, "is_output": false, "is_fire": true}
 	return {}
 
 
@@ -242,6 +368,10 @@ func _draw() -> void:
 
 	# Output ports
 	_draw_ports(size, accent)
+
+	# FIRE status overlay
+	if has_fire():
+		_draw_fire_status(center, size)
 
 
 ## PCB mode: zoom-compensated glowing dots
@@ -331,12 +461,90 @@ func _draw_territory_tint(accent: Color, size: Vector2, tint_alpha: float = 0.06
 
 func _draw_ports(size: Vector2, accent: Color) -> void:
 	var port_pulse: float = sin(_glow_time * 3.0) * 0.5 + 0.5
+	## Output ports — accent color (dimmed if FIRE active)
+	var out_alpha: float = 0.25 if fire_active else 0.8
 	for port_side in output_ports:
 		var pos := get_port_local_position(port_side)
 		var gr := PORT_GLOW_RADIUS + port_pulse * 2.0
-		draw_circle(pos, gr, Color(accent, 0.1 + port_pulse * 0.08))
-		draw_circle(pos, PORT_RADIUS, Color(accent, 0.8))
-		draw_circle(pos, PORT_RADIUS * 0.4, Color.WHITE)
+		draw_circle(pos, gr, Color(accent, (0.1 + port_pulse * 0.08) * (0.3 if fire_active else 1.0)))
+		draw_circle(pos, PORT_RADIUS, Color(accent, out_alpha))
+		if not fire_active:
+			draw_circle(pos, PORT_RADIUS * 0.4, Color.WHITE)
+	## FIRE input ports — red/orange color
+	if not fire_input_ports.is_empty():
+		var fire_color := Color(1.0, 0.3, 0.1) if fire_active else Color(0.2, 1.0, 0.5)
+		for port_side in fire_input_ports:
+			var pos := get_port_local_position(port_side)
+			var gr := PORT_GLOW_RADIUS + port_pulse * 2.0
+			draw_circle(pos, gr, Color(fire_color, 0.15 + port_pulse * 0.1))
+			draw_circle(pos, PORT_RADIUS * 1.2, Color(fire_color, 0.9))
+			draw_circle(pos, PORT_RADIUS * 0.5, Color.WHITE)
+
+
+func _draw_fire_status(center: Vector2, size: Vector2) -> void:
+	var font := _MONO_FONT
+	var zoom: float = _get_zoom_level()
+	var inv_scale: float = clampf(1.0 / zoom, 1.0, 3.0)
+
+	## Calculate total progress ratio
+	var total_needed: float = 0.0
+	var total_current: float = 0.0
+	for req in definition.fire_requirements:
+		var st: int = int(req.sub_type)
+		var needed: float = float(req.amount)
+		total_needed += needed
+		total_current += minf(fire_progress.get(st, 0.0), needed)
+	var ratio: float = total_current / maxf(total_needed, 1.0)
+
+	if fire_active:
+		## FIRE Active — red shield icon + progress bar
+		var fire_color := Color(1.0, 0.3, 0.1)
+
+		## Shield icon (simple triangle/circle)
+		var icon_y: float = center.y + 8.0 * inv_scale
+		var icon_r: float = 8.0 * inv_scale
+		draw_circle(Vector2(center.x, icon_y), icon_r, Color(fire_color, 0.7))
+		draw_circle(Vector2(center.x, icon_y), icon_r * 0.5, Color(1.0, 1.0, 1.0, 0.4))
+
+		## "FIRE" label
+		var label_size: int = int(9.0 * inv_scale)
+		var label := "FIRE"
+		var ls := font.get_string_size(label, HORIZONTAL_ALIGNMENT_CENTER, -1, label_size)
+		var label_pos := Vector2(center.x - ls.x / 2.0, icon_y + icon_r + label_size + 2.0 * inv_scale)
+		draw_string(font, label_pos + Vector2(1, 1), label, HORIZONTAL_ALIGNMENT_LEFT, -1, label_size, Color(0, 0, 0, 0.7))
+		draw_string(font, label_pos, label, HORIZONTAL_ALIGNMENT_LEFT, -1, label_size, Color(fire_color, 0.9))
+
+		## Progress bar
+		var bar_w: float = size.x * 0.6
+		var bar_h: float = 4.0 * inv_scale
+		var bar_x: float = center.x - bar_w / 2.0
+		var bar_y: float = label_pos.y + 4.0 * inv_scale
+		draw_rect(Rect2(bar_x, bar_y, bar_w, bar_h), Color(0, 0, 0, 0.5), true)
+		if ratio > 0.0:
+			draw_rect(Rect2(bar_x, bar_y, bar_w * ratio, bar_h), Color(fire_color, 0.8), true)
+		draw_rect(Rect2(bar_x, bar_y, bar_w, bar_h), Color(fire_color, 0.4), false, 1.0)
+
+		## Progress text (e.g., "12/50 MB")
+		if definition.fire_requirements.size() == 1:
+			var req = definition.fire_requirements[0]
+			var cur: float = fire_progress.get(int(req.sub_type), 0.0)
+			var txt := "%d/%d MB" % [int(cur), int(req.amount)]
+			var txt_size: int = int(8.0 * inv_scale)
+			var ts := font.get_string_size(txt, HORIZONTAL_ALIGNMENT_CENTER, -1, txt_size)
+			var txt_pos := Vector2(center.x - ts.x / 2.0, bar_y + bar_h + txt_size + 2.0 * inv_scale)
+			draw_string(font, txt_pos, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, txt_size, Color(fire_color, 0.7))
+	else:
+		## FIRE Breached — brief green flash then subtle indicator
+		if _fire_breach_flash > 0.0:
+			var flash_alpha: float = _fire_breach_flash * 0.3
+			draw_rect(Rect2(Vector2.ZERO, size), Color(0.2, 1.0, 0.5, flash_alpha), true)
+			_fire_breach_flash = maxf(0.0, _fire_breach_flash - 0.02)
+
+		## Small green unlock icon
+		var icon_y: float = center.y + 8.0 * inv_scale
+		var icon_r: float = 5.0 * inv_scale
+		var breach_color := Color(0.2, 1.0, 0.5, 0.5)
+		draw_circle(Vector2(center.x, icon_y), icon_r, breach_color)
 
 
 func _draw_zone_badge(center: Vector2) -> void:

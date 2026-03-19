@@ -115,8 +115,8 @@ func _rebuild_delivery_meta() -> void:
 		var bid: int = target.get_instance_id()
 		_conn_target_bids[i] = bid
 		var def = target.definition if is_instance_valid(target) else null
-		if def == null:
-			_conn_target_types[i] = 0
+		if def == null or not (def is BuildingDefinition):
+			_conn_target_types[i] = 0  # Source FIRE port or unknown — handled in GDScript
 			_conn_target_filters[i] = 0
 			continue
 		if def.processor != null and def.processor.rule == "trash":
@@ -169,6 +169,9 @@ func _rebuild_sim_kernel_meta() -> void:
 	# --- Source port entries ---
 	var source_entries: Array = []
 	for source in source_manager.get_all_sources():
+		# FIRE blocks output — skip sources with active FIRE
+		if source.fire_active:
+			continue
 		var src_def: DataSourceDefinition = source.definition
 		var src_id: int = source.get_instance_id()
 		for port in source.output_ports:
@@ -263,15 +266,23 @@ func _rebuild_sim_kernel_meta() -> void:
 		var target: Node2D = conn.to_building
 		var tdef = target.definition if is_instance_valid(target) else null
 		var meta: Dictionary = {"target_bid": target.get_instance_id() if is_instance_valid(target) else 0}
-		meta["is_ct"] = tdef != null and tdef.category == "terminal"
+		# Source FIRE port targets — no building properties
+		if tdef == null or not (tdef is BuildingDefinition):
+			meta["is_ct"] = false
+			meta["accepts_mask"] = 0x0FFFFFFF
+			meta["unlimited_accept"] = true  # FIRE port consumes all data
+			meta["capacity"] = 0
+			conn_push_meta.append(meta)
+			continue
+		meta["is_ct"] = tdef.category == "terminal"
 		# accepts_mask: 28-bit (7 content × 4 state) — cached per definition
-		meta["accepts_mask"] = tdef.get_accepts_mask() if tdef != null else 0x0FFFFFFF
+		meta["accepts_mask"] = tdef.get_accepts_mask()
 		# Routing/trash = unlimited accept (no capacity check)
-		meta["unlimited_accept"] = tdef != null and (
+		meta["unlimited_accept"] = (
 			tdef.classifier != null or tdef.splitter != null or tdef.merger != null
 			or (tdef.processor != null and (tdef.processor.rule == "separator" or tdef.processor.rule == "trash"))
 			or tdef.dual_input != null)
-		meta["capacity"] = int(target.get_effective_value("capacity")) if tdef != null and tdef.storage != null else 0
+		meta["capacity"] = int(target.get_effective_value("capacity")) if tdef.storage != null else 0
 		conn_push_meta.append(meta)
 
 	_sim_kernel.configure_graph(_conn_from, _conn_to, _output_ports, conn_push_meta)
@@ -347,6 +358,8 @@ func _on_sim_tick() -> void:
 			buildings.remove_at(i)
 			continue
 		buildings[i].is_working = false
+	# 0. FIRE regen tick (hard/endgame sources decay progress)
+	_process_fire_regen()
 	# 1. Deliver arrived transit items to target buildings
 	_deliver_arrived()
 	# 2. Normal simulation: generate → forward → process
@@ -508,7 +521,14 @@ func _deliver_conn_gdscript(conn: Dictionary) -> void:
 	if transit.is_empty():
 		return
 	var target: Node2D = conn.to_building
-	if not is_instance_valid(target) or not target.has_method("can_accept_data"):
+	if not is_instance_valid(target):
+		transit.clear()
+		return
+	## FIRE input port delivery — consume data and feed to source FIRE
+	if target.has_method("feed_fire") and String(conn.to_port).begins_with("fire_"):
+		_deliver_fire_input(conn, target)
+		return
+	if not target.has_method("can_accept_data"):
 		transit.clear()
 		return
 	while not transit.is_empty() and transit[0].t >= 1.0:
@@ -558,6 +578,44 @@ func _deliver_arrived_gdscript() -> void:
 	## Pure GDScript fallback for delivery (no C++ DLL).
 	for conn in _cached_conns:
 		_deliver_conn_gdscript(conn)
+
+
+func _deliver_fire_input(conn: Dictionary, source: Node2D) -> void:
+	## Deliver transit items to a source's FIRE input port.
+	## Consumes ALL arrived data; matching sub-types feed FIRE progress.
+	var transit: Array = conn.get("transit", [])
+	var was_active: bool = source.fire_active
+	while not transit.is_empty() and transit[0].t >= 1.0:
+		var item: Dictionary = transit[0]
+		var ikey: int = int(item.key)
+		var content: int = DataEnums.unpack_content(ikey)
+		var sub_type_offset: int = DataEnums.unpack_sub_type(ikey)
+		if sub_type_offset >= 0:
+			var global_sub_type: int = content * 4 + sub_type_offset
+			source.feed_fire(global_sub_type, float(item.amount))
+		transit.remove_at(0)
+	## FIRE state changed — rebuild meta so source starts/stops generating
+	if source.fire_active != was_active:
+		_conn_cache_dirty = true
+		if sound_manager and not source.fire_active:
+			sound_manager.play_fire_breach()
+
+
+func _process_fire_regen() -> void:
+	## Process FIRE regen for hard/endgame sources (called each sim tick).
+	if source_manager == null:
+		return
+	var delta: float = _sim_timer.wait_time
+	var fire_changed: bool = false
+	for source in source_manager.get_all_sources():
+		if not source.has_fire() or source.definition.fire_type != "regen":
+			continue
+		var was_active: bool = source.fire_active
+		source.process_fire_regen(delta)
+		if source.fire_active != was_active:
+			fire_changed = true
+	if fire_changed:
+		_conn_cache_dirty = true  # Rebuild sim kernel meta to start/stop generation
 
 
 func _dual_input_can_accept(target: Node2D, item: Dictionary) -> bool:
@@ -1031,6 +1089,9 @@ func _update_generation(_buildings: Array[Node]) -> void:
 	if source_manager == null or connection_manager == null:
 		return
 	for source in source_manager.get_all_sources():
+		# FIRE blocks output — skip generation if FIRE is active
+		if source.fire_active:
+			continue
 		var src_def: DataSourceDefinition = source.definition
 		var amount: int = int(src_def.generation_rate)
 		var src_id: int = source.get_instance_id()

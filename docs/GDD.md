@@ -789,13 +789,17 @@ Hospital Archive — 🔥 FIRE Active
 FIRE gereksinimleri doğal bir bağımlılık ağacı yaratır:
 
 ```
-[Easy: Smart Lock] ──Fingerprint──→ [Medium: Medical Clinic] FIRE kırılır
+[Easy: Smart Lock] ──Fingerprint──→ [Medium: Hospital Terminal] FIRE kırılır
                                           |
-                                    Retina Scan
+                                    Biometric Encrypted
                                           ↓
-                                   [Hard: Hospital Archive] FIRE kırılır
+                                        işle → CT
+
+[Easy: ATM] ──Transaction Records──→ [Medium: Shop Server] FIRE kırılır
                                           |
-                                   Biometric Encrypted → işle → CT
+[Easy: Bank Terminal] ──Account Data──→ [Hard: Corporate Server] FIRE kırılır (regen)
+                                          |
+                                    Financial Encrypted → işle → CT
 ```
 
 **Easy → Medium → Hard** zinciri otomatik olarak oluşur. Oyuncu kolay kaynaklardan başlar, onların verisini kullanarak orta kaynaklara erişir, orta kaynaklarla zor kaynaklara ulaşır.
@@ -1098,18 +1102,35 @@ Her kaynak spesifik sub-type'lar üretir. Bu eşleştirmeler tematik tutarlılı
 
 **Not:** Kaynak sub-type eşleştirmeleri ve state dağılımları aktif dengeleme altında.
 
-### FIRE Gereksinim Örnekleri
+### FIRE Gereksinimleri
 
-| Kaynak | FIRE Gereksinimi | Nereden Beslenir |
-|--------|------------------|-----------------|
-| Medical Clinic | 30 MB Fingerprint (Public) | Smart Lock, ATM |
-| Hospital | 50 MB Retina Scan (Public) | Medical Clinic |
-| Bank Terminal | 40 MB Transaction Records (Public) | ATM |
-| Biotech Lab | 50 MB Log Files (Public) | ISP Backbone, Traffic Camera |
-| Corporate Server | 80 MB Account Data (Public) + sürekli throughput | Bank Terminal |
-| Government Archive | 100 MB Voice Pattern (Public) + sürekli throughput | Corporate Server |
+**Medium (Threshold — sabit eşik, bir kere besle, kalıcı olarak kalkar):**
 
-**Not:** FIRE gereksinimleri aktif dengeleme altında. Miktarlar playtest ile doğrulanacak.
+| Kaynak | FIRE Gereksinimi | Miktar | Besleme Kaynağı |
+|--------|-----------------|--------|-----------------|
+| Hospital Terminal | Fingerprint (Biometric) | 30 MB | Smart Lock, ATM |
+| Shop Server | Transaction Records (Financial) | 40 MB | ATM |
+| Biotech Lab | Log Files (Standard) | 50 MB | ISP Backbone, Traffic Camera |
+| Public Library | Test Data (Research) | 30 MB | Public Database |
+
+**Hard (Regenerating — sürekli throughput koru, düşerse FIRE kapanır):**
+
+| Kaynak | FIRE Gereksinimi | Regen Hızı | Besleme Kaynağı |
+|--------|-----------------|-----------|-----------------|
+| Corporate Server | Account Data (Financial) | ~50 MB/s | Bank Terminal |
+| Government Archive | Voice Pattern (Biometric) | ~150 MB/s | Data Kiosk, Corporate Server |
+
+**Endgame (Regenerating — çok yüksek regen):**
+
+| Kaynak | FIRE Gereksinimi | Regen Hızı | Besleme Kaynağı |
+|--------|-----------------|-----------|-----------------|
+| Military Network | State Secrets (Classified) | ~500 MB/s | Government Archive |
+| Blackwall Fragment | Intelligence (Classified) | ~500 MB/s | Military Network |
+| Dark Web Node | Military Ops (Classified) | ~500 MB/s | Military Network |
+
+**FIRE Input Port Yerleşimi:** CT'den ters yöndeki kenarda. Çalışma zamanında CT konumuna göre hesaplanır.
+
+**Not:** FIRE miktarları ve regen hızları playtest ile doğrulanacak.
 
 ### Tasarım Felsefesi
 
