@@ -1,4 +1,4 @@
-# SYS_ADMIN — Game Design Document
+# NetFactory // BREACH — Game Design Document
 
 **Versiyon:** 5.1
 **Son Guncelleme:** 2026-03-19
@@ -39,13 +39,13 @@
 
 ## 1. Oyun Ozeti
 
-**SYS_ADMIN**, oyuncunun siberuzayda veri kaynaklarini kesfedip, guvenlik duvarlarini asip, grid tabanli kablo routing ile parlayan veri pipeline'lari kurdugu 2D top-down chill otomasyon oyunudur. Oyuncunun fabrikasi yukaridan bakildiginda canli bir devre kartina benzer.
+**NetFactory // BREACH**, oyuncunun siberuzayda veri kaynaklarini kesfedip, guvenlik duvarlarini asip, grid tabanli kablo routing ile parlayan veri pipeline'lari kurdugu 2D top-down chill otomasyon oyunudur. Oyuncunun fabrikasi yukaridan bakildiginda canli bir devre kartina benzer.
 
 ### Ters Shapez Modeli
 
 ```
 Shapez:      Basit parcalar → isle → karmasik urun → teslim
-SYS_ADMIN:   Karmasik kaynak → guvenlik as → ayikla/coz/onar → saf veri → teslim
+BREACH:   Karmasik kaynak → guvenlik as → ayikla/coz/onar → saf veri → teslim
 ```
 
 Oyuncu insa etmiyor, **aritiyor.** Content = sekil, State = renk. Hacker fantezisi — sifreli, bozuk, korunmali veriyi temizleyip merkeze teslim et.
@@ -118,7 +118,7 @@ Kablolar grid uzerinde fiziksel yer kaplar, serbestce kesilemez. Yerlesim planla
 ### Shapez Paraleli
 
 ```
-Shapez:                          SYS_ADMIN:
+Shapez:                          BREACH:
 Hub'dan seviye gelir             Haritadaki kaynaklar yönlendirir
 Şekil kes/boya/birleştir         Veri ayır/işle/şifrele
 Conveyor belt ile Hub'a teslim   Kablo ile Terminal'e teslim
@@ -814,11 +814,11 @@ FIRE gereksinimleri doğal bir bağımlılık ağacı yaratır:
 
 ### FIRE ve Throughput
 
-Hard kaynaklarda FIRE regenerating olduğundan, oyuncunun **sürekli akış** koruması gerekir. Bu Shapez'in geç-oyun throughput challenge'ının SYS_ADMIN karşılığıdır:
+Hard kaynaklarda FIRE regenerating olduğundan, oyuncunun **sürekli akış** koruması gerekir. Bu Shapez'in geç-oyun throughput challenge'ının BREACH karşılığıdır:
 
 ```
 Shapez geç oyun:   "Bu şekli saniyede 10 adet sürdür"
-SYS_ADMIN:         "Bu kaynağın FIRE'ını sürekli besle yoksa kapanır"
+BREACH:         "Bu kaynağın FIRE'ını sürekli besle yoksa kapanır"
 ```
 
 FIRE kapandığında veri akışı **anında** kesilir. Stresli değil çünkü doğru kurulduktan sonra FIRE değişmez — bu sadece throughput testi.

@@ -192,7 +192,7 @@ func _on_frame() -> void:
 
 
 func _write_report() -> void:
-	var report: String = "=== SYS_ADMIN Benchmark Report ===\n"
+	var report: String = "=== BREACH Benchmark Report ===\n"
 	report += "Date: %s\n" % Time.get_datetime_string_from_system()
 	report += "Sources: %d | Buildings: %d | Connections: %d\n" % [total_sources, total_buildings, total_connections]
 	report += "Data flow: REAL (source generation + transit + delivery)\n"

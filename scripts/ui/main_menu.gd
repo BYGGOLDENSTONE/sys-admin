@@ -1,14 +1,14 @@
 extends Control
 
-## Main Menu — entry point for SYS_ADMIN demo.
+## Main Menu — entry point for NetFactory // BREACH demo.
 ## New Game auto-assigns an empty slot. Load Game shows saved slots.
 
 const GAME_SCENE: String = "res://scenes/main.tscn"
 const SaveManagerScript = preload("res://scripts/save_manager.gd")
 const TITLE_COLOR := Color(0.0, 0.85, 0.9, 1.0)
 const GLITCH_CHARS: String = "█▓░▒#@$%&*"
-const WISHLIST_URL: String = "https://store.steampowered.com/app/PLACEHOLDER_APP_ID/SYS_ADMIN/"
-const FEEDBACK_URL: String = "https://store.steampowered.com/app/PLACEHOLDER_APP_ID/SYS_ADMIN/discussions/"
+const WISHLIST_URL: String = "https://store.steampowered.com/app/PLACEHOLDER_APP_ID/NetFactory_BREACH/"
+const FEEDBACK_URL: String = "https://store.steampowered.com/app/PLACEHOLDER_APP_ID/NetFactory_BREACH/discussions/"
 
 var _new_game_btn: Button = null
 var _load_game_btn: Button = null
@@ -68,8 +68,8 @@ func _build_ui() -> void:
 
 	# Title
 	_title = Label.new()
-	_title.text = "SYS_ADMIN"
-	_title.add_theme_font_size_override("font_size", 64)
+	_title.text = "NetFactory // BREACH"
+	_title.add_theme_font_size_override("font_size", 56)
 	_title.add_theme_color_override("font_color", TITLE_COLOR)
 	_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	main_box.add_child(_title)
@@ -256,7 +256,7 @@ func _update_glitch(delta: float) -> void:
 	if _glitch_active:
 		if _glitch_timer >= _glitch_end:
 			_glitch_active = false
-			_title.text = "SYS_ADMIN"
+			_title.text = "NetFactory // BREACH"
 			_title.add_theme_color_override("font_color", TITLE_COLOR)
 			_title.position.x = 0.0
 			_glitch_timer = 0.0
@@ -266,7 +266,7 @@ func _update_glitch(delta: float) -> void:
 			_glitch_active = true
 			_glitch_timer = 0.0
 			_glitch_end = randf_range(0.06, 0.18)
-			var original := "SYS_ADMIN"
+			var original := "NetFactory // BREACH"
 			var result := original
 			var corrupt_count := randi_range(1, 2)
 			for _i in range(corrupt_count):

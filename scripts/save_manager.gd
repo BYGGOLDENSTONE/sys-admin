@@ -1,6 +1,6 @@
 extends Node
 
-## Save/Load system for SYS_ADMIN demo.
+## Save/Load system for NetFactory // BREACH demo.
 ## JSON-based save format with autosave and backup support.
 
 const SAVE_VERSION: int = 5

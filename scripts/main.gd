@@ -42,8 +42,8 @@ var _benchmark: BenchmarkRunner = null
 var _level_manager: Node = null
 var _map_center_world: Vector2 = Vector2.ZERO
 
-const WISHLIST_URL: String = "https://store.steampowered.com/app/PLACEHOLDER_APP_ID/SYS_ADMIN/"
-const FEEDBACK_URL: String = "https://store.steampowered.com/app/PLACEHOLDER_APP_ID/SYS_ADMIN/discussions/"
+const WISHLIST_URL: String = "https://store.steampowered.com/app/PLACEHOLDER_APP_ID/NetFactory_BREACH/"
+const FEEDBACK_URL: String = "https://store.steampowered.com/app/PLACEHOLDER_APP_ID/NetFactory_BREACH/discussions/"
 
 ## Set this BEFORE _ready() to load a saved game instead of starting new
 var load_save_data: Dictionary = {}
@@ -277,7 +277,7 @@ func _ready() -> void:
 	# Enable close request notification for crash save
 	get_tree().set_auto_accept_quit(false)
 
-	print("[Main] SYS_ADMIN initialized — %s" % ("loaded save" if is_loading else "new game"))
+	print("[Main] BREACH initialized — %s" % ("loaded save" if is_loading else "new game"))
 
 	# Auto-run benchmark if --benchmark CLI arg is present
 	if "--benchmark" in OS.get_cmdline_user_args():

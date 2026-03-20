@@ -1,7 +1,7 @@
 class_name LevelConfig
 extends RefCounted
 
-## Static level configuration for SYS_ADMIN progression system.
+## Static level configuration for NetFactory // BREACH progression system.
 ## 9 levels: CT grows from 2x2 to 10x10, map from 100x100 to infinite.
 
 const IS_DEMO: bool = true  ## Demo = Level 1 only

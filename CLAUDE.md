@@ -1,4 +1,4 @@
-# SYS_ADMIN - Proje Durumu
+# NetFactory // BREACH - Proje Durumu
 
 ## Mevcut Asama: v5 Tasarim Revizyonu — Implementasyon oncesi
 - **GDD:** `docs/GDD.md` (v5.0 — buyuk tasarim revizyonu)
@@ -11,7 +11,7 @@
 ## North Star — Ters Shapez
 ```
 Shapez:      Basit parcalar → isle → karmasik urun → teslim
-SYS_ADMIN:   Karmasik kaynak → guvenlik as → ayikla/coz/onar → saf veri → teslim
+BREACH:      Karmasik kaynak → guvenlik as → ayikla/coz/onar → saf veri → teslim
 ```
 - Oyuncu insa etmiyor, **aritiyor.** Content = sekil, State = renk.
 - Kaynaklar birbirini besler: Easy → Medium → Hard bagimlilik zinciri
