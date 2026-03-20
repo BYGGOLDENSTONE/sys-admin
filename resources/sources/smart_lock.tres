@@ -5,9 +5,9 @@
 [resource]
 script = ExtResource("1")
 source_name = "Smart Lock"
-description = "Smart door lock. Only produces biometric data. Mostly clean, some corrupted."
+description = "Smart door lock. Produces only Biometric data — fingerprints and voice patterns. Some encrypted, some corrupted."
 color = Color(0.8, 0.6, 0.9, 1.0)
-content_weights = {0: 0.25, 2: 0.75}
+content_weights = {2: 1.0}
 state_weights = {0: 0.7, 1: 0.1, 2: 0.2}
 bandwidth = 3.0
 generation_rate = 3.0
@@ -16,4 +16,4 @@ output_port_count = 1
 difficulty = "easy"
 encrypted_tier = 1
 corrupted_tier = 1
-sub_type_pool = [{"content": 0, "sub_type": 1}, {"content": 2, "sub_type": 1}, {"content": 2, "sub_type": 0}]
+sub_type_pool = [{"content": 2, "sub_type": 1}, {"content": 2, "sub_type": 3}]

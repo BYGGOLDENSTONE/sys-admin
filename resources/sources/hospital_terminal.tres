@@ -5,9 +5,9 @@
 [resource]
 script = ExtResource("1")
 source_name = "Hospital Terminal"
-description = "Medical records and research data. Contains Biometric and Research, some encrypted — your first Decryptor need emerges here."
+description = "Medical records terminal. Contains Biometric and Research data, some encrypted — your first multi-content and Decryptor challenge."
 color = Color(0.33, 0.8, 0.67, 1.0)
-content_weights = {2: 0.40, 4: 0.35, 0: 0.25}
+content_weights = {2: 0.55, 4: 0.45}
 state_weights = {0: 0.60, 1: 0.40}
 bandwidth = 5.0
 generation_rate = 5.0
@@ -16,7 +16,7 @@ output_port_count = 3
 difficulty = "medium"
 encrypted_tier = 1
 corrupted_tier = 0
-sub_type_pool = [{"content": 2, "sub_type": 2}, {"content": 4, "sub_type": 0}, {"content": 0, "sub_type": 3}]
+sub_type_pool = [{"content": 2, "sub_type": 2}, {"content": 2, "sub_type": 0}, {"content": 4, "sub_type": 0}, {"content": 4, "sub_type": 2}]
 fire_type = "threshold"
 fire_requirements = [{"sub_type": 9, "amount": 30}]
 fire_regen_rate = 0.0

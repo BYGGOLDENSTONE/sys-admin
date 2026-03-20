@@ -5,9 +5,9 @@
 [resource]
 script = ExtResource("1")
 source_name = "ATM"
-description = "Bank ATM. Only produces financial data. Mostly clean, some corrupted."
+description = "Bank ATM. Produces only Financial data — transaction records and account info. Some data is corrupted."
 color = Color(1.0, 0.8, 0.2, 1.0)
-content_weights = {1: 0.50, 2: 0.25, 0: 0.25}
+content_weights = {1: 1.0}
 state_weights = {0: 0.7, 2: 0.3}
 bandwidth = 4.0
 generation_rate = 4.0
@@ -16,4 +16,4 @@ output_port_count = 1
 difficulty = "easy"
 encrypted_tier = 0
 corrupted_tier = 1
-sub_type_pool = [{"content": 1, "sub_type": 0}, {"content": 2, "sub_type": 1}, {"content": 0, "sub_type": 2}]
+sub_type_pool = [{"content": 1, "sub_type": 0}, {"content": 1, "sub_type": 1}]

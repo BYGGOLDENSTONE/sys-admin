@@ -20,7 +20,7 @@ label = "Biometric Public"
 [resource]
 script = ExtResource("1")
 gig_name = "Content Split"
-description = "DR_PATCH: The Bank Terminal has Financial and Biometric, but some of it is Corrupted. I need both types — clean only.\n\nChain Separator + Classifier to split state and content. Use Merger to combine sources if needed."
+description = "DR_PATCH: I need both Financial and Biometric data — clean only. You'll need multiple sources for this.\n\nUse the Classifier to filter by content type. Chain Separator + Classifier to split state and content. Use Merger to combine pipelines."
 order_index = 3
 is_tutorial = true
 requirements = Array[Resource]([SubResource("req1"), SubResource("req2")])

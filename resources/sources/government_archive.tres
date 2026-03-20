@@ -5,9 +5,9 @@
 [resource]
 script = ExtResource("1")
 source_name = "Government Archive"
-description = "Secret government data vault. Contains Research, Blueprint, and Classified data. Heavy encryption + corrupted data — requires multi-pipeline mastery."
+description = "Secret government data vault. Contains Classified, Blueprint, Biometric, and Financial data. Heavy encryption + corrupted data — requires multi-pipeline mastery."
 color = Color(1.0, 0.4, 0.15, 1.0)
-content_weights = {3: 0.20, 5: 0.35, 2: 0.20, 1: 0.25}
+content_weights = {5: 0.35, 3: 0.20, 2: 0.20, 1: 0.25}
 state_weights = {1: 0.55, 2: 0.45}
 bandwidth = 10.0
 generation_rate = 6.0
@@ -16,7 +16,7 @@ output_port_count = 5
 difficulty = "hard"
 encrypted_tier = 2
 corrupted_tier = 2
-sub_type_pool = [{"content": 3, "sub_type": 1}, {"content": 5, "sub_type": 2}, {"content": 2, "sub_type": 3}, {"content": 1, "sub_type": 3}, {"content": 5, "sub_type": 3}]
+sub_type_pool = [{"content": 5, "sub_type": 2}, {"content": 5, "sub_type": 3}, {"content": 3, "sub_type": 1}, {"content": 2, "sub_type": 3}, {"content": 1, "sub_type": 3}]
 fire_type = "regen"
-fire_requirements = [{"sub_type": 11, "amount": 100}]
+fire_requirements = [{"sub_type": 12, "amount": 100}]
 fire_regen_rate = 150.0

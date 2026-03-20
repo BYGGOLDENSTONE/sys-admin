@@ -5,9 +5,9 @@
 [resource]
 script = ExtResource("1")
 source_name = "Traffic Camera"
-description = "Street traffic camera. Produces standard and biometric data — mostly clean. Your first multi-content source."
+description = "Street traffic camera. Produces only Standard data — cache files and metadata. Mostly clean, some corrupted."
 color = Color(0.6, 0.73, 0.8, 1.0)
-content_weights = {0: 0.45, 2: 0.55}
+content_weights = {0: 1.0}
 state_weights = {0: 0.9, 2: 0.1}
 bandwidth = 5.0
 generation_rate = 5.0
@@ -16,4 +16,4 @@ output_port_count = 2
 difficulty = "easy"
 encrypted_tier = 0
 corrupted_tier = 1
-sub_type_pool = [{"content": 0, "sub_type": 0}, {"content": 2, "sub_type": 0}]
+sub_type_pool = [{"content": 0, "sub_type": 2}, {"content": 0, "sub_type": 3}]

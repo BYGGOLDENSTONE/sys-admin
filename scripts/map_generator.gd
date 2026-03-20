@@ -21,12 +21,15 @@ var _pools: Dictionary = {
 }
 
 ## Tutorial-critical sources: offsets from map center.
+## All 5 content types accessible from Easy sources + Hospital (first FIRE).
 var _tutorial_offsets := [
-	{"name": "isp_backbone", "offset": Vector2i(10, -10)},    # NE — Gig 1
-	{"name": "atm", "offset": Vector2i(12, 0)},                # E  — Gig 2
-	{"name": "data_kiosk", "offset": Vector2i(-12, 0)},        # W  — Gig 3
-	{"name": "bank_terminal", "offset": Vector2i(0, 12)},      # S  — Gig 3
-	{"name": "hospital_terminal", "offset": Vector2i(0, 22)},  # SS — Gig 4
+	{"name": "isp_backbone", "offset": Vector2i(10, -10)},      # NE — Standard
+	{"name": "atm", "offset": Vector2i(12, 0)},                  # E  — Financial
+	{"name": "data_kiosk", "offset": Vector2i(-12, 0)},          # W  — Blueprint
+	{"name": "public_database", "offset": Vector2i(-12, -10)},   # NW — Research
+	{"name": "smart_lock", "offset": Vector2i(8, 14)},           # S-SE — Biometric (near Hospital for FIRE)
+	{"name": "bank_terminal", "offset": Vector2i(0, 12)},        # S  — Financial (encrypted)
+	{"name": "hospital_terminal", "offset": Vector2i(0, 22)},    # SS — Medium (FIRE: Fingerprint from Smart Lock)
 ]
 
 ## Sector-based guarantees for non-tutorial sources
@@ -37,6 +40,17 @@ var _sector_guarantees := [
 	{"name": "corporate_server", "angle": 3.0 * PI / 4.0, "r_min": 18.0, "r_max": 35.0},
 	{"name": "government_archive", "angle": -3.0 * PI / 4.0, "r_min": 18.0, "r_max": 35.0},
 ]
+
+## FIRE feeder mapping: source with FIRE → Easy source that produces required sub-type.
+## Ensures FIRE requirements are always achievable by placing a feeder nearby.
+var _fire_feeders := {
+	"hospital_terminal": "smart_lock",        # FIRE: Fingerprint (Biometric)
+	"public_library": "public_database",      # FIRE: Test Data (Research)
+	"shop_server": "atm",                     # FIRE: Transaction Records (Financial)
+	"biotech_lab": "isp_backbone",            # FIRE: Log Files (Standard)
+	"corporate_server": "bank_terminal",      # FIRE: Credit History (Financial)
+	"government_archive": "data_kiosk",       # FIRE: Schematics (Blueprint)
+}
 
 var _world_seed: int = 0
 var _source_manager: Node = null
@@ -153,6 +167,8 @@ func _generate_bounded_map() -> void:
 				_source_manager.place_source(def, pos, sub_seed)
 				_placed_origins.append(pos)
 				_track_placed_name(source_name, pos)
+				# Place FIRE feeder nearby for FIRE sources
+				_place_fire_feeder(source_name, pos, rng)
 
 
 func _get_pool_for_ratio(dist_ratio: float) -> Array:
@@ -246,6 +262,8 @@ func _generate_chunk(chunk_pos: Vector2i) -> void:
 		_source_manager.place_source(def, pos, sub_seed)
 		_placed_origins.append(pos)
 		_track_placed_name(source_name, pos)
+		# Place FIRE feeder nearby for FIRE sources
+		_place_fire_feeder(source_name, pos, chunk_rng)
 
 
 func _get_pool_for_distance(dist: int) -> Array:
@@ -350,6 +368,8 @@ func _place_guaranteed() -> void:
 		_source_manager.place_source(def, pos, sub_seed)
 		_placed_origins.append(pos)
 		_track_placed_name(entry.name, pos)
+		# Place FIRE feeder Easy source nearby
+		_place_fire_feeder(entry.name, pos, rng)
 
 
 func _find_position_in_sector(center_angle: float, r_min: float, r_max: float, grid_size: Vector2i, rng: RandomNumberGenerator) -> Vector2i:
@@ -408,3 +428,48 @@ func _load_source_def(source_name: String) -> DataSourceDefinition:
 		push_warning("[MapGenerator] Source definition not found: %s" % path)
 		return null
 	return load(path) as DataSourceDefinition
+
+
+## --- FIRE FEEDER PAIRING ---
+
+func _place_fire_feeder(source_name: String, source_pos: Vector2i, rng: RandomNumberGenerator) -> void:
+	if not _fire_feeders.has(source_name):
+		return
+	var feeder_name: String = _fire_feeders[source_name]
+	if _get_placed_count(feeder_name) >= MAX_PER_SOURCE_TYPE:
+		return
+	var feeder_def := _load_source_def(feeder_name)
+	if feeder_def == null:
+		return
+	var feeder_pos := _find_position_near(source_pos, feeder_def.grid_size, feeder_name, rng, 8, 15)
+	if feeder_pos == Vector2i(-1, -1):
+		push_warning("[MapGenerator] Failed to place FIRE feeder %s near %s" % [feeder_name, source_name])
+		return
+	var feeder_seed: int = (_world_seed + source_pos.x * 3571 + source_pos.y * 7919) & 0x7FFFFFFF
+	_source_manager.place_source(feeder_def, feeder_pos, feeder_seed)
+	_placed_origins.append(feeder_pos)
+	_track_placed_name(feeder_name, feeder_pos)
+
+
+func _find_position_near(center: Vector2i, grid_size: Vector2i, source_name: String, rng: RandomNumberGenerator, min_dist: int, max_dist: int) -> Vector2i:
+	for _attempt in range(MAX_PLACEMENT_ATTEMPTS):
+		var offset_x: int = rng.randi_range(-max_dist, max_dist)
+		var offset_y: int = rng.randi_range(-max_dist, max_dist)
+		var manhattan: int = absi(offset_x) + absi(offset_y)
+		if manhattan < min_dist or manhattan > max_dist * 2:
+			continue
+		var pos := Vector2i(center.x + offset_x, center.y + offset_y)
+		if _is_bounded:
+			if pos.x < _map_bounds.position.x or pos.x + grid_size.x > _map_bounds.end.x:
+				continue
+			if pos.y < _map_bounds.position.y or pos.y + grid_size.y > _map_bounds.end.y:
+				continue
+		var ct_dist: int = maxi(absi(pos.x - _map_center.x), absi(pos.y - _map_center.y))
+		if ct_dist < CT_EXCLUSION_RADIUS:
+			continue
+		if _is_too_close(pos):
+			continue
+		if _is_same_type_too_close(source_name, pos):
+			continue
+		return pos
+	return Vector2i(-1, -1)

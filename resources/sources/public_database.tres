@@ -5,9 +5,9 @@
 [resource]
 script = ExtResource("1")
 source_name = "Public Database"
-description = "Publicly accessible academic and government databases. Standard, biometric, and research records. Mostly clean, some corrupted."
+description = "Publicly accessible research databases. Produces only Research data — lab reports and test results. Some encrypted, some corrupted."
 color = Color(0.4, 0.8, 0.53, 1.0)
-content_weights = {0: 0.30, 2: 0.25, 4: 0.45}
+content_weights = {4: 1.0}
 state_weights = {0: 0.58, 1: 0.10, 2: 0.32}
 bandwidth = 6.0
 generation_rate = 6.0
@@ -16,4 +16,4 @@ output_port_count = 2
 difficulty = "easy"
 encrypted_tier = 1
 corrupted_tier = 1
-sub_type_pool = [{"content": 0, "sub_type": 3}, {"content": 2, "sub_type": 0}, {"content": 4, "sub_type": 1}]
+sub_type_pool = [{"content": 4, "sub_type": 0}, {"content": 4, "sub_type": 1}]
