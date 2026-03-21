@@ -176,26 +176,34 @@ func _update_stats() -> void:
 			tier_str = "T%d" % b.selected_tier
 		var tier_label: String = "[color=%s]%s %s[/color]" % [output_color, tier_str, output_name]
 		lines.append(_stat("Mode", tier_label))
-		var input_name: String = DataEnums.content_name(def.producer.input_content)
-		var input_color: String = DataEnums.content_color_hex(def.producer.input_content)
-		var recipe: String = "[color=%s]%d MB %s[/color]" % [input_color, def.producer.consume_amount, input_name]
-		if b.selected_tier >= 2 and def.producer.tier2_extra_content >= 0:
-			var c2_color: String = DataEnums.content_color_hex(def.producer.tier2_extra_content)
-			recipe += " + [color=%s]%d MB %s[/color]" % [c2_color, def.producer.tier2_extra_amount, DataEnums.content_name(def.producer.tier2_extra_content)]
-		if b.selected_tier >= 3 and def.producer.tier3_extra_content >= 0:
-			var c3_color: String = DataEnums.content_color_hex(def.producer.tier3_extra_content)
-			recipe += " + [color=%s]%d MB %s[/color]" % [c3_color, def.producer.tier3_extra_amount, DataEnums.content_name(def.producer.tier3_extra_content)]
-		lines.append(_stat("Recipe", recipe))
-		var input_key: int = DataEnums.pack_key(def.producer.input_content, def.producer.input_state)
-		var stored_input: int = b.stored_data.get(input_key, 0)
-		if stored_input > 0:
-			lines.append(_stat("Stock", "[color=%s]%d MB %s[/color] waiting" % [input_color, stored_input, input_name]))
+		if def.producer.content_matched:
+			var recipe: String = "[color=#44ff88]%d MB any Public[/color]" % def.producer.consume_amount
+			if b.selected_tier >= 2 and def.producer.tier2_extra_tags > 0:
+				var tags_name: String = DataEnums.tags_label(def.producer.tier2_extra_tags)
+				recipe += " + [color=#ffcc00]%d MB %s[/color]" % [def.producer.tier2_extra_amount, tags_name]
+			lines.append(_stat("Recipe", recipe))
+			lines.append(_stat("Output", "[color=#44ff88]Content-matched %s[/color]" % output_name))
+		else:
+			var input_name: String = DataEnums.content_name(def.producer.input_content)
+			var input_color: String = DataEnums.content_color_hex(def.producer.input_content)
+			var recipe: String = "[color=%s]%d MB %s[/color]" % [input_color, def.producer.consume_amount, input_name]
+			if b.selected_tier >= 2 and def.producer.tier2_extra_content >= 0:
+				var c2_color: String = DataEnums.content_color_hex(def.producer.tier2_extra_content)
+				recipe += " + [color=%s]%d MB %s[/color]" % [c2_color, def.producer.tier2_extra_amount, DataEnums.content_name(def.producer.tier2_extra_content)]
+			if b.selected_tier >= 3 and def.producer.tier3_extra_content >= 0:
+				var c3_color: String = DataEnums.content_color_hex(def.producer.tier3_extra_content)
+				recipe += " + [color=%s]%d MB %s[/color]" % [c3_color, def.producer.tier3_extra_amount, DataEnums.content_name(def.producer.tier3_extra_content)]
+			lines.append(_stat("Recipe", recipe))
+			var input_key: int = DataEnums.pack_key(def.producer.input_content, def.producer.input_state)
+			var stored_input: int = b.stored_data.get(input_key, 0)
+			if stored_input > 0:
+				lines.append(_stat("Stock", "[color=%s]%d MB %s[/color] waiting" % [input_color, stored_input, input_name]))
 	if def.dual_input:
 		lines.append(_stat("Throughput", "%d MB/s" % int(b.get_effective_value("processing_rate"))))
 		if def.dual_input.output_tag == DataEnums.ProcessingTag.RECOVERED:
 			# Recoverer — uses Repair Kits
 			lines.append(_stat("Left Port ←", "[color=#ff8844]Corrupted[/color] / [color=#88aa44]Enc·Cor[/color] data"))
-			lines.append(_stat("Top Port ←", "[color=#ff7744]Repair Kit[/color] (from Repair Lab)"))
+			lines.append(_stat("Top Port ←", "[color=#ff7744]Repair Kit[/color] (content must match data)"))
 			lines.append(_stat("Output →", "[color=#44ff88]Recovered[/color] (content preserved)"))
 			lines.append(_stat("Kit Cost", "%d per unit" % def.dual_input.key_cost))
 		elif def.dual_input.output_tag == DataEnums.ProcessingTag.ENCRYPTED:
@@ -207,17 +215,23 @@ func _update_stats() -> void:
 		else:
 			# Decryptor
 			lines.append(_stat("Left Port ←", "[color=#44aaff]Encrypted[/color] / [color=#88aa44]Enc·Cor[/color] data"))
-			lines.append(_stat("Top Port ←", "[color=#ffaa00]Key[/color] (tier must match data)"))
+			lines.append(_stat("Top Port ←", "[color=#ffaa00]Key[/color] (content + tier must match)"))
 			lines.append(_stat("Output →", "[color=#44ff88]Decrypted[/color] (content preserved)"))
-		# Show stored keys/kits (per tier)
+		# Show stored keys/kits (per tier + content)
 		var consumable_name: String = DataEnums.content_name(def.dual_input.key_content)
 		var consumable_color: String = DataEnums.content_color_hex(def.dual_input.key_content)
 		var key_parts: PackedStringArray = []
-		for kt in range(1, 4):
-			var kk: int = DataEnums.pack_key(def.dual_input.key_content, DataEnums.DataState.PUBLIC, kt, 0)
-			var count: int = b.stored_data.get(kk, 0)
-			if count > 0:
-				key_parts.append("T%d:%d" % [kt, count])
+		for key in b.stored_data:
+			if b.stored_data[key] <= 0:
+				continue
+			if DataEnums.unpack_content(key) == def.dual_input.key_content:
+				var kt: int = DataEnums.unpack_tier(key)
+				var ksub: int = DataEnums.unpack_sub_type(key)
+				var count: int = b.stored_data[key]
+				var label: String = "T%d" % kt
+				if ksub >= 0 and ksub < 6:
+					label += " %s" % DataEnums.content_name(ksub)
+				key_parts.append("%s:%d" % [label, count])
 		if key_parts.is_empty():
 			lines.append(_stat("%s Stock" % consumable_name, "[color=#ff6644]0[/color]"))
 		else:

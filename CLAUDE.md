@@ -56,6 +56,7 @@ BREACH:      Karmasik kaynak → guvenlik as → ayikla/coz/onar → saf veri �
 - Gig tamamlaninca pipeline KALIR (persistent network)
 - Sinirli harita (levels 1-8): bolge-grid tabanli esit kaynak dagitimi + gorunur sinir
 - Encrypted = genislik (paralel Key Forge), Corrupted = derinlik (feedback loop)
+- **Content-Matched Key/Kit:** Key Forge ve Repair Lab gelen verinin content tipine gore uretir. Financial Public → Financial Key. T2 tarifi capraz bagimli: 16-bit Key = Public[X] + Recovered[X], Major Kit = Public[X] + Decrypted[X]. Decryptor/Recoverer content eslesmesi zorunlu.
 - FIRE kapaninca veri akisi aninda kesilir
 - **Network Bar:** Kaynak bagli = tum content tipleri CT'ye aktif akiyor. Bar = bagli kaynak / toplam kaynak
 - **CT Istatistik Paneli:** CT'ye tiklayinca tum zamanlar kumulatif veri dokumu (content + state bazli, gercek zamanli)
@@ -279,6 +280,34 @@ Her faz sonunda oyun **playable state**'te kalmali. Fazlar sirayla yapilir, bagi
 - [x] ~~**Network Bar hesabi:**~~ YENIDEN YAZILDI — Content-bazli aktif kullanim kontrolu. Kaynak "connected" = tum content tipleri CT/F.I.R.E./Producer/Processor tarafindan tuketiliyor. Trash saymaz.
 - [x] ~~**CT Port Purity bug:**~~ DUZELTILDI — type_key encoding'e tags eklendi (content<<8|state<<4|tags). Raw Encrypted/Corrupted (tags=0) artik CT'ye giremez, purity checker tags-aware.
 - [x] ~~**Dev Mode release'de acik:**~~ DUZELTILDI — OS.is_debug_build() kontrolu eklendi, release build'de F10 devre disi.
+- [x] ~~**Encryption/Repair Kit dinamik input:**~~ KARARLASTI — Content-matched Key/Kit sistemi. Asagida FAZ 10.
+
+---
+
+### FAZ 10: Dynamic Content-Matched Key/Kit Sistemi
+**Amac:** Key Forge ve Repair Lab dinamik girdi, content-tagged cikti, capraz bagimlilik
+**Bagimlilik:** Faz 6 (olasiliksal isleme) + Faz 5 (throughput)
+
+**Tasarim:**
+- Key Forge: gelen verinin content tipine gore Key uretir (Financial Public → Financial Key)
+- Repair Lab: gelen verinin content tipine gore Kit uretir (Biometric Public → Biometric Kit)
+- T1 (4-bit Key / Minor Kit): Public [X] → Key/Kit [X]
+- T2 (16-bit Key): Public [X] + Recovered [X] → Key [X] (Recovery hatti gerekli)
+- T2 (Major Kit): Public [X] + Decrypted [X] → Kit [X] (Encryption hatti gerekli)
+- Decryptor: Key content == Data content eslesmesi zorunlu
+- Recoverer: Kit content == Data content eslesmesi zorunlu
+
+**Dosyalar:**
+- `resources/components/producer_component.gd` — `input_content` sabit → dinamik. `tier2_extra_content` → `tier2_extra_state` (Recovered/Decrypted). Key/Kit ciktisina content bilgisi (sub_type alani) yazilir.
+- `scripts/simulation_manager.gd` — `_process_producer()`: gelen verinin content tipini oku, ayni content'ten Public + (T2 icin) Recovered/Decrypted topla, content-tagged Key/Kit uret. `_process_dual_input_key_mode()`: Key sub_type == data content kontrolu ekle. `_process_dual_input_fuel_mode()`: Kit sub_type == data content kontrolu ekle.
+- `resources/buildings/repair_lab.tres` — Sabit input_content kaldir, tier2_extra_state = DECRYPTED
+- `resources/buildings/decryptor.tres` — Content matching aktif
+- `resources/buildings/recoverer.tres` — Content matching aktif (zaten fuel_matches_content var, sub_type kontrolu ekle)
+- `scripts/ui/building_panel.gd` — Key/Kit tooltip'lerinde content etiketi goster (orn: "Financial Key", "Biometric Kit")
+- `scripts/ui/building_tooltip.gd` — Key Forge/Repair Lab uretim durumu: hangi content isleniyor
+- `scripts/save_manager.gd` — Content-tagged Key/Kit save/load uyumlulugu
+
+**Test:** Key Forge'a Financial Public besle → Financial Key ciksin. Financial Key + Financial Encrypted → Decryptor calissin. Biometric Key + Financial Encrypted → Decryptor REDDETSIN. 16-bit Key Forge'a Public + Recovered besle → 16-bit Key ciksin. Major Kit icin Public + Decrypted gereksin.
 
 ### Full Game Backlog
 - Malware Cleaner + Malware state | Triple bilesik state: Enc·Cor·Mal

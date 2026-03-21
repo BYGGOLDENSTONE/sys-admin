@@ -13,17 +13,19 @@ forward_rate = 0.0
 [sub_resource type="Resource" id="prod1"]
 script = ExtResource("3")
 consume_amount = 5
-input_content = 4
+input_content = -1
 input_state = 0
 output_content = 6
 output_state = 0
 processing_rate = 2.0
-speed_by_tier = Array[float]([1.0, 0.5, 0.25])
-max_tier = 3
-tier2_extra_content = 2
+speed_by_tier = Array[float]([1.0, 0.5])
+max_tier = 2
+tier2_extra_content = -1
 tier2_extra_amount = 2
-tier3_extra_content = 1
-tier3_extra_amount = 2
+tier3_extra_content = -1
+tier3_extra_amount = 0
+content_matched = true
+tier2_extra_tags = 2
 
 [sub_resource type="Resource" id="upg1"]
 script = ExtResource("4")
@@ -36,7 +38,7 @@ level_values = Array[float]([3.0, 4.0, 5.0])
 [resource]
 script = ExtResource("1")
 building_name = "Key Forge"
-description = "Produces Decryption Keys for the Decryptor. Tab to select tier: T1=Research, T2=Research+Biometric, T3=Research+Biometric+Financial."
+description = "Produces content-matched Decryption Keys. Feed any Public data to create Keys for that content type. T2 also requires Recovered data of the same content."
 grid_size = Vector2i(2, 2)
 color = Color(0.18, 0.83, 0.35, 1)
 category = "processing"

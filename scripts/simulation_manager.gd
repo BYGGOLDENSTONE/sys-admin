@@ -1445,16 +1445,40 @@ func _consume_stored_by_content_state(b: Node2D, content: int, state: int, amoun
 			remaining -= deduct
 
 
+func _consume_stored_by_content_tags(b: Node2D, content: int, state: int, tags_mask: int, match_tags: bool, amount: int) -> void:
+	## Consume stored data matching content+state, filtered by tags.
+	## tags_mask=0: consume ALL matching content+state (ignore tags).
+	## tags_mask>0, match_tags=true: consume items where (tags & tags_mask) != 0.
+	## tags_mask>0, match_tags=false: consume items where (tags & tags_mask) == 0.
+	var remaining: int = amount
+	for key in b.stored_data.keys():
+		if remaining <= 0:
+			break
+		var c: int = DataEnums.unpack_content(key)
+		var s: int = DataEnums.unpack_state(key)
+		if c != content or s != state:
+			continue
+		if tags_mask > 0:
+			var has_tags: bool = (DataEnums.unpack_tags(key) & tags_mask) != 0
+			if has_tags != match_tags:
+				continue
+		var deduct: int = mini(b.stored_data[key], remaining)
+		b.stored_data[key] -= deduct
+		remaining -= deduct
+
+
 func _process_producer(b: Node2D, max_process: int) -> int:
 	var prod: ProducerComponent = b.definition.producer
 	var selected: int = b.selected_tier
+	if prod.content_matched:
+		return _process_producer_content_matched(b, prod, selected, max_process)
+	# --- Fixed-input mode (legacy) ---
 	var available: int = _sum_stored_by_content_state(b, prod.input_content, prod.input_state)
 	if available <= 0:
 		return 0
 	var productions: int = mini(available / prod.consume_amount, max_process)
 	if productions <= 0:
 		return 0
-	# Check tier-based extra content requirements
 	if selected >= 2 and prod.tier2_extra_content >= 0:
 		var extra2_avail: int = _sum_stored_by_content_state(b, prod.tier2_extra_content, prod.input_state)
 		productions = mini(productions, extra2_avail / prod.tier2_extra_amount)
@@ -1463,17 +1487,14 @@ func _process_producer(b: Node2D, max_process: int) -> int:
 		productions = mini(productions, extra3_avail / prod.tier3_extra_amount)
 	if productions <= 0:
 		return 0
-	# Try to push output FIRST, then consume only what was delivered
 	var sent: int = 0
 	for i in range(productions):
 		sent += _push_data_from(b, prod.output_content, prod.output_state, 1, "", selected)
 	if sent <= 0:
 		return 0
-	# Consume base input proportional to actual output
 	var consumed: int = sent * prod.consume_amount
 	_consume_stored_by_content_state(b, prod.input_content, prod.input_state, consumed)
-	network_active_contents[prod.input_content] = _tick_count  # Production input = useful
-	# Consume extra inputs proportional to actual output
+	network_active_contents[prod.input_content] = _tick_count
 	if selected >= 2 and prod.tier2_extra_content >= 0:
 		_consume_stored_by_content_state(b, prod.tier2_extra_content, prod.input_state, sent * prod.tier2_extra_amount)
 		network_active_contents[prod.tier2_extra_content] = _tick_count
@@ -1485,6 +1506,62 @@ func _process_producer(b: Node2D, max_process: int) -> int:
 		b.definition.building_name, consumed,
 		sent, tier_label])
 	return consumed
+
+
+func _process_producer_content_matched(b: Node2D, prod: ProducerComponent, selected: int, max_process: int) -> int:
+	## Content-matched mode: accepts any content, produces content-tagged Key/Kit.
+	## T1: Public [X] → Key/Kit [X]. T2: Public [X] + Recovered/Decrypted [X] → Key/Kit [X].
+	var needs_secondary: bool = selected >= 2 and prod.tier2_extra_tags > 0 and prod.tier2_extra_amount > 0
+	# Group stored data by content type
+	var primary_by_content: Dictionary = {}  # content → amount (raw Public without required tags)
+	var secondary_by_content: Dictionary = {}  # content → amount (Public WITH required tags)
+	for key in b.stored_data:
+		if b.stored_data[key] <= 0:
+			continue
+		var c: int = DataEnums.unpack_content(key)
+		var s: int = DataEnums.unpack_state(key)
+		if s != prod.input_state:
+			continue
+		if c == DataEnums.ContentType.KEY or c == DataEnums.ContentType.REPAIR_KIT:
+			continue
+		if needs_secondary and (DataEnums.unpack_tags(key) & prod.tier2_extra_tags) != 0:
+			secondary_by_content[c] = secondary_by_content.get(c, 0) + b.stored_data[key]
+		else:
+			primary_by_content[c] = primary_by_content.get(c, 0) + b.stored_data[key]
+	var total_consumed: int = 0
+	var total_sent: int = 0
+	for content in primary_by_content:
+		if total_sent >= max_process:
+			break
+		var primary_avail: int = primary_by_content[content]
+		var productions: int = mini(primary_avail / prod.consume_amount, max_process - total_sent)
+		if needs_secondary:
+			var secondary_avail: int = secondary_by_content.get(content, 0)
+			if prod.tier2_extra_amount > 0:
+				productions = mini(productions, secondary_avail / prod.tier2_extra_amount)
+		if productions <= 0:
+			continue
+		# Push output: Key/Kit with sub_type = content type
+		var sent: int = 0
+		for i in range(productions):
+			sent += _push_data_from(b, prod.output_content, prod.output_state, 1, "", selected, 0, content)
+		if sent <= 0:
+			continue
+		# Consume primary (non-tagged Public)
+		var consume_mask: int = prod.tier2_extra_tags if needs_secondary else 0
+		_consume_stored_by_content_tags(b, content, prod.input_state, consume_mask, false, sent * prod.consume_amount)
+		network_active_contents[content] = _tick_count
+		# Consume secondary (tagged Public: Recovered or Decrypted)
+		if needs_secondary:
+			_consume_stored_by_content_tags(b, content, prod.input_state, prod.tier2_extra_tags, true, sent * prod.tier2_extra_amount)
+		total_consumed += sent * prod.consume_amount
+		total_sent += sent
+	if total_sent > 0:
+		var tier_label: String = "T%d " % selected if selected > 0 else ""
+		print("[Producer] %s: %d MB consumed → %d %s%s produced (content-matched)" % [
+			b.definition.building_name, total_consumed,
+			total_sent, tier_label, DataEnums.content_name(prod.output_content)])
+	return total_consumed
 
 
 func _process_dual_input(b: Node2D, max_process: int) -> int:
@@ -1525,9 +1602,9 @@ func _process_dual_input_key_mode(b: Node2D, dual: DualInputComponent, max_proce
 		var effective_tier: int = p_tier
 		var out_state: int = dual.output_state
 		var out_tier: int = p_tier
-		# Match Key tier to data tier (min T1)
+		# Match Key tier to data tier (min T1), content-matched via sub_type
 		var key_tier: int = maxi(effective_tier, 1)
-		var key_key: int = DataEnums.pack_key(dual.key_content, DataEnums.DataState.PUBLIC, key_tier, 0)
+		var key_key: int = DataEnums.pack_key(dual.key_content, DataEnums.DataState.PUBLIC, key_tier, 0, p_content)
 		var keys_available: int = b.stored_data.get(key_key, 0) - fuel_consumed.get(key_key, 0)
 		if keys_available <= 0:
 			continue
@@ -1582,7 +1659,7 @@ func _process_dual_input_key_mode(b: Node2D, dual: DualInputComponent, max_proce
 
 
 func _process_dual_input_fuel_mode(b: Node2D, dual: DualInputComponent, max_process: int, fuel_consumed: Dictionary) -> int:
-	# Recoverer: fuel must be same content, tier-based tags required
+	# Recoverer: fuel = content-matched Kit (sub_type = data content), tier-matched
 	var processed: int = 0
 	for key in b.stored_data:
 		if processed >= max_process:
@@ -1594,14 +1671,17 @@ func _process_dual_input_fuel_mode(b: Node2D, dual: DualInputComponent, max_proc
 		var p_state: int = DataEnums.unpack_state(key)
 		var p_tier: int = DataEnums.unpack_tier(key)
 		var p_tags: int = DataEnums.unpack_tags(key)
+		if p_content == dual.key_content:
+			continue
 		if not dual.primary_input_states.is_empty() and p_state not in dual.primary_input_states:
 			continue
 		var effective_tier: int = p_tier
-		# Find fuel: same content, Public, tier 0, tags based on corrupted tier
+		# Find fuel: Kit with matching content (sub_type) and tier
 		var required_tags: int = 0
 		if effective_tier > 0 and effective_tier <= dual.required_fuel_tags.size():
 			required_tags = dual.required_fuel_tags[effective_tier - 1]
-		var fuel_key: int = DataEnums.pack_key(p_content, DataEnums.DataState.PUBLIC, 0, required_tags)
+		var fuel_tier: int = maxi(effective_tier, 1)
+		var fuel_key: int = DataEnums.pack_key(dual.key_content, DataEnums.DataState.PUBLIC, fuel_tier, required_tags, p_content)
 		var fuel_available: int = b.stored_data.get(fuel_key, 0) - fuel_consumed.get(fuel_key, 0)
 		if fuel_available <= 0:
 			continue

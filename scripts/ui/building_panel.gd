@@ -543,28 +543,45 @@ func _update_detail() -> void:
 		lines.append("[color=#8899aa]Bottom →[/color] All other sub-types")
 	if def.producer:
 		lines.append("[color=#8899aa]Rate:[/color] %d/tick" % int(b.get_effective_value("processing_rate")))
-		var tier_names: Array[String] = ["T1 Key", "T2 Strong Key", "T3 Master Key"]
-		var tier_label: String = tier_names[b.selected_tier - 1] if b.selected_tier <= tier_names.size() else "T%d Key" % b.selected_tier
-		lines.append("[color=#8899aa]Mode:[/color] [color=#ffaa00]%s[/color]" % tier_label)
-		var recipe: String = "[color=#aa77ff]%d MB Research[/color]" % def.producer.consume_amount
-		if b.selected_tier >= 2 and def.producer.tier2_extra_content >= 0:
-			recipe += " + [color=#ffcc00]%d MB %s[/color]" % [def.producer.tier2_extra_amount, DataEnums.content_name(def.producer.tier2_extra_content)]
-		if b.selected_tier >= 3 and def.producer.tier3_extra_content >= 0:
-			recipe += " + [color=#ff33aa]%d MB %s[/color]" % [def.producer.tier3_extra_amount, DataEnums.content_name(def.producer.tier3_extra_content)]
-		lines.append("[color=#8899aa]Recipe:[/color] %s" % recipe)
+		var tier_state: int = DataEnums.DataState.ENCRYPTED if def.producer.output_content == DataEnums.ContentType.KEY else DataEnums.DataState.CORRUPTED
+		var tier_str: String = DataEnums.tier_name(b.selected_tier, tier_state)
+		if tier_str.is_empty():
+			tier_str = "T%d" % b.selected_tier
+		var output_name: String = DataEnums.content_name(def.producer.output_content)
+		lines.append("[color=#8899aa]Mode:[/color] [color=#ffaa00]%s %s[/color]" % [tier_str, output_name])
+		if def.producer.content_matched:
+			var recipe: String = "[color=#44ff88]%d MB any Public[/color]" % def.producer.consume_amount
+			if b.selected_tier >= 2 and def.producer.tier2_extra_tags > 0:
+				var tags_name: String = DataEnums.tags_label(def.producer.tier2_extra_tags)
+				recipe += " + [color=#ffcc00]%d MB %s[/color]" % [def.producer.tier2_extra_amount, tags_name]
+			lines.append("[color=#8899aa]Recipe:[/color] %s" % recipe)
+		else:
+			var recipe: String = "[color=#aa77ff]%d MB %s[/color]" % [def.producer.consume_amount, DataEnums.content_name(def.producer.input_content)]
+			if b.selected_tier >= 2 and def.producer.tier2_extra_content >= 0:
+				recipe += " + [color=#ffcc00]%d MB %s[/color]" % [def.producer.tier2_extra_amount, DataEnums.content_name(def.producer.tier2_extra_content)]
+			if b.selected_tier >= 3 and def.producer.tier3_extra_content >= 0:
+				recipe += " + [color=#ff33aa]%d MB %s[/color]" % [def.producer.tier3_extra_amount, DataEnums.content_name(def.producer.tier3_extra_content)]
+			lines.append("[color=#8899aa]Recipe:[/color] %s" % recipe)
 	if def.dual_input:
 		lines.append("[color=#8899aa]Throughput:[/color] %d MB/s" % int(b.get_effective_value("processing_rate")))
-		if not def.dual_input.fuel_matches_content:
-			var key_parts: PackedStringArray = []
-			for kt in range(1, 4):
-				var kk: int = DataEnums.pack_key(def.dual_input.key_content, DataEnums.DataState.PUBLIC, kt, 0)
-				var count: int = b.stored_data.get(kk, 0)
-				if count > 0:
-					key_parts.append("T%d:%d" % [kt, count])
-			if key_parts.is_empty():
-				lines.append("[color=#8899aa]Key Stock:[/color] [color=#ff6644]0[/color]")
-			else:
-				lines.append("[color=#8899aa]Key Stock:[/color] [color=#ffaa00]%s[/color]" % ", ".join(key_parts))
+		var consumable_name: String = DataEnums.content_name(def.dual_input.key_content)
+		var key_parts: PackedStringArray = []
+		for key in b.stored_data:
+			if b.stored_data[key] <= 0:
+				continue
+			if DataEnums.unpack_content(key) == def.dual_input.key_content:
+				var kt: int = DataEnums.unpack_tier(key)
+				var ksub: int = DataEnums.unpack_sub_type(key)
+				var count: int = b.stored_data[key]
+				var label: String = "T%d" % kt
+				if ksub >= 0 and ksub < 6:
+					label += " %s" % DataEnums.content_name(ksub)
+				key_parts.append("%s:%d" % [label, count])
+		if key_parts.is_empty():
+			lines.append("[color=#8899aa]%s Stock:[/color] [color=#ff6644]0[/color]" % consumable_name)
+		else:
+			var stock_color: String = DataEnums.content_color_hex(def.dual_input.key_content)
+			lines.append("[color=#8899aa]%s Stock:[/color] [color=%s]%s[/color]" % [consumable_name, stock_color, ", ".join(key_parts)])
 	if def.processor:
 		if def.processor.rule == "separator":
 			lines.append("[color=#8899aa]Throughput:[/color] %d MB/s" % int(b.get_effective_value("processing_rate")))

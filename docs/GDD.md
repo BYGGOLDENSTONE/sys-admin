@@ -437,9 +437,11 @@ Yüksek bit-depth iki şekilde zorlaştırır:
 
 | Bit-Depth | Key Forge Girdisi | Üretim Hızı | Key Başarı Oranı | Ort. Key/Veri |
 |-----------|-------------------|-------------|-----------------|---------------|
-| **4-bit** | Research | Hızlı | ~%80 | ~1.25 |
-| **16-bit** | Research + Biometric | Yavaş | ~%40 | ~2.5 |
-| **32-bit** | Research + Biometric + Financial | Çok yavaş | ~%20 | ~5 |
+| **4-bit** | Public [X] (content-matched) | Hızlı | ~%80 | ~1.25 |
+| **16-bit** | Public [X] + Recovered [X] | Yavaş | ~%40 | ~2.5 |
+| **32-bit** | Public [X] + Recovered [X] + ??? | Çok yavaş | ~%20 | ~5 |
+
+**Content-Matched Key:** Key Forge gelen verinin content tipini okur ve o content'e özel Key üretir. Financial Public → Financial Key. Financial Key sadece Financial Encrypted veriyi çözer. T2 (16-bit) tarifi aynı content'in Recovered halini de gerektirir → Recovery hattı kurulmuş olmalı.
 
 **Çifte bottleneck:** Key Forge hem YAVAŞ üretiyor hem ürettiği Key'ler her zaman çalışmıyor. Başarısız olunca Key tüketilir, veri Decryptor'da bekler, yeni Key bekler. Feedback loop yok — Decryptor sadece daha fazla Key istiyor.
 
@@ -450,21 +452,21 @@ GLITCHED:  Veri DÖNGÜDE hareket ediyor, Kit'ler tüketiliyor
 ```
 
 ```
-16-bit Encrypted veri akışı:
+16-bit Encrypted Financial veri akışı:
 
-Research ──→ [Key Forge A] ──→ [Merger] ──→ [Merger] ──→ [Decryptor] ──→ Decrypted
-Biometric ──→ [Key Forge A]       ↑              ↑
-Research ──→ [Key Forge B] ──→────┘              |
-Biometric ──→ [Key Forge B]                      |
-Research ──→ [Key Forge C] ──→────────────────────┘
-Biometric ──→ [Key Forge C]
+ATM (Easy) ──→ Financial Public ──→ [Key Forge A] ──→ Financial Key ──→ [Merger] ──→ [Decryptor] ──→ Decrypted
+                                                                              ↑
+Recoverer çıkışı ──→ Financial Recovered ──→ [Key Forge A]                    |
+                                                                              |
+ATM (Easy) ──→ Financial Public ──→ [Key Forge B] ──→ Financial Key ──→───────┘
+Recoverer çıkışı ──→ Financial Recovered ──→ [Key Forge B]
 
-Fabrika şekli: ═══ yan yana hatlar ═══ (GENİŞ)
+Fabrika şekli: ═══ yan yana hatlar ═══ (GENİŞ) + Recovery hattına bağlantı
 ```
 
-**Oyuncu hissi:** "Daha güçlü şifre = daha geniş Key fabrikası. Paralel hatlarım nereye sığacak?"
+**Oyuncu hissi:** "16-bit Key için önce Recovery hattımı kurmalıyım. İki sistem birbirine bağlanıyor!"
 
-**Geç oyun sub-type spesifik:** 16-bit Key tarifi "Lab Reports (Research) + Fingerprint (Biometric)" gibi spesifik sub-type isteyebilir.
+**Çapraz bağımlılık:** T2 Key Forge → Recovered veri gerektirir (Recovery hattı kurulmuş olmalı). T2 Repair Lab → Decrypted veri gerektirir (Encryption hattı kurulmuş olmalı). İki sistem T2'de birbirini besler.
 
 ### Glitched: Severity → Derinlik Bulmacası (Feedback Loop)
 
@@ -503,15 +505,17 @@ Fabrika şekli: ↻ döngüsel devre (DERİN)
 
 **Oyuncu hissi:** "Daha derin hasar = daha karmaşık döngü. Loop'larım yeterli throughput üretiyor mu?"
 
-### Repair Lab Tarifi (Glitch Tier'a Paralel)
+### Repair Lab Tarifi (Glitch Tier'a Paralel) — Content-Matched
 
 | Glitch Tier | Repair Lab Girdisi | Bulmaca |
 |-------------|---------------------|---------|
-| **Minor** | Standard | Tek kaynak, basit |
-| **Major** | Standard + Financial | İki farklı content lazım |
-| **Critical** | Standard + Financial + Blueprint | Üç farklı content lazım |
+| **Minor** | Public [X] (content-matched) | Tek input, doğru content'i yönlendir |
+| **Major** | Public [X] + Decrypted [X] | Decryption hattı kurulmuş olmalı |
+| **Critical** | Public [X] + Decrypted [X] + ??? | Çok karmaşık tarif (full release) |
 
-Repair Lab recipe karmaşıklığı + feedback loop Kit tüketimi = çifte throughput challenge.
+**Content-Matched Kit:** Repair Lab gelen verinin content tipini okur ve o content'e özel Kit üretir. Biometric Public → Biometric Kit. Biometric Kit sadece Biometric Corrupted veriyi onarır. T2 (Major) tarifi aynı content'in Decrypted halini de gerektirir → Encryption hattı kurulmuş olmalı.
+
+Repair Lab recipe karmaşıklığı + feedback loop Kit tüketimi + content matching = üçlü throughput challenge.
 
 ### Encrypted vs Glitched: Asimetrik Karşılaştırma
 
@@ -651,6 +655,7 @@ Bank Terminal: Account Data (Financial) + Credit History (Financial)
 - **Boyut:** 2×2 | **Giriş:** Sol (veri) + Üst (Key) | **Çıkış:** Sağ
 - Encrypted/Enc·Glitch veri + Key → **OLASİLİKSAL** decryption (DECRYPTED etiketi eklenir)
 - Key bit-depth'i veri bit-depth'ine eşleşmeli (4-bit veri = 4-bit Key)
+- **Content eşleşmesi zorunlu:** Financial Key sadece Financial Encrypted veriyi çözer. Eşleşmeyen Key kabul edilmez.
 - **Key başarı oranı:** 4-bit %80, 16-bit %40, 32-bit %20
 - Başarısız: Key tüketilir, veri Decryptor'da kalır, yeni Key bekler
 - Key yoksa bina DURUR, veri kuyrukta bekler
@@ -660,6 +665,7 @@ Bank Terminal: Account Data (Financial) + Credit History (Financial)
 ### RECOVERER — "Data Restorer" (ÇİFT GİRDİ — FEEDBACK LOOP)
 - **Boyut:** 2×2 | **Giriş:** Sol (veri) + Üst (Repair Kit) | **Çıkış:** Sağ
 - Glitched/Enc·Glitch veri + Repair Kit → **KISMİ** recovery
+- **Content eşleşmesi zorunlu:** Biometric Kit sadece Biometric Corrupted veriyi onarır. Eşleşmeyen Kit kabul edilmez.
 - Her denemede Repair Kit tüketilir (başarılı veya başarısız)
 - Recovery oranı Glitch severity'ye bağlı (Minor %70-80, Major %40-50, Critical %20-30)
 - Çıkış: karışık (Recovered + hâlâ Glitched) → Separator ile ayır → Glitched'ı loop'a döndür
@@ -677,34 +683,38 @@ Bank Terminal: Account Data (Financial) + Credit History (Financial)
 
 **Kit throughput zayıfsa loop tıkanır** — bu otomasyon bulmacasının kendisi.
 
-### KEY FORGE — "Key Factory"
+### KEY FORGE — "Key Factory" (CONTENT-MATCHED)
 - **Boyut:** 2×2 | **Giriş:** Sol | **Çıkış:** Sağ
-- Content tüketir → Decryption/Encryption Key üretir
+- **Dinamik girdi:** Gelen verinin content tipini okur, o content'e özel Key üretir
 - Tab ile bit-depth seçer: 4-bit / 16-bit / 32-bit
 - **Yüksek bit-depth = yavaş üretim** → paralel Key Forge zorunluluğu yaratır
+- Key'ler content-tagged: Financial Key, Biometric Key, vb.
 - Key'ler kablo ile Decryptor/Encryptor'lara gider
 
 | Bit-Depth | Girdi | Üretim Hızı |
 |-----------|-------|-------------|
-| 4-bit | Research | Hızlı |
-| 16-bit | Research + Biometric | Yavaş (2+ paralel gerekli) |
-| 32-bit | Research + Biometric + Financial | Çok yavaş (3+ paralel gerekli) |
+| 4-bit | Public [X] | Hızlı |
+| 16-bit | Public [X] + Recovered [X] | Yavaş (2+ paralel gerekli) |
+| 32-bit | Public [X] + Recovered [X] + ??? | Çok yavaş (3+ paralel, full release) |
 
+**Çapraz bağımlılık:** 16-bit Key üretmek için aynı content'in Recovered halini beslemek gerekir → Recovery hattı kurulmuş olmalı.
 **Not:** Girdi miktarları ve üretim hızları throughput tartışmasından sonra kesinleşecek.
 
-### REPAIR LAB — "Kit Factory"
+### REPAIR LAB — "Kit Factory" (CONTENT-MATCHED)
 - **Boyut:** 2×2 | **Giriş:** Sol | **Çıkış:** Sağ
-- Content tüketir → Repair Kit üretir
+- **Dinamik girdi:** Gelen verinin content tipini okur, o content'e özel Repair Kit üretir
 - Tab ile tier seçer (Glitch severity'ye eşleşir)
+- Kit'ler content-tagged: Financial Kit, Biometric Kit, vb.
 - Repair Kit'ler kablo ile Recoverer'a gider
 
 | Glitch Tier | Girdi |
 |-------------|-------|
-| Minor | Standard |
-| Major | Standard + Financial |
-| Critical | Standard + Financial + Blueprint |
+| Minor | Public [X] |
+| Major | Public [X] + Decrypted [X] |
+| Critical | Public [X] + Decrypted [X] + ??? (full release) |
 
-**Not:** Feedback loop'ta her deneme Kit tükettiğinden, Major/Critical Glitch çok fazla Kit tüketir → Repair Lab throughput'u kritik.
+**Çapraz bağımlılık:** Major Kit üretmek için aynı content'in Decrypted halini beslemek gerekir → Encryption hattı kurulmuş olmalı.
+**Not:** Feedback loop'ta her deneme Kit tükettiğinden, Major Glitch çok fazla Kit tüketir → Repair Lab throughput'u kritik.
 
 ### ENCRYPTOR — "Cipher Lock" (ÇİFT GİRDİ)
 - **Boyut:** 2×2 | **Giriş:** Sol (veri) + Üst (Key) | **Çıkış:** Sağ
@@ -877,12 +887,12 @@ throughput = base_speed / input_variety_count
 
 | Bina | Hız Belirleyicisi |
 |------|-------------------|
-| **Key Forge (4-bit)** | Hızlı (1 content) |
-| **Key Forge (16-bit)** | Yavaş (2 content) → 2+ paralel gerekli |
-| **Key Forge (32-bit)** | Çok yavaş (3 content) → 3+ paralel gerekli |
-| **Repair Lab (Minor)** | Hızlı (1 content) |
-| **Repair Lab (Major)** | Orta (2 content) |
-| **Repair Lab (Critical)** | Yavaş (3 content) |
+| **Key Forge (4-bit)** | Hızlı (Public [X]) |
+| **Key Forge (16-bit)** | Yavaş (Public [X] + Recovered [X]) → 2+ paralel gerekli |
+| **Key Forge (32-bit)** | Çok yavaş (3 girdi) → 3+ paralel gerekli (full release) |
+| **Repair Lab (Minor)** | Hızlı (Public [X]) |
+| **Repair Lab (Major)** | Orta (Public [X] + Decrypted [X]) |
+| **Repair Lab (Critical)** | Yavaş (3 girdi, full release) |
 
 ### Routing Binaları — Anlık, Doğal Akış Etkisi
 
