@@ -603,7 +603,7 @@ func _on_tick_for_gig(_tick_count: int) -> void:
 		if _contract_terminal and not _contract_terminal.stored_data.is_empty():
 			for key in _contract_terminal.stored_data:
 				if _contract_terminal.stored_data[key] > 0:
-					simulation_manager.network_active_contents[DataEnums.unpack_content(key)] = true
+					simulation_manager.mark_content_active(DataEnums.unpack_content(key))
 		_gig_manager.process_deliveries()
 
 
@@ -818,9 +818,9 @@ func _update_city_control() -> void:
 	# A source is "connected" when:
 	#   1. BFS reachable from CT
 	#   2. F.I.R.E. breached (or no F.I.R.E.)
-	#   3. Every content type the source produces is in network_active_contents
-	#      (consumed by CT, F.I.R.E., Producer, or Dual-input — NOT Trash)
-	var active_contents: Dictionary = simulation_manager.network_active_contents
+	#   3. Every content type the source produces was actively used within the last
+	#      CONTENT_ACTIVE_WINDOW ticks (consumed by CT, F.I.R.E., Producer, or Dual-input — NOT Trash).
+	#      Window-based check prevents rare content types (e.g. 5% Public) from flickering.
 	var all_sources: Array[Node2D] = source_manager.get_all_sources()
 	var total: int = all_sources.size()
 	var connected: int = 0
@@ -829,12 +829,12 @@ func _update_city_control() -> void:
 			continue
 		if source.fire_active:
 			continue  # F.I.R.E. blocking output — data not flowing
-		# Check: every content this source produces must be actively used
+		# Check: every content this source produces must be actively used within the window
 		var all_content_used: bool = true
 		for content_id in source.definition.content_weights:
 			if source.definition.content_weights[content_id] <= 0.0:
 				continue
-			if not active_contents.has(int(content_id)):
+			if not simulation_manager.is_content_active(int(content_id)):
 				all_content_used = false
 				break
 		if all_content_used:
