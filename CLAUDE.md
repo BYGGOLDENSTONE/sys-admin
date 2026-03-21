@@ -33,8 +33,8 @@ BREACH:      Karmasik kaynak → guvenlik as → ayikla/coz/onar → saf veri �
 - **Content Sub-Types:** 6 content × 4 sub-type = 24 spesifik veri tipi
 - **Scanner binasi:** Sub-type binary filtre (uc katmanli filtre: Separator/Classifier/Scanner)
 - **Encrypted tier'lari:** 4-bit, 16-bit (demo) | 32-bit (full release). Paralel Key Forge = genislik bulmacasi
-- **Corrupted tier'lari:** Minor-Glitched, Major-Glitched (demo) | Critical-Glitched (full release). Recoverer feedback loop = derinlik bulmacasi
-- **Recoverer feedback loop:** Kismi recovery + Separator dongusu, her deneme Kit tuketir
+- **Corrupted tier'lari:** Minor-Glitched, Major-Glitched (demo) | Critical-Glitched (full release). Kit uretim zinciri + content matching = derinlik bulmacasi
+- **Deterministik isleme:** Decryptor/Recoverer %100 basari. Zorluk T2 hiz penalti + content-matched Key/Kit + T2 tarif karmasikligindan gelir
 - **Network Bar:** Kaynak "connected" = TUM content tipleri agda aktif kullaniliyor (CT teslim, F.I.R.E. besleme, Key/Kit uretimi, Decryptor/Recoverer isleme). Trash saymaz. Bar = connected / total
 - **Throughput:** Maks 1.5s islem suresi. Paralel bina = cozum. Degerler placeholder, playtest ile ayarlanacak
 
@@ -55,7 +55,7 @@ BREACH:      Karmasik kaynak → guvenlik as → ayikla/coz/onar → saf veri �
 - CT Port Purity | Kaynaklar dogrudan output portlu (FIRE korumasina tabi)
 - Gig tamamlaninca pipeline KALIR (persistent network)
 - Sinirli harita (levels 1-8): bolge-grid tabanli esit kaynak dagitimi + gorunur sinir
-- Encrypted = genislik (paralel Key Forge), Corrupted = derinlik (feedback loop)
+- Encrypted = genislik (paralel Key Forge), Corrupted = derinlik (Kit uretim zinciri + content matching)
 - **Content-Matched Key/Kit:** Key Forge ve Repair Lab gelen verinin content tipine gore uretir. Financial Public → Financial Key. T2 tarifi capraz bagimli: 16-bit Key = Public[X] + Recovered[X], Major Kit = Public[X] + Decrypted[X]. Decryptor/Recoverer content eslesmesi zorunlu.
 - FIRE kapaninca veri akisi aninda kesilir
 - **Network Bar:** Kaynak bagli = tum content tipleri CT'ye aktif akiyor. Bar = bagli kaynak / toplam kaynak
@@ -189,20 +189,13 @@ Her faz sonunda oyun **playable state**'te kalmali. Fazlar sirayla yapilir, bagi
 
 ---
 
-#### FAZ 6: Olasiliksal Isleme (Key Basari Orani + Recovery Loop) ✓ TAMAMLANDI
-**Amac:** Decryptor Key basari orani, Recoverer kismi recovery
+#### FAZ 6: Deterministik Isleme ✓ TAMAMLANDI (REVIZE)
+**Amac:** Decryptor ve Recoverer %100 deterministik isleme
 **Bagimlilik:** Faz 5 (throughput sistemi)
 
-**Dosyalar:**
-- `resources/components/dual_input_component.gd` — Yeni: `success_rate_by_tier: Array[float]`. Decryptor: [0.8, 0.4] (4-bit/16-bit, demo). Recoverer: [0.75, 0.45] (Minor-Glitched/Major-Glitched, demo). `consumes_on_fail: bool` (her iki bina icin true).
-- `scripts/simulation_manager.gd` — DualInput isleme logic degisiklik: basari oranina gore Random kontrol. Basarisiz: tuketilebilir harcanir, Decryptor'da veri kalir / Recoverer'da veri cikisa gider ama CORRUPTED state korunur.
-- `resources/buildings/decryptor.tres` — success_rate_by_tier = [0.8, 0.4] (demo)
-- `resources/buildings/recoverer.tres` — success_rate_by_tier = [0.75, 0.45] (demo). Cikis artik KARISIK: bir kisim RECOVERED, bir kisim hala CORRUPTED. Oyuncu Separator ile ayirir.
-- `scripts/building.gd` — Basari/basarisizlik gorsel feedback (flash rengi)
+**Not:** Olasiliksal isleme (success_rate, feedback loop) KALDIRILDI. Zorluk T2 hiz penalti (0.5x) + content-matched Key/Kit + T2 tarif karmasikligindan gelir. RNG yerine deterministik = oyuncu hatasini anlar, frustrasyon azalir.
 
-**Not:** Recoverer feedback loop fiziksel kablo + Separator ile oyuncunun kendisinin kurmasi gereken bir yapi. Kod degisikligi minimal — sadece Recoverer cikisinda veriyi kismi olarak donustur.
-
-**Test:** 4-bit Key → %80 basari, cogu calisiyor. 16-bit Key → %40, cok key harcanir. Recoverer Minor-Glitched → cogu recover, Major-Glitched → yari recover + yari corrupted cikis. Separator loop kurulabilmeli.
+**Test:** Decryptor'a Key + Encrypted veri → %100 donusur. Recoverer'a Kit + Corrupted veri → %100 donusur. T2 islemleri yavas ama garantili.
 
 ---
 
@@ -211,10 +204,9 @@ Her faz sonunda oyun **playable state**'te kalmali. Fazlar sirayla yapilir, bagi
 **Bagimlilik:** Faz 5+6 (throughput + olasilik gerekli)
 
 **Dosyalar:**
-- `scripts/upgrade_manager.gd` — YENI DOSYA. Singleton/autoload. 4 kategori state: {tier, cumulative_data, multiplier}. Tier tablosu (8 tier, maliyet + carpan). `add_data(content, state, tags, amount)` — CT tesliminde cagirilir, ilgili kategoriye ekler. `get_multiplier(category)` → float. `get_success_bonus(category)` → float. Save/load destegi.
+- `scripts/upgrade_manager.gd` — YENI DOSYA. Singleton/autoload. 4 kategori state: {tier, cumulative_data, multiplier}. Tier tablosu (8 tier, maliyet + carpan). `add_data(content, state, tags, amount)` — CT tesliminde cagirilir, ilgili kategoriye ekler. `get_multiplier(category)` → float. Save/load destegi.
 - `scripts/gig_manager.gd` veya `scripts/simulation_manager.gd` — CT teslimi sirasinda `upgrade_manager.add_data()` cagir. Teslim edilen verinin state/tags'ine gore kategori belirle: Public → Routing, Decrypted/Encrypted tag → Decryption, Recovered tag → Recovery, hepsi → Bandwidth.
 - `scripts/simulation_manager.gd` — Upgrade carpanlarini throughput hesabina uygula. `upgrade_manager.get_multiplier("routing")` → filtre base_speed'e carpan. Ayni sekilde processing, production, bandwidth.
-- `resources/components/dual_input_component.gd` — success_rate'e upgrade bonusu ekle
 - `scripts/data_source.gd` — Bandwidth upgrade → kaynak cekme hizi carpani. Kablo kapasitesi carpani.
 - `scripts/ui/upgrade_panel.gd` — YENI DOSYA. CT upgrade tab'i. 4 kategori progress bar, tier gostergesi, aciklama metni. CT secildiginde gig panel yerine/yaninda gosterilir.
 - `scripts/ui/building_panel.gd` veya `scripts/main.gd` — CT tiklandiginda upgrade paneli toggle
@@ -250,7 +242,7 @@ Her faz sonunda oyun **playable state**'te kalmali. Fazlar sirayla yapilir, bagi
 - `scripts/ui/top_bar.gd` — Network throughput metrigi: "NETWORK: 1.2 GB/s" gostergesi
 - `scripts/ui/upgrade_panel.gd` — Polish: animasyonlar, tier-up efekti
 - `scripts/sound_manager.gd` — FIRE breach sesi, tier-up sesi, backpressure uyari
-- `scripts/tutorial_manager.gd` — Yeni hint'ler: FIRE, Scanner, feedback loop, upgrade
+- `scripts/tutorial_manager.gd` — Yeni hint'ler: FIRE, Scanner, upgrade
 
 ---
 

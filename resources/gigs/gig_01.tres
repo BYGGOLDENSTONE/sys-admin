@@ -13,7 +13,7 @@ label = "Standard Public"
 [resource]
 script = ExtResource("1")
 gig_name = "First Connection"
-description = "FIXER_NULL: Got a buyer waiting on Standard data. Nothing fancy — just get it flowing.\n\nFind a data source and draw a cable from its output port to the Contract Terminal."
+description = "ZERO_DAY: Got a buyer waiting on Standard data. Nothing fancy — just get it flowing.\n\nFind a data source and draw a cable from its output port to the Contract Terminal."
 order_index = 1
 is_tutorial = true
 requirements = Array[Resource]([SubResource("req1")])

@@ -21,18 +21,6 @@ const TIER_TABLE: Array[Dictionary] = [
 	{"tier": 8, "cost": 1000000, "multiplier": 3000.0},
 ]
 
-## Success rate bonus per tier (additive to base rate, capped at 0.98)
-const SUCCESS_BONUS_TABLE: Array[float] = [
-	0.0,   # Tier 1
-	0.03,  # Tier 2
-	0.06,  # Tier 3
-	0.10,  # Tier 4
-	0.15,  # Tier 5
-	0.20,  # Tier 6
-	0.28,  # Tier 7
-	0.38,  # Tier 8
-]
-
 ## Per-category state: {cumulative_data: float, tier: int}
 var _state: Dictionary = {}
 
@@ -88,16 +76,6 @@ func get_multiplier(category: String) -> float:
 	if tier <= 0 or tier > TIER_TABLE.size():
 		return 1.0
 	return TIER_TABLE[tier - 1].multiplier
-
-
-func get_success_bonus(category: String) -> float:
-	## Returns additive success rate bonus for given category.
-	if not _state.has(category):
-		return 0.0
-	var tier: int = _state[category].tier
-	if tier <= 0 or tier > SUCCESS_BONUS_TABLE.size():
-		return 0.0
-	return SUCCESS_BONUS_TABLE[tier - 1]
 
 
 func get_tier(category: String) -> int:

@@ -17,7 +17,7 @@ var _procedural_count: int = 0  ## How many procedural gigs completed (drives di
 var _next_order_index: int = 100  ## Start procedural gigs at 100+
 const MAX_ACTIVE_PROCEDURAL: int = 3
 
-const CLIENT_NAMES: PackedStringArray = ["FIXER_NULL", "BROKER_7", "GHOST_SIGNAL", "DR_PATCH", "CIPHER_QUEEN", "ARCHIVE_X"]
+const CLIENT_NAMES: PackedStringArray = ["ZERO_DAY", "BROKER_7", "GHOST_SIGNAL", "DR_PATCH", "CIPHER_QUEEN", "ARCHIVE_X"]
 
 ## Starting buildings (always available)
 var _starter_buildings: PackedStringArray = ["Trash", "Splitter"]
