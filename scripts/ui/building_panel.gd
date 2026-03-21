@@ -888,36 +888,30 @@ func _populate_filter_dropdown(building: Node2D) -> void:
 	elif def.scanner:
 		_detail_filter_container.visible = true
 		_detail_filter_label.text = "Sub-Type Filter:"
-		# Group by content with color icons
+		# Flat list — no separators (separators break OptionButton index in Godot 4)
 		var sel_idx: int = 0
-		var idx: int = 0
-		var popup: PopupMenu = _detail_filter_dropdown.get_popup()
+		var item_idx: int = 0
 		for c in range(6):
 			var count: int = DataEnums.sub_type_count(c)
 			if count <= 0:
 				continue
-			# Content header separator
-			_detail_filter_dropdown.add_separator("— %s —" % DataEnums.content_name(c))
-			# Create color swatch icon for this content
-			var color: Color = DataEnums.content_color(c)
-			var icon: ImageTexture = _make_color_icon(color)
+			var c_name: String = DataEnums.content_name(c)
+			var icon: ImageTexture = _make_color_icon(DataEnums.content_color(c))
 			for st in range(count):
 				var pid: int = c * 4 + st
 				var stn: String = DataEnums.sub_type_name(c, st)
 				if stn == "":
-					stn = "%s #%d" % [DataEnums.content_name(c), st]
-				_detail_filter_dropdown.add_item(stn, pid)
-				# Set icon on the popup menu item (last added)
-				var item_idx: int = popup.item_count - 1
-				popup.set_item_icon(item_idx, icon)
-				popup.set_item_icon_max_width(item_idx, 12)
+					stn = "%s #%d" % [c_name, st]
+				_detail_filter_dropdown.add_item("%s: %s" % [c_name, stn], pid)
+				_detail_filter_dropdown.set_item_icon(item_idx, icon)
+				_detail_filter_dropdown.set_item_icon_max_width(item_idx, 12)
 				if pid == building.scanner_filter_sub_type:
-					sel_idx = idx
-				idx += 1
-		if idx == 0:
+					sel_idx = item_idx
+				item_idx += 1
+		if item_idx == 0:
 			_detail_filter_dropdown.add_item("(no data)", 0)
 		else:
-			_detail_filter_dropdown.selected = mini(sel_idx, idx - 1)
+			_detail_filter_dropdown.selected = sel_idx
 	elif def.processor and def.processor.rule == "separator":
 		_detail_filter_container.visible = true
 		if building.separator_mode == "state":

@@ -5,13 +5,13 @@ extends RefCounted
 ## Infinite maps (level 9): lazy chunk-based generation.
 
 const CHUNK_SIZE := 32           ## 32x32 cells per chunk
-const MIN_SOURCE_DISTANCE := 8   ## Min distance between ANY two sources (Manhattan)
-const MIN_SAME_TYPE_DISTANCE := 18  ## Min distance between same-type sources
-const MAX_PLACEMENT_ATTEMPTS := 60
-const CT_EXCLUSION_RADIUS := 5   ## No sources within this of CT center (Chebyshev)
+const MIN_SOURCE_DISTANCE := 10  ## Min distance between ANY two sources (Manhattan)
+const MIN_SAME_TYPE_DISTANCE := 24  ## Min distance between same-type sources
+const MAX_PLACEMENT_ATTEMPTS := 80
+const CT_EXCLUSION_RADIUS := 8   ## No sources within this of CT center (Chebyshev)
 const TILE_SIZE := 64
-const REGION_SIZE := 25          ## Region grid cell size for bounded maps
-const MAX_PER_SOURCE_TYPE := 3   ## Max total placements per source type (includes guarantees)
+const REGION_SIZE := 20          ## Region grid cell size for bounded maps
+const MAX_PER_SOURCE_TYPE := 15  ## Max total placements per source type (includes guarantees)
 
 var _pools: Dictionary = {
 	"easy": ["isp_backbone", "public_database", "atm", "smart_lock", "traffic_camera", "data_kiosk", "bank_terminal"],
@@ -23,22 +23,24 @@ var _pools: Dictionary = {
 ## Tutorial-critical sources: offsets from map center.
 ## All 5 content types accessible from Easy sources + Hospital (first FIRE).
 var _tutorial_offsets := [
-	{"name": "isp_backbone", "offset": Vector2i(10, -10)},      # NE — Standard
-	{"name": "atm", "offset": Vector2i(12, 0)},                  # E  — Financial
-	{"name": "data_kiosk", "offset": Vector2i(-12, 0)},          # W  — Blueprint
-	{"name": "public_database", "offset": Vector2i(-12, -10)},   # NW — Research
-	{"name": "smart_lock", "offset": Vector2i(8, 14)},           # S-SE — Biometric (near Hospital for FIRE)
-	{"name": "bank_terminal", "offset": Vector2i(0, 12)},        # S  — Financial (encrypted)
-	{"name": "hospital_terminal", "offset": Vector2i(0, 22)},    # SS — Medium (FIRE: Fingerprint from Smart Lock)
+	{"name": "isp_backbone", "offset": Vector2i(14, -14)},      # NE — Standard
+	{"name": "atm", "offset": Vector2i(17, 0)},                  # E  — Financial
+	{"name": "data_kiosk", "offset": Vector2i(-17, 0)},          # W  — Blueprint
+	{"name": "public_database", "offset": Vector2i(-16, -14)},   # NW — Research
+	{"name": "smart_lock", "offset": Vector2i(12, 18)},          # S-SE — Biometric (near Hospital for FIRE)
+	{"name": "bank_terminal", "offset": Vector2i(0, 16)},        # S  — Financial (encrypted)
+	{"name": "hospital_terminal", "offset": Vector2i(0, 28)},    # SS — Medium (FIRE: Fingerprint from Smart Lock)
 ]
 
-## Sector-based guarantees for non-tutorial sources
+## Sector-based guarantees for non-tutorial sources.
+## Hard sources go to outer ring (38-58 cells on a 75-cell-radius map = ~50-77% from center).
+## Medium sources go to mid ring (20-38 cells = ~27-50% from center).
 var _sector_guarantees := [
-	{"name": "biotech_lab", "angle": PI, "r_min": 12.0, "r_max": 25.0},
-	{"name": "corporate_server", "angle": -PI / 4.0, "r_min": 18.0, "r_max": 35.0},
-	{"name": "government_archive", "angle": PI / 4.0, "r_min": 18.0, "r_max": 35.0},
-	{"name": "corporate_server", "angle": 3.0 * PI / 4.0, "r_min": 18.0, "r_max": 35.0},
-	{"name": "government_archive", "angle": -3.0 * PI / 4.0, "r_min": 18.0, "r_max": 35.0},
+	{"name": "biotech_lab", "angle": PI, "r_min": 25.0, "r_max": 40.0},
+	{"name": "corporate_server", "angle": -PI / 4.0, "r_min": 48.0, "r_max": 65.0},
+	{"name": "government_archive", "angle": PI / 4.0, "r_min": 48.0, "r_max": 65.0},
+	{"name": "corporate_server", "angle": 3.0 * PI / 4.0, "r_min": 48.0, "r_max": 65.0},
+	{"name": "government_archive", "angle": -3.0 * PI / 4.0, "r_min": 48.0, "r_max": 65.0},
 ]
 
 ## FIRE feeder mapping: source with FIRE → Easy source that produces required sub-type.
@@ -106,8 +108,8 @@ func generate_map(seed_value: int, source_manager: Node) -> void:
 ## --- BOUNDED MAP: REGION-GRID DISTRIBUTION ---
 
 func _generate_bounded_map() -> void:
-	## Divides the map into a grid of regions and places sources evenly.
-	## Inner regions get easy sources, outer regions get harder sources.
+	## Divides the map into a grid of regions and places 1 source per region.
+	## Regions are shuffled before processing to prevent left-to-right pool exhaustion bias.
 	var rng := RandomNumberGenerator.new()
 	rng.seed = _world_seed + 12345
 
@@ -117,66 +119,69 @@ func _generate_bounded_map() -> void:
 	var regions_y: int = maxi(3, map_h / REGION_SIZE)
 	var region_w: float = float(map_w) / regions_x
 	var region_h: float = float(map_h) / regions_y
-
-	# Center region (CT location) — skip it, tutorial sources handle center
 	var center_rx: int = regions_x / 2
 	var center_ry: int = regions_y / 2
 	var max_dist: float = maxf(float(center_rx), float(center_ry))
 
+	# Build region list then Fisher-Yates shuffle (seeded, deterministic)
+	var region_list: Array[Vector2i] = []
 	for rx in range(regions_x):
 		for ry in range(regions_y):
-			# Skip center region (CT + tutorial sources)
 			if rx == center_rx and ry == center_ry:
 				continue
+			region_list.append(Vector2i(rx, ry))
+	for i in range(region_list.size() - 1, 0, -1):
+		var j: int = rng.randi_range(0, i)
+		var tmp: Vector2i = region_list[i]
+		region_list[i] = region_list[j]
+		region_list[j] = tmp
 
-			# Chebyshev distance from center region (normalized 0-1)
-			var dx: float = absf(float(rx) - float(center_rx))
-			var dy: float = absf(float(ry) - float(center_ry))
-			var dist_ratio: float = maxf(dx, dy) / max_dist if max_dist > 0 else 0.0
+	for region in region_list:
+		var rx: int = region.x
+		var ry: int = region.y
+		var dx: float = absf(float(rx) - float(center_rx))
+		var dy: float = absf(float(ry) - float(center_ry))
+		var dist_ratio: float = maxf(dx, dy) / max_dist if max_dist > 0 else 0.0
 
-			# Pick pool based on distance from center
-			var pool: Array = _get_pool_for_ratio(dist_ratio)
-			if pool.is_empty():
-				continue
+		var pool: Array = _get_pool_for_ratio(dist_ratio)
 
-			# 1 source per region, 30% chance of a second
-			var count: int = 1
-			if rng.randf() < 0.3:
-				count = 2
+		# Region center in cell space
+		var reg_cx: int = _map_bounds.position.x + int((float(rx) + 0.5) * region_w)
+		var reg_cy: int = _map_bounds.position.y + int((float(ry) + 0.5) * region_h)
 
-			# Region bounds in cell space
-			var reg_x0: int = _map_bounds.position.x + int(rx * region_w)
-			var reg_y0: int = _map_bounds.position.y + int(ry * region_h)
-			var reg_x1: int = _map_bounds.position.x + int((rx + 1) * region_w)
-			var reg_y1: int = _map_bounds.position.y + int((ry + 1) * region_h)
+		var filtered: Array = pool.filter(func(n): return _get_placed_count(n) < MAX_PER_SOURCE_TYPE)
+		if filtered.is_empty():
+			## Primary pool exhausted — fall back to any allowed type with remaining capacity
+			var fallback: Array = []
+			for key in _allowed_pools:
+				fallback += _pools.get(key, [])
+			filtered = fallback.filter(func(n): return _get_placed_count(n) < MAX_PER_SOURCE_TYPE)
+		if filtered.is_empty():
+			continue
 
-			for _i in range(count):
-				var filtered: Array = pool.filter(func(n): return _get_placed_count(n) < MAX_PER_SOURCE_TYPE)
-				if filtered.is_empty():
-					continue
-				var source_name: String = filtered[rng.randi_range(0, filtered.size() - 1)]
-				var def := _load_source_def(source_name)
-				if def == null:
-					continue
-				var pos := _find_position_in_region(
-					reg_x0, reg_y0, reg_x1, reg_y1,
-					def.grid_size, source_name, rng)
-				if pos == Vector2i(-1, -1):
-					continue
-				var sub_seed: int = (_world_seed + rx * 7919 + ry * 3571 + _i * 1013) & 0x7FFFFFFF
-				_source_manager.place_source(def, pos, sub_seed)
-				_placed_origins.append(pos)
-				_track_placed_name(source_name, pos)
-				# Place FIRE feeder nearby for FIRE sources
-				_place_fire_feeder(source_name, pos, rng)
+		var source_name: String = filtered[rng.randi_range(0, filtered.size() - 1)]
+		var def := _load_source_def(source_name)
+		if def == null:
+			continue
+		var pos := _find_position_near_center(reg_cx, reg_cy, def.grid_size, source_name, rng)
+		if pos == Vector2i(-1, -1):
+			continue
+		var sub_seed: int = (_world_seed + rx * 7919 + ry * 3571) & 0x7FFFFFFF
+		_source_manager.place_source(def, pos, sub_seed)
+		_placed_origins.append(pos)
+		_track_placed_name(source_name, pos)
+		_place_fire_feeder(source_name, pos, rng)
 
 
 func _get_pool_for_ratio(dist_ratio: float) -> Array:
 	## Returns source pool based on normalized distance from center (0=center, 1=edge).
+	## Inner zone (≤0.30): easy only — close to CT, learner-friendly
+	## Mid zone (0.30-0.55): easy + medium — FIRE introduction range
+	## Outer zone (>0.55): medium + hard — far from CT, high threat
 	var raw_pool: Array = []
-	if dist_ratio <= 0.35:
+	if dist_ratio <= 0.30:
 		raw_pool = _get_allowed("easy")
-	elif dist_ratio <= 0.65:
+	elif dist_ratio <= 0.55:
 		raw_pool = _get_allowed("easy") + _get_allowed("medium")
 	else:
 		raw_pool = _get_allowed("medium") + _get_allowed("hard") + _get_allowed("endgame")
@@ -196,6 +201,30 @@ func _find_position_in_region(x0: int, y0: int, x1: int, y1: int, grid_size: Vec
 
 	for _attempt in range(MAX_PLACEMENT_ATTEMPTS):
 		var pos := Vector2i(rng.randi_range(min_x, max_x), rng.randi_range(min_y, max_y))
+		var ct_dist: int = maxi(absi(pos.x - _map_center.x), absi(pos.y - _map_center.y))
+		if ct_dist < CT_EXCLUSION_RADIUS:
+			continue
+		if _is_too_close(pos):
+			continue
+		if _is_same_type_too_close(source_name, pos):
+			continue
+		return pos
+	return Vector2i(-1, -1)
+
+
+func _find_position_near_center(cx: int, cy: int, grid_size: Vector2i, source_name: String, rng: RandomNumberGenerator) -> Vector2i:
+	## Try positions expanding outward from region center.
+	## Early attempts are close to center; later attempts spread further.
+	## This ensures near-uniform spacing equal to REGION_SIZE.
+	var max_jitter: int = REGION_SIZE / 2
+	for attempt in range(MAX_PLACEMENT_ATTEMPTS):
+		var jitter: int = mini(2 + attempt / 4, max_jitter)
+		var ox: int = rng.randi_range(-jitter, jitter)
+		var oy: int = rng.randi_range(-jitter, jitter)
+		var pos := Vector2i(cx + ox - grid_size.x / 2, cy + oy - grid_size.y / 2)
+		if _is_bounded:
+			pos.x = clampi(pos.x, _map_bounds.position.x + 1, _map_bounds.end.x - grid_size.x - 1)
+			pos.y = clampi(pos.y, _map_bounds.position.y + 1, _map_bounds.end.y - grid_size.y - 1)
 		var ct_dist: int = maxi(absi(pos.x - _map_center.x), absi(pos.y - _map_center.y))
 		if ct_dist < CT_EXCLUSION_RADIUS:
 			continue

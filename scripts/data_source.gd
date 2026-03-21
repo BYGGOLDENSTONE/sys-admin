@@ -127,11 +127,15 @@ func _generate_fire_input_ports() -> void:
 
 
 func feed_fire(sub_type: int, amount: float) -> void:
-	## Feed data into FIRE. Only matching sub-types count.
+	## Feed data into FIRE. Matching sub-types add progress; wrong sub-types penalize all requirements.
 	if not fire_active:
 		return
 	if fire_progress.has(sub_type):
 		fire_progress[sub_type] += amount
+	else:
+		## Wrong sub-type — subtract from all active requirements (forces player to filter first)
+		for st in fire_progress:
+			fire_progress[st] = maxf(0.0, fire_progress[st] - amount)
 	_check_fire_breach()
 
 

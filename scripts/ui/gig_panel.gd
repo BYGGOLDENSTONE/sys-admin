@@ -664,7 +664,10 @@ func _req_bbcode(req, done: bool) -> String:
 	if req.content == DataEnums.ContentType.STANDARD:
 		c_char = "0"
 	var c_name: String = DataEnums.content_name(req.content)
-	var result: String = "[color=%s][%s] %s[/color]" % [c_hex, c_char, c_name]
+	var base_name: String = c_name
+	if req.sub_type >= 0:
+		base_name = DataEnums.sub_type_name(req.content, req.sub_type)
+	var result: String = "[color=%s][%s] %s[/color]" % [c_hex, c_char, base_name]
 
 	if req.tags != 0:
 		var tag_parts: PackedStringArray = []

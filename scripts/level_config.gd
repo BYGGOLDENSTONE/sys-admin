@@ -9,7 +9,7 @@ const IS_DEMO: bool = true  ## Demo = Level 1 only
 const LEVELS: Array[Dictionary] = [
 	{  # Level 1
 		"ct_size": Vector2i(2, 2),
-		"map_size": 100,
+		"map_size": 150,
 		"source_pools": ["easy", "medium"],
 		"is_tutorial": true,
 		"is_infinite": false,

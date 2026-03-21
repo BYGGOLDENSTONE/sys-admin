@@ -557,6 +557,7 @@ func _deliver_conn_gdscript(conn: Dictionary) -> void:
 			continue
 		if target.definition != null and (target.definition.classifier != null \
 				or target.definition.splitter != null or target.definition.merger != null \
+				or target.definition.scanner != null \
 				or (target.definition.processor != null and target.definition.processor.rule == "separator")):
 			if _get_passthrough_port(target, item) == "":
 				break
@@ -826,6 +827,17 @@ func _get_passthrough_port(building: Node2D, item: Dictionary) -> String:
 	# Merger: single output
 	if def.merger != null:
 		return def.output_ports[0] if def.output_ports.size() > 0 else ""
+	# Scanner: route by sub_type (packed content*4+sub_type)
+	if def.scanner != null:
+		var ports: Array[String] = def.output_ports
+		if ports.size() < 2:
+			return ""
+		if not _has_output_connection(building, ports[0]) or not _has_output_connection(building, ports[1]):
+			return ""
+		var content: int = DataEnums.unpack_content(ikey)
+		var sub_type: int = DataEnums.unpack_sub_type(ikey)
+		var data_pid: int = content * 4 + sub_type if sub_type >= 0 else -1
+		return ports[0] if data_pid == building.scanner_filter_sub_type else ports[1]
 	return ""  # Not a routing building
 
 
@@ -1397,11 +1409,32 @@ func _process_scanner(b: Node2D, max_process: int) -> int:
 	return processed
 
 
+func _sum_stored_by_content_state(b: Node2D, content: int, state: int) -> int:
+	## Sum all stored data matching content+state, ignoring sub_type.
+	## Needed because source data carries sub_type bits that producer recipes don't specify.
+	var total: int = 0
+	for key in b.stored_data:
+		if DataEnums.unpack_content(key) == content and DataEnums.unpack_state(key) == state:
+			total += b.stored_data[key]
+	return total
+
+
+func _consume_stored_by_content_state(b: Node2D, content: int, state: int, amount: int) -> void:
+	## Consume `amount` units from stored data matching content+state (any sub_type).
+	var remaining: int = amount
+	for key in b.stored_data.keys():
+		if remaining <= 0:
+			break
+		if DataEnums.unpack_content(key) == content and DataEnums.unpack_state(key) == state:
+			var deduct: int = mini(b.stored_data[key], remaining)
+			b.stored_data[key] -= deduct
+			remaining -= deduct
+
+
 func _process_producer(b: Node2D, max_process: int) -> int:
 	var prod: ProducerComponent = b.definition.producer
 	var selected: int = b.selected_tier
-	var input_key: int = DataEnums.pack_key(prod.input_content, prod.input_state)
-	var available: int = b.stored_data.get(input_key, 0)
+	var available: int = _sum_stored_by_content_state(b, prod.input_content, prod.input_state)
 	if available <= 0:
 		return 0
 	var productions: int = mini(available / prod.consume_amount, max_process)
@@ -1409,12 +1442,10 @@ func _process_producer(b: Node2D, max_process: int) -> int:
 		return 0
 	# Check tier-based extra content requirements
 	if selected >= 2 and prod.tier2_extra_content >= 0:
-		var extra2_key: int = DataEnums.pack_key(prod.tier2_extra_content, prod.input_state)
-		var extra2_avail: int = b.stored_data.get(extra2_key, 0)
+		var extra2_avail: int = _sum_stored_by_content_state(b, prod.tier2_extra_content, prod.input_state)
 		productions = mini(productions, extra2_avail / prod.tier2_extra_amount)
 	if selected >= 3 and prod.tier3_extra_content >= 0:
-		var extra3_key: int = DataEnums.pack_key(prod.tier3_extra_content, prod.input_state)
-		var extra3_avail: int = b.stored_data.get(extra3_key, 0)
+		var extra3_avail: int = _sum_stored_by_content_state(b, prod.tier3_extra_content, prod.input_state)
 		productions = mini(productions, extra3_avail / prod.tier3_extra_amount)
 	if productions <= 0:
 		return 0
@@ -1426,16 +1457,14 @@ func _process_producer(b: Node2D, max_process: int) -> int:
 		return 0
 	# Consume base input proportional to actual output
 	var consumed: int = sent * prod.consume_amount
-	b.stored_data[input_key] -= consumed
+	_consume_stored_by_content_state(b, prod.input_content, prod.input_state, consumed)
 	network_active_contents[prod.input_content] = true  # Production input = useful
 	# Consume extra inputs proportional to actual output
 	if selected >= 2 and prod.tier2_extra_content >= 0:
-		var extra2_key: int = DataEnums.pack_key(prod.tier2_extra_content, prod.input_state)
-		b.stored_data[extra2_key] -= sent * prod.tier2_extra_amount
+		_consume_stored_by_content_state(b, prod.tier2_extra_content, prod.input_state, sent * prod.tier2_extra_amount)
 		network_active_contents[prod.tier2_extra_content] = true
 	if selected >= 3 and prod.tier3_extra_content >= 0:
-		var extra3_key: int = DataEnums.pack_key(prod.tier3_extra_content, prod.input_state)
-		b.stored_data[extra3_key] -= sent * prod.tier3_extra_amount
+		_consume_stored_by_content_state(b, prod.tier3_extra_content, prod.input_state, sent * prod.tier3_extra_amount)
 		network_active_contents[prod.tier3_extra_content] = true
 	var tier_label: String = "T%d " % selected if selected > 0 else ""
 	print("[Producer] %s: %d MB consumed → %d %sKey produced" % [
