@@ -1146,7 +1146,7 @@ func _on_level_completed(level: int) -> void:
 		_save_manager.autosave()
 	# Delay to let notification play, then show appropriate screen
 	get_tree().create_timer(2.5).timeout.connect(func():
-		if LevelConfig.IS_DEMO:
+		if LevelConfig.IS_DEMO and level >= LevelConfig.DEMO_MAX_LEVEL:
 			_show_demo_complete()
 		else:
 			_show_level_complete(level)

@@ -4,7 +4,8 @@ extends RefCounted
 ## Static level configuration for NetFactory // BREACH progression system.
 ## 9 levels: CT grows from 2x2 to 10x10, map from 100x100 to infinite.
 
-const IS_DEMO: bool = true  ## Demo = Level 1 only
+const IS_DEMO: bool = true  ## Demo build flag
+const DEMO_MAX_LEVEL: int = 2  ## Highest playable level in demo
 
 const LEVELS: Array[Dictionary] = [
 	{  # Level 1
@@ -73,6 +74,19 @@ const LEVELS: Array[Dictionary] = [
 ]
 
 const MAX_LEVEL: int = 9
+
+## Brief descriptions shown in level-select UI
+const LEVEL_DESCS: Array[String] = [
+	"Tutorial — learn the basics",        # 1
+	"Freeplay — all buildings unlocked",   # 2
+	"Expanding networks",                  # 3
+	"Endgame sources appear",              # 4
+	"Large-scale routing",                 # 5
+	"Deep encryption chains",              # 6
+	"Mass parallel processing",            # 7
+	"Full network complexity",             # 8
+	"Endless — infinite map",              # 9
+]
 
 
 static func get_level(idx: int) -> Dictionary:

@@ -12,7 +12,6 @@ const FEEDBACK_URL: String = "https://store.steampowered.com/app/PLACEHOLDER_APP
 
 var _new_game_btn: Button = null
 var _load_game_btn: Button = null
-var _level_select_btn: Button = null
 var _options_btn: Button = null
 var _feedback_btn: Button = null
 var _wishlist_btn: Button = null
@@ -101,10 +100,6 @@ func _build_ui() -> void:
 	_load_game_btn.pressed.connect(_on_load_game)
 	_button_vbox.add_child(_load_game_btn)
 
-	_level_select_btn = _create_menu_button("Level Select")
-	_level_select_btn.pressed.connect(_on_level_select)
-	_button_vbox.add_child(_level_select_btn)
-
 	_options_btn = _create_menu_button("Options")
 	_options_btn.pressed.connect(_on_options)
 	_button_vbox.add_child(_options_btn)
@@ -134,7 +129,7 @@ func _build_ui() -> void:
 	_level_panel.set_script(LevelPanelScript)
 	_level_panel.visible = false
 	_level_panel.level_selected.connect(_on_level_chosen)
-	_level_panel.back_pressed.connect(_on_level_select_back)
+	_level_panel.back_pressed.connect(_on_level_panel_back)
 	main_box.add_child(_level_panel)
 
 	# Options panel (hidden, replaces buttons when active)
@@ -164,18 +159,20 @@ func _build_ui() -> void:
 func _update_load_button() -> void:
 	var has_saves := false
 	var max_level: int = 1
+	var completed: Dictionary = {}
 	var slots: Array[Dictionary] = SaveManagerScript.list_slots()
 	for info in slots:
 		if info.exists:
 			has_saves = true
 			max_level = maxi(max_level, int(info.get("max_level", 1)))
+			for lvl in info.get("completed_levels", []):
+				completed[int(lvl)] = true
 	_load_game_btn.disabled = not has_saves
 	if not has_saves:
 		_load_game_btn.tooltip_text = "No saved games"
-	# Level Select: only show if player has progressed beyond Level 1
-	_level_select_btn.visible = max_level > 1
 	if _level_panel:
 		_level_panel.max_level_reached = max_level
+		_level_panel.completed_levels = completed
 
 
 func _create_menu_button(text: String) -> Button:
@@ -281,17 +278,10 @@ func _update_glitch(delta: float) -> void:
 # ── Navigation ────────────────────────────────────────────────
 
 func _on_new_game() -> void:
-	# Find first empty slot
-	var slots: Array[Dictionary] = SaveManagerScript.list_slots()
-	var target_slot: int = -1
-	for info in slots:
-		if not info.exists:
-			target_slot = info.slot
-			break
-	if target_slot < 0:
-		# All slots full — use slot 1 (overwrite oldest)
-		target_slot = 1
-	_transition_to_game({"_slot": target_slot})
+	_button_vbox.visible = false
+	if _level_panel:
+		_level_panel.refresh()
+	_level_panel.visible = true
 
 
 func _on_load_game() -> void:
@@ -439,18 +429,23 @@ func _on_load_back() -> void:
 	_button_vbox.visible = true
 
 
-func _on_level_select() -> void:
-	_button_vbox.visible = false
-	_level_panel.visible = true
-
-
-func _on_level_select_back() -> void:
+func _on_level_panel_back() -> void:
 	_level_panel.visible = false
 	_button_vbox.visible = true
 
 
 func _on_level_chosen(level: int) -> void:
+	# Find first empty slot for new game
+	var slots: Array[Dictionary] = SaveManagerScript.list_slots()
+	var target_slot: int = -1
+	for info in slots:
+		if not info.exists:
+			target_slot = info.slot
+			break
+	if target_slot < 0:
+		target_slot = 1
 	_transition_to_game({
+		"_slot": target_slot,
 		"_new_level": level,
 		"_max_level": _level_panel.max_level_reached,
 		"seed": randi(),
@@ -483,7 +478,6 @@ func _transition_to_game(save_data: Dictionary) -> void:
 	# Disable all buttons
 	_new_game_btn.disabled = true
 	_load_game_btn.disabled = true
-	_level_select_btn.disabled = true
 	_options_btn.disabled = true
 	_feedback_btn.disabled = true
 	_wishlist_btn.disabled = true

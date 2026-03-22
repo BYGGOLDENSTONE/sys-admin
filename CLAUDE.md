@@ -39,14 +39,16 @@ BREACH:      Karmasik kaynak → guvenlik as → ayikla/coz/onar → saf veri �
 - **Throughput:** Maks 1.5s islem suresi. Paralel bina = cozum. Degerler placeholder, playtest ile ayarlanacak
 
 ### Demo Scope Lock
-- Demo Level 1 only (2x2 CT, 50x50 harita, ~14 kaynak)
+- Demo Level 1 + Level 2 (L1: 2x2 CT, 50x50, ~14 kaynak, tutorial | L2: 3x3 CT, 200x200, freeplay)
 - Roster: Classifier, Separator, Scanner, Recoverer, Key Forge, Repair Lab, Decryptor, Encryptor, Splitter, Merger, Trash, Uplink, Contract Terminal (13 bina)
 - State: Public, Encrypted (4-bit, 16-bit), Corrupted (Minor-Glitched, Major-Glitched)
 - CT kabul: Public, Decrypted, Recovered, Dec·Enc, Rec·Enc
 - Enc·Cor (birlesik state): demo'da YOK — sadece full release
 - FIRE: Easy (yok) + Medium (sabit esik) + Hard (regenerating)
 - **Malware gameplay YOK** — sadece full release'de
-- Coklu save (5 slot) + level ilerleme kaydi
+- Coklu save (5 slot) + level ilerleme kaydi (Level 1 tamamlaninca Level 2 acilir)
+- New Game → Level secim paneli (tum 9 level gosterilir, 3-9 "FULL GAME" kilitli)
+- Level 1 bitince → Next Level ekrani (Level 2'ye gecis), Level 2 bitince → Demo Complete
 - **Dev Mode:** Tum binalar acik, gig'ler devre disi — hizli test icin
 
 ### Mekanik Kararlari

@@ -56,6 +56,7 @@ static func list_slots() -> Array[Dictionary]:
 					var lvl: Dictionary = data.get("level_state", {})
 					info["level"] = int(lvl.get("current_level", 1))
 					info["max_level"] = int(lvl.get("max_level_reached", 1))
+					info["completed_levels"] = lvl.get("completed_levels", [])
 					break
 		result.append(info)
 	return result
