@@ -905,10 +905,25 @@ func _populate_filter_dropdown(building: Node2D) -> void:
 	elif def.scanner:
 		_detail_filter_container.visible = true
 		_detail_filter_label.text = "Sub-Type Filter:"
-		# Flat list — no separators (separators break OptionButton index in Godot 4)
+		# Detect upstream content from connected cable's source building
+		var upstream_contents: Array[int] = []
+		if _simulation_manager and _simulation_manager.connection_manager:
+			for conn in _simulation_manager.connection_manager.get_connections():
+				if conn.to_building == building and conn.to_port == "left":
+					var from_b: Node2D = conn.from_building
+					for key in from_b.stored_data:
+						if from_b.stored_data[key] <= 0:
+							continue
+						var c: int = DataEnums.unpack_content(key)
+						if c not in upstream_contents:
+							upstream_contents.append(c)
+					break
+		upstream_contents.sort()
+		# If no upstream data detected, show all 6 contents as fallback
+		var content_list: Array[int] = upstream_contents if upstream_contents.size() > 0 else [0, 1, 2, 3, 4, 5]
 		var sel_idx: int = 0
 		var item_idx: int = 0
-		for c in range(6):
+		for c in content_list:
 			var count: int = DataEnums.sub_type_count(c)
 			if count <= 0:
 				continue
@@ -926,7 +941,7 @@ func _populate_filter_dropdown(building: Node2D) -> void:
 					sel_idx = item_idx
 				item_idx += 1
 		if item_idx == 0:
-			_detail_filter_dropdown.add_item("(no data)", 0)
+			_detail_filter_dropdown.add_item("(no connection)", 0)
 		else:
 			_detail_filter_dropdown.selected = sel_idx
 	elif def.processor and def.processor.rule == "separator":
@@ -978,4 +993,6 @@ func _on_filter_selected(index: int) -> void:
 		_selected_building.separator_filter_value = id
 	elif def.producer and def.producer.max_tier > 1:
 		_selected_building.selected_tier = id
+	if _simulation_manager:
+		_simulation_manager._invalidate_conn_cache()
 	_update_detail()

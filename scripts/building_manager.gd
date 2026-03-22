@@ -827,20 +827,26 @@ func _cycle_building_filter(building: Node2D) -> void:
 		building.classifier_filter_content = (building.classifier_filter_content + 1) % 6
 		print("[BuildingManager] Classifier filter → %s" % DataEnums.content_name(building.classifier_filter_content))
 	elif def.scanner:
-		# Cycle through detected sub-types (from stored data + all known)
+		# Cycle through sub-types based on upstream cable's content
 		var pids: Array[int] = []
-		for key in building.stored_data:
-			if building.stored_data[key] <= 0:
-				continue
-			var c: int = DataEnums.unpack_content(key)
-			var st: int = DataEnums.unpack_sub_type(key)
-			if st >= 0:
-				var pid: int = c * 4 + st
-				if pid not in pids:
-					pids.append(pid)
-		pids.sort()
+		var upstream_contents: Array[int] = []
+		if connection_manager:
+			for conn in connection_manager.get_connections():
+				if conn.to_building == building and conn.to_port == "left":
+					var from_b: Node2D = conn.from_building
+					for key in from_b.stored_data:
+						if from_b.stored_data[key] <= 0:
+							continue
+						var c: int = DataEnums.unpack_content(key)
+						if c not in upstream_contents:
+							upstream_contents.append(c)
+					break
+		upstream_contents.sort()
+		for c in upstream_contents:
+			for st in range(DataEnums.sub_type_count(c)):
+				pids.append(c * 4 + st)
 		if pids.is_empty():
-			# No data yet — cycle all 24
+			# No upstream data — cycle all 24
 			building.scanner_filter_sub_type = (building.scanner_filter_sub_type + 1) % 24
 		else:
 			var idx: int = pids.find(building.scanner_filter_sub_type)
