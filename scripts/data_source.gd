@@ -34,6 +34,9 @@ var fire_input_ports: Array[String] = [] ## Generated FIRE input port names (e.g
 var _fire_port_side: String = ""        ## Which side FIRE ports are on (opposite of CT direction)
 var _fire_breach_flash: float = 0.0     ## Visual flash timer when FIRE is breached
 
+## --- NETWORK STATUS (Hard sources only) ---
+var network_secured: bool = false       ## Set by main.gd — true when this Hard source is SECURED
+
 
 func _process(delta: float) -> void:
 	if definition == null:
@@ -396,6 +399,10 @@ func _draw() -> void:
 	if has_fire():
 		_draw_fire_status(center, size)
 
+	# Network SECURED badge (Hard sources only)
+	if definition.difficulty == "hard":
+		_draw_network_badge(center)
+
 
 ## PCB mode: zoom-compensated glowing dots
 func _draw_pcb_source(accent: Color, pulse: float, zoom: float, size: Vector2) -> void:
@@ -593,3 +600,34 @@ func _draw_zone_badge(center: Vector2) -> void:
 	draw_rect(bg_rect, Color(0, 0, 0, 0.6), true)
 	draw_rect(bg_rect, Color(badge_color, 0.5), false, 1.0)
 	draw_string(font, badge_pos, label, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(badge_color, 0.9))
+
+
+func _draw_network_badge(center: Vector2) -> void:
+	## Draws SECURED/UNSECURED badge above Hard sources.
+	var font := _MONO_FONT
+	var font_size := 11
+	var label: String
+	var badge_color: Color
+	var glow_alpha: float
+
+	if network_secured:
+		label = "SECURED"
+		badge_color = Color(0.2, 1.0, 0.4)
+		glow_alpha = 0.12 + sin(_glow_time * 2.0) * 0.04
+	else:
+		label = "UNSECURED"
+		badge_color = Color(1.0, 0.3, 0.2)
+		glow_alpha = 0.06
+
+	var text_size := font.get_string_size(label, HORIZONTAL_ALIGNMENT_CENTER, -1, font_size)
+	var size := Vector2(definition.grid_size.x * TILE_SIZE, definition.grid_size.y * TILE_SIZE)
+	var badge_pos := Vector2(center.x - text_size.x / 2.0, -14.0)
+
+	# Background glow
+	var bg_rect := Rect2(badge_pos.x - 6, badge_pos.y - font_size, text_size.x + 12, font_size + 6)
+	draw_rect(bg_rect, Color(0, 0, 0, 0.7), true)
+	draw_rect(bg_rect, Color(badge_color, 0.6), false, 1.5)
+	# Subtle glow behind
+	draw_rect(Rect2(bg_rect.position - Vector2(3, 3), bg_rect.size + Vector2(6, 6)),
+		Color(badge_color, glow_alpha), true)
+	draw_string(font, badge_pos, label, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(badge_color, 0.95))

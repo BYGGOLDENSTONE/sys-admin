@@ -26,7 +26,7 @@ BREACH:      Karmasik kaynak → guvenlik as → ayikla/coz/onar → saf veri �
 - Tur: **Ters Shapez — chill puzzle-factory**
 - Core loop: Kaynak bul → FIRE kir → pipeline kur → aritstir → teslim et
 - Bina maliyeti yok | Combat / power / heat / para birimi yok
-- **Level-based ilerleme:** 9 level, CT 2x2→10x10, harita 100→800→sonsuz
+- **Level-based ilerleme:** 9 level, CT 2x2→10x10, harita 50→800→sonsuz
 
 ### v5 Yeni Sistemler
 - **FIRE (Forced Isolation & Restriction Enforcer):** Medium+ kaynak guvenligi, Easy→Medium→Hard bagimlilik zinciri
@@ -35,11 +35,11 @@ BREACH:      Karmasik kaynak → guvenlik as → ayikla/coz/onar → saf veri �
 - **Encrypted tier'lari:** 4-bit, 16-bit (demo) | 32-bit (full release). Paralel Key Forge = genislik bulmacasi
 - **Corrupted tier'lari:** Minor-Glitched, Major-Glitched (demo) | Critical-Glitched (full release). Kit uretim zinciri + content matching = derinlik bulmacasi
 - **Deterministik isleme:** Decryptor/Recoverer %100 basari. Zorluk T2 hiz penalti + content-matched Key/Kit + T2 tarif karmasikligindan gelir
-- **Network Bar:** Kaynak "connected" = TUM content tipleri agda aktif kullaniliyor (CT teslim, F.I.R.E. besleme, Key/Kit uretimi, Decryptor/Recoverer isleme). Trash saymaz. Bar = connected / total
+- **Network Bar:** Sadece Hard kaynaklar sayilir. Hard kaynak "SECURED" = (1) FIRE kirик, (2) tum content tipleri Decrypted+Recovered olarak CT'ye akiyor, (3) akis surdurulebilir. Bar = SECURED / total_hard. Ornek: "NETWORK: 2/4 SECURED"
 - **Throughput:** Maks 1.5s islem suresi. Paralel bina = cozum. Degerler placeholder, playtest ile ayarlanacak
 
 ### Demo Scope Lock
-- Demo Level 1 only (2x2 CT, 100x100 harita)
+- Demo Level 1 only (2x2 CT, 50x50 harita, ~14 kaynak)
 - Roster: Classifier, Separator, Scanner, Recoverer, Key Forge, Repair Lab, Decryptor, Encryptor, Splitter, Merger, Trash, Contract Terminal (12 bina)
 - State: Public, Encrypted (4-bit, 16-bit), Corrupted (Minor-Glitched, Major-Glitched)
 - CT kabul: Public, Decrypted, Recovered, Dec·Enc, Rec·Enc
@@ -250,11 +250,15 @@ Her faz sonunda oyun **playable state**'te kalmali. Fazlar sirayla yapilir, bagi
 - **Renk paleti:** Cyberpunk neon — kirmizi, cyan/teal, sari ana renkler. Cok fazla farkli renk KULLANMA. Mevcut 12 bina rengi fazla olabilir, 3-4 ana neon renge sadellestir.
 - **Sub-type gosterimi:** KARARLASTI — kablo/haritada sadece parent content sembolu. Sub-type detayi sadece bina info panellerinde gosterilir.
 
-#### KAYNAK HARITA NOTU (Faz 8 sirasinda konusulacak)
-- Kaynaklarin haritadaki dizilimi (Easy→Medium→Hard zonlama, FIRE bagimlilik zinciriyle uyumlu komsuluk)
-- Port sayilari tekrar elden gecirilmeli (grid_size ile uyum, buyuk kaynaklarda port yerlesimi)
-- FIRE input portlari vs output portlari fiziksel konum planlama
-- Tutorial scripted kaynak koordinatlari v5 sistemine uyarlanmali
+#### KAYNAK HARITA NOTU — TAMAMLANDI (2026-03-22)
+- [x] Harita 150→50 kucultuldu, ~14 kaynak (7 Easy + 3 Medium + 4 Hard)
+- [x] Scatter yerlesim: halka yok, kaynaklar haritaya esit dagilir (seeded random)
+- [x] CT exclusion zone: 10x10 (~5 Chebyshev), Hard min CT dist: 15
+- [x] Region-based rastgele uretim tutorial level icin devre disi (deterministic)
+- [x] Medium kaynaklar uzmanlasmis: Hospital/Shop=T1 Enc only, Biotech/Library=T1 Cor only
+- [x] Hard kaynaklar: %5 Public (filtre bulmacasi), T2 Enc + T2 Cor, regen FIRE 1.5-2.0 MB/s
+- [x] Network Bar: sadece Hard kaynaklar sayilir → "NETWORK: X/4 SECURED"
+- [x] Win condition: tum Hard kaynaklar SECURED
 
 #### v5.1 Sonrasi UI Degisiklikleri (Faz 9+) — TAMAMLANDI
 - [x] Yapi/kaynak tiklama → sol panelde (Contracts) detayli bilgi gosterimi
@@ -269,7 +273,7 @@ Her faz sonunda oyun **playable state**'te kalmali. Fazlar sirayla yapilir, bagi
 - [x] ~~Gig sistemi detaylari~~ TAMAMLANDI — 9 tutorial gig, tum mekanikler ogretiliyor (F.I.R.E., Scanner, Upgrade dahil)
 - [x] ~~Tutorial gig'leri FIRE/Scanner/loop/upgrade icin yeniden yazma~~ TAMAMLANDI
 - [ ] Bina acilma tetikleyicileri (gig-based kalacak, dev mode ile bypass)
-- [x] ~~**Network Bar hesabi:**~~ YENIDEN YAZILDI — Content-bazli aktif kullanim kontrolu. Kaynak "connected" = tum content tipleri CT/F.I.R.E./Producer/Processor tarafindan tuketiliyor. Trash saymaz.
+- [x] ~~**Network Bar hesabi:**~~ YENIDEN YAZILDI (v2, 2026-03-22) — Sadece Hard kaynaklar sayilir. SECURED = FIRE kirik + Decrypted+Recovered CT'ye akiyor + sustained flow. "NETWORK: X/4 SECURED" formati.
 - [x] ~~**CT Port Purity bug:**~~ DUZELTILDI — type_key encoding'e tags eklendi (content<<8|state<<4|tags). Raw Encrypted/Corrupted (tags=0) artik CT'ye giremez, purity checker tags-aware.
 - [x] ~~**Dev Mode release'de acik:**~~ DUZELTILDI — OS.is_debug_build() kontrolu eklendi, release build'de F10 devre disi.
 - [x] ~~**Encryption/Repair Kit dinamik input:**~~ KARARLASTI — Content-matched Key/Kit sistemi. Asagida FAZ 10.

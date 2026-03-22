@@ -5,17 +5,17 @@
 [resource]
 script = ExtResource("1")
 source_name = "Biotech Lab"
-description = "Private biotech research network. Contains Blueprint and Research data. Both encrypted and corrupted — requires Decryptor and Recoverer."
+description = "Private biotech research network. Contains Blueprint and Research data. Corrupted only — your first Recoverer challenge."
 color = Color(0.75, 0.55, 0.85, 1.0)
 content_weights = {3: 0.50, 4: 0.50}
-state_weights = {2: 0.45, 1: 0.39, 0: 0.16}
+state_weights = {2: 0.60, 0: 0.40}
 bandwidth = 5.0
 generation_rate = 5.0
 grid_size = Vector2i(3, 2)
 output_port_count = 3
 difficulty = "medium"
-encrypted_tier = 1
-corrupted_tier = 2
+encrypted_tier = 0
+corrupted_tier = 1
 sub_type_pool = [{"content": 3, "sub_type": 1}, {"content": 3, "sub_type": 0}, {"content": 4, "sub_type": 0}, {"content": 4, "sub_type": 1}]
 fire_type = "threshold"
 fire_requirements = [{"sub_type": 0, "amount": 50}]

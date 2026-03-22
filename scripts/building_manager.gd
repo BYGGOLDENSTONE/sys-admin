@@ -834,6 +834,14 @@ func _cycle_building_filter(building: Node2D) -> void:
 			for conn in connection_manager.get_connections():
 				if conn.to_building == building and conn.to_port == "left":
 					var from_b: Node2D = conn.from_building
+					if not "stored_data" in from_b:
+						# Data source — use content_weights instead
+						if from_b.has_method("has_fire") and from_b.definition:
+							for content_id in from_b.definition.content_weights:
+								if from_b.definition.content_weights[content_id] > 0.0:
+									if int(content_id) not in upstream_contents:
+										upstream_contents.append(int(content_id))
+						break
 					for key in from_b.stored_data:
 						if from_b.stored_data[key] <= 0:
 							continue

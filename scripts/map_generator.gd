@@ -8,7 +8,8 @@ const CHUNK_SIZE := 32           ## 32x32 cells per chunk
 const MIN_SOURCE_DISTANCE := 10  ## Min distance between ANY two sources (Manhattan)
 const MIN_SAME_TYPE_DISTANCE := 24  ## Min distance between same-type sources
 const MAX_PLACEMENT_ATTEMPTS := 80
-const CT_EXCLUSION_RADIUS := 8   ## No sources within this of CT center (Chebyshev)
+const CT_EXCLUSION_RADIUS := 5   ## No sources within this of CT center (Chebyshev) — ~10x10 zone
+const HARD_MIN_CT_DIST := 15     ## Hard sources must be at least this far from CT (Chebyshev)
 const TILE_SIZE := 64
 const REGION_SIZE := 20          ## Region grid cell size for bounded maps
 const MAX_PER_SOURCE_TYPE := 15  ## Max total placements per source type (includes guarantees)
@@ -20,27 +21,26 @@ var _pools: Dictionary = {
 	"endgame": ["military_network", "dark_web_node"],
 }
 
-## Tutorial-critical sources: offsets from map center.
-## All 5 content types accessible from Easy sources + Hospital (first FIRE).
-var _tutorial_offsets := [
-	{"name": "isp_backbone", "offset": Vector2i(14, -14)},      # NE — Standard
-	{"name": "atm", "offset": Vector2i(17, 0)},                  # E  — Financial
-	{"name": "data_kiosk", "offset": Vector2i(-17, 0)},          # W  — Blueprint
-	{"name": "public_database", "offset": Vector2i(-16, -14)},   # NW — Research
-	{"name": "smart_lock", "offset": Vector2i(12, 18)},          # S-SE — Biometric (near Hospital for FIRE)
-	{"name": "bank_terminal", "offset": Vector2i(0, 16)},        # S  — Financial (encrypted)
-	{"name": "hospital_terminal", "offset": Vector2i(0, 28)},    # SS — Medium (FIRE: Fingerprint from Smart Lock)
-]
-
-## Sector-based guarantees for non-tutorial sources.
-## Hard sources go to outer ring (38-58 cells on a 75-cell-radius map = ~50-77% from center).
-## Medium sources go to mid ring (20-38 cells = ~27-50% from center).
-var _sector_guarantees := [
-	{"name": "biotech_lab", "angle": PI, "r_min": 25.0, "r_max": 40.0},
-	{"name": "corporate_server", "angle": -PI / 4.0, "r_min": 48.0, "r_max": 65.0},
-	{"name": "government_archive", "angle": PI / 4.0, "r_min": 48.0, "r_max": 65.0},
-	{"name": "corporate_server", "angle": 3.0 * PI / 4.0, "r_min": 48.0, "r_max": 65.0},
-	{"name": "government_archive", "angle": -3.0 * PI / 4.0, "r_min": 48.0, "r_max": 65.0},
+## Tutorial source list — placed via scatter (random positions, no fixed offsets).
+## Order matters: placed first = gets best positions. Hard sources last for CT distance.
+var _tutorial_sources := [
+	# Easy sources (anywhere outside CT exclusion zone)
+	{"name": "isp_backbone", "hard": false},
+	{"name": "atm", "hard": false},
+	{"name": "data_kiosk", "hard": false},
+	{"name": "public_database", "hard": false},
+	{"name": "smart_lock", "hard": false},
+	{"name": "bank_terminal", "hard": false},
+	# Medium sources
+	{"name": "hospital_terminal", "hard": false},
+	{"name": "biotech_lab", "hard": false},
+	{"name": "shop_server", "hard": false},
+	{"name": "public_library", "hard": false},
+	# Hard sources — must be far from CT (HARD_MIN_CT_DIST)
+	{"name": "corporate_server", "hard": true},
+	{"name": "government_archive", "hard": true},
+	{"name": "corporate_server", "hard": true},
+	{"name": "government_archive", "hard": true},
 ]
 
 ## FIRE feeder mapping: source with FIRE → Easy source that produces required sub-type.
@@ -93,8 +93,8 @@ func generate_map(seed_value: int, source_manager: Node) -> void:
 
 	if _is_tutorial_level:
 		_place_guaranteed()
-
-	if _is_bounded:
+		# Tutorial maps use only guaranteed placements — no region fill
+	elif _is_bounded:
 		_generate_bounded_map()
 	else:
 		for cx in range(_ct_chunk.x - 3, _ct_chunk.x + 4):
@@ -368,37 +368,26 @@ func restore_chunks(chunk_keys: Array) -> void:
 ## --- SHARED HELPERS ---
 
 func _place_guaranteed() -> void:
+	## Scatter placement: each source gets a random valid position across the map.
+	## Hard sources are pushed away from CT (HARD_MIN_CT_DIST).
+	## Non-hard sources can go anywhere outside CT exclusion zone.
 	var rng := RandomNumberGenerator.new()
 	rng.seed = _world_seed
 
-	for entry in _tutorial_offsets:
+	for entry in _tutorial_sources:
 		var def := _load_source_def(entry.name)
 		if def == null:
 			push_warning("[MapGenerator] Tutorial source not found: %s" % entry.name)
 			continue
-		var pos: Vector2i = _map_center + entry.offset
-		if _is_bounded:
-			pos.x = clampi(pos.x, _map_bounds.position.x + 1, _map_bounds.end.x - def.grid_size.x - 1)
-			pos.y = clampi(pos.y, _map_bounds.position.y + 1, _map_bounds.end.y - def.grid_size.y - 1)
-		var sub_seed: int = _world_seed + _placed_origins.size() * 7919
-		_source_manager.place_source(def, pos, sub_seed)
-		_placed_origins.append(pos)
-		_track_placed_name(entry.name, pos)
-
-	for entry in _sector_guarantees:
-		var def := _load_source_def(entry.name)
-		if def == null:
-			continue
-		var pos := _find_position_in_sector(entry.angle, entry.r_min, entry.r_max, def.grid_size, rng)
+		var min_ct: int = HARD_MIN_CT_DIST if entry.hard else CT_EXCLUSION_RADIUS
+		var pos := _find_scattered_position(def.grid_size, entry.name, min_ct, rng)
 		if pos == Vector2i(-1, -1):
-			push_warning("[MapGenerator] Failed sector placement for %s" % entry.name)
+			push_warning("[MapGenerator] Failed scatter placement for %s" % entry.name)
 			continue
 		var sub_seed: int = _world_seed + _placed_origins.size() * 7919
 		_source_manager.place_source(def, pos, sub_seed)
 		_placed_origins.append(pos)
 		_track_placed_name(entry.name, pos)
-		# Place FIRE feeder Easy source nearby
-		_place_fire_feeder(entry.name, pos, rng)
 
 
 func _find_position_in_sector(center_angle: float, r_min: float, r_max: float, grid_size: Vector2i, rng: RandomNumberGenerator) -> Vector2i:
@@ -414,6 +403,31 @@ func _find_position_in_sector(center_angle: float, r_min: float, r_max: float, g
 				continue
 		if not _is_too_close(pos):
 			return pos
+	return Vector2i(-1, -1)
+
+
+func _find_scattered_position(grid_size: Vector2i, source_name: String, min_ct_dist: int, rng: RandomNumberGenerator) -> Vector2i:
+	## Random position anywhere on the map outside the CT exclusion zone.
+	## min_ct_dist: minimum Chebyshev distance from map center (CT).
+	if not _is_bounded:
+		return Vector2i(-1, -1)
+	var margin: int = 2
+	var min_x: int = _map_bounds.position.x + margin
+	var min_y: int = _map_bounds.position.y + margin
+	var max_x: int = _map_bounds.end.x - grid_size.x - margin
+	var max_y: int = _map_bounds.end.y - grid_size.y - margin
+	if min_x > max_x or min_y > max_y:
+		return Vector2i(-1, -1)
+	for _attempt in range(MAX_PLACEMENT_ATTEMPTS):
+		var pos := Vector2i(rng.randi_range(min_x, max_x), rng.randi_range(min_y, max_y))
+		var ct_dist: int = maxi(absi(pos.x - _map_center.x), absi(pos.y - _map_center.y))
+		if ct_dist < min_ct_dist:
+			continue
+		if _is_too_close(pos):
+			continue
+		if _is_same_type_too_close(source_name, pos):
+			continue
+		return pos
 	return Vector2i(-1, -1)
 
 

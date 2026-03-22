@@ -145,11 +145,16 @@ func update_city_control(connected: int, total: int) -> void:
 		_city_label.visible = false
 		return
 	_city_label.visible = true
-	var pct: int = int(float(connected) / float(total) * 100.0)
-	_city_label.text = "NETWORK: %d/%d (%d%%)" % [connected, total, pct]
-	# Color shifts from cool blue to bright green as coverage grows
-	var t: float = clampf(float(pct) / 100.0, 0.0, 1.0)
-	_city_label.add_theme_color_override("font_color", Color(0.3, 0.5 + t * 0.5, 0.7 + t * 0.3, 0.85))
+	if connected >= total:
+		_city_label.text = "NETWORK: %d/%d SECURED" % [connected, total]
+		_city_label.add_theme_color_override("font_color", Color(0.2, 1.0, 0.4, 0.95))
+	elif connected > 0:
+		_city_label.text = "NETWORK: %d/%d SECURED" % [connected, total]
+		var t: float = clampf(float(connected) / float(total), 0.0, 1.0)
+		_city_label.add_theme_color_override("font_color", Color(0.3, 0.5 + t * 0.5, 0.7 + t * 0.3, 0.85))
+	else:
+		_city_label.text = "NETWORK: 0/%d SECURED" % total
+		_city_label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.6, 0.7))
 
 
 func update_throughput(total_transit: int) -> void:

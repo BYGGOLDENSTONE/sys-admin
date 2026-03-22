@@ -603,7 +603,14 @@ func _on_tick_for_gig(_tick_count: int) -> void:
 		if _contract_terminal and not _contract_terminal.stored_data.is_empty():
 			for key in _contract_terminal.stored_data:
 				if _contract_terminal.stored_data[key] > 0:
-					simulation_manager.mark_content_active(DataEnums.unpack_content(key))
+					var content: int = DataEnums.unpack_content(key)
+					var tags: int = DataEnums.unpack_tags(key)
+					simulation_manager.mark_content_active(content)
+					# Track processed data for Hard source SECURED check
+					if tags & DataEnums.ProcessingTag.DECRYPTED:
+						simulation_manager.mark_ct_processed(content, 0)
+					if tags & DataEnums.ProcessingTag.RECOVERED:
+						simulation_manager.mark_ct_processed(content, 1)
 		_gig_manager.process_deliveries()
 
 
@@ -814,41 +821,49 @@ func _update_city_control() -> void:
 			if not reachable.has(from_bid):
 				reachable[from_bid] = true
 				queue.append(from_b)
-	# Count sources where ALL content types are actively used in the network.
-	# A source is "connected" when:
+	# NETWORK: only Hard sources count as targets.
+	# A Hard source is "SECURED" when:
 	#   1. BFS reachable from CT
-	#   2. F.I.R.E. breached (or no F.I.R.E.)
-	#   3. Every content type the source produces was actively used within the last
-	#      CONTENT_ACTIVE_WINDOW ticks (consumed by CT, F.I.R.E., Producer, or Dual-input — NOT Trash).
-	#      Window-based check prevents rare content types (e.g. 5% Public) from flickering.
+	#   2. F.I.R.E. breached (fire_active == false)
+	#   3. CT is receiving Decrypted AND Recovered data for ALL content types this source produces
+	#      (window-based check — if flow stops, source becomes unsecured)
 	var all_sources: Array[Node2D] = source_manager.get_all_sources()
-	var total: int = all_sources.size()
-	var connected: int = 0
+	var hard_total: int = 0
+	var hard_connected: int = 0
 	for source in all_sources:
-		if not reachable.has(source.get_instance_id()):
+		if source.definition.difficulty != "hard":
 			continue
-		if source.fire_active:
-			continue  # F.I.R.E. blocking output — data not flowing
-		# Check: every content this source produces must be actively used within the window
-		var all_content_used: bool = true
-		for content_id in source.definition.content_weights:
-			if source.definition.content_weights[content_id] <= 0.0:
-				continue
-			if not simulation_manager.is_content_active(int(content_id)):
-				all_content_used = false
-				break
-		if all_content_used:
-			connected += 1
-	_top_bar.update_city_control(connected, total)
+		hard_total += 1
+		var secured: bool = false
+		if reachable.has(source.get_instance_id()) and not source.fire_active:
+			# Check: CT must receive both Decrypted AND Recovered for each content type
+			var all_processed: bool = true
+			for content_id in source.definition.content_weights:
+				if source.definition.content_weights[content_id] <= 0.0:
+					continue
+				# Skip KEY and REPAIR_KIT content types (not real data)
+				if int(content_id) >= DataEnums.ContentType.KEY:
+					continue
+				if not simulation_manager.is_ct_processed(int(content_id), 0):  # Decrypted
+					all_processed = false
+					break
+				if not simulation_manager.is_ct_processed(int(content_id), 1):  # Recovered
+					all_processed = false
+					break
+			secured = all_processed
+		source.network_secured = secured
+		if secured:
+			hard_connected += 1
+	_top_bar.update_city_control(hard_connected, hard_total)
 	# Update throughput display
 	var total_transit: int = 0
 	for conn in connection_manager.connections:
 		for ti in conn.get("transit", []):
 			total_transit += int(ti.amount)
 	_top_bar.update_throughput(total_transit)
-	# Check win condition (100% network)
+	# Check win condition (all Hard sources SECURED)
 	if _level_manager:
-		_level_manager.check_win_condition(connected, total)
+		_level_manager.check_win_condition(hard_connected, hard_total)
 
 
 func _on_building_placed_sound(_building: Node2D, _cell: Vector2i) -> void:

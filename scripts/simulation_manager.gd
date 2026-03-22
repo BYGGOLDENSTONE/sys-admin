@@ -210,6 +210,8 @@ func _rebuild_sim_kernel_meta() -> void:
 	# --- Building entries ---
 	var building_entries: Array = []
 	for b in _get_buildings():
+		if not is_instance_valid(b):
+			continue
 		var def = b.definition
 		if def == null:
 			continue
@@ -353,9 +355,16 @@ func _get_buildings() -> Array[Node]:
 	if _building_cache_dirty:
 		_building_cache.clear()
 		for child in building_container.get_children():
-			if child.has_method("is_active"):
+			if is_instance_valid(child) and child.has_method("is_active"):
 				_building_cache.append(child)
 		_building_cache_dirty = false
+	else:
+		# Purge freed nodes between rebuilds (e.g. rapid undo)
+		var i: int = _building_cache.size() - 1
+		while i >= 0:
+			if not is_instance_valid(_building_cache[i]):
+				_building_cache.remove_at(i)
+			i -= 1
 	return _building_cache
 
 
@@ -368,6 +377,20 @@ func is_content_active(content_id: int) -> bool:
 ## Mark a content type as actively used this tick (called from main.gd for CT deliveries).
 func mark_content_active(content_id: int) -> void:
 	network_active_contents[content_id] = _tick_count
+
+
+## --- HARD SOURCE NETWORK TRACKING (processed data at CT) ---
+## Key = content_id * 2 + flag (0=decrypted, 1=recovered), Value = last tick
+var network_ct_processed: Dictionary = {}
+
+## Mark that processed data of this content arrived at CT this tick.
+## flag: 0 = decrypted, 1 = recovered
+func mark_ct_processed(content_id: int, flag: int) -> void:
+	network_ct_processed[content_id * 2 + flag] = _tick_count
+
+## Check if processed data of this content was delivered to CT within the active window.
+func is_ct_processed(content_id: int, flag: int) -> bool:
+	return network_ct_processed.get(content_id * 2 + flag, -9999) >= _tick_count - CONTENT_ACTIVE_WINDOW
 
 
 func _on_sim_tick() -> void:

@@ -5,17 +5,17 @@
 [resource]
 script = ExtResource("1")
 source_name = "Shop Server"
-description = "Retail network hub server. Contains Financial and Blueprint data. Some encrypted, some corrupted."
+description = "Retail network hub server. Contains Financial and Blueprint data. Encrypted only — practice your Decryptor skills."
 color = Color(1.0, 0.73, 0.27, 1.0)
 content_weights = {1: 0.55, 3: 0.45}
-state_weights = {0: 0.55, 1: 0.10, 2: 0.35}
+state_weights = {0: 0.40, 1: 0.60}
 bandwidth = 6.0
 generation_rate = 6.0
 grid_size = Vector2i(2, 3)
 output_port_count = 3
 difficulty = "medium"
 encrypted_tier = 1
-corrupted_tier = 1
+corrupted_tier = 0
 sub_type_pool = [{"content": 1, "sub_type": 0}, {"content": 1, "sub_type": 1}, {"content": 3, "sub_type": 3}, {"content": 3, "sub_type": 2}]
 fire_type = "threshold"
 fire_requirements = [{"sub_type": 4, "amount": 40}]
