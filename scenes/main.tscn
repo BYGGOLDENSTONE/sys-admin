@@ -12,6 +12,7 @@
 [ext_resource type="Shader" uid="uid://dbuy13pxot3fk" path="res://shaders/bloom_vignette.gdshader" id="10"]
 [ext_resource type="Script" uid="uid://b4368firahglh" path="res://scripts/simulation_manager.gd" id="12_eb6dy"]
 [ext_resource type="Script" uid="uid://dpn0c826sqcaq" path="res://scripts/source_manager.gd" id="15_srcmgr"]
+[ext_resource type="Script" path="res://scripts/cursor_indicator.gd" id="cursor_ind"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_bloom"]
 shader = ExtResource("10")
@@ -34,6 +35,12 @@ script = ExtResource("2")
 script = ExtResource("9")
 
 [node name="BuildingContainer" type="Node2D" parent="." unique_id=1587724620]
+
+[node name="CursorLayer" type="CanvasLayer" parent="."]
+layer = 200
+
+[node name="CursorIndicator" type="Node2D" parent="CursorLayer"]
+script = ExtResource("cursor_ind")
 
 [node name="GhostPreview" type="Node2D" parent="." unique_id=1338310875]
 visible = false

@@ -63,6 +63,11 @@ func _ready() -> void:
 	building_manager.source_hovered.connect(_tooltip.show_for_source)
 	building_manager.source_unhovered.connect(_tooltip.hide_tooltip)
 
+	# Cursor indicator
+	var cursor_indicator: Node2D = $CursorLayer/CursorIndicator
+	cursor_indicator.grid_system = grid_system
+	cursor_indicator.building_manager = building_manager
+
 	# Wire up connection system
 	connection_manager.grid_system = grid_system
 	building_manager.connection_manager = connection_manager

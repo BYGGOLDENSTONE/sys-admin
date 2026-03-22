@@ -68,6 +68,7 @@ BREACH:      Karmasik kaynak → guvenlik as → ayikla/coz/onar → saf veri �
 - Public=Yesil, Encrypted=Mavi, Corrupted=Turuncu
 - Sub-type gorseli: kablo/haritada sadece parent content sembolu ($ @ # ? ! 1). Sub-type detayi sadece bina panellerinde (hover/info)
 - Procedural-first sanat, siluet/ikon/glow/motion/flow feedback
+- **Custom Cursor:** OS cursor gizli, neon kirmizi daire imleç (code-drawn). Ekran koordinatlarinda serbest hareket. Hover'da buyur + parlak. Placement/move/copy modlarinda gizlenir. Menu + oyun icinde aktif.
 
 ### Demo'da Yapilmayacaklar
 - Malware Cleaner, 32-bit Encrypted, Critical-Glitched, Enc·Cor birlesik state

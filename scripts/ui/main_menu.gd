@@ -32,6 +32,7 @@ var _glitch_end: float = 0.0
 func _ready() -> void:
 	SettingsManager.apply_all(SettingsManager.get_settings())
 	_build_ui()
+	_setup_cursor()
 	_next_glitch = randf_range(2.0, 5.0)
 	modulate = Color(1, 1, 1, 0)
 	var tw := create_tween()
@@ -40,6 +41,16 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	_update_glitch(delta)
+
+
+func _setup_cursor() -> void:
+	var cursor_layer := CanvasLayer.new()
+	cursor_layer.layer = 200
+	add_child(cursor_layer)
+	var CursorScript = preload("res://scripts/cursor_indicator.gd")
+	var cursor := Node2D.new()
+	cursor.set_script(CursorScript)
+	cursor_layer.add_child(cursor)
 
 
 func _build_ui() -> void:
