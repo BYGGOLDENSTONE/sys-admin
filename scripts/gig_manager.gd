@@ -20,7 +20,7 @@ const MAX_ACTIVE_PROCEDURAL: int = 3
 const CLIENT_NAMES: PackedStringArray = ["ZERO_DAY", "BROKER_7", "GHOST_SIGNAL", "DR_PATCH", "CIPHER_QUEEN", "ARCHIVE_X"]
 
 ## Starting buildings (always available)
-var _starter_buildings: PackedStringArray = ["Trash", "Splitter"]
+var _starter_buildings: PackedStringArray = ["Trash", "Splitter", "Uplink"]
 
 var building_container: Node2D = null
 var _contract_terminal: Node2D = null
@@ -53,7 +53,7 @@ func _unlock_all_buildings() -> void:
 	## Unlock all placeable buildings (for Level 2+)
 	var all_names: PackedStringArray = [
 		"Trash", "Splitter", "Merger", "Classifier", "Scanner", "Separator",
-		"Decryptor", "Encryptor", "Recoverer", "Key Forge", "Repair Lab"
+		"Decryptor", "Encryptor", "Recoverer", "Key Forge", "Repair Lab", "Uplink"
 	]
 	for b_name in all_names:
 		_unlocked_buildings[b_name] = true

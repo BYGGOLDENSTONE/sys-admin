@@ -22,6 +22,7 @@ const BUILDING_ORDER: PackedStringArray = [
 	"Trash", "Splitter",
 	"Separator", "Classifier", "Scanner", "Merger", "Recoverer",
 	"Key Forge", "Repair Lab", "Decryptor", "Encryptor",
+	"Uplink",
 ]
 
 ## Which gig unlocks each building (for locked tooltip)

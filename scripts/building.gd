@@ -41,6 +41,7 @@ var classifier_filter_content: int = 0  ## Filter value for classifier (content 
 var scanner_filter_sub_type: int = -1  ## Filter: packed content*4+sub_type, -1=none
 var selected_tier: int = 1  ## For producer: which tier to produce (1-3)
 var upgrade_level: int = 0  ## Current upgrade level (0 = base)
+var uplink_partner: Node2D = null  ## Reference to paired Uplink partner building
 
 # --- DIRTY FLAG (skip redraw when nothing changed) ---
 var _draw_dirty: bool = true
@@ -158,6 +159,14 @@ func _get_building_polygon(r: Rect2, vtype: String) -> PackedVector2Array:
 				Vector2(x + w * 0.5, y), Vector2(x + w, y + h * 0.15),
 				Vector2(x + w, y + h * 0.6), Vector2(x + w * 0.5, y + h),
 				Vector2(x, y + h * 0.6), Vector2(x, y + h * 0.15)])
+		"uplink":  # Hexagon — wireless relay / antenna feel
+			var inset := w * 0.18
+			return PackedVector2Array([
+				Vector2(x + inset, y), Vector2(x + w - inset, y),
+				Vector2(x + w, y + h * 0.5),
+				Vector2(x + w - inset, y + h),
+				Vector2(x + inset, y + h),
+				Vector2(x, y + h * 0.5)])
 		_:  # Default rect
 			return PackedVector2Array([
 				Vector2(x, y), Vector2(x + w, y),
@@ -193,6 +202,9 @@ func _process(delta: float) -> void:
 	if is_selected != _prev_is_selected:
 		_prev_is_selected = is_selected
 		_draw_dirty = true
+		# Uplink partner highlight: mark partner for redraw when selection changes
+		if uplink_partner != null and is_instance_valid(uplink_partner):
+			uplink_partner._draw_dirty = true
 	if stored_data_dirty:
 		stored_data_dirty = false
 		_draw_dirty = true
@@ -614,6 +626,15 @@ func _draw() -> void:
 			if scan_y >= -4.0 and scan_y <= size.y + 4.0:
 				draw_line(Vector2(-4, scan_y), Vector2(size.x + 4, scan_y), Color(accent, 0.2), 1.0)
 
+	# Uplink partner highlight: pulsing glow when partner is selected
+	if uplink_partner != null and is_instance_valid(uplink_partner) and uplink_partner.is_selected and not is_selected:
+		var partner_pulse: float = (sin(_glow_time * 5.0) * 0.5 + 0.5)
+		var partner_rect := Rect2(
+			Vector2(-outer_w * 2.0, -outer_w * 2.0),
+			size + Vector2(outer_w * 4.0, outer_w * 4.0)
+		)
+		draw_rect(partner_rect, Color(accent, 0.1 + partner_pulse * 0.15), false, outer_w * 1.5)
+
 	# Inner detail lines (skip at medium zoom)
 	if not is_medium:
 		var line_color := Color(accent, 0.1)
@@ -760,6 +781,8 @@ func _draw_icon(center: Vector2, size: Vector2, accent: Color) -> void:
 			_draw_icon_terminal(icon_center, size, accent)
 		"repair_lab":
 			_draw_icon_repair_lab(icon_center, size, accent)
+		"uplink":
+			_draw_icon_uplink(icon_center, size, accent)
 		_:
 			_draw_icon_default(icon_center, size, accent)
 
@@ -1067,6 +1090,31 @@ func _draw_icon_repair_lab(center: Vector2, size: Vector2, accent: Color) -> voi
 	draw_arc(wrench_pos, s * 0.2, PI * 0.3, PI * 1.8, 12, accent, 1.5)
 	# Small notch (wrench opening)
 	draw_line(wrench_pos + Vector2(s * 0.2, 0), wrench_pos + Vector2(s * 0.12, -s * 0.08), accent, 1.5)
+
+
+# --- UPLINK: Wireless antenna / signal icon ---
+func _draw_icon_uplink(center: Vector2, size: Vector2, accent: Color) -> void:
+	var s: float = minf(size.x, size.y) * 0.35
+	var glow := Color(accent, ICON_GLOW_ALPHA)
+	var is_output: bool = definition != null and not definition.output_ports.is_empty()
+	# Center dot (antenna base)
+	draw_circle(center, s * 0.15, glow)
+	draw_circle(center, s * 0.12, accent)
+	if is_output:
+		# Output: broadcast arcs (signals going out)
+		for i in range(2):
+			var r: float = s * (0.45 + i * 0.35)
+			draw_arc(center, r, -PI * 0.35, PI * 0.35, 12, glow, ICON_GLOW_WIDTH)
+			draw_arc(center, r, -PI * 0.35, PI * 0.35, 12, accent, 1.5)
+	else:
+		# Input: receiving arcs (signals coming in from left)
+		for i in range(2):
+			var r: float = s * (0.45 + i * 0.35)
+			draw_arc(center, r, PI * 0.65, PI * 1.35, 12, glow, ICON_GLOW_WIDTH)
+			draw_arc(center, r, PI * 0.65, PI * 1.35, 12, accent, 1.5)
+	# Vertical antenna line
+	draw_line(center, center + Vector2(0, -s * 0.6), glow, ICON_GLOW_WIDTH)
+	draw_line(center, center + Vector2(0, -s * 0.6), accent, 2.0)
 
 
 # --- DEFAULT: Simple dot ---

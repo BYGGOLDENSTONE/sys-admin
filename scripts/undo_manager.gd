@@ -112,6 +112,13 @@ func _restore_building(cmd: Dictionary) -> void:
 	building.separator_mode = cmd.get("separator_mode", "state")
 	building.separator_filter_value = cmd.get("separator_filter_value", 0)
 	building.selected_tier = cmd.get("selected_tier", 1)
+	# Re-link uplink partner
+	var uplink_cell: Vector2i = cmd.get("uplink_partner_cell", Vector2i(-1, -1))
+	if uplink_cell != Vector2i(-1, -1):
+		var partner: Node2D = grid_system.get_building_at(uplink_cell)
+		if partner != null:
+			building.uplink_partner = partner
+			partner.uplink_partner = building
 	building.queue_redraw()
 	# Restore connections (path is stored as vertex array)
 	for conn_data in cmd.get("connections", []):

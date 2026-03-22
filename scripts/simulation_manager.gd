@@ -421,6 +421,8 @@ func _on_sim_tick() -> void:
 		_update_generation(buildings)
 		_update_storage_forward(buildings)
 		_update_processing(buildings)
+	# 3. Uplink transfer: teleport data from Input to Output Uplink's cable
+	_update_uplink_transfer(buildings)
 	# Mark buildings with changed stored_data for redraw
 	for b in buildings:
 		if b.is_working:
@@ -1214,7 +1216,8 @@ func _push_data_from(source: Node2D, content: int, state: int, amount: int, from
 	var total_sent: int = 0
 	for conn in targets:
 		var target: Node2D = conn.to_building
-		if not target.has_method("can_accept_data"):
+		var is_fire_port: bool = String(conn.to_port).begins_with("fire_")
+		if not is_fire_port and not target.has_method("can_accept_data"):
 			continue
 		var to_send: int = mini(per_target, amount)
 		if to_send <= 0:
@@ -1232,8 +1235,8 @@ func _push_data_from(source: Node2D, content: int, state: int, amount: int, from
 			transit_total += int(ti.amount)
 		if transit_total >= bw_limit:
 			continue
-		# Static type filter (building definition check)
-		if not target.accepts_data(content, state):
+		# Static type filter (building definition check) — skip for FIRE ports (sources handle acceptance)
+		if not is_fire_port and not target.accepts_data(content, state):
 			continue
 		# CT acceptance: only processed data passes (Public, or with DECRYPTED/RECOVERED/ENCRYPTED tag)
 		if target.definition is BuildingDefinition and target.definition.category == "terminal":
@@ -1320,6 +1323,36 @@ func _update_storage_forward(buildings: Array[Node]) -> void:
 				sent += pushed
 		if sent > 0:
 			b.is_working = true
+
+
+# --- UPLINK TRANSFER ---
+func _update_uplink_transfer(buildings: Array[Node]) -> void:
+	## Transfer data from Input Uplink stored_data to Output Uplink output cable.
+	for b in buildings:
+		if b.uplink_partner == null or not is_instance_valid(b.uplink_partner):
+			continue
+		if b.definition == null or b.definition.uplink_partner_name == "":
+			continue
+		# Only process Output Uplinks (they have output ports)
+		if b.definition.output_ports.is_empty():
+			continue
+		var partner: Node2D = b.uplink_partner
+		if partner.get_total_stored() <= 0:
+			continue
+		var keys_to_remove: Array = []
+		for key in partner.stored_data:
+			var amount: int = partner.stored_data[key]
+			if amount <= 0:
+				continue
+			var pushed: int = _push_data_from(b, DataEnums.unpack_content(key), DataEnums.unpack_state(key), amount, "", DataEnums.unpack_tier(key), DataEnums.unpack_tags(key), DataEnums.unpack_sub_type(key))
+			if pushed > 0:
+				partner.stored_data[key] -= pushed
+				if partner.stored_data[key] <= 0:
+					keys_to_remove.append(key)
+				b.is_working = true
+				partner.is_working = true
+		for key in keys_to_remove:
+			partner.stored_data.erase(key)
 
 
 # --- PROCESSING ---

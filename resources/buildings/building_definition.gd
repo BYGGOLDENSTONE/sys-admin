@@ -10,6 +10,7 @@ extends Resource
 @export var is_placeable: bool = true
 @export var output_ports: Array[String] = []
 @export var input_ports: Array[String] = []
+@export var uplink_partner_name: String = ""  ## Partner building_name for paired Uplink placement
 
 @export_group("Components")
 @export var storage: StorageComponent

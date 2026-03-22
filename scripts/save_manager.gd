@@ -210,6 +210,10 @@ func _capture_buildings() -> Array:
 			"blocked_ports": building.blocked_ports.duplicate(),
 			"port_carried_types": _serialize_port_carried_types(building.port_carried_types),
 		}
+		# Save Uplink partner cell reference
+		if building.uplink_partner != null and is_instance_valid(building.uplink_partner):
+			entry["uplink_partner_x"] = building.uplink_partner.grid_cell.x
+			entry["uplink_partner_y"] = building.uplink_partner.grid_cell.y
 		result.append(entry)
 	return result
 
@@ -431,6 +435,17 @@ func _restore_buildings(buildings_data: Array) -> Dictionary:
 
 		var map_key: String = "%d_%d" % [cell.x, cell.y]
 		building_map[map_key] = building
+
+	# Second pass: link Uplink partners by stored cell coordinates
+	for entry in buildings_data:
+		if not entry.has("uplink_partner_x"):
+			continue
+		var cell_key: String = "%d_%d" % [int(entry.get("cell_x", 0)), int(entry.get("cell_y", 0))]
+		var partner_key: String = "%d_%d" % [int(entry.get("uplink_partner_x", 0)), int(entry.get("uplink_partner_y", 0))]
+		var building: Node2D = building_map.get(cell_key)
+		var partner: Node2D = building_map.get(partner_key)
+		if building != null and partner != null:
+			building.uplink_partner = partner
 
 	return building_map
 

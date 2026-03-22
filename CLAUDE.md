@@ -40,7 +40,7 @@ BREACH:      Karmasik kaynak → guvenlik as → ayikla/coz/onar → saf veri �
 
 ### Demo Scope Lock
 - Demo Level 1 only (2x2 CT, 50x50 harita, ~14 kaynak)
-- Roster: Classifier, Separator, Scanner, Recoverer, Key Forge, Repair Lab, Decryptor, Encryptor, Splitter, Merger, Trash, Contract Terminal (12 bina)
+- Roster: Classifier, Separator, Scanner, Recoverer, Key Forge, Repair Lab, Decryptor, Encryptor, Splitter, Merger, Trash, Uplink, Contract Terminal (13 bina)
 - State: Public, Encrypted (4-bit, 16-bit), Corrupted (Minor-Glitched, Major-Glitched)
 - CT kabul: Public, Decrypted, Recovered, Dec·Enc, Rec·Enc
 - Enc·Cor (birlesik state): demo'da YOK — sadece full release
@@ -60,6 +60,7 @@ BREACH:      Karmasik kaynak → guvenlik as → ayikla/coz/onar → saf veri �
 - FIRE kapaninca veri akisi aninda kesilir
 - **Network Bar:** Kaynak bagli = tum content tipleri CT'ye aktif akiyor. Bar = bagli kaynak / toplam kaynak
 - **CT Istatistik Paneli:** CT'ye tiklayinca tum zamanlar kumulatif veri dokumu (content + state bazli, gercek zamanli)
+- **Uplink:** Esli kablosuz veri teleport binasi. Input Uplink (sol giris) + Output Uplink (sag cikis). Tek tikla ikisi de yerlesir. Anlik iletim, sinisiz bandwidth, penalti yok. Bastan acik. Birine tikla → digeri parlar. Birini sil → ikisi de silinir. FIRE portlarina da baglanabilir.
 
 ### Gorsel Dil
 - Public=Yesil, Encrypted=Mavi, Corrupted=Turuncu

@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="BuildingDefinition" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://resources/buildings/building_definition.gd" id="1"]
+[ext_resource type="Script" path="res://resources/components/storage_component.gd" id="2"]
+
+[sub_resource type="Resource" id="stor1"]
+script = ExtResource("2")
+capacity = 9999
+forward_rate = 0.0
+
+[resource]
+script = ExtResource("1")
+building_name = "Uplink Output"
+description = "Outputs data teleported from its paired Input Uplink."
+grid_size = Vector2i(2, 2)
+color = Color(0.75, 0.55, 0.95, 1)
+category = "routing"
+visual_type = "uplink"
+output_ports = Array[String](["right"])
+input_ports = Array[String]([])
+uplink_partner_name = "Uplink"
+storage = SubResource("stor1")

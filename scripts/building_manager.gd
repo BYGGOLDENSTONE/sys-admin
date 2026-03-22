@@ -55,6 +55,11 @@ var _copy_buffer: Array[Dictionary] = []  ## [{definition, offset, direction, mi
 var _copy_connections: Array[Dictionary] = []  ## [{from_offset, from_port, to_offset, to_port, path_offsets}]
 var _copy_anchor: Vector2i = Vector2i.ZERO  ## Anchor cell for paste preview
 
+# Uplink paired placement state
+var _uplink_pending_input: Node2D = null  ## First uplink placed, awaiting partner
+var _uplink_output_def: BuildingDefinition = null  ## Cached definition for output uplink
+var _uplink_removing: bool = false  ## Guard against recursive partner removal
+
 # Exempt cells for cable routing (cells near port exit vertices)
 var _cable_exempt_cells: Dictionary = {}
 
@@ -82,6 +87,10 @@ func start_placement(def: BuildingDefinition) -> void:
 func cancel_placement() -> void:
 	if _state != State.PLACING:
 		return
+	# Uplink pair: if we're waiting for second placement, remove the first one too
+	if _uplink_pending_input != null and is_instance_valid(_uplink_pending_input):
+		_remove_building(_uplink_pending_input)
+		_uplink_pending_input = null
 	_state = State.IDLE
 	_current_definition = null
 	ghost_preview.visible = false
@@ -742,6 +751,27 @@ func _place_building() -> void:
 	print("[BuildingManager] Building placed — %s at (%d,%d)" % [
 		_current_definition.building_name, _ghost_cell.x, _ghost_cell.y
 	])
+	# Uplink paired placement: after placing Input, auto-start Output placement
+	if _current_definition.uplink_partner_name != "" and _uplink_pending_input == null:
+		_uplink_pending_input = building
+		if _uplink_output_def == null:
+			_uplink_output_def = load("res://resources/buildings/%s.tres" % _current_definition.uplink_partner_name.to_lower().replace(" ", "_"))
+		_current_definition = _uplink_output_def
+		ghost_preview.setup(_uplink_output_def, Vector2i.ZERO)
+		ghost_preview.direction = 0
+		ghost_preview.mirror_h = false
+		ghost_preview.mirror_v = false
+		print("[BuildingManager] Uplink pair — place Output partner")
+		return  # Stay in PLACING state for partner
+	# Uplink: second placed — link partners
+	if _uplink_pending_input != null:
+		building.uplink_partner = _uplink_pending_input
+		_uplink_pending_input.uplink_partner = building
+		print("[BuildingManager] Uplink pair linked — (%d,%d) <-> (%d,%d)" % [
+			_uplink_pending_input.grid_cell.x, _uplink_pending_input.grid_cell.y,
+			building.grid_cell.x, building.grid_cell.y
+		])
+		_uplink_pending_input = null
 	# Single placement unless Shift is held
 	if not Input.is_key_pressed(KEY_SHIFT):
 		cancel_placement()
@@ -752,11 +782,22 @@ func _place_building() -> void:
 func _remove_building(building: Node2D) -> void:
 	if not building.definition.is_placeable:
 		return  # Contract Terminal cannot be deleted
+	# Uplink pair: delete partner too (guard prevents infinite recursion)
+	if building.uplink_partner != null and is_instance_valid(building.uplink_partner) and not _uplink_removing:
+		_uplink_removing = true
+		var partner: Node2D = building.uplink_partner
+		building.uplink_partner = null
+		partner.uplink_partner = null
+		_remove_building(partner)
+		_uplink_removing = false
 	var cell: Vector2i = building.grid_cell
 	var def: BuildingDefinition = building.definition
 	# Capture connections before removal for undo
 	if undo_manager and not undo_manager.is_undoing:
 		var saved_conns: Array[Dictionary] = undo_manager.get_connections_for_building(building)
+		var uplink_cell := Vector2i(-1, -1)
+		if building.uplink_partner != null and is_instance_valid(building.uplink_partner):
+			uplink_cell = building.uplink_partner.grid_cell
 		undo_manager.push_command({
 			type = "remove",
 			definition = def,
@@ -770,6 +811,7 @@ func _remove_building(building: Node2D) -> void:
 			separator_filter_value = building.separator_filter_value,
 			selected_tier = building.selected_tier,
 			connections = saved_conns,
+			uplink_partner_cell = uplink_cell,
 		})
 	grid_system.free_cells(cell, def.grid_size)
 	building_removed.emit(building, cell)
