@@ -185,10 +185,13 @@ func _process(delta: float) -> void:
 		return
 	PerfMonitor.bldg_total_count += 1
 	_glow_time += delta
-	# Processing flash on working state transition
+	# Processing flash on working state transition (stronger for CT)
 	if is_working and not _prev_working:
 		_process_flash = 1.0
 		_draw_dirty = true
+		# CT gets extra visual punch on each delivery batch
+		if definition != null and definition.building_name == "Contract Terminal":
+			_process_flash = 1.5
 	if _prev_working != is_working:
 		_draw_dirty = true
 	_prev_working = is_working
@@ -635,11 +638,26 @@ func _draw() -> void:
 		)
 		draw_rect(partner_rect, Color(accent, 0.1 + partner_pulse * 0.15), false, outer_w * 1.5)
 
-	# Inner detail lines (skip at medium zoom)
+	# Inner detail lines — animated when working (skip at medium zoom)
 	if not is_medium:
 		var line_color := Color(accent, 0.1)
 		draw_line(Vector2(0, size.y * 0.3), Vector2(size.x, size.y * 0.3), line_color, 1.0)
 		draw_line(Vector2(size.x * 0.3, 0), Vector2(size.x * 0.3, size.y * 0.3), line_color, 1.0)
+		# Animated interior when working — activity indicator
+		if is_working:
+			var activity_alpha: float = 0.06 + sin(_glow_time * 3.5) * 0.03
+			# Horizontal scan line sweeping through building interior
+			var scan_phase: float = fmod(_glow_time * 0.8, 1.0)
+			var scan_y: float = size.y * scan_phase
+			draw_line(Vector2(4, scan_y), Vector2(size.x - 4, scan_y), Color(accent, activity_alpha * 3.0), 1.5)
+			# Spinning core indicator (shows building is processing)
+			var spin_r: float = minf(size.x, size.y) * 0.12
+			var spin_angle: float = _glow_time * 4.0
+			var spin_p1: Vector2 = center + Vector2(cos(spin_angle), sin(spin_angle)) * spin_r
+			var spin_p2: Vector2 = center + Vector2(cos(spin_angle + PI), sin(spin_angle + PI)) * spin_r
+			draw_line(spin_p1, spin_p2, Color(accent, 0.2), 1.5)
+			# Subtle inner glow pulse
+			draw_circle(center, spin_r * 0.5, Color(accent, activity_alpha))
 
 	# Icon — rotate and/or mirror icon with building direction
 	var icon_angle: float = direction * PI / 2.0 if direction != 0 else 0.0
@@ -676,8 +694,15 @@ func _draw() -> void:
 
 	# Processing flash overlay — bright burst when building starts working
 	if _process_flash > 0.0 and not is_medium:
-		draw_colored_polygon(base_poly, Color(accent.r, accent.g, accent.b, _process_flash * 0.35))
-		draw_polyline(_cached_closed_poly, Color(accent, _process_flash * 0.5), 2.0)
+		var flash_intensity: float = minf(_process_flash, 1.0)
+		draw_colored_polygon(base_poly, Color(accent.r, accent.g, accent.b, flash_intensity * 0.35))
+		draw_polyline(_cached_closed_poly, Color(accent, flash_intensity * 0.5), 2.0)
+		# Extra expanding ring for strong flash (CT delivery)
+		if _process_flash > 1.0:
+			var ring_expand: float = (1.5 - _process_flash) * 2.0  # 0→1 as flash fades
+			var ring_r: float = maxf(size.x, size.y) * (0.4 + ring_expand * 0.8)
+			var ring_a: float = flash_intensity * 0.3
+			draw_arc(center, ring_r, 0.0, TAU, 24, Color(accent, ring_a), 2.0, true)
 
 	# Malware overlay (skip for Trash — it destroys everything)
 	if not _is_ghost and _has_malware():

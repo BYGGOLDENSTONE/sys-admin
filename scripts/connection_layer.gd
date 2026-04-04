@@ -16,6 +16,7 @@ var simulation_manager: Node = null
 var hovered_cable_index: int = -1
 var _camera: Camera2D = null
 var _polyline_helper: RefCounted = null
+var _flow_time: float = 0.0  ## Animated cable flow time accumulator
 
 
 # Preview state (set by BuildingManager during CONNECTING)
@@ -80,6 +81,8 @@ func _process(delta: float) -> void:
 	if connection_manager == null:
 		queue_redraw()
 		return
+
+	_flow_time += delta
 
 	# Update flash timers
 	var fi: int = _flash_times.size() - 1
@@ -244,18 +247,34 @@ func _draw_connection(conn: Dictionary, hovered: bool) -> void:
 	# Cable color based on transit load (green→yellow→red)
 	var cable_col: Color = CABLE_COLOR
 	var transit: Array = conn.get("transit", [])
+	var load_ratio: float = 0.0
 	if not transit.is_empty():
 		var total: int = 0
 		for ti in transit:
 			total += int(ti.amount)
-		var load_ratio: float = clampf(float(total) / 50.0, 0.0, 1.0)  # 50 = bandwidth reference
+		load_ratio = clampf(float(total) / 50.0, 0.0, 1.0)  # 50 = bandwidth reference
 		if load_ratio > 0.7:
 			cable_col = Color(1.0, 0.3, 0.2, 0.85)   # Red — near capacity
 		elif load_ratio > 0.3:
 			cable_col = Color(1.0, 0.8, 0.2, 0.8)     # Yellow — moderate
 		else:
 			cable_col = Color(0.2, 0.9, 0.5, 0.75)     # Green — light load
+
+	# Draw outer glow for active cables (carries data)
+	if not transit.is_empty():
+		var glow_alpha: float = 0.08 + load_ratio * 0.12
+		draw_polyline(points, Color(cable_col, glow_alpha), core_w * 3.0, true)
+
 	draw_polyline(points, cable_col, core_w, true)
+
+	# Animated flow dashes — shows data direction (only when zoom > 0.2 and cable has data)
+	if not transit.is_empty() and zoom > 0.2:
+		_draw_flow_dashes(points, cable_col, core_w, zoom_scale, conn)
+
+	# Saturation warning pulse (cable at >90% capacity)
+	if load_ratio > 0.9:
+		var pulse: float = (sin(_flow_time * 6.0) * 0.5 + 0.5) * 0.25
+		draw_polyline(points, Color(1.0, 0.15, 0.1, pulse), core_w * 2.5, true)
 
 
 func _build_polyline(conn: Dictionary) -> PackedVector2Array:
@@ -475,6 +494,20 @@ func play_connection_flash(building: Node2D) -> void:
 	_flash_colors.append(building.definition.color)
 
 
+func play_ct_delivery_burst(ct_building: Node2D, data_color: Color) -> void:
+	## Enhanced flash for Contract Terminal deliveries — double ring + brighter burst
+	if ct_building == null:
+		return
+	var pos: Vector2 = to_local(ct_building.get_center_world())
+	_flash_positions.append(pos)
+	_flash_times.append(FLASH_DURATION * 1.5)
+	_flash_colors.append(data_color)
+	# Second ring for emphasis
+	_flash_positions.append(pos + Vector2(0, -4))
+	_flash_times.append(FLASH_DURATION * 0.8)
+	_flash_colors.append(Color(1.0, 1.0, 1.0, 0.8))
+
+
 func play_removal_flash(points: PackedVector2Array, color: Color) -> void:
 	if points.size() < 2:
 		return
@@ -671,3 +704,58 @@ func _update_transit_multimesh() -> void:
 			break
 
 	_transit_mm.visible_instance_count = instance_idx
+
+
+func _draw_flow_dashes(points: PackedVector2Array, cable_col: Color, core_w: float, zoom_scale: float, conn: Dictionary) -> void:
+	## Draw animated dashes along cable to show data flow direction.
+	## Dashes move from source to destination, creating visual flow.
+	if points.size() < 2:
+		return
+	var total_length: float = conn.get("_cached_total_length", 0.0)
+	if total_length < 20.0:
+		return
+
+	# Dash parameters
+	var dash_len: float = 12.0 * zoom_scale
+	var gap_len: float = 18.0 * zoom_scale
+	var cycle: float = dash_len + gap_len
+	var flow_speed: float = 120.0  # pixels per second
+	var time_offset: float = fmod(_flow_time * flow_speed, cycle)
+	var dash_col := Color(cable_col, 0.35)
+	var dash_w: float = core_w * 0.6
+
+	# Walk along polyline and draw dashes
+	var seg_lengths: Array = conn.get("_cached_seg_lengths", [])
+	if seg_lengths.is_empty():
+		return
+
+	var dist: float = -time_offset  # Start before beginning for smooth entry
+	var seg_idx: int = 0
+	var seg_start: float = 0.0
+
+	while dist < total_length:
+		# Dash start position
+		var d_start: float = dist
+		var d_end: float = dist + dash_len
+
+		if d_end > 0.0 and d_start < total_length:
+			var clamped_start: float = maxf(d_start, 0.0)
+			var clamped_end: float = minf(d_end, total_length)
+			var p1: Vector2 = _point_at_dist(points, seg_lengths, clamped_start)
+			var p2: Vector2 = _point_at_dist(points, seg_lengths, clamped_end)
+			if p1.distance_squared_to(p2) > 4.0:
+				draw_line(p1, p2, dash_col, dash_w, true)
+
+		dist += cycle
+
+
+func _point_at_dist(points: PackedVector2Array, seg_lengths: Array, dist: float) -> Vector2:
+	## Returns the point on the polyline at the given distance from start.
+	var accumulated: float = 0.0
+	for i in range(seg_lengths.size()):
+		var seg_len: float = seg_lengths[i]
+		if accumulated + seg_len >= dist:
+			var t: float = (dist - accumulated) / maxf(seg_len, 0.001)
+			return points[i].lerp(points[i + 1], t)
+		accumulated += seg_len
+	return points[points.size() - 1]

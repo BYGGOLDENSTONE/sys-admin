@@ -3,6 +3,8 @@ extends Node2D
 ## Data source — grid-aligned rectangular structure with output ports.
 ## Players connect cables directly from source output ports to buildings.
 
+signal fire_breached(source: Node2D)
+
 const _MONO_FONT: Font = preload("res://assets/fonts/JetBrainsMono-Regular.ttf")
 const TILE_SIZE: int = 64
 const GLOW_PULSE_SPEED: float = 1.5
@@ -153,6 +155,7 @@ func _check_fire_breach() -> void:
 	## All requirements met — breach FIRE
 	fire_active = false
 	_fire_breach_flash = 1.0
+	fire_breached.emit(self)
 	print("[FIRE] Breached — %s" % definition.source_name)
 
 
@@ -564,17 +567,31 @@ func _draw_fire_status(center: Vector2, size: Vector2) -> void:
 			var txt_pos := Vector2(center.x - ts.x / 2.0, bar_y + bar_h + txt_size + 2.0 * inv_scale)
 			draw_string(font, txt_pos, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, txt_size, Color(fire_color, 0.7))
 	else:
-		## FIRE Breached — brief green flash then subtle indicator
+		## FIRE Breached — dramatic green burst then subtle indicator
 		if _fire_breach_flash > 0.0:
-			var flash_alpha: float = _fire_breach_flash * 0.3
+			var flash_alpha: float = _fire_breach_flash * 0.4
+			# Full-source green overlay
 			draw_rect(Rect2(Vector2.ZERO, size), Color(0.2, 1.0, 0.5, flash_alpha), true)
-			_fire_breach_flash = maxf(0.0, _fire_breach_flash - 0.02)
+			# Expanding shockwave rings
+			var ring_progress: float = 1.0 - _fire_breach_flash
+			for r in range(3):
+				var rp: float = ring_progress + float(r) * 0.15
+				if rp > 0.0 and rp < 1.0:
+					var ring_r: float = maxf(size.x, size.y) * (0.3 + rp * 1.2)
+					var ring_a: float = (1.0 - rp) * 0.5
+					draw_arc(center, ring_r, 0.0, TAU, 32, Color(0.2, 1.0, 0.5, ring_a), 3.0 * (1.0 - rp), true)
+			# Bright center burst
+			var burst_r: float = maxf(size.x, size.y) * 0.3 * _fire_breach_flash
+			draw_circle(center, burst_r, Color(0.3, 1.0, 0.6, _fire_breach_flash * 0.6))
+			draw_circle(center, burst_r * 0.3, Color(1.0, 1.0, 1.0, _fire_breach_flash * 0.8))
+			_fire_breach_flash = maxf(0.0, _fire_breach_flash - 0.012)
 
 		## Small green unlock icon
 		var icon_y: float = center.y + 8.0 * inv_scale
 		var icon_r: float = 5.0 * inv_scale
-		var breach_color := Color(0.2, 1.0, 0.5, 0.5)
+		var breach_color := Color(0.2, 1.0, 0.5, 0.5 + sin(_glow_time * 2.0) * 0.15)
 		draw_circle(Vector2(center.x, icon_y), icon_r, breach_color)
+		draw_circle(Vector2(center.x, icon_y), icon_r * 0.4, Color(1.0, 1.0, 1.0, 0.3))
 
 
 func _draw_zone_badge(center: Vector2) -> void:

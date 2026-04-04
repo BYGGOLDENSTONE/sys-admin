@@ -60,19 +60,22 @@ func _unlock_all_buildings() -> void:
 
 
 func _load_gigs() -> void:
-	var dir := DirAccess.open("res://resources/gigs/")
-	if dir == null:
-		push_warning("[GigManager] Cannot open gigs directory")
-		return
-	dir.list_dir_begin()
-	var file_name := dir.get_next()
-	while file_name != "":
-		if file_name.ends_with(".tres"):
-			var gig = load("res://resources/gigs/" + file_name)
-			if gig != null:
-				_all_gigs.append(gig)
-		file_name = dir.get_next()
-	dir.list_dir_end()
+	# Hardcoded list — DirAccess fails in web exports (PCK packed resources)
+	var gig_paths: PackedStringArray = [
+		"res://resources/gigs/gig_01.tres",
+		"res://resources/gigs/gig_02.tres",
+		"res://resources/gigs/gig_03.tres",
+		"res://resources/gigs/gig_04.tres",
+		"res://resources/gigs/gig_05.tres",
+		"res://resources/gigs/gig_06.tres",
+		"res://resources/gigs/gig_07.tres",
+		"res://resources/gigs/gig_08.tres",
+		"res://resources/gigs/gig_09.tres",
+	]
+	for path in gig_paths:
+		var gig = load(path)
+		if gig != null:
+			_all_gigs.append(gig)
 	# Sort by order_index
 	_all_gigs.sort_custom(func(a, b): return a.order_index < b.order_index)
 	print("[GigManager] Loaded %d gig definitions" % _all_gigs.size())
@@ -343,23 +346,29 @@ func _activate_gig(gig) -> void:
 
 # ── PROCEDURAL GIG GENERATOR ──────────────────────────────────
 
-## Difficulty tiers define what processing tags are required
+## Difficulty tiers define what processing tags are required.
+## Tiers cycle through increasingly complex processing chains.
 const PROC_TIERS: Array = [
-	# tier 0-2: Public data, no processing needed
+	# tier 0-1: Public data, no processing needed
 	{"tags": 0, "state": 0, "label_suffix": "Public"},
 	{"tags": 0, "state": 0, "label_suffix": "Public"},
-	{"tags": 0, "state": 0, "label_suffix": "Public"},
-	# tier 3-4: Decrypted (needs Decryptor)
+	# tier 2-3: Decrypted (needs Decryptor)
 	{"tags": 1, "state": 0, "label_suffix": "Decrypted"},
 	{"tags": 1, "state": 0, "label_suffix": "Decrypted"},
-	# tier 5-6: Recovered (needs Recoverer)
+	# tier 4-5: Recovered (needs Recoverer)
 	{"tags": 2, "state": 0, "label_suffix": "Recovered"},
 	{"tags": 2, "state": 0, "label_suffix": "Recovered"},
-	# tier 7-8: Decrypted·Encrypted (needs Decryptor + Encryptor chain)
+	# tier 6-7: Decrypted·Encrypted (needs Decryptor + Encryptor chain)
 	{"tags": 5, "state": 0, "label_suffix": "Decrypted\u00b7Encrypted"},
 	{"tags": 5, "state": 0, "label_suffix": "Decrypted\u00b7Encrypted"},
-	# tier 9+: Recovered·Decrypted or multi-requirement
+	# tier 8-9: Recovered·Decrypted (multi-step pipeline)
 	{"tags": 3, "state": 0, "label_suffix": "Recovered\u00b7Decrypted"},
+	{"tags": 3, "state": 0, "label_suffix": "Recovered\u00b7Decrypted"},
+	# tier 10-11: Recovered·Encrypted (Recovery + Encryption chain)
+	{"tags": 6, "state": 0, "label_suffix": "Recovered\u00b7Encrypted"},
+	{"tags": 6, "state": 0, "label_suffix": "Recovered\u00b7Encrypted"},
+	# tier 12+: Dec·Enc (hardest single-chain — cycles back with higher amounts)
+	{"tags": 5, "state": 0, "label_suffix": "Decrypted\u00b7Encrypted"},
 ]
 
 ## Content pool — weighted by difficulty (harder content unlocks later)
@@ -389,7 +398,10 @@ func _build_content_pool_for_level(level: int) -> void:
 func _generate_procedural_gig() -> GigDefinition:
 	var gig := GigDefinition.new()
 	var diff: int = _procedural_count
-	var tier_idx: int = mini(diff, PROC_TIERS.size() - 1)
+
+	# Tier wraps around PROC_TIERS with increasing base difficulty
+	var cycle: int = diff / PROC_TIERS.size()  # How many full cycles completed
+	var tier_idx: int = diff % PROC_TIERS.size()
 	var tier_data: Dictionary = PROC_TIERS[tier_idx]
 
 	# Pick content — filtered by level's available content types
@@ -398,10 +410,12 @@ func _generate_procedural_gig() -> GigDefinition:
 		_level_content_pool = [0, 1, 2]  # Fallback
 	content = _level_content_pool[randi() % _level_content_pool.size()]
 
-	# Amount scales with difficulty
-	var amount: int = 8 + mini(diff, 10) * 2
+	# Amount scales with difficulty — logarithmic curve, never feels flat
+	# Base: 10, grows ~40% per difficulty level, soft-capped at 200
+	var base_amount: int = 10 + int(diff * 3.5) + cycle * 15
+	var amount: int = mini(base_amount, 200)
 
-	# Build requirement
+	# Build primary requirement
 	var req := GigRequirement.new()
 	req.content = content
 	req.state = tier_data.state
@@ -409,46 +423,86 @@ func _generate_procedural_gig() -> GigDefinition:
 	req.amount = amount
 	req.label = "%s %s" % [DataEnums.content_name(content), tier_data.label_suffix]
 
-	# Multi-requirement at high difficulty (2 different content types)
 	var reqs: Array[Resource] = [req]
-	if diff >= 8 and randf() < 0.5:
-		var content2: int = content
-		while content2 == content:
-			content2 = (EASY_CONTENT + HARD_CONTENT)[randi() % 5]
-		var prev_tier: Dictionary = PROC_TIERS[maxi(tier_idx - 2, 0)]
-		var req2 := GigRequirement.new()
-		req2.content = content2
-		req2.state = prev_tier.state
-		req2.tags = prev_tier.tags
-		req2.amount = maxi(amount - 5, 5)
-		req2.label = "%s %s" % [DataEnums.content_name(content2), prev_tier.label_suffix]
-		reqs.append(req2)
+
+	# Multi-requirement gigs: guaranteed at diff 6+, with escalating complexity
+	if diff >= 6:
+		var num_extra: int = 1
+		if diff >= 15:
+			num_extra = 2  # Triple-requirement at very high difficulty
+		if diff >= 25:
+			num_extra = mini(3, _level_content_pool.size() - 1)  # Quad at extreme
+
+		var used_contents: Array[int] = [content]
+		for _e in range(num_extra):
+			# Pick a different content type
+			var pool: Array[int] = []
+			for c in _level_content_pool:
+				if c not in used_contents:
+					pool.append(c)
+			if pool.is_empty():
+				break
+			var content2: int = pool[randi() % pool.size()]
+			used_contents.append(content2)
+
+			# Secondary requirements use a different (often easier) processing tier
+			var sec_tier_idx: int = maxi(tier_idx - 2 - (randi() % 3), 0)
+			var sec_tier: Dictionary = PROC_TIERS[sec_tier_idx]
+			var sec_amount: int = maxi(amount / 2 + randi() % (amount / 4 + 1), 8)
+
+			var req2 := GigRequirement.new()
+			req2.content = content2
+			req2.state = sec_tier.state
+			req2.tags = sec_tier.tags
+			req2.amount = sec_amount
+			req2.label = "%s %s" % [DataEnums.content_name(content2), sec_tier.label_suffix]
+			reqs.append(req2)
+
+	# Sub-type requirement at high difficulty (forces Scanner usage)
+	if diff >= 10 and randf() < 0.3 + float(diff - 10) * 0.05:
+		var st_count: int = DataEnums.sub_type_count(content)
+		if st_count > 0:
+			var picked_st: int = randi() % st_count
+			req.sub_type = picked_st
+			var st_name: String = DataEnums.sub_type_name(content, picked_st)
+			if st_name != "":
+				req.label += " [%s]" % st_name
 
 	# Generate name and description
 	var client: String = CLIENT_NAMES[randi() % CLIENT_NAMES.size()]
-	gig.gig_name = _proc_gig_name(content, tier_data.tags)
-	gig.description = "%s: I need %d %s. Get it flowing.\n\n%s" % [
-		client, amount, req.label, _proc_gig_instruction(tier_data.tags)]
+	var gig_label: String = _proc_gig_name(content, tier_data.tags)
+	if reqs.size() > 1:
+		gig_label += " +" + str(reqs.size() - 1)
+	gig.gig_name = gig_label
+	gig.description = "%s: I need %d %s. %s\n\n%s" % [
+		client, amount, req.label,
+		"Plus %d more deliveries." % (reqs.size() - 1) if reqs.size() > 1 else "",
+		_proc_gig_instruction(tier_data.tags)]
 	gig.order_index = _next_order_index
 	gig.is_tutorial = false
 	gig.requirements = reqs
 	gig.reward_buildings = []
 
 	_next_order_index += 1
-	print("[GigManager] Generated procedural gig — %s (difficulty %d)" % [gig.gig_name, diff])
+	print("[GigManager] Generated procedural gig — %s (difficulty %d, cycle %d, %d reqs)" % [gig.gig_name, diff, cycle, reqs.size()])
 	return gig
 
 
+const GIG_NAME_VARIANTS: Dictionary = {
+	0: ["% Harvest", "% Extract", "% Siphon", "% Grab"],
+	1: ["% Decrypt Job", "% Codebreak", "% Key Crack", "% Cipher Run"],
+	2: ["% Recovery", "% Salvage", "% Restore Op", "% Data Rescue"],
+	4: ["% Encryption", "% Lockdown", "% Seal Job", "% Vault Run"],
+	5: ["% Secure Transfer", "% Full Cycle", "% Roundtrip", "% Lock & Key"],
+	3: ["% Deep Clean", "% Dual Process", "% Pipeline Run", "% Total Purge"],
+	6: ["% Armored Recovery", "% Shield & Heal", "% Fortified Salvage", "% Iron Restore"],
+}
+
 func _proc_gig_name(content: int, tags: int) -> String:
 	var c_name: String = DataEnums.content_name(content)
-	match tags:
-		0: return "%s Harvest" % c_name
-		1: return "%s Decrypt Job" % c_name
-		2: return "%s Recovery" % c_name
-		4: return "%s Encryption" % c_name
-		5: return "%s Secure Transfer" % c_name
-		3: return "%s Deep Clean" % c_name
-	return "%s Contract" % c_name
+	var variants: Array = GIG_NAME_VARIANTS.get(tags, ["% Contract"])
+	var template: String = variants[randi() % variants.size()]
+	return template.replace("%", c_name)
 
 
 func _proc_gig_instruction(tags: int) -> String:
@@ -458,4 +512,5 @@ func _proc_gig_instruction(tags: int) -> String:
 		2: return "Recover corrupted data — feed same-content Public fuel into the Recoverer."
 		5: return "Decrypt first, then re-encrypt through the Encryptor. Both need Keys."
 		3: return "Recover the data, then decrypt it. A multi-step pipeline."
+		6: return "Recover the data, then encrypt it. Build a Recovery + Encryption chain."
 	return "Process and deliver the data."

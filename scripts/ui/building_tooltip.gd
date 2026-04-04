@@ -148,6 +148,8 @@ func _update_stats() -> void:
 		var effective: int = maxi(1, int(base / float(maxi(variety, 1))))
 		var variety_color: String = "#44ff88" if variety <= 1 else ("#ffcc44" if variety <= 3 else "#ff6644")
 		lines.append(_stat("Throughput", "[color=%s]%d MB/s[/color] (variety: %d)" % [variety_color, effective, variety]))
+		if variety > 1:
+			lines.append(_stat("", "[color=#888]Pre-filter with Separator for speed[/color]"))
 		var filter_name: String = DataEnums.content_name(b.classifier_filter_content)
 		lines.append(_stat("Right Port →", "[color=#44ff88]%s[/color]" % filter_name))
 		lines.append(_stat("Bottom Port →", "All other content"))
@@ -157,6 +159,8 @@ func _update_stats() -> void:
 		var effective: int = maxi(1, int(base / float(maxi(variety, 1))))
 		var variety_color: String = "#44ff88" if variety <= 1 else ("#ffcc44" if variety <= 3 else "#ff6644")
 		lines.append(_stat("Throughput", "[color=%s]%d MB/s[/color] (variety: %d)" % [variety_color, effective, variety]))
+		if variety > 1:
+			lines.append(_stat("", "[color=#888]Pre-filter with Classifier for speed[/color]"))
 		if b.scanner_filter_sub_type >= 0:
 			var sc: int = b.scanner_filter_sub_type / 4
 			var so: int = b.scanner_filter_sub_type % 4

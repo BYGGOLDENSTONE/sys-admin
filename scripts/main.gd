@@ -571,6 +571,9 @@ func _setup_fire_ports() -> void:
 		if source.has_fire():
 			source.setup_fire_ports(ct_pos)
 			fire_count += 1
+		# Connect FIRE breach event for camera shake + sound
+		if source.has_signal("fire_breached") and not source.fire_breached.is_connected(_on_fire_breached):
+			source.fire_breached.connect(_on_fire_breached)
 	if fire_count > 0:
 		print("[Main] FIRE ports setup — %d sources with FIRE protection" % fire_count)
 
@@ -579,6 +582,9 @@ func _on_source_placed(source: Node2D) -> void:
 	## When a new source is placed (e.g., lazy chunk), setup FIRE ports if needed
 	if _contract_terminal != null and source.has_fire():
 		source.setup_fire_ports(_get_ct_center())
+	# Connect FIRE breach event for camera shake + sound
+	if source.has_signal("fire_breached") and not source.fire_breached.is_connected(_on_fire_breached):
+		source.fire_breached.connect(_on_fire_breached)
 
 
 func _get_ct_center() -> Vector2:
@@ -928,22 +934,41 @@ func _setup_upgrade_manager() -> void:
 		_gig_panel._upgrade_manager = _upgrade_manager
 		_gig_panel._simulation_manager = simulation_manager
 		_gig_panel._connection_manager = connection_manager
-	# Wire tier-up sound
+	# Wire tier-up sound and claimable notifications
 	_upgrade_manager.tier_changed.connect(_on_upgrade_tier_changed)
+	_upgrade_manager.tier_claimable.connect(_on_upgrade_claimable)
 
 
 func _on_upgrade_tier_changed(category: String, new_tier: int) -> void:
 	if _sound_manager:
 		_sound_manager.play_tier_up()
+	if camera.has_method("add_trauma"):
+		camera.add_trauma(0.15)
 	# Show upgrade hint on first tier-up
 	if new_tier == 2 and _tutorial_manager:
 		var hint_text: String = "[color=#44ccff]UPGRADE:[/color] %s Tier %d! Delivering data to CT upgrades your infrastructure." % [category.capitalize(), new_tier]
 		_tutorial_manager.show_hint(hint_text, 8.0, "upgrade_first_%s" % category)
 
 
+func _on_upgrade_claimable(category: String, tier: int) -> void:
+	## Toast notification when a new upgrade tier becomes available to claim
+	var cat_labels: Dictionary = {"routing": "ROUTING", "decryption": "DECRYPTION", "recovery": "RECOVERY", "bandwidth": "BANDWIDTH"}
+	var cat_colors: Dictionary = {"routing": Color(0.3, 1.0, 0.6), "decryption": Color(0.4, 0.7, 1.0), "recovery": Color(1.0, 0.7, 0.3), "bandwidth": Color(0.8, 0.4, 1.0)}
+	var label: String = cat_labels.get(category, category.to_upper())
+	var col: Color = cat_colors.get(category, Color.WHITE)
+	_show_gig_notification("%s TIER %d READY" % [label, tier], col)
+
+
 func _on_gig_completed_autosave(_gig) -> void:
 	if _save_manager:
 		_save_manager.autosave()
+
+
+func _on_fire_breached(source: Node2D) -> void:
+	## FIRE breach event — camera shake + sound feedback (dopamine moment)
+	camera.add_trauma(0.35)
+	if _sound_manager and _sound_manager.has_method("play_sfx"):
+		_sound_manager.play_sfx("fire_breach")
 
 
 func _toggle_dev_mode() -> void:

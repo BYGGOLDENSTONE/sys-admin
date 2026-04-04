@@ -122,20 +122,27 @@ func _play_slide_in() -> void:
 
 
 func _load_definitions() -> void:
-	var dir := DirAccess.open("res://resources/buildings/")
-	if dir == null:
-		push_error("[BuildingPanel] Cannot open buildings resource directory")
-		return
-
-	dir.list_dir_begin()
-	var file_name := dir.get_next()
-	while file_name != "":
-		if file_name.ends_with(".tres"):
-			var def := load("res://resources/buildings/" + file_name) as BuildingDefinition
-			if def != null:
-				_definitions.append(def)
-		file_name = dir.get_next()
-	dir.list_dir_end()
+	# Hardcoded list — DirAccess fails in web exports (PCK packed resources)
+	var building_paths: PackedStringArray = [
+		"res://resources/buildings/trash.tres",
+		"res://resources/buildings/splitter.tres",
+		"res://resources/buildings/merger.tres",
+		"res://resources/buildings/classifier.tres",
+		"res://resources/buildings/scanner.tres",
+		"res://resources/buildings/separator.tres",
+		"res://resources/buildings/encryptor.tres",
+		"res://resources/buildings/decryptor.tres",
+		"res://resources/buildings/recoverer.tres",
+		"res://resources/buildings/repair_lab.tres",
+		"res://resources/buildings/research_lab.tres",
+		"res://resources/buildings/contract_terminal.tres",
+		"res://resources/buildings/uplink.tres",
+		"res://resources/buildings/uplink_output.tres",
+	]
+	for path in building_paths:
+		var def := load(path) as BuildingDefinition
+		if def != null:
+			_definitions.append(def)
 	print("[BuildingPanel] Loaded %d building definitions" % _definitions.size())
 
 

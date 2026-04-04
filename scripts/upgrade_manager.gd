@@ -4,21 +4,23 @@ extends Node
 ## No separate currency; delivering data to CT naturally upgrades your infrastructure.
 
 signal tier_changed(category: String, new_tier: int)
+signal tier_claimable(category: String, tier: int)
 
 ## 4 upgrade categories
 const CATEGORIES: Array[String] = ["routing", "decryption", "recovery", "bandwidth"]
 
-## Tier table: cumulative MB required and multiplier per tier
+## Tier table: cumulative MB required and multiplier per tier.
+## Balanced for demo playtime (~1-2 hours to reach Tier 5).
 ## Tier 1 = base (no cost). Tier 2+ require cumulative data delivery.
 const TIER_TABLE: Array[Dictionary] = [
 	{"tier": 1, "cost": 0, "multiplier": 1.0},
-	{"tier": 2, "cost": 100, "multiplier": 3.0},
-	{"tier": 3, "cost": 500, "multiplier": 10.0},
-	{"tier": 4, "cost": 2000, "multiplier": 30.0},
-	{"tier": 5, "cost": 10000, "multiplier": 100.0},
-	{"tier": 6, "cost": 50000, "multiplier": 300.0},
-	{"tier": 7, "cost": 250000, "multiplier": 1000.0},
-	{"tier": 8, "cost": 1000000, "multiplier": 3000.0},
+	{"tier": 2, "cost": 40, "multiplier": 2.0},
+	{"tier": 3, "cost": 150, "multiplier": 5.0},
+	{"tier": 4, "cost": 500, "multiplier": 12.0},
+	{"tier": 5, "cost": 1500, "multiplier": 30.0},
+	{"tier": 6, "cost": 5000, "multiplier": 80.0},
+	{"tier": 7, "cost": 18000, "multiplier": 200.0},
+	{"tier": 8, "cost": 60000, "multiplier": 500.0},
 ]
 
 ## Per-category state: {cumulative_data: float, tier: int}
@@ -125,7 +127,12 @@ func claim_tier_up(category: String) -> bool:
 func _add_to_category(category: String, amount: float) -> void:
 	if not _state.has(category):
 		return
+	var was_claimable: bool = is_claimable(category)
 	_state[category].cumulative_data += amount
+	# Notify when tier becomes claimable (only fires once per tier)
+	if not was_claimable and is_claimable(category):
+		var next_tier: int = _state[category].tier + 1
+		tier_claimable.emit(category, next_tier)
 
 
 ## --- SAVE/LOAD ---
